@@ -1,4 +1,150 @@
-# TODO
+# Nuvio web — build plan
 
-- [x] Convert the nuvio md spec to a Type-safe TS interface for fetching https://nuvio.tv/docs/nuvio-public-api.md — see src/lib/nuvio/
-- [x] Auth pages under /auth (sign-in, sign-up) + httpOnly-cookie session, guards, shadcn-svelte
+The browser build of Nuvio: a full streaming client. Stremio-compatible addon
+layer for content (catalog / meta / stream / subtitles) + an in-browser player,
+with profiles, library, collections, watch progress and history synced through
+the Nuvio public API (`#lib/nuvio`, client methods in `src/lib/nuvio/client.ts`).
+
+Target: **desktop web only** (mouse + keyboard, large screen). Mobile and TV are
+covered by the existing Nuvio mobile app — not our problem. This is net-new:
+there is no Nuvio web today, and the desktop experience is what's lacking.
+
+The mobile app is the reference for behaviour the API doesn't pin down: the
+shapes of the settings / home-catalog / collections JSON blobs (server enforces
+no schema), the progress-key format, and the 90% / 60s completion rule.
+
+---
+
+## Architecture
+
+- **Two data sources.** (1) The Nuvio API — user data only: profiles, the addon
+  list, library, watch progress, history, settings, collections. (2) **Addons** —
+  the Stremio addon protocol, fetched client-side from each addon's manifest URL.
+  All actual content (posters, metadata, episodes, streams, subtitles) comes from
+  addons, not from Nuvio.
+- **Local store (IndexedDB).** Mirror of the synced library / progress / history
+  plus their delta cursors, so screens render instantly and reconcile in the
+  background. Also caches addon manifests and catalog/meta responses with a TTL.
+- **Sync engine.** Bootstrap = capture cursor → page the snapshot → apply deltas
+  since the cursor → persist the max `event_id` (per the spec's incremental-sync
+  section). Then delta pulls on an interval and on focus. Writes are optimistic:
+  mutate local → enqueue → push. Progress/history use non-destructive merge;
+  library uses incremental upsert/delete; addons/collections/profiles/settings
+  are full-replace (always send complete state).
+- **Current profile.** Every sync RPC needs `p_profile_id`. Track the active
+  profile server-side in a cookie; `hooks.server.ts` puts `locals.profileId`
+  alongside `locals.nuvio`. No profile selected → routes bounce to `/profiles`.
+- **Routing.** `(protected)` = signed in. Nest an app group inside it that also
+  requires a selected profile. `/profiles` and `/account` sit in `(protected)`
+  but outside the profile-gated group. `/support` is public.
+- **IDs.** `content_id` e.g. `tmdb:550`; `content_type` `movie` | `series`.
+  Episodes: `video_id` `tmdb:1396:1:1` + `season`/`episode`. The server computes
+  `progress_key`.
+
+---
+
+## Phase 0 — Foundation
+
+- [x] Typed Nuvio API client — `src/lib/nuvio/` (`types.ts` + `NuvioRpcMap`, `client.ts`)
+- [x] Auth: `/auth/sign-in`, `/auth/sign-up`, httpOnly-cookie session, route guards
+- [x] Spec drift check — `bun run nuvio:check`
+- [ ] Env config: read API base URL + publishable key from `$env` (explicitEnvironmentVariables is on); keep the hardcoded publishable key as the default
+- [ ] Root `+error.svelte` + `App.Error` shape; wire `handleRenderingErrors`
+- [ ] `mode-watcher` for light/dark; theme persisted to the profile settings blob later
+- [ ] Toast host (`sonner`) mounted in the app layout
+- [ ] Add shadcn-svelte components: `dropdown-menu`, `dialog`, `sheet`, `tabs`, `avatar`, `badge`, `skeleton`, `scroll-area`, `tooltip`, `select`, `slider`, `switch`, `toggle-group`, `sonner`, `progress`, `popover`, `command`
+
+## Phase 1 — Profiles & app shell
+
+- [ ] `profiles.remote.ts`: `listProfiles` (query), `selectProfile` (command, sets cookie), `saveProfiles` (form → `client.profiles.replace`, full-replace, `p_client_max_profiles: 6`), `deleteProfileData` (`client.profiles.deleteData`)
+- [ ] `locals.profileId` in `hooks.server.ts`; profile-gate load in the app route group
+- [ ] `/profiles` — Netflix-style picker: avatar grid, "add profile", "manage" mode (rename, avatar, color, delete). Show PIN-locked profiles as locked (read-only per spec — no PIN entry flow in the public API)
+- [ ] Avatar picker: `client.listAvatars()` catalog + custom `avatar_url` + `avatar_color_hex` fallback
+- [ ] App shell: top nav (Home / Discover / Library / Collections / Search), profile menu (switch profile, settings, account, sign out), global search entry
+- [ ] `PosterTile`, `ContentRow` (horizontal scroll + arrows), `HeroBanner`, `RatingBadge`, skeleton variants
+- [ ] Loading / empty / error states pattern for data screens
+
+## Phase 2 — Local store & sync engine
+
+- [ ] IndexedDB wrapper (schema: `library`, `watchProgress`, `watchHistory`, `cursors`, `writeQueue`, `addonCache`)
+- [ ] Library sync: bootstrap (`client.library.deltaCursor` → `client.library.pull` pages → `client.library.pullDelta`), then delta pulls; apply events by `event_id` asc, identity `(content_type, content_id)`
+- [ ] Watch progress sync: `client.watchProgress.deltaCursor` / `pull` / `pullDelta`; same event-cursor pattern
+- [ ] Watch history sync: `client.watchHistory.deltaCursor` / `pull` / `pullDelta`
+- [ ] Write queue: optimistic local mutation + enqueue + flush → `client.library.upsertItems` / `deleteItems`, `client.watchProgress.push`, `client.watchHistory.push`, with `p_origin_client_id` (stable per-install id) and 500-item batching
+- [ ] Reconcile / dedupe on delta arrival; last-write-wins
+- [ ] Sync scheduler: on profile load, on window focus, on interval, after writes
+- [ ] `$state`-based stores exposing `library`, `continueWatching` (from progress), `history` to components
+- [ ] Unit tests for the reconcile / cursor logic (Vitest)
+
+## Phase 3 — Addon subsystem
+
+- [ ] Manifest client: fetch `{url}` or `{url}/manifest.json`, validate shape (`id`, `types`, `resources`, `catalogs`, `idPrefixes`, `behaviorHints`)
+- [ ] Addon registry: merge enabled addons; resolve which addon serves a given resource+type+id (respect `idPrefixes`, `resources[].idPrefixes`)
+- [ ] Resource clients: `catalog` (with `skip` pagination + `genre`/`search` extra), `meta`, `stream`, `subtitles`; per-addon timeout + error isolation
+- [ ] Response cache with TTL in IndexedDB (`addonCache`)
+- [ ] Addons management UI `/addons`: installed list, add by URL with manifest preview, enable/disable, drag-reorder, remove → `client.addons.replace` (full-replace, `p_profile_id`), plus a `uses_primary_addons` toggle on non-primary profiles
+- [ ] Addon catalog discovery (`addon_catalog` resource) — browse an addon's advertised catalogs before adding
+- [ ] Handle CORS failures gracefully (some addons block browser origins) — document the limitation, surface a clear error
+
+## Phase 4 — Browsing
+
+- [ ] Home `/`: rows from `client.homeCatalog.pull` (order + hidden), plus "Continue watching" (progress store) and "My library" rows; hero from the first row
+- [ ] Home layout editor (in Settings): reorder rows, hide/show catalogs → `client.homeCatalog.replace`
+- [ ] Discover `/discover`: pick addon + catalog + type; genre filter; infinite scroll via `skip`; grid of `PosterTile`
+- [ ] Search `/search?q=`: fan out to all `search`-capable catalogs, merge + dedupe by `content_id`, grouped by type; `command`-palette quick search in the nav
+- [ ] Detail `/detail/{type}/{id}`: `meta` from the registry — synopsis, year, runtime, genres, cast, director, IMDb rating, trailer; poster + backdrop
+- [ ] Detail actions: Play, Add to / Remove from library (write queue), Mark watched, share link
+- [ ] Series: season selector + `EpisodeList` (thumb, title, aired date, runtime, watched tick from history, resume bar from progress)
+- [ ] `StreamList`: lazy-loaded `stream` results grouped by addon; show quality/size/source from `title`/`name`/`behaviorHints`; sort; remember last choice
+
+## Phase 5 — Library, collections, history
+
+- [ ] `/library`: grid, filter movie/series, sort (added / name / rating), remove; renders from the local store (library items carry name/poster/etc, no addon call needed)
+- [ ] `/collections`: list; create/rename/delete; `pinToTop`; per-collection `viewMode` (`TABBED_GRID` | `ROWS` | `FOLLOW_LAYOUT`)
+- [ ] `/collections/{id}`: folders (cover image / emoji, tile shape, hide-title), each folder pulls from its `catalogSources` (`addonId` + `type` + `catalogId`); "All" tab when `showAllTab`
+- [ ] Collection editor: add/reorder folders, attach catalog sources → `client.collections.replace` (full-replace JSON blob)
+- [ ] `/history`: reverse-chronological list from the history store; delete entries → `client.watchHistory.delete` (by `content_id`, or `+season/episode` for episodes)
+
+## Phase 6 — Playback
+
+- [ ] `VideoPlayer` component: `<video>` + `hls.js` for `.m3u8`; native for progressive mp4; detect + surface "unsupported container" for mkv/other
+- [ ] Player route/overlay `/watch/{type}/{id}[/{video}]`: chosen stream, poster as placeholder, custom controls (play/pause, seek bar with buffered ranges, volume, PiP, fullscreen, playback rate)
+- [ ] Resume: prompt from stored `position`; seek on load
+- [ ] Progress reporting → `client.watchProgress.push` throttled (~every 15s + on pause/seek/exit), min-delta guard; `last_watched` = now
+- [ ] Completion: at ≥90% with duration ≥60s the server also writes history (per spec); still push an explicit history entry on "mark watched"
+- [ ] Subtitles: fetch from `subtitles` resource or local file; SRT→VTT parse; overlay renderer with size / color / background / timing-offset controls; language menu
+- [ ] Next-episode autoplay (respect the `auto_play_next` setting); "up next" card
+- [ ] Keyboard shortcuts (space, ←/→, ↑/↓, f, m, c, n)
+- [ ] Track selection (audio/subtitle) when the container exposes multiple
+
+## Phase 7 — Settings
+
+- [ ] `/settings`: reads/writes the profile settings blob (`client.settings.pull` / `.replace`, `p_platform: "web"`) — theme, `auto_play_next`, default player quality, default subtitle language, subtitle appearance defaults
+- [ ] Home layout editor (from Phase 4) lives here
+- [ ] Addon shortcut into `/addons`
+- [ ] Settings blob schema owned by the app (server enforces none); version it
+
+## Phase 8 — Account, polish, hardening
+
+- [ ] `/account`: email, change password (if the API supports it — otherwise link out), sign out everywhere, delete profile data (`client.profiles.deleteData`)
+- [ ] Sync status widget: `client.getSyncOverview()` counts per profile + last-sync time + pending write-queue size
+- [ ] `/support` (public): Supporter Wall — `client.getSupporterWall()` Top / Recent tabs, pagination
+- [ ] Health indicator using `client.healthCheck()` / `client.healthPing()` for a status page or degraded-mode banner
+- [ ] Error / empty / offline states across every screen; retry affordances
+- [ ] Image handling: lazy-load, decode async; decide on a poster proxy route (CORS + resize + cache) vs raw `<img>`
+- [ ] Accessibility pass: focus management, ARIA on rows/tiles/player, reduced-motion
+- [ ] Perf: route-level code splitting, virtualized grids for large libraries, prefetch on hover
+- [ ] Tests: Vitest for sync engine + addon registry; Playwright smoke flow (sign in → pick profile → add addon → browse → open detail → play → progress persists)
+- [ ] Rate-limit safety: keep per-user request rate well under 100 req/s; batch via RPC
+
+---
+
+## Open decisions
+
+- **Playable containers.** Browsers can't play most mkv/torrent streams. Scope = direct http(s) mp4 + HLS. Decide whether to offer an "open in external player" handoff (e.g. `stremio://` / copy stream URL) for the rest.
+- **Poster proxy.** Build a `/img` proxy route (CORS, resize, cache) or rely on addon-provided URLs directly?
+- **Addon CORS.** Some addons don't send CORS headers for browser origins. Optional server-side addon proxy route to work around it — decide if that's in scope.
+- **Offline.** How far does the local store go — read-only browsing offline, or also queueing writes offline (already implied by the write queue)?
+- **Legacy library push.** Stay on incremental `upsertItems`/`deleteItems`; never call the legacy full-replace `client.library.replaceLegacy`.
+- **Trailer playback.** YouTube embed vs skip.
+- **Multi-tab.** BroadcastChannel to keep the local store / player state coherent across tabs?

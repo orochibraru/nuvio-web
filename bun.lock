@@ -11,7 +11,7 @@
         "@biomejs/biome": "^2.5.11",
         "@internationalized/date": "^3.12.3",
         "@lucide/svelte": "^1.37.0",
-        "@orochibraru/svelte-smol": "^1.5.2",
+        "@orochibraru/svelte-smol": "^1.6.0",
         "@sveltejs/kit": "next",
         "@sveltejs/vite-plugin-svelte": "^7.1.2",
         "@tailwindcss/forms": "^0.5.11",
@@ -74,7 +74,7 @@
 
     "@lucide/svelte": ["@lucide/svelte@1.37.0", "", { "peerDependencies": { "svelte": "^5" } }, "sha512-AxaiSxeuErlt4fNmmN28oaL5R7yVoQLsfSeiAONxCEK+l0/SrLAjRktQ0DkTQpomv1oRzOA3hohWY0ZHTZCMmw=="],
 
-    "@orochibraru/svelte-smol": ["@orochibraru/svelte-smol@1.5.2", "", { "peerDependencies": { "@sveltejs/kit": "^2.0.0" } }, "sha512-Dh2zn8BgsbbC7UNXXCPcfpC+dzDuXNZyJqemvG06dGLKyim/t3B+xjw+riVQmZX/oN3oScSKH5uhpb4ulnh6nw=="],
+    "@orochibraru/svelte-smol": ["@orochibraru/svelte-smol@1.6.0", "", { "peerDependencies": { "@sveltejs/kit": "^2.0.0" } }, "sha512-JEu+3BQzsFgCgZJGqYNMFW/hNh+91h632wmFBl76FjWxWhjT0AOspx01h6e7DClLwyv0mAvt17diVVZYwylXBA=="],
 
     "@oxc-project/types": ["@oxc-project/types@0.147.0", "", {}, "sha512-IJ3s6ltHLp45S0bh7phkX+gJO7A1Wuz2EaqpAhb8WjqDwbzMiWKHhyyT42tskaWjEYXtHtVCPpnBJVT9+dcRLg=="],
 
