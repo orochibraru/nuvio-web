@@ -1,5 +1,4 @@
-import type { Handle } from "@sveltejs/kit/hooks";
-import { NuvioApiError, NuvioClient } from "#lib/nuvio/index.js";
+import { NuvioApiError, NuvioClient } from "$lib/nuvio/index.js";
 import {
 	clearStoredSession,
 	createServerClient,
@@ -7,9 +6,30 @@ import {
 	readProfileId,
 	readStoredSession,
 	writeStoredSession,
-} from "#lib/server/session.js";
+} from "$lib/server/session.js";
 
-export const handle: Handle = async ({ event, resolve }) => {
+function makeErrorId(): string {
+	return crypto.randomUUID().replace(/-/g, "").slice(0, 24);
+}
+
+export function handleError({ event, error, status }) {
+	if (status === 404) {
+		return;
+	}
+	const errorId = makeErrorId();
+	console.error(
+		`Error on ${event.request.method} ${event.url.pathname} (errorId=${errorId})`,
+		error,
+	);
+
+	return {
+		errorId,
+		message:
+			error instanceof Error ? error.message : "An unknown error occurred.",
+	};
+}
+
+export const handle = async ({ event, resolve }) => {
 	let stored = readStoredSession(event.cookies);
 
 	if (stored && isExpired(stored)) {

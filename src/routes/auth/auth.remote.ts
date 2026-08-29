@@ -1,8 +1,8 @@
 import { invalid, redirect } from "@sveltejs/kit";
 import * as v from "valibot";
-import { NuvioApiError, NuvioClient } from "#lib/nuvio/index.js";
-import { clearStoredSession, writeStoredSession } from "#lib/server/session.js";
 import { form, getRequestEvent } from "$app/server";
+import { NuvioApiError, NuvioClient } from "$lib/nuvio/index.js";
+import { clearStoredSession, writeStoredSession } from "$lib/server/session.js";
 
 const email = v.pipe(
 	v.string(),

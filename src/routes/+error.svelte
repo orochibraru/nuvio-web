@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { Button } from "#lib/components/ui/button/index.js";
 	import { page } from "$app/state";
+	import { Button } from "$lib/components/ui/button/index.js";
 
 	const status = $derived(page.status);
 	const message = $derived(page.error?.message ?? "Something went wrong.");
