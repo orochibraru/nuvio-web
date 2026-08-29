@@ -1,16 +1,13 @@
-import { resolve } from "$app/paths"
-import { redirect } from "@sveltejs/kit"
+import { redirect } from "@sveltejs/kit";
+import type { LayoutServerLoad } from "./$types";
 
-export const load = () => {
-    const isSignedin = false
+export const load: LayoutServerLoad = ({ locals, url }) => {
+	if (!locals.session) {
+		redirect(
+			303,
+			`/auth/sign-in?redirectTo=${encodeURIComponent(url.pathname + url.search)}`,
+		);
+	}
 
-    if (!isSignedin) {
-        return redirect(307, resolve("/auth/sign-in"))
-    }
-
-    return {
-        user: {
-            name: "Test"
-        }
-    }
-}
+	return { user: locals.session.user };
+};

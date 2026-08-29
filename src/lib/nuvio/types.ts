@@ -10,13 +10,13 @@ export type EpochMilliseconds = number;
 /** Profile slot in the public client surface. */
 export type ProfileIndex = 1 | 2 | 3 | 4 | 5 | 6;
 
-export type ContentType = 'movie' | 'series';
+export type ContentType = "movie" | "series";
 
-export type PosterShape = 'POSTER' | 'LANDSCAPE' | 'SQUARE';
+export type PosterShape = "POSTER" | "LANDSCAPE" | "SQUARE";
 
-export type SyncOperation = 'upsert' | 'delete';
+export type SyncOperation = "upsert" | "delete";
 
-export type Platform = 'tv' | (string & {});
+export type Platform = "tv" | (string & {});
 
 /** Arbitrary application-defined JSON object with no server-enforced schema. */
 export type JsonObject = Record<string, unknown>;
@@ -31,7 +31,7 @@ export interface NuvioUser {
 
 export interface AuthSession {
 	access_token: string;
-	token_type: 'bearer';
+	token_type: "bearer";
 	expires_in: number;
 	refresh_token: string;
 	user: NuvioUser;
@@ -250,7 +250,7 @@ export interface HomeCatalogSettings {
 
 // Collections
 
-export type CollectionViewMode = 'TABBED_GRID' | 'ROWS' | 'FOLLOW_LAYOUT';
+export type CollectionViewMode = "TABBED_GRID" | "ROWS" | "FOLLOW_LAYOUT";
 
 export interface CatalogSource {
 	addonId: string;
@@ -299,7 +299,7 @@ export interface AvatarCatalogEntry {
 
 // Supporter wall
 
-export type MembershipLevel = 'SUPPORTER' | 'SUPPORTER_PLUS' | (string & {});
+export type MembershipLevel = "SUPPORTER" | "SUPPORTER_PLUS" | (string & {});
 
 export interface SupporterMember {
 	displayName: string;
@@ -341,7 +341,7 @@ export interface SyncOverview {
 
 // Health
 
-export type HealthStatus = 'healthy' | 'slow' | 'degraded' | 'down';
+export type HealthStatus = "healthy" | "slow" | "degraded" | "down";
 
 export interface HealthCheck {
 	status: HealthStatus;
@@ -494,35 +494,68 @@ export interface NuvioRpcMap {
 	sync_delete_profile_data: { params: DeleteProfileDataParams; result: void };
 	sync_push_addons: { params: PushAddonsParams; result: void };
 	sync_pull_library: { params: PullLibraryParams; result: LibraryItem[] };
-	sync_get_library_delta_cursor: { params: ProfileScopedParams; result: number };
-	sync_pull_library_delta: { params: PullLibraryDeltaParams; result: LibraryDeltaEvent[] };
+	sync_get_library_delta_cursor: {
+		params: ProfileScopedParams;
+		result: number;
+	};
+	sync_pull_library_delta: {
+		params: PullLibraryDeltaParams;
+		result: LibraryDeltaEvent[];
+	};
 	sync_push_library_items: { params: PushLibraryItemsParams; result: void };
 	sync_delete_library_items: { params: DeleteLibraryItemsParams; result: void };
 	sync_push_library: { params: PushLibraryParams; result: void };
-	sync_pull_watch_progress: { params: PullWatchProgressParams; result: WatchProgress[] };
+	sync_pull_watch_progress: {
+		params: PullWatchProgressParams;
+		result: WatchProgress[];
+	};
 	sync_pull_watch_progress_delta: {
 		params: PullWatchProgressDeltaParams;
 		result: WatchProgressDeltaEvent[];
 	};
-	sync_get_watch_progress_delta_cursor: { params: ProfileScopedParams; result: number };
+	sync_get_watch_progress_delta_cursor: {
+		params: ProfileScopedParams;
+		result: number;
+	};
 	sync_push_watch_progress: { params: PushWatchProgressParams; result: void };
-	sync_delete_watch_progress: { params: DeleteWatchProgressParams; result: void };
-	sync_pull_watched_items: { params: PullWatchedItemsParams; result: WatchedItem[] };
+	sync_delete_watch_progress: {
+		params: DeleteWatchProgressParams;
+		result: void;
+	};
+	sync_pull_watched_items: {
+		params: PullWatchedItemsParams;
+		result: WatchedItem[];
+	};
 	sync_pull_watched_items_delta: {
 		params: PullWatchedItemsDeltaParams;
 		result: WatchedItemDeltaEvent[];
 	};
-	sync_get_watched_items_delta_cursor: { params: ProfileScopedParams; result: number };
+	sync_get_watched_items_delta_cursor: {
+		params: ProfileScopedParams;
+		result: number;
+	};
 	sync_push_watched_items: { params: PushWatchedItemsParams; result: void };
 	sync_delete_watched_items: { params: DeleteWatchedItemsParams; result: void };
-	sync_pull_profile_settings_blob: { params: PullSettingsBlobParams; result: ProfileSettingsBlob[] };
-	sync_push_profile_settings_blob: { params: PushSettingsBlobParams; result: void };
+	sync_pull_profile_settings_blob: {
+		params: PullSettingsBlobParams;
+		result: ProfileSettingsBlob[];
+	};
+	sync_push_profile_settings_blob: {
+		params: PushSettingsBlobParams;
+		result: void;
+	};
 	sync_pull_home_catalog_settings: {
 		params: PullHomeCatalogSettingsParams;
 		result: HomeCatalogSettings[];
 	};
-	sync_push_home_catalog_settings: { params: PushHomeCatalogSettingsParams; result: void };
-	sync_pull_collections: { params: PullCollectionsParams; result: CollectionsBlob[] };
+	sync_push_home_catalog_settings: {
+		params: PushHomeCatalogSettingsParams;
+		result: void;
+	};
+	sync_pull_collections: {
+		params: PullCollectionsParams;
+		result: CollectionsBlob[];
+	};
 	sync_push_collections: { params: PushCollectionsParams; result: void };
 	get_avatar_catalog: { params: EmptyParams; result: AvatarCatalogEntry[] };
 	get_sync_overview: { params: EmptyParams; result: SyncOverview };
@@ -530,8 +563,8 @@ export interface NuvioRpcMap {
 }
 
 export type RpcName = keyof NuvioRpcMap;
-export type RpcParams<Name extends RpcName> = NuvioRpcMap[Name]['params'];
-export type RpcResult<Name extends RpcName> = NuvioRpcMap[Name]['result'];
+export type RpcParams<Name extends RpcName> = NuvioRpcMap[Name]["params"];
+export type RpcResult<Name extends RpcName> = NuvioRpcMap[Name]["result"];
 
 /** RPC functions that are callable without an access token. */
-export type UnauthenticatedRpcName = 'get_avatar_catalog' | 'health_ping';
+export type UnauthenticatedRpcName = "get_avatar_catalog" | "health_ping";

@@ -1,13 +1,16 @@
-// See https://svelte.dev/docs/kit/types#app.d.ts
-// for information about these interfaces
+import type { NuvioClient, NuvioUser } from "#lib/nuvio/index.js";
+
 declare global {
 	namespace App {
-		// interface Error {}
-		// interface Locals {}
-		// interface PageData {}
-		// interface PageState {}
-		// interface Platform {}
+		interface Error {
+			code?: string;
+		}
+		interface Locals {
+			nuvio: NuvioClient;
+			session: { user: NuvioUser } | null;
+		}
+		interface PageData {
+			user?: NuvioUser | null;
+		}
 	}
 }
-
-export {};
