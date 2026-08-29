@@ -40,6 +40,10 @@ no schema), the progress-key format, and the 90% / 60s completion rule.
 - **IDs.** `content_id` e.g. `tmdb:550`; `content_type` `movie` | `series`.
   Episodes: `video_id` `tmdb:1396:1:1` + `season`/`episode`. The server computes
   `progress_key`.
+- **Zero config.** No env vars. The app ships pointed at the hosted Nuvio API
+  (the publishable key is public and lives in `client.ts`). The one allowed
+  override is `NUVIO_API_URL` for the handful of self-hosters — read once in
+  `hooks.server.ts`, nowhere else.
 
 ---
 
@@ -48,7 +52,7 @@ no schema), the progress-key format, and the 90% / 60s completion rule.
 - [x] Typed Nuvio API client — `src/lib/nuvio/` (`types.ts` + `NuvioRpcMap`, `client.ts`)
 - [x] Auth: `/auth/sign-in`, `/auth/sign-up`, httpOnly-cookie session, route guards
 - [x] Spec drift check — `bun run nuvio:check`
-- [ ] Env config: read API base URL + publishable key from `$env` (explicitEnvironmentVariables is on); keep the hardcoded publishable key as the default
+- [ ] (low priority) Single optional `NUVIO_API_URL` override for self-hosters — passed to `NuvioClient` in `hooks.server.ts` when set, default otherwise. No other env vars anywhere; the app runs against the hosted API with zero config.
 - [ ] Root `+error.svelte` + `App.Error` shape; wire `handleRenderingErrors`
 - [ ] `mode-watcher` for light/dark; theme persisted to the profile settings blob later
 - [ ] Toast host (`sonner`) mounted in the app layout
