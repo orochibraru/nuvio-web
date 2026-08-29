@@ -166,6 +166,7 @@ uses server data — no accent/amoled flash).
 - [ ] Perf: route-level code splitting, virtualized grids for large libraries, prefetch on hover
 - [~] Tests: **Playwright smoke suite in `e2e/`** (`bun run test:e2e`, own dev server on :4173, real API via `NUVIO_TEST_*` in `.env`) — every route renders + client-nav + detail library toggle, all asserting no runtime errors. Still to add: Vitest for sync engine + addon registry, and playback once Phase 6 lands. **Run `bun run test:e2e` after any UI change** (also in CLAUDE.md)
 - [ ] Rate-limit safety: keep per-user request rate well under 100 req/s; batch via RPC
+- [ ] Add a screen under desktop sizes with a link to tell users to use the mobile app instead.
 
 ---
 

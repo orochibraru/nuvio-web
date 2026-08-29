@@ -175,12 +175,76 @@
 	scrollbar-width: thin;
 }
 
+@utility no-scrollbar {
+	scrollbar-width: none;
+	&::-webkit-scrollbar {
+		display: none;
+	}
+}
+
+/* Cinematic slow push-in for hero backdrops. */
+@utility animate-hero-zoom {
+	animation: nuvio-hero-zoom 24s ease-out forwards;
+	@media (prefers-reduced-motion: reduce) {
+		animation: none;
+	}
+}
+
+@keyframes nuvio-hero-zoom {
+	from {
+		transform: scale(1.09);
+	}
+	to {
+		transform: scale(1);
+	}
+}
+
+/* Shimmering loading placeholder — replaces bare animate-pulse. */
+@utility skeleton {
+	position: relative;
+	overflow: hidden;
+	background-color: var(--muted);
+	&::after {
+		content: "";
+		position: absolute;
+		inset: 0;
+		transform: translateX(-100%);
+		background: linear-gradient(
+			90deg,
+			transparent,
+			color-mix(in oklch, var(--foreground) 9%, transparent),
+			transparent
+		);
+		animation: nuvio-shimmer 1.5s infinite;
+	}
+	@media (prefers-reduced-motion: reduce) {
+		&::after {
+			animation: none;
+		}
+	}
+}
+
+@keyframes nuvio-shimmer {
+	100% {
+		transform: translateX(100%);
+	}
+}
+
 @layer base {
 	* {
 		@apply border-border outline-ring/50;
 	}
+	html {
+		scroll-behavior: smooth;
+	}
 	body {
 		@apply bg-background text-foreground;
+		-webkit-font-smoothing: antialiased;
+		text-rendering: optimizelegibility;
+	}
+
+	::selection {
+		background-color: color-mix(in oklch, var(--primary) 40%, transparent);
 	}
 
 	button,

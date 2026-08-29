@@ -19,8 +19,13 @@
 	const nameIssue = $derived(createProfile.fields.name.issues()?.[0]?.message);
 </script>
 
-<div class="flex min-h-svh flex-col items-center justify-center gap-10 p-8">
-	<h1 class="text-2xl font-medium tracking-tight">Who's watching?</h1>
+<div class="relative flex min-h-svh flex-col items-center justify-center gap-12 p-8">
+	<div
+		class="pointer-events-none absolute inset-x-0 top-0 hidden h-[60vh] dark:block"
+		style="background: radial-gradient(60% 50% at 50% 0%, color-mix(in oklch, var(--primary) 12%, transparent), transparent 70%)"
+	></div>
+
+	<h1 class="text-3xl font-bold tracking-tight sm:text-4xl">Who's watching?</h1>
 
 	<div class="flex flex-wrap items-start justify-center gap-6">
 		{#each data.profiles ?? [] as profile (profile.id)}
@@ -33,16 +38,16 @@
 					type="submit"
 					disabled={pick.pending > 0}
 					class={cn(
-						"group flex w-28 flex-col items-center gap-3 rounded-xl p-2 outline-none",
+						"group flex w-28 flex-col items-center gap-3 rounded-2xl p-2 outline-none",
 						"focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50",
 					)}
 				>
 					<div
-						class="size-24 overflow-hidden rounded-lg ring-offset-2 ring-offset-background transition group-hover:ring-2 group-hover:ring-ring group-focus-visible:ring-2 group-focus-visible:ring-ring"
+						class="size-24 overflow-hidden rounded-2xl ring-1 ring-white/10 ring-offset-2 ring-offset-background transition-all duration-200 group-hover:scale-105 group-hover:ring-2 group-hover:ring-primary group-focus-visible:ring-2 group-focus-visible:ring-ring"
 					>
 						<ProfileAvatar {profile} />
 					</div>
-					<span class="max-w-full truncate text-sm text-muted-foreground group-hover:text-foreground">
+					<span class="max-w-full truncate text-sm font-medium text-muted-foreground transition-colors group-hover:text-foreground">
 						{profile.name}
 					</span>
 				</button>
@@ -53,14 +58,14 @@
 			<button
 				type="button"
 				onclick={() => (dialogOpen = true)}
-				class="flex w-28 flex-col items-center gap-3 rounded-xl p-2 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+				class="group flex w-28 flex-col items-center gap-3 rounded-2xl p-2 outline-none focus-visible:ring-2 focus-visible:ring-ring"
 			>
 				<div
-					class="flex size-24 items-center justify-center rounded-lg border border-dashed border-border text-muted-foreground transition hover:border-foreground hover:text-foreground"
+					class="flex size-24 items-center justify-center rounded-2xl border border-dashed border-border text-muted-foreground transition-all duration-200 group-hover:scale-105 group-hover:border-foreground group-hover:text-foreground"
 				>
 					<PlusIcon class="size-8" />
 				</div>
-				<span class="text-sm text-muted-foreground">Add profile</span>
+				<span class="text-sm font-medium text-muted-foreground transition-colors group-hover:text-foreground">Add profile</span>
 			</button>
 		{/if}
 	</div>

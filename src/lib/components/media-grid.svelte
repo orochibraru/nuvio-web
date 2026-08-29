@@ -14,16 +14,17 @@
 </script>
 
 <div
-	class="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
+	class="grid grid-cols-2 gap-x-4 gap-y-7 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
 >
 	{#each items as item (`${item.type}:${item.id}`)}
 		<MediaPoster {item} />
 	{/each}
 	{#if loading}
 		{#each { length: skeletonCount } as _skeleton, index (index)}
-			<div class="flex flex-col gap-2">
-				<div class="aspect-2/3 animate-pulse rounded-lg bg-muted"></div>
-				<div class="h-4 w-3/4 animate-pulse rounded bg-muted"></div>
+			<div class="flex flex-col gap-2.5">
+				<div class="skeleton aspect-2/3 rounded-xl"></div>
+				<div class="skeleton h-3.5 w-3/4 rounded"></div>
+				<div class="skeleton h-3 w-2/5 rounded"></div>
 			</div>
 		{/each}
 	{/if}

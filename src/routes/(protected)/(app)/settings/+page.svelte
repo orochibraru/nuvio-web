@@ -44,26 +44,26 @@
 </script>
 
 <div class="flex max-w-2xl flex-col gap-6">
-	<h1 class="text-2xl font-semibold tracking-tight">Settings</h1>
+	<h1 class="text-3xl font-bold tracking-tight">Settings</h1>
 
 	<Card.Root>
 		<Card.Header>
 			<Card.Title>Appearance</Card.Title>
 			<Card.Description>Stored on your Nuvio account, per profile.</Card.Description>
 		</Card.Header>
-		<Card.Content class="flex flex-col gap-6">
-			<div class="flex flex-col gap-2">
+		<Card.Content class="flex flex-col gap-7">
+			<div class="flex flex-col gap-2.5">
 				<span class="text-sm font-medium">Mode</span>
-				<div class="flex gap-2">
+				<div class="flex w-fit gap-1 rounded-full bg-foreground/5 p-1">
 					{#each modes as option (option.value)}
 						<button
 							type="button"
 							onclick={() => update({ mode: option.value })}
 							class={cn(
-								"rounded-md border px-3 py-1.5 text-sm transition",
+								"rounded-full px-4 py-1.5 text-sm font-medium transition",
 								theme.current.mode === option.value
-									? "border-foreground bg-foreground text-background"
-									: "border-border text-muted-foreground hover:text-foreground",
+									? "bg-background text-foreground shadow-sm"
+									: "text-muted-foreground hover:text-foreground",
 							)}
 						>
 							{option.label}
@@ -72,21 +72,21 @@
 				</div>
 			</div>
 
-			<div class="flex flex-col gap-2">
+			<div class="flex flex-col gap-2.5">
 				<span class="text-sm font-medium">Dark style</span>
-				<div class="flex gap-2">
+				<div class="grid grid-cols-2 gap-2 sm:max-w-xs">
 					{#each darkStyles as option (option.value)}
 						<button
 							type="button"
 							onclick={() => update({ darkStyle: option.value })}
 							class={cn(
-								"flex flex-col items-start rounded-md border px-3 py-2 text-sm transition",
+								"flex flex-col items-start gap-0.5 rounded-xl border px-3.5 py-2.5 text-sm transition",
 								theme.current.darkStyle === option.value
-									? "border-foreground"
-									: "border-border hover:border-foreground/40",
+									? "border-primary/50 bg-primary/5"
+									: "border-border/60 hover:border-border",
 							)}
 						>
-							<span class="font-medium">{option.label}</span>
+							<span class="font-semibold">{option.label}</span>
 							<span class="text-xs text-muted-foreground">{option.hint}</span>
 						</button>
 					{/each}
@@ -94,22 +94,22 @@
 				<p class="text-xs text-muted-foreground">Applies when the effective mode is dark.</p>
 			</div>
 
-			<div class="flex flex-col gap-2">
+			<div class="flex flex-col gap-2.5">
 				<span class="text-sm font-medium">Accent colour</span>
-				<div class="flex flex-wrap gap-2">
+				<div class="flex flex-wrap gap-2.5">
 					{#each accents as option (option.value)}
 						<button
 							type="button"
 							aria-label={option.value}
 							onclick={() => update({ accent: option.value })}
 							class={cn(
-								"flex size-9 items-center justify-center rounded-full ring-offset-2 ring-offset-background transition",
-								theme.current.accent === option.value && "ring-2 ring-ring",
+								"flex size-10 items-center justify-center rounded-full ring-2 ring-transparent ring-offset-2 ring-offset-background transition",
+								theme.current.accent === option.value && "ring-ring",
 							)}
 							style={`background-color: ${option.swatch}`}
 						>
 							{#if theme.current.accent === option.value}
-								<CheckIcon class="size-4 text-white" />
+								<CheckIcon class="size-4 text-white drop-shadow" />
 							{/if}
 						</button>
 					{/each}

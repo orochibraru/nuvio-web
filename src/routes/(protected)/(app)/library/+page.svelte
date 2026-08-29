@@ -1,5 +1,7 @@
 <script lang="ts">
+	import BookmarkIcon from "@lucide/svelte/icons/bookmark";
 	import XIcon from "@lucide/svelte/icons/x";
+	import EmptyState from "$lib/components/empty-state.svelte";
 	import MediaPoster from "$lib/components/media-poster.svelte";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { toggleLibrary } from "$lib/library/library.remote";
@@ -46,18 +48,23 @@
 </script>
 
 <div class="flex flex-col gap-6">
-	<div class="flex flex-wrap items-center justify-between gap-3">
-		<h1 class="text-2xl font-semibold tracking-tight">Library</h1>
-		<div class="flex items-center gap-3">
-			<div class="flex gap-1">
+	<div class="flex flex-wrap items-end justify-between gap-3">
+		<div class="flex flex-col gap-1">
+			<h1 class="text-3xl font-bold tracking-tight">Library</h1>
+			<p class="text-sm text-muted-foreground">
+				{data.items.length} title{data.items.length === 1 ? "" : "s"} saved
+			</p>
+		</div>
+		<div class="flex items-center gap-2">
+			<div class="flex gap-1 rounded-full bg-foreground/5 p-1">
 				{#each filters as option (option.value)}
 					<button
 						type="button"
 						onclick={() => (filter = option.value)}
 						class={cn(
-							"rounded-md px-2.5 py-1 text-sm transition",
+							"rounded-full px-3 py-1 text-sm font-medium transition",
 							filter === option.value
-								? "bg-secondary text-secondary-foreground"
+								? "bg-background text-foreground shadow-sm"
 								: "text-muted-foreground hover:text-foreground",
 						)}
 					>
@@ -68,21 +75,23 @@
 			<button
 				type="button"
 				onclick={() => (sort = sort === "added" ? "name" : "added")}
-				class="text-sm text-muted-foreground hover:text-foreground"
+				class="rounded-full bg-foreground/5 px-3 py-1.5 text-sm font-medium text-muted-foreground transition hover:text-foreground"
 			>
-				Sort: {sort === "added" ? "Recently added" : "Name"}
+				{sort === "added" ? "Recently added" : "A–Z"}
 			</button>
 		</div>
 	</div>
 
 	{#if shown.length === 0}
-		<div class="rounded-lg border border-border p-8 text-center">
-			<p class="font-medium">Your library is empty</p>
-			<p class="mt-1 text-sm text-muted-foreground">
-				Add titles from a detail page and they show up here.
-			</p>
-			<Button href="/discover" variant="outline" class="mt-4">Browse</Button>
-		</div>
+		<EmptyState
+			icon={BookmarkIcon}
+			title="Your library is empty"
+			description="Add movies and series from any detail page and they'll show up here."
+		>
+			{#snippet actions()}
+				<Button href="/discover" variant="outline">Browse catalogs</Button>
+			{/snippet}
+		</EmptyState>
 	{:else}
 		<div
 			class="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"

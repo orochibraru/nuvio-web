@@ -1,10 +1,12 @@
 <script lang="ts">
 	import ArrowLeftIcon from "@lucide/svelte/icons/arrow-left";
+	import FolderPlusIcon from "@lucide/svelte/icons/folder-plus";
 	import PlusIcon from "@lucide/svelte/icons/plus";
 	import Trash2Icon from "@lucide/svelte/icons/trash-2";
 	import { toast } from "svelte-sonner";
 	import { goto, invalidateAll } from "$app/navigation";
 	import { saveCollections } from "$lib/collections/collections.remote";
+	import EmptyState from "$lib/components/empty-state.svelte";
 	import MediaGrid from "$lib/components/media-grid.svelte";
 	import MediaRow from "$lib/components/media-row.svelte";
 	import { Button } from "$lib/components/ui/button/index.js";
@@ -79,23 +81,27 @@
 	}
 </script>
 
-<Button variant="ghost" size="sm" onclick={() => goto("/collections")} class="mb-4 -ml-2">
-	<ArrowLeftIcon data-icon="inline-start" /> Collections
-</Button>
+<button
+	type="button"
+	onclick={() => goto("/collections")}
+	class="mb-4 flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition hover:text-foreground"
+>
+	<ArrowLeftIcon class="size-4" /> Collections
+</button>
 
 <div class="flex flex-col gap-6">
 	<div class="flex flex-wrap items-center justify-between gap-3">
-		<h1 class="text-2xl font-semibold tracking-tight">{contents.title}</h1>
+		<h1 class="text-3xl font-bold tracking-tight">{contents.title}</h1>
 		<div class="flex items-center gap-2">
-			<div class="flex gap-1 text-sm">
+			<div class="flex gap-1 rounded-full bg-foreground/5 p-1 text-sm">
 				{#each ["TABBED_GRID", "ROWS"] as const as mode (mode)}
 					<button
 						type="button"
 						onclick={() => setViewMode(mode)}
 						class={cn(
-							"rounded-md px-2.5 py-1 transition",
+							"rounded-full px-3 py-1 font-medium transition",
 							viewMode === mode
-								? "bg-secondary text-secondary-foreground"
+								? "bg-background text-foreground shadow-sm"
 								: "text-muted-foreground hover:text-foreground",
 						)}
 					>
@@ -110,39 +116,44 @@
 	</div>
 
 	{#if contents.folders.length === 0}
-		<div class="rounded-lg border border-border p-8 text-center">
-			<p class="font-medium">No folders</p>
-			<p class="mt-1 text-sm text-muted-foreground">Add a folder and attach catalogs to it.</p>
-		</div>
+		<EmptyState
+			icon={FolderPlusIcon}
+			title="No folders yet"
+			description="Add a folder and attach one or more catalogs to fill it."
+		>
+			{#snippet actions()}
+				<Button variant="outline" onclick={() => (addOpen = true)}>
+					<PlusIcon data-icon="inline-start" /> Add folder
+				</Button>
+			{/snippet}
+		</EmptyState>
 	{:else if viewMode === "ROWS"}
-		<div class="flex flex-col gap-8">
+		<div class="flex flex-col gap-10">
 			{#each contents.folders as folder (folder.id)}
-				<div class="flex flex-col gap-2">
-					<div class="flex items-center justify-between">
-						<MediaRow title={`${folder.coverEmoji ?? ""} ${folder.title}`.trim()} items={folder.metas} />
-						<button
-							type="button"
-							aria-label="Remove folder"
-							onclick={() => removeFolder(folder.id)}
-							class="shrink-0 rounded-md p-1.5 text-muted-foreground hover:text-destructive"
-						>
-							<Trash2Icon class="size-4" />
-						</button>
-					</div>
+				<div class="group/folder relative">
+					<MediaRow title={`${folder.coverEmoji ?? ""} ${folder.title}`.trim()} items={folder.metas} />
+					<button
+						type="button"
+						aria-label="Remove folder"
+						onclick={() => removeFolder(folder.id)}
+						class="absolute top-0 right-0 rounded-md p-1.5 text-muted-foreground opacity-0 transition group-hover/folder:opacity-100 hover:bg-destructive/10 hover:text-destructive"
+					>
+						<Trash2Icon class="size-4" />
+					</button>
 				</div>
 			{/each}
 		</div>
 	{:else}
-		<div class="flex flex-wrap items-center gap-2 border-b border-border pb-2">
+		<div class="no-scrollbar flex items-center gap-1.5 overflow-x-auto border-b border-border pb-2">
 			{#each contents.folders as folder, index (folder.id)}
 				<button
 					type="button"
 					onclick={() => (activeTab = index)}
 					class={cn(
-						"rounded-md px-3 py-1.5 text-sm transition",
+						"shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium whitespace-nowrap transition",
 						activeTab === index
-							? "bg-secondary text-secondary-foreground"
-							: "text-muted-foreground hover:text-foreground",
+							? "bg-primary text-primary-foreground"
+							: "bg-foreground/5 text-muted-foreground hover:text-foreground",
 					)}
 				>
 					{`${folder.coverEmoji ?? ""} ${folder.title}`.trim()}
@@ -152,7 +163,7 @@
 				type="button"
 				aria-label="Remove folder"
 				onclick={() => removeFolder(contents.folders[activeTab]?.id ?? "")}
-				class="ml-auto rounded-md p-1.5 text-muted-foreground hover:text-destructive"
+				class="ml-auto shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
 			>
 				<Trash2Icon class="size-4" />
 			</button>

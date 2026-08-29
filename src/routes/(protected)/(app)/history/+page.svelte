@@ -1,5 +1,9 @@
 <script lang="ts">
+	import ClockIcon from "@lucide/svelte/icons/clock";
+	import FilmIcon from "@lucide/svelte/icons/film";
 	import Trash2Icon from "@lucide/svelte/icons/trash-2";
+	import TvIcon from "@lucide/svelte/icons/tv";
+	import EmptyState from "$lib/components/empty-state.svelte";
 	import { deleteHistory } from "$lib/history/history.remote";
 
 	let { data } = $props();
@@ -67,27 +71,41 @@
 	}
 </script>
 
-<div class="flex flex-col gap-6">
-	<h1 class="text-2xl font-semibold tracking-tight">Watch history</h1>
+<div class="mx-auto flex max-w-3xl flex-col gap-6">
+	<h1 class="text-3xl font-bold tracking-tight">Watch history</h1>
 
 	{#if groups.length === 0}
-		<div class="rounded-lg border border-border p-8 text-center">
-			<p class="font-medium">Nothing watched yet</p>
-			<p class="mt-1 text-sm text-muted-foreground">
-				Titles you finish show up here.
-			</p>
-		</div>
+		<EmptyState
+			icon={ClockIcon}
+			title="Nothing watched yet"
+			description="Titles you finish will be listed here, newest first."
+		/>
 	{:else}
 		{#each groups as [label, items] (label)}
 			<section class="flex flex-col gap-2">
-				<h2 class="text-sm font-medium text-muted-foreground">{label}</h2>
-				<div class="flex flex-col divide-y divide-border rounded-lg border border-border">
-					{#each items as item (item.id)}
-						<div class="flex items-center gap-3 p-3">
+				<h2 class="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+					{label}
+				</h2>
+				<div class="overflow-hidden rounded-xl border border-border/60">
+					{#each items as item, index (item.id)}
+						<div
+							class="group/row flex items-center gap-3 bg-card/40 p-3 transition-colors hover:bg-card"
+							class:border-t={index > 0}
+							class:border-border={index > 0}
+						>
+							<span
+								class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-foreground/5 text-muted-foreground"
+							>
+								{#if item.type === "series"}
+									<TvIcon class="size-4" />
+								{:else}
+									<FilmIcon class="size-4" />
+								{/if}
+							</span>
 							<div class="min-w-0 flex-1">
 								<a
 									href={`/detail/${item.type}/${encodeURIComponent(item.contentId)}`}
-									class="truncate text-sm font-medium hover:underline"
+									class="truncate text-sm font-medium transition-colors hover:text-primary"
 								>
 									{item.title}{episodeTag(item.season, item.episode)}
 								</a>
@@ -100,9 +118,9 @@
 							</div>
 							<button
 								type="button"
-								aria-label="Remove"
+								aria-label="Remove from history"
 								onclick={() => remove(item)}
-								class="shrink-0 rounded-md p-1.5 text-muted-foreground transition hover:bg-muted hover:text-foreground"
+								class="shrink-0 rounded-md p-1.5 text-muted-foreground opacity-0 transition group-hover/row:opacity-100 hover:bg-destructive/10 hover:text-destructive"
 							>
 								<Trash2Icon class="size-4" />
 							</button>

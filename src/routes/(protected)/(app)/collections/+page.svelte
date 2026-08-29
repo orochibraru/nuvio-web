@@ -1,9 +1,13 @@
 <script lang="ts">
+	import FolderIcon from "@lucide/svelte/icons/folder";
+	import LayersIcon from "@lucide/svelte/icons/layers";
+	import MoreVerticalIcon from "@lucide/svelte/icons/more-vertical";
 	import PinIcon from "@lucide/svelte/icons/pin";
 	import PlusIcon from "@lucide/svelte/icons/plus";
 	import { toast } from "svelte-sonner";
 	import { invalidateAll } from "$app/navigation";
 	import { saveCollections } from "$lib/collections/collections.remote";
+	import EmptyState from "$lib/components/empty-state.svelte";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import * as Dialog from "$lib/components/ui/dialog/index.js";
 	import * as DropdownMenu from "$lib/components/ui/dropdown-menu/index.js";
@@ -80,35 +84,48 @@
 </script>
 
 <div class="flex flex-col gap-6">
-	<div class="flex items-center justify-between">
-		<h1 class="text-2xl font-semibold tracking-tight">Collections</h1>
+	<div class="flex flex-wrap items-end justify-between gap-3">
+		<div class="flex flex-col gap-1">
+			<h1 class="text-3xl font-bold tracking-tight">Collections</h1>
+			<p class="text-sm text-muted-foreground">Group catalogs into folders for a custom layout.</p>
+		</div>
 		<Button onclick={() => (dialogOpen = true)}>
 			<PlusIcon data-icon="inline-start" /> New collection
 		</Button>
 	</div>
 
 	{#if sorted.length === 0}
-		<div class="rounded-lg border border-border p-8 text-center">
-			<p class="font-medium">No collections yet</p>
-			<p class="mt-1 text-sm text-muted-foreground">
-				Group catalogs into folders for a custom home layout.
-			</p>
-		</div>
+		<EmptyState
+			icon={LayersIcon}
+			title="No collections yet"
+			description="Bundle catalogs from your addons into folders and browse them your way."
+		>
+			{#snippet actions()}
+				<Button onclick={() => (dialogOpen = true)}>
+					<PlusIcon data-icon="inline-start" /> New collection
+				</Button>
+			{/snippet}
+		</EmptyState>
 	{:else}
 		<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
 			{#each sorted as collection (collection.id)}
 				<div
 					class={cn(
-						"flex items-center gap-3 rounded-lg border border-border p-4 transition hover:border-foreground/30",
+						"group/col flex items-center gap-3 rounded-xl border border-border/60 bg-card/40 p-4 transition-all hover:border-primary/40 hover:bg-card",
 						saving && "opacity-60",
 					)}
 				>
+					<span
+						class="flex size-11 shrink-0 items-center justify-center rounded-xl bg-foreground/5 text-muted-foreground transition-colors group-hover/col:text-primary"
+					>
+						<FolderIcon class="size-5" />
+					</span>
 					<a href={`/collections/${collection.id}`} class="min-w-0 flex-1">
 						<div class="flex items-center gap-1.5">
 							{#if collection.pinToTop}
-								<PinIcon class="size-3.5 text-muted-foreground" />
+								<PinIcon class="size-3.5 shrink-0 text-primary" />
 							{/if}
-							<span class="truncate font-medium">{collection.title}</span>
+							<span class="truncate font-semibold">{collection.title}</span>
 						</div>
 						<p class="text-xs text-muted-foreground">
 							{collection.folders.length} folder{collection.folders.length === 1 ? "" : "s"}
@@ -116,9 +133,10 @@
 					</a>
 					<DropdownMenu.Root>
 						<DropdownMenu.Trigger
-							class="rounded-md px-1.5 text-muted-foreground hover:text-foreground"
+							aria-label="Collection actions"
+							class="rounded-md p-1 text-muted-foreground transition hover:bg-foreground/5 hover:text-foreground"
 						>
-							&#8942;
+							<MoreVerticalIcon class="size-4" />
 						</DropdownMenu.Trigger>
 						<DropdownMenu.Content align="end">
 							<DropdownMenu.Item onclick={() => togglePin(collection)}>

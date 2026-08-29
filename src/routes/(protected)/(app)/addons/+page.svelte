@@ -106,9 +106,9 @@
 </script>
 
 <div class="flex flex-col gap-6">
-	<div class="flex items-center justify-between">
-		<div>
-			<h1 class="text-2xl font-semibold tracking-tight">Addons</h1>
+	<div class="flex flex-wrap items-end justify-between gap-3">
+		<div class="flex flex-col gap-1">
+			<h1 class="text-3xl font-bold tracking-tight">Addons</h1>
 			<p class="text-sm text-muted-foreground">
 				Catalogs, metadata, streams and subtitles for this profile.
 			</p>
@@ -127,7 +127,7 @@
 	{:else if !addonsQuery.current}
 		<div class="flex flex-col gap-3">
 			{#each { length: 3 } as _, i (i)}
-				<div class="h-20 animate-pulse rounded-lg bg-muted"></div>
+				<div class="skeleton h-24 rounded-xl"></div>
 			{/each}
 		</div>
 	{:else}

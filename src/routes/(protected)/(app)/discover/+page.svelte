@@ -1,8 +1,10 @@
 <script lang="ts">
+	import CompassIcon from "@lucide/svelte/icons/compass";
 	import { goto } from "$app/navigation";
 	import { page } from "$app/state";
 	import { browseCatalog } from "$lib/addons/addons.remote";
 	import type { MetaPreview } from "$lib/addons/index.js";
+	import EmptyState from "$lib/components/empty-state.svelte";
 	import MediaGrid from "$lib/components/media-grid.svelte";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { cn } from "$lib/utils.js";
@@ -14,6 +16,11 @@
 			(entry) =>
 				`${entry.addonId}|${entry.type}|${entry.id}` === data.selectedKey,
 		),
+	);
+
+	// Only disambiguate catalog pills by addon when more than one addon supplies them.
+	const multipleAddons = $derived(
+		new Set(data.catalogs.map((entry) => entry.addonId)).size > 1,
 	);
 
 	let more = $state<MetaPreview[]>([]);
@@ -74,44 +81,53 @@
 </script>
 
 <div class="flex flex-col gap-6">
-	<h1 class="text-2xl font-semibold tracking-tight">Discover</h1>
+	<div class="flex flex-col gap-1">
+		<h1 class="text-3xl font-bold tracking-tight">Discover</h1>
+		<p class="text-sm text-muted-foreground">Browse every catalog your addons provide.</p>
+	</div>
 
 	{#if data.catalogs.length === 0}
-		<div class="rounded-lg border border-border p-8 text-center">
-			<p class="font-medium">No catalogs available</p>
-			<p class="mt-1 text-sm text-muted-foreground">Add a catalog addon to start browsing.</p>
-			<Button href="/addons" variant="outline" class="mt-4">Manage addons</Button>
-		</div>
+		<EmptyState
+			icon={CompassIcon}
+			title="No catalogs available"
+			description="Add a catalog addon to start browsing movies and series."
+		>
+			{#snippet actions()}
+				<Button href="/addons" variant="outline">Manage addons</Button>
+			{/snippet}
+		</EmptyState>
 	{:else if selected}
-		<div class="-mx-2 flex gap-2 overflow-x-auto px-2 pb-1 scrollbar-thin">
+		<div class="no-scrollbar -mx-2 flex gap-2 overflow-x-auto px-2 py-1">
 			{#each data.catalogs as entry (`${entry.addonId}|${entry.type}|${entry.id}`)}
 				{@const key = `${entry.addonId}|${entry.type}|${entry.id}`}
 				<button
 					type="button"
 					onclick={() => selectCatalog(key)}
 					class={cn(
-						"shrink-0 rounded-full border px-3 py-1.5 text-sm whitespace-nowrap transition",
+						"shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium whitespace-nowrap transition",
 						key === data.selectedKey
-							? "border-foreground bg-foreground text-background"
-							: "border-border text-muted-foreground hover:text-foreground",
+							? "bg-primary text-primary-foreground shadow-sm"
+							: "bg-foreground/5 text-muted-foreground hover:bg-foreground/10 hover:text-foreground",
 					)}
 				>
 					{entry.name}
-					<span class="text-xs opacity-60">· {entry.addonName}</span>
+					{#if multipleAddons}
+						<span class="text-xs opacity-60">· {entry.addonName}</span>
+					{/if}
 				</button>
 			{/each}
 		</div>
 
 		{#if selected.genres.length > 0}
-			<div class="-mx-2 flex gap-2 overflow-x-auto px-2 pb-1 scrollbar-thin">
+			<div class="no-scrollbar -mx-2 flex gap-1.5 overflow-x-auto px-2 pb-1">
 				<button
 					type="button"
 					onclick={() => setGenre("")}
 					class={cn(
-						"shrink-0 rounded-full px-2.5 py-1 text-xs transition",
+						"shrink-0 rounded-full px-2.5 py-1 text-xs font-medium transition",
 						!data.genre
 							? "bg-secondary text-secondary-foreground"
-							: "text-muted-foreground hover:text-foreground",
+							: "text-muted-foreground hover:bg-foreground/5 hover:text-foreground",
 					)}
 				>
 					All
@@ -121,10 +137,10 @@
 						type="button"
 						onclick={() => setGenre(option)}
 						class={cn(
-							"shrink-0 rounded-full px-2.5 py-1 text-xs whitespace-nowrap transition",
+							"shrink-0 rounded-full px-2.5 py-1 text-xs font-medium whitespace-nowrap transition",
 							data.genre === option
 								? "bg-secondary text-secondary-foreground"
-								: "text-muted-foreground hover:text-foreground",
+								: "text-muted-foreground hover:bg-foreground/5 hover:text-foreground",
 						)}
 					>
 						{option}
@@ -134,12 +150,14 @@
 		{/if}
 
 		{#if items.length === 0}
-			<p class="text-sm text-muted-foreground">Nothing here.</p>
+			<p class="py-10 text-center text-sm text-muted-foreground">Nothing in this catalog.</p>
 		{:else}
 			<MediaGrid {items} loading={loadingMore} skeletonCount={6} />
 			{#if !exhausted && (data.firstPage?.metas.length ?? 0) > 0}
-				<div class="flex justify-center">
-					<Button variant="outline" disabled={loadingMore} onclick={loadMore}>Load more</Button>
+				<div class="flex justify-center pt-2">
+					<Button variant="outline" disabled={loadingMore} onclick={loadMore}>
+						{loadingMore ? "Loading…" : "Load more"}
+					</Button>
 				</div>
 			{/if}
 		{/if}
