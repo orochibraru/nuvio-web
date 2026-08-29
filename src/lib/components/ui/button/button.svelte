@@ -52,17 +52,17 @@
 </script>
 
 <script lang="ts">
-let {
-	class: className,
-	variant = "default",
-	size = "default",
-	ref = $bindable(null),
-	href = undefined,
-	type = "button",
-	disabled,
-	children,
-	...restProps
-}: ButtonProps = $props();
+	let {
+		class: className,
+		variant = "default",
+		size = "default",
+		ref = $bindable(null),
+		href = undefined,
+		type = "button",
+		disabled,
+		children,
+		...restProps
+	}: ButtonProps = $props();
 </script>
 
 {#if href}

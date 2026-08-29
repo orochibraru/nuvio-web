@@ -4,6 +4,7 @@ import {
 	clearStoredSession,
 	createServerClient,
 	isExpired,
+	readProfileId,
 	readStoredSession,
 	writeStoredSession,
 } from "#lib/server/session.js";
@@ -25,6 +26,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 	}
 
 	event.locals.session = stored ? { user: stored.user } : null;
+	event.locals.profileId = stored ? readProfileId(event.cookies) : null;
 	event.locals.nuvio = createServerClient(event, stored);
 
 	return resolve(event);

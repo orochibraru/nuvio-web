@@ -1,4 +1,4 @@
-import type { NuvioClient, NuvioUser } from "#lib/nuvio/index.js";
+import type { NuvioClient, NuvioUser, Profile } from "#lib/nuvio/index.js";
 
 declare global {
 	namespace App {
@@ -8,9 +8,12 @@ declare global {
 		interface Locals {
 			nuvio: NuvioClient;
 			session: { user: NuvioUser } | null;
+			profileId: number | null;
 		}
 		interface PageData {
 			user?: NuvioUser | null;
+			profiles?: Profile[];
+			profile?: Profile | null;
 		}
 	}
 }

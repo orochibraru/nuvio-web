@@ -334,6 +334,11 @@ export class NuvioClient {
 		return this.rpc("get_avatar_catalog");
 	}
 
+	/** Public URL for a catalog avatar's `storage_path`. */
+	avatarUrl(storagePath: string): string {
+		return `${this.baseUrl}/storage/v1/object/public/avatars/${storagePath}`;
+	}
+
 	getSyncOverview(): Promise<SyncOverview> {
 		return this.rpc("get_sync_overview");
 	}

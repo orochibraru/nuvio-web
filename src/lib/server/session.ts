@@ -7,6 +7,7 @@ import {
 import { dev } from "$app/env";
 
 const COOKIE_NAME = "nuvio_session";
+const PROFILE_COOKIE_NAME = "nuvio_profile";
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 30;
 
 export interface StoredSession {
@@ -51,6 +52,28 @@ export function writeStoredSession(
 
 export function clearStoredSession(cookies: Cookies): void {
 	cookies.delete(COOKIE_NAME, { path: "/" });
+	cookies.delete(PROFILE_COOKIE_NAME, { path: "/" });
+}
+
+export function readProfileId(cookies: Cookies): number | null {
+	const raw = cookies.get(PROFILE_COOKIE_NAME);
+	if (!raw) return null;
+	const id = Number(raw);
+	return Number.isInteger(id) && id >= 1 && id <= 6 ? id : null;
+}
+
+export function writeProfileId(cookies: Cookies, profileId: number): void {
+	cookies.set(PROFILE_COOKIE_NAME, String(profileId), {
+		path: "/",
+		httpOnly: true,
+		secure: !dev,
+		sameSite: "lax",
+		maxAge: COOKIE_MAX_AGE,
+	});
+}
+
+export function clearProfileId(cookies: Cookies): void {
+	cookies.delete(PROFILE_COOKIE_NAME, { path: "/" });
 }
 
 export function isExpired(stored: StoredSession, skewSeconds = 60): boolean {
