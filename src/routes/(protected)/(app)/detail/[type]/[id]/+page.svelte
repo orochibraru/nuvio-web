@@ -4,9 +4,9 @@
 	import PlayIcon from "@lucide/svelte/icons/play";
 	import PlusIcon from "@lucide/svelte/icons/plus";
 	import StarIcon from "@lucide/svelte/icons/star";
+	import { goto } from "$app/navigation";
 	import { page } from "$app/state";
 	import { getMeta } from "$lib/addons/addons.remote";
-	import StreamList from "$lib/components/stream-list.svelte";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { Spinner } from "$lib/components/ui/spinner/index.js";
 	import { libraryIds, toggleLibrary } from "$lib/library/library.remote";
@@ -45,8 +45,11 @@
 			.sort((a, b) => (a.episode ?? 0) - (b.episode ?? 0)),
 	);
 
-	let openStreamId = $state<string | null>(null);
 	let toggling = $state(false);
+
+	function watch(videoId: string) {
+		goto(`/watch/${contentType}/${encodeURIComponent(videoId)}`);
+	}
 
 	async function toggle() {
 		if (!meta) {
@@ -139,8 +142,8 @@
 
 				<div class="mt-2 flex gap-2">
 					{#if contentType === "movie"}
-						<Button onclick={() => (openStreamId = openStreamId === id ? null : id)}>
-							<PlayIcon data-icon="inline-start" /> Streams
+						<Button onclick={() => watch(id)}>
+							<PlayIcon data-icon="inline-start" /> Watch
 						</Button>
 					{/if}
 					<Button variant="outline" disabled={toggling} onclick={toggle}>
@@ -157,23 +160,13 @@
 			</div>
 		</div>
 
-		{#if contentType === "movie" && openStreamId === id}
-			<div class="mt-8">
-				<h2 class="mb-3 text-lg font-semibold">Streams</h2>
-				<StreamList type="movie" {id} />
-			</div>
-		{/if}
-
 		{#if contentType === "series" && seasons.length > 0}
 			<div class="mt-8 flex flex-col gap-4">
 				<div class="flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
 					{#each seasons as season (season)}
 						<button
 							type="button"
-							onclick={() => {
-								chosenSeason = season;
-								openStreamId = null;
-							}}
+							onclick={() => (chosenSeason = season)}
 							class={cn(
 								"shrink-0 rounded-full border px-3 py-1 text-sm transition",
 								season === activeSeason
@@ -188,38 +181,31 @@
 
 				<div class="flex flex-col divide-y divide-border rounded-lg border border-border">
 					{#each episodes as episode (episode.id)}
-						<div class="flex flex-col">
-							<button
-								type="button"
-								onclick={() => (openStreamId = openStreamId === episode.id ? null : episode.id)}
-								class="flex items-center gap-3 p-3 text-left transition hover:bg-muted/50"
-							>
-								<span class="w-8 shrink-0 text-center text-sm text-muted-foreground">
-									{episode.episode}
-								</span>
-								{#if episode.thumbnail}
-									<img
-										src={episode.thumbnail}
-										alt=""
-										class="hidden aspect-video h-12 shrink-0 rounded object-cover sm:block"
-									/>
-								{/if}
-								<div class="min-w-0 flex-1">
-									<p class="truncate text-sm font-medium">{episode.title}</p>
-									{#if episode.released}
-										<p class="text-xs text-muted-foreground">
-											{new Date(episode.released).toLocaleDateString()}
-										</p>
-									{/if}
-								</div>
-								<PlayIcon class="size-4 shrink-0 text-muted-foreground" />
-							</button>
-							{#if openStreamId === episode.id}
-								<div class="p-3 pt-0">
-									<StreamList type="series" id={episode.id} />
-								</div>
+						<button
+							type="button"
+							onclick={() => watch(episode.id)}
+							class="flex items-center gap-3 p-3 text-left transition hover:bg-muted/50"
+						>
+							<span class="w-8 shrink-0 text-center text-sm text-muted-foreground">
+								{episode.episode}
+							</span>
+							{#if episode.thumbnail}
+								<img
+									src={episode.thumbnail}
+									alt=""
+									class="hidden aspect-video h-12 shrink-0 rounded object-cover sm:block"
+								/>
 							{/if}
-						</div>
+							<div class="min-w-0 flex-1">
+								<p class="truncate text-sm font-medium">{episode.title}</p>
+								{#if episode.released}
+									<p class="text-xs text-muted-foreground">
+										{new Date(episode.released).toLocaleDateString()}
+									</p>
+								{/if}
+							</div>
+							<PlayIcon class="size-4 shrink-0 text-muted-foreground" />
+						</button>
 					{/each}
 				</div>
 			</div>

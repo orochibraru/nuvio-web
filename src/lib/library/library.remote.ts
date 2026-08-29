@@ -1,17 +1,9 @@
-import { error } from "@sveltejs/kit";
 import * as v from "valibot";
-import { command, getRequestEvent, query } from "$app/server";
+import { command, query } from "$app/server";
 import type { LibraryItemInput } from "$lib/nuvio/index.js";
+import { requireProfile } from "$lib/server/guards.js";
 
 const ORIGIN_CLIENT_ID = "nuvio-web";
-
-function requireProfile() {
-	const event = getRequestEvent();
-	if (!event.locals.session || event.locals.profileId == null) {
-		error(401, "No active profile");
-	}
-	return { nuvio: event.locals.nuvio, profileId: event.locals.profileId };
-}
 
 /** `content_id`s currently in this profile's library (first page). */
 export const libraryIds = query(async () => {
@@ -84,6 +76,6 @@ export const toggleLibrary = command(toggleSchema, async (input) => {
 		});
 	}
 
-	await libraryIds().refresh();
+	await Promise.all([libraryIds().refresh(), libraryItems().refresh()]);
 	return { inLibrary: !input.remove };
 });

@@ -2,13 +2,13 @@ import { error } from "@sveltejs/kit";
 import * as v from "valibot";
 import { command, getRequestEvent, query } from "$app/server";
 import type { AddonInput } from "$lib/nuvio/index.js";
-import { AddonClient } from "./client.ts";
 import { fetchManifest } from "./manifest.ts";
 import {
-	type AddonLoadError,
-	type AddonRegistry,
-	buildRegistry,
-} from "./registry.ts";
+	getAddonClient,
+	getRegistry,
+	invalidateRegistry,
+	requireProfile,
+} from "./server.ts";
 import type { MetaPreview } from "./types.ts";
 
 function catalogSupports(
@@ -20,44 +20,6 @@ function catalogSupports(
 		catalog.extra?.map((entry) => entry.name) ??
 		[]
 	).includes(key);
-}
-
-function requireProfile() {
-	const event = getRequestEvent();
-	if (!event.locals.session || event.locals.profileId == null) {
-		error(401, "No active profile");
-	}
-	return { event, profileId: event.locals.profileId };
-}
-
-let cachedRegistry: {
-	profileId: number;
-	at: number;
-	registry: AddonRegistry;
-	errors: AddonLoadError[];
-} | null = null;
-const REGISTRY_TTL_MS = 60_000;
-
-async function getRegistry(): Promise<{
-	registry: AddonRegistry;
-	errors: AddonLoadError[];
-}> {
-	const { event, profileId } = requireProfile();
-	if (
-		cachedRegistry &&
-		cachedRegistry.profileId === profileId &&
-		Date.now() - cachedRegistry.at < REGISTRY_TTL_MS
-	) {
-		return { registry: cachedRegistry.registry, errors: cachedRegistry.errors };
-	}
-	const rows = await event.locals.nuvio.addons.list(profileId);
-	const built = await buildRegistry(rows, event.fetch);
-	cachedRegistry = { profileId, at: Date.now(), ...built };
-	return built;
-}
-
-function invalidateRegistry() {
-	cachedRegistry = null;
 }
 
 export const installedAddons = query(async () => {
@@ -167,8 +129,7 @@ const catalogSchema = v.object({
 export const browseCatalog = query(
 	catalogSchema,
 	async ({ type, id, addonId, genre, skip, search }) => {
-		const { registry } = await getRegistry();
-		const client = new AddonClient(registry, getRequestEvent().fetch);
+		const { client } = await getAddonClient();
 		const result = await client.getCatalog(
 			{ type, id, genre, skip, search },
 			addonId,
@@ -203,8 +164,7 @@ export const catalogList = query(async () => {
 export const getMeta = query(
 	v.object({ type: v.string(), id: v.string() }),
 	async ({ type, id }) => {
-		const { registry } = await getRegistry();
-		const client = new AddonClient(registry, getRequestEvent().fetch);
+		const { client } = await getAddonClient();
 		const result = await client.getMeta(type, id);
 		if (!result) {
 			error(404, "No metadata for this title");
@@ -216,16 +176,13 @@ export const getMeta = query(
 export const getStreams = query(
 	v.object({ type: v.string(), id: v.string() }),
 	async ({ type, id }) => {
-		const { registry } = await getRegistry();
-		const client = new AddonClient(registry, getRequestEvent().fetch);
+		const { client } = await getAddonClient();
 		return client.getStreams(type, id);
 	},
 );
 
 export const homeRows = query(async () => {
-	const { registry } = await getRegistry();
-	const client = new AddonClient(registry, getRequestEvent().fetch);
-
+	const { client, registry } = await getAddonClient();
 	const catalogs = registry
 		.catalogs()
 		.filter(({ catalog }) => !catalog.extraRequired?.length)
@@ -261,8 +218,7 @@ export const homeRows = query(async () => {
 export const searchCatalogs = query(
 	v.pipe(v.string(), v.trim(), v.minLength(1)),
 	async (term) => {
-		const { registry } = await getRegistry();
-		const client = new AddonClient(registry, getRequestEvent().fetch);
+		const { client, registry } = await getAddonClient();
 
 		const searchable = registry
 			.catalogs()

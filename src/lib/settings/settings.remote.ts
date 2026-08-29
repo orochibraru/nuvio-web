@@ -1,20 +1,12 @@
-import { error } from "@sveltejs/kit";
 import * as v from "valibot";
-import { command, getRequestEvent, query } from "$app/server";
+import { command, query } from "$app/server";
+import { requireProfile } from "$lib/server/guards.js";
 import {
 	PLATFORM,
 	UI_VERSION,
 	type UiSettings,
 	uiSettingsSchema,
 } from "./ui-settings.ts";
-
-function requireProfile() {
-	const event = getRequestEvent();
-	if (!event.locals.session || event.locals.profileId == null) {
-		error(401, "No active profile");
-	}
-	return { nuvio: event.locals.nuvio, profileId: event.locals.profileId };
-}
 
 async function pullBlob(
 	nuvio: ReturnType<typeof requireProfile>["nuvio"],

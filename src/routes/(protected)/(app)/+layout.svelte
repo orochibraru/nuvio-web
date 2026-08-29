@@ -82,6 +82,7 @@
 
 				<DropdownMenu.Root>
 					<DropdownMenu.Trigger
+						aria-label="Profile menu"
 						class="size-8 overflow-hidden rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring"
 					>
 						<ProfileAvatar profile={data.profile} />
@@ -93,6 +94,11 @@
 							<DropdownMenu.Item>
 								{#snippet child({ props })}
 									<a href="/profiles" {...props}>Switch profile</a>
+								{/snippet}
+							</DropdownMenu.Item>
+							<DropdownMenu.Item>
+								{#snippet child({ props })}
+									<a href="/history" {...props}>Watch history</a>
 								{/snippet}
 							</DropdownMenu.Item>
 							<DropdownMenu.Item>

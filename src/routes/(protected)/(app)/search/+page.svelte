@@ -35,6 +35,8 @@
 </script>
 
 <div class="flex flex-col gap-6">
+	<h1 class="text-2xl font-semibold tracking-tight">Search</h1>
+
 	<form onsubmit={submit} class="relative max-w-xl">
 		<SearchIcon
 			class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"

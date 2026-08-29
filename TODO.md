@@ -114,23 +114,30 @@ Content via the Phase 3 remote queries; pages use `+page.server.ts` loads that `
 
 ## Phase 5 — Library, collections, history
 
-- [ ] `/library`: grid, filter movie/series, sort (added / name / rating), remove; renders from the local store (library items carry name/poster/etc, no addon call needed)
-- [ ] `/collections`: list; create/rename/delete; `pinToTop`; per-collection `viewMode` (`TABBED_GRID` | `ROWS` | `FOLLOW_LAYOUT`)
-- [ ] `/collections/{id}`: folders (cover image / emoji, tile shape, hide-title), each folder pulls from its `catalogSources` (`addonId` + `type` + `catalogId`); "All" tab when `showAllTab`
-- [ ] Collection editor: add/reorder folders, attach catalog sources → `client.collections.replace` (full-replace JSON blob)
-- [ ] `/history`: reverse-chronological list from the history store; delete entries → `client.watchHistory.delete` (by `content_id`, or `+season/episode` for episodes)
+`$lib/{library,history,collections}/*.remote.ts`. Shared `$lib/server/guards.ts` `requireProfile`,
+`$lib/addons/server.ts` (`getRegistry`/`getAddonClient`, extracted from `addons.remote.ts`).
+Pages use `+page.server.ts` loads. Direct API writes for now; Phase 2 wraps them in the queue.
+
+- [x] `/library` — grid from `libraryItems`, filter all/movie/series, sort recent/name, hover-remove → `toggleLibrary({remove:true})`
+- [x] `/history` — `watchHistory` grouped Today / Yesterday / weekday / date, per-row delete → `watchHistory.delete`
+- [x] `/collections` — list (pin-sorted), create / rename / pin / delete → `saveCollections` (full-replace)
+- [x] `/collections/[id]` — `collectionContents` resolves each folder's `catalogSources` via the addon client; `TABBED_GRID` (folder tabs) / `ROWS` view toggle; add folder (title + catalog multi-pick from `catalogList`); delete folder
+- [ ] Folder reorder, tile shape / hide-title / cover image, `FOLLOW_LAYOUT` mode, "All" tab — later
+- [ ] Sort by rating; library from the local store instead of a live pull — with Phase 2
 
 ## Phase 6 — Playback
 
-- [ ] `VideoPlayer` component: `<video>` + `hls.js` for `.m3u8`; native for progressive mp4; detect + surface "unsupported container" for mkv/other
-- [ ] Player route/overlay `/watch/{type}/{id}[/{video}]`: chosen stream, poster as placeholder, custom controls (play/pause, seek bar with buffered ranges, volume, PiP, fullscreen, playback rate)
-- [ ] Resume: prompt from stored `position`; seek on load
-- [ ] Progress reporting → `client.watchProgress.push` throttled (~every 15s + on pause/seek/exit), min-delta guard; `last_watched` = now
-- [ ] Completion: at ≥90% with duration ≥60s the server also writes history (per spec); still push an explicit history entry on "mark watched"
-- [ ] Subtitles: fetch from `subtitles` resource or local file; SRT→VTT parse; overlay renderer with size / color / background / timing-offset controls; language menu
-- [ ] Next-episode autoplay (respect the `auto_play_next` setting); "up next" card
-- [ ] Keyboard shortcuts (space, ←/→, ↑/↓, f, m, c, n)
-- [ ] Track selection (audio/subtitle) when the container exposes multiple
+`$lib/watch/watch.remote.ts` + `$lib/components/video-player.svelte`. `/dev/player` is a
+dev-only (404 in prod) harness; `e2e/watch.spec.ts` drives it against `static/e2e/sample.webm`.
+
+- [x] `VideoPlayer` — `hls.js` for `.m3u8`, native `<video>` otherwise; "can't play in browser" fallback (`notWebReady` / no `url`) with an Open-externally link
+- [x] `/watch/[type]/[id]` — `watchData` (meta + streams + progress) via `+page.server.ts`; source picker when >1 stream; resume prompt from stored `position`
+- [x] Custom controls: play/pause, seek bar with buffered range, time, volume, playback rate, PiP, fullscreen, captions toggle + menu; auto-hide; keyboard (space/k, ←→/jl, ↑↓, f, m, c)
+- [x] Resume: `startTime` seek on `loadedmetadata`
+- [x] Progress → `saveProgress` command every 15s while playing + on unmount (`onDestroy`). Completion history is the server's job (≥90% & ≥60s rule)
+- [x] Subtitles: `getSubtitles` (dedupe by lang) → `<track>` via `/api/subtitle` proxy (SRT→WebVTT, auth-gated)
+- [x] Detail "Watch" (movie) / episode click (series) → `/watch/...`; Continue-watching row on home (`continueWatching`, with progress bars)
+- [ ] Next-episode autoplay + "up next" card; `auto_play_next` setting; subtitle size/colour/offset controls; audio-track selection; "mark watched" button
 
 ## Phase 7 — Settings
 
@@ -157,7 +164,7 @@ uses server data — no accent/amoled flash).
 - [ ] Image handling: lazy-load, decode async; decide on a poster proxy route (CORS + resize + cache) vs raw `<img>`
 - [ ] Accessibility pass: focus management, ARIA on rows/tiles/player, reduced-motion
 - [ ] Perf: route-level code splitting, virtualized grids for large libraries, prefetch on hover
-- [ ] Tests: Vitest for sync engine + addon registry; Playwright smoke flow (sign in → pick profile → add addon → browse → open detail → play → progress persists)
+- [~] Tests: **Playwright smoke suite in `e2e/`** (`bun run test:e2e`, own dev server on :4173, real API via `NUVIO_TEST_*` in `.env`) — every route renders + client-nav + detail library toggle, all asserting no runtime errors. Still to add: Vitest for sync engine + addon registry, and playback once Phase 6 lands. **Run `bun run test:e2e` after any UI change** (also in CLAUDE.md)
 - [ ] Rate-limit safety: keep per-user request rate well under 100 req/s; batch via RPC
 
 ---
