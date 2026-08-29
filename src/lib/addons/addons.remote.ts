@@ -9,6 +9,18 @@ import {
 	type AddonRegistry,
 	buildRegistry,
 } from "./registry.ts";
+import type { MetaPreview } from "./types.ts";
+
+function catalogSupports(
+	catalog: { extraSupported?: string[]; extra?: Array<{ name: string }> },
+	key: string,
+): boolean {
+	return (
+		catalog.extraSupported ??
+		catalog.extra?.map((entry) => entry.name) ??
+		[]
+	).includes(key);
+}
 
 function requireProfile() {
 	const event = getRequestEvent();
@@ -194,5 +206,87 @@ export const getMeta = query(
 		const result = await client.getMeta(type, id);
 		if (!result) error(404, "No metadata for this title");
 		return { meta: result.meta, addonName: result.addon.manifest.name };
+	},
+);
+
+export const getStreams = query(
+	v.object({ type: v.string(), id: v.string() }),
+	async ({ type, id }) => {
+		const { registry } = await getRegistry();
+		const client = new AddonClient(registry, getRequestEvent().fetch);
+		return client.getStreams(type, id);
+	},
+);
+
+export const homeRows = query(async () => {
+	const { registry } = await getRegistry();
+	const client = new AddonClient(registry, getRequestEvent().fetch);
+
+	const catalogs = registry
+		.catalogs()
+		.filter(({ catalog }) => !catalog.extraRequired?.length)
+		.slice(0, 8);
+
+	const rows = await Promise.all(
+		catalogs.map(async ({ addon, catalog }) => {
+			try {
+				const result = await client.getCatalog(
+					{ type: catalog.type, id: catalog.id },
+					addon.manifest.id,
+				);
+				return {
+					addonId: addon.manifest.id,
+					addonName: addon.manifest.name,
+					type: catalog.type,
+					id: catalog.id,
+					title: catalog.name ?? addon.manifest.name,
+					metas: (result?.metas ?? []).slice(0, 20),
+				};
+			} catch {
+				return null;
+			}
+		}),
+	);
+
+	return rows.filter(
+		(row): row is NonNullable<typeof row> =>
+			row != null && row.metas.length > 0,
+	);
+});
+
+export const searchCatalogs = query(
+	v.pipe(v.string(), v.trim(), v.minLength(1)),
+	async (term) => {
+		const { registry } = await getRegistry();
+		const client = new AddonClient(registry, getRequestEvent().fetch);
+
+		const searchable = registry
+			.catalogs()
+			.filter(({ catalog }) => catalogSupports(catalog, "search"));
+
+		const batches = await Promise.all(
+			searchable.map(async ({ addon, catalog }) => {
+				try {
+					const result = await client.getCatalog(
+						{ type: catalog.type, id: catalog.id, search: term },
+						addon.manifest.id,
+					);
+					return result?.metas ?? [];
+				} catch {
+					return [];
+				}
+			}),
+		);
+
+		const seen = new Set<string>();
+		const metas: MetaPreview[] = [];
+		for (const meta of batches.flat()) {
+			const key = `${meta.type}:${meta.id}`;
+			if (!seen.has(key)) {
+				seen.add(key);
+				metas.push(meta);
+			}
+		}
+		return { metas };
 	},
 );

@@ -99,14 +99,18 @@ no schema), the progress-key format, and the 90% / 60s completion rule.
 
 ## Phase 4 — Browsing
 
-- [ ] Home `/`: rows from `client.homeCatalog.pull` (order + hidden), plus "Continue watching" (progress store) and "My library" rows; hero from the first row
-- [ ] Home layout editor (in Settings): reorder rows, hide/show catalogs → `client.homeCatalog.replace`
-- [ ] Discover `/discover`: pick addon + catalog + type; genre filter; infinite scroll via `skip`; grid of `PosterTile`
-- [ ] Search `/search?q=`: fan out to all `search`-capable catalogs, merge + dedupe by `content_id`, grouped by type; `command`-palette quick search in the nav
-- [ ] Detail `/detail/{type}/{id}`: `meta` from the registry — synopsis, year, runtime, genres, cast, director, IMDb rating, trailer; poster + backdrop
-- [ ] Detail actions: Play, Add to / Remove from library (write queue), Mark watched, share link
-- [ ] Series: season selector + `EpisodeList` (thumb, title, aired date, runtime, watched tick from history, resume bar from progress)
-- [ ] `StreamList`: lazy-loaded `stream` results grouped by addon; show quality/size/source from `title`/`name`/`behaviorHints`; sort; remember last choice
+Primitives in `src/lib/components/` (`media-poster`, `media-grid`, `media-row`, `stream-list`).
+Content via the Phase 3 remote queries; pages use `+page.server.ts` loads that `await` them (real SSR).
+
+- [x] Home `/` — `+page.server.ts` → `homeRows` (first 8 catalogs, 20 items each) + `libraryItems` row. Hero + `client.homeCatalog.pull` ordering + continue-watching still to do (needs Phase 2)
+- [x] Discover `/discover?c=<addon|type|catalog>&g=<genre>` — catalog pills + genre pills + `MediaGrid` + "Load more" (`browseCatalog` with `skip`)
+- [x] Search `/search?q=` — `searchCatalogs` fans out to `search`-capable catalogs server-side, dedupes by `type:id`, grouped Movies / Series / Other. (`command`-palette nav search deferred)
+- [x] Detail `/detail/[type]/[id]` — `getMeta`: backdrop + poster + title/year/runtime/genres/rating, description, cast/director
+- [x] Detail actions: Add to / Remove from library (`library.remote.ts` `toggleLibrary` → `client.library.upsertItems`/`deleteItems`, `p_origin_client_id: "nuvio-web"`). Play → streams; "Mark watched" + share deferred
+- [x] Series: season pills + episode list (thumb, title, aired date) → per-episode `StreamList`. Watched tick / resume bar deferred (Phase 2)
+- [x] `StreamList` — lazy `getStreams`, per-stream Play/Open link (opens `url`/`externalUrl` in a tab until Phase 6 player), `not web-ready` flagged, addon badge. Grouping/sort/remember-choice deferred
+- [ ] Home layout editor (in Settings) → Phase 7
+- [ ] Hero banner on home; continue-watching row; watched/resume indicators → after Phase 2
 
 ## Phase 5 — Library, collections, history
 

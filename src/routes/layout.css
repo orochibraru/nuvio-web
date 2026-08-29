@@ -112,6 +112,10 @@
 	--color-sidebar-ring: var(--sidebar-ring);
 }
 
+@utility scrollbar-thin {
+	scrollbar-width: thin;
+}
+
 @layer base {
 	* {
 		@apply border-border outline-ring/50;

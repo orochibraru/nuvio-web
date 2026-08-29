@@ -6,6 +6,7 @@ import type {
 	CatalogQuery,
 	Meta,
 	MetaPreview,
+	MetaVideo,
 	ResourceExtra,
 	Stream,
 	Subtitle,
@@ -38,6 +39,35 @@ function buildResourceUrl(
 
 function asArray<T>(value: unknown): T[] {
 	return Array.isArray(value) ? (value as T[]) : [];
+}
+
+/** Addons are inconsistent: `genres`/`cast`/`director` come as `string[]`, a comma string, or absent. */
+function stringList(value: unknown): string[] {
+	if (Array.isArray(value)) {
+		return value.filter((entry): entry is string => typeof entry === "string");
+	}
+	if (typeof value === "string" && value.trim()) {
+		return value
+			.split(",")
+			.map((entry) => entry.trim())
+			.filter(Boolean);
+	}
+	return [];
+}
+
+function normalizePreview(raw: MetaPreview): MetaPreview {
+	return { ...raw, genres: stringList(raw.genres) };
+}
+
+function normalizeMeta(raw: Meta): Meta {
+	return {
+		...raw,
+		genres: stringList(raw.genres),
+		cast: stringList(raw.cast),
+		director: stringList(raw.director),
+		writer: stringList(raw.writer),
+		videos: asArray<MetaVideo>(raw.videos),
+	};
 }
 
 function errorMessage(error: unknown): string {
@@ -82,7 +112,9 @@ export class AddonClient {
 			true,
 		);
 		return {
-			metas: asArray<MetaPreview>((data as { metas?: unknown })?.metas),
+			metas: asArray<MetaPreview>((data as { metas?: unknown })?.metas).map(
+				normalizePreview,
+			),
 			from: ref,
 		};
 	}
@@ -102,7 +134,7 @@ export class AddonClient {
 					true,
 				);
 				const meta = (data as { meta?: Meta })?.meta;
-				if (meta) return { meta, addon };
+				if (meta) return { meta: normalizeMeta(meta), addon };
 			} catch {
 				// fall through to the next meta provider
 			}
