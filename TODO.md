@@ -134,10 +134,18 @@ Content via the Phase 3 remote queries; pages use `+page.server.ts` loads that `
 
 ## Phase 7 — Settings
 
-- [ ] `/settings`: reads/writes the profile settings blob (`client.settings.pull` / `.replace`, `p_platform: "web"`) — theme, `auto_play_next`, default player quality, default subtitle language, subtitle appearance defaults
-- [ ] Home layout editor (from Phase 4) lives here
-- [ ] Addon shortcut into `/addons`
-- [ ] Settings blob schema owned by the app (server enforces none); version it
+Blob lives at `client.settings.pull/replace` with `p_platform: "web"`, shape owned by us,
+`uiVersion` in the blob. `src/lib/settings/`: `ui-settings.ts` (schema/types — kept out of the
+`.remote.ts` file since SvelteKit rejects non-remote exports there), `settings.remote.ts`
+(`getUiSettings`/`saveUiSettings`), `theme.svelte.ts` (client controller, `ready`-gated so SSR
+uses server data — no accent/amoled flash).
+
+- [x] `/settings` Appearance: mode (system / light / dark), dark style (dim / **AMOLED** = pure black), accent colour (7 presets → `--primary`/`--ring` via `[data-accent]` on the app wrapper + `<html>`)
+- [x] Quick mode toggle in the profile dropdown
+- [x] Per-profile, cloud-stored; `mode-watcher` handles the light/dark mechanism, we layer cloud sync + accent + amoled on top
+- [ ] Player defaults (quality, subtitle language, subtitle appearance), `auto_play_next` → with Phase 6
+- [ ] Home layout editor (Phase 4 rows) → needs `client.homeCatalog`
+- [ ] Addon shortcut card into `/addons`
 
 ## Phase 8 — Account, polish, hardening
 

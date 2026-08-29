@@ -1,4 +1,5 @@
 import { redirect } from "@sveltejs/kit";
+import { getUiSettings } from "$lib/settings/settings.remote";
 import type { LayoutServerLoad } from "./$types";
 
 export const load: LayoutServerLoad = async ({ locals, parent }) => {
@@ -10,5 +11,6 @@ export const load: LayoutServerLoad = async ({ locals, parent }) => {
 		redirect(303, "/profiles");
 	}
 
-	return { profile };
+	const ui = await getUiSettings();
+	return { profile, ui };
 };

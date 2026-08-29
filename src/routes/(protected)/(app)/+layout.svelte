@@ -2,6 +2,8 @@
 	import { page } from "$app/state";
 	import ProfileAvatar from "$lib/components/profile-avatar.svelte";
 	import * as DropdownMenu from "$lib/components/ui/dropdown-menu/index.js";
+	import { saveUiSettings } from "$lib/settings/settings.remote";
+	import { theme } from "$lib/settings/theme.svelte";
 	import { cn } from "$lib/utils.js";
 	import { signOut } from "../../auth/auth.remote";
 
@@ -19,9 +21,34 @@
 			? page.url.pathname === href
 			: page.url.pathname.startsWith(href);
 	}
+
+	$effect(() => {
+		theme.seed(data.ui);
+	});
+
+	// Server value for SSR / first paint; the client controller takes over once seeded.
+	const active = $derived(theme.ready ? theme.current : data.ui);
+	const accent = $derived(active.accent);
+	const amoled = $derived(active.darkStyle === "amoled");
+
+	$effect(() => {
+		const root = document.documentElement;
+		root.dataset.accent = accent;
+		root.dataset.amoled = String(amoled);
+		return () => {
+			delete root.dataset.accent;
+			delete root.dataset.amoled;
+		};
+	});
+
+	function quickMode(mode: "light" | "dark" | "system") {
+		const next = { ...theme.current, mode };
+		theme.preview(next);
+		void saveUiSettings(next);
+	}
 </script>
 
-<div class="min-h-svh">
+<div class="min-h-svh" data-accent={accent} data-amoled={amoled}>
 	<header
 		class="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur"
 	>
@@ -84,6 +111,16 @@
 								{/snippet}
 							</DropdownMenu.Item>
 						</DropdownMenu.Group>
+						<DropdownMenu.Separator />
+						<DropdownMenu.Label class="text-xs text-muted-foreground">Appearance</DropdownMenu.Label>
+						<DropdownMenu.RadioGroup
+							value={theme.current.mode}
+							onValueChange={(value) => quickMode(value as "light" | "dark" | "system")}
+						>
+							<DropdownMenu.RadioItem value="light">Light</DropdownMenu.RadioItem>
+							<DropdownMenu.RadioItem value="dark">Dark</DropdownMenu.RadioItem>
+							<DropdownMenu.RadioItem value="system">System</DropdownMenu.RadioItem>
+						</DropdownMenu.RadioGroup>
 						<DropdownMenu.Separator />
 						<form {...signOut}>
 							<DropdownMenu.Item variant="destructive">
