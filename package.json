@@ -7,11 +7,13 @@
 		"dev": "vite dev",
 		"build": "vite build",
 		"preview": "vite preview",
-		"prepare": "husky",
+		"prepare": "husky && svelte-kit sync || echo ''",
 		"lint": "tailwint && biome check .",
 		"lint:fix": "tailwint --fix && biome check --write .",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch"
+		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+		"nuvio:check": "bun run scripts/check-nuvio-spec.ts",
+		"nuvio:check:accept": "bun run scripts/check-nuvio-spec.ts --update"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.5.11",

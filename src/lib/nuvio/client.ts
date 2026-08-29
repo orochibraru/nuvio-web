@@ -31,8 +31,8 @@ import type {
 	PushSettingsBlobParams,
 	PushWatchedItemsParams,
 	PushWatchProgressParams,
+	RpcArgs,
 	RpcName,
-	RpcParams,
 	RpcResult,
 	SupporterWall,
 	SupporterWallQuery,
@@ -149,9 +149,7 @@ export class NuvioClient {
 	/** Call any Nuvio RPC by name. Parameters and result are inferred from the function name. */
 	async rpc<Name extends RpcName>(
 		fn: Name,
-		...args: {} extends RpcParams<Name>
-			? [params?: RpcParams<Name>]
-			: [params: RpcParams<Name>]
+		...args: RpcArgs<Name>
 	): Promise<RpcResult<Name>> {
 		const params = args[0] ?? {};
 		return this.http<RpcResult<Name>>(`${this.baseUrl}/rest/v1/rpc/${fn}`, {

@@ -490,9 +490,12 @@ export interface PushCollectionsParams {
  */
 export interface NuvioRpcMap {
 	sync_pull_profiles: { params: EmptyParams; result: Profile[] };
-	sync_push_profiles: { params: PushProfilesParams; result: void };
-	sync_delete_profile_data: { params: DeleteProfileDataParams; result: void };
-	sync_push_addons: { params: PushAddonsParams; result: void };
+	sync_push_profiles: { params: PushProfilesParams; result: undefined };
+	sync_delete_profile_data: {
+		params: DeleteProfileDataParams;
+		result: undefined;
+	};
+	sync_push_addons: { params: PushAddonsParams; result: undefined };
 	sync_pull_library: { params: PullLibraryParams; result: LibraryItem[] };
 	sync_get_library_delta_cursor: {
 		params: ProfileScopedParams;
@@ -502,9 +505,15 @@ export interface NuvioRpcMap {
 		params: PullLibraryDeltaParams;
 		result: LibraryDeltaEvent[];
 	};
-	sync_push_library_items: { params: PushLibraryItemsParams; result: void };
-	sync_delete_library_items: { params: DeleteLibraryItemsParams; result: void };
-	sync_push_library: { params: PushLibraryParams; result: void };
+	sync_push_library_items: {
+		params: PushLibraryItemsParams;
+		result: undefined;
+	};
+	sync_delete_library_items: {
+		params: DeleteLibraryItemsParams;
+		result: undefined;
+	};
+	sync_push_library: { params: PushLibraryParams; result: undefined };
 	sync_pull_watch_progress: {
 		params: PullWatchProgressParams;
 		result: WatchProgress[];
@@ -517,10 +526,13 @@ export interface NuvioRpcMap {
 		params: ProfileScopedParams;
 		result: number;
 	};
-	sync_push_watch_progress: { params: PushWatchProgressParams; result: void };
+	sync_push_watch_progress: {
+		params: PushWatchProgressParams;
+		result: undefined;
+	};
 	sync_delete_watch_progress: {
 		params: DeleteWatchProgressParams;
-		result: void;
+		result: undefined;
 	};
 	sync_pull_watched_items: {
 		params: PullWatchedItemsParams;
@@ -534,15 +546,21 @@ export interface NuvioRpcMap {
 		params: ProfileScopedParams;
 		result: number;
 	};
-	sync_push_watched_items: { params: PushWatchedItemsParams; result: void };
-	sync_delete_watched_items: { params: DeleteWatchedItemsParams; result: void };
+	sync_push_watched_items: {
+		params: PushWatchedItemsParams;
+		result: undefined;
+	};
+	sync_delete_watched_items: {
+		params: DeleteWatchedItemsParams;
+		result: undefined;
+	};
 	sync_pull_profile_settings_blob: {
 		params: PullSettingsBlobParams;
 		result: ProfileSettingsBlob[];
 	};
 	sync_push_profile_settings_blob: {
 		params: PushSettingsBlobParams;
-		result: void;
+		result: undefined;
 	};
 	sync_pull_home_catalog_settings: {
 		params: PullHomeCatalogSettingsParams;
@@ -550,13 +568,13 @@ export interface NuvioRpcMap {
 	};
 	sync_push_home_catalog_settings: {
 		params: PushHomeCatalogSettingsParams;
-		result: void;
+		result: undefined;
 	};
 	sync_pull_collections: {
 		params: PullCollectionsParams;
 		result: CollectionsBlob[];
 	};
-	sync_push_collections: { params: PushCollectionsParams; result: void };
+	sync_push_collections: { params: PushCollectionsParams; result: undefined };
 	get_avatar_catalog: { params: EmptyParams; result: AvatarCatalogEntry[] };
 	get_sync_overview: { params: EmptyParams; result: SyncOverview };
 	health_ping: { params: EmptyParams; result: boolean };
@@ -565,6 +583,18 @@ export interface NuvioRpcMap {
 export type RpcName = keyof NuvioRpcMap;
 export type RpcParams<Name extends RpcName> = NuvioRpcMap[Name]["params"];
 export type RpcResult<Name extends RpcName> = NuvioRpcMap[Name]["result"];
+
+type RequiredKeysOf<T> = {
+	[Key in keyof T]-?: undefined extends T[Key] ? never : Key;
+}[keyof T];
+
+/** Tuple for the RPC call: the params argument is optional when the function has no required parameters. */
+export type RpcArgs<Name extends RpcName> =
+	RpcParams<Name> extends EmptyParams
+		? [params?: RpcParams<Name>]
+		: RequiredKeysOf<RpcParams<Name>> extends never
+			? [params?: RpcParams<Name>]
+			: [params: RpcParams<Name>];
 
 /** RPC functions that are callable without an access token. */
 export type UnauthenticatedRpcName = "get_avatar_catalog" | "health_ping";

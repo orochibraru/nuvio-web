@@ -9,5 +9,20 @@
 	},
 	"enabledPlugins": {
 		"svelte@svelte": true
+	},
+	"hooks": {
+		"PostToolUse": [
+			{
+				"matcher": "Edit|Write|MultiEdit",
+				"hooks": [
+					{
+						"type": "command",
+						"command": "bun run lint:fix",
+						"timeout": 120,
+						"statusMessage": "Running bun run lint:fix"
+					}
+				]
+			}
+		]
 	}
 }
