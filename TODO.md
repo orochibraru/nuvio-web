@@ -3,7 +3,7 @@
 The browser build of Nuvio: a full streaming client. Stremio-compatible addon
 layer for content (catalog / meta / stream / subtitles) + an in-browser player,
 with profiles, library, collections, watch progress and history synced through
-the Nuvio public API (`#lib/nuvio`, client methods in `src/lib/nuvio/client.ts`).
+the Nuvio public API (`$lib/nuvio`, client methods in `src/lib/nuvio/client.ts`).
 
 Target: **desktop web only** (mouse + keyboard, large screen). Mobile and TV are
 covered by the existing Nuvio mobile app — not our problem. This is net-new:
@@ -52,21 +52,23 @@ no schema), the progress-key format, and the 90% / 60s completion rule.
 - [x] Typed Nuvio API client — `src/lib/nuvio/` (`types.ts` + `NuvioRpcMap`, `client.ts`)
 - [x] Auth: `/auth/sign-in`, `/auth/sign-up`, httpOnly-cookie session, route guards
 - [x] Spec drift check — `bun run nuvio:check`
+- [x] Root `+error.svelte` + `App.Error` shape (`errorId`); `handleError` in `hooks.server.ts`
+- [x] `mode-watcher` (`<ModeWatcher/>` in root layout); theme→settings-blob wiring comes with Phase 7
+- [x] Toast host — `<Toaster/>` (sonner) in root layout
+- [x] Core shadcn components added: `button card input field label separator alert spinner avatar badge skeleton tooltip dialog dropdown-menu sonner`. Add the rest per-phase: `sheet tabs scroll-area select slider switch toggle-group progress popover command`
 - [ ] (low priority) Single optional `NUVIO_API_URL` override for self-hosters — passed to `NuvioClient` in `hooks.server.ts` when set, default otherwise. No other env vars anywhere; the app runs against the hosted API with zero config.
-- [ ] Root `+error.svelte` + `App.Error` shape; wire `handleRenderingErrors`
-- [ ] `mode-watcher` for light/dark; theme persisted to the profile settings blob later
-- [ ] Toast host (`sonner`) mounted in the app layout
-- [ ] Add shadcn-svelte components: `dropdown-menu`, `dialog`, `sheet`, `tabs`, `avatar`, `badge`, `skeleton`, `scroll-area`, `tooltip`, `select`, `slider`, `switch`, `toggle-group`, `sonner`, `progress`, `popover`, `command`
 
 ## Phase 1 — Profiles & app shell
 
-- [ ] `profiles.remote.ts`: `listProfiles` (query), `selectProfile` (command, sets cookie), `saveProfiles` (form → `client.profiles.replace`, full-replace, `p_client_max_profiles: 6`), `deleteProfileData` (`client.profiles.deleteData`)
-- [ ] `locals.profileId` in `hooks.server.ts`; profile-gate load in the app route group
-- [ ] `/profiles` — Netflix-style picker: avatar grid, "add profile", "manage" mode (rename, avatar, color, delete). Show PIN-locked profiles as locked (read-only per spec — no PIN entry flow in the public API)
-- [ ] Avatar picker: `client.listAvatars()` catalog + custom `avatar_url` + `avatar_color_hex` fallback
-- [ ] App shell: top nav (Home / Discover / Library / Collections / Search), profile menu (switch profile, settings, account, sign out), global search entry
-- [ ] `PosterTile`, `ContentRow` (horizontal scroll + arrows), `HeroBanner`, `RatingBadge`, skeleton variants
-- [ ] Loading / empty / error states pattern for data screens
+- [x] `locals.profileId` from the `nuvio_profile` cookie; profile-gate in `(protected)/(app)/+layout.server.ts`
+- [x] `profiles.remote.ts`: `selectProfile` (form → cookie → `/`), `createProfile` (form → full-replace push → cookie → `/`)
+- [x] `/profiles` — picker: avatar grid + "add profile" dialog (name / catalog avatar / colour)
+- [x] Avatar picker: `client.listAvatars()` catalog + `avatar_color_hex` fallback; `client.avatarUrl()` resolves `storage_path`
+- [x] App shell — `(app)/+layout.svelte`: top nav (Home / Discover / Library / Collections / Search) + profile dropdown (switch / settings / account / sign out)
+- [x] Stub pages: `/discover`, `/library`, `/collections`, `/search`
+- [ ] Profile "manage" mode: rename, recolour, custom `avatar_url`, delete — `saveProfiles` (full-replace) + `deleteProfileData` (`client.profiles.deleteData`). Show PIN-locked profiles as locked (read-only, no PIN flow in the public API)
+- [ ] `PosterTile`, `ContentRow` (horizontal scroll + arrows), `HeroBanner`, `RatingBadge`, skeleton variants — build when Phase 4 first needs them
+- [ ] Loading / empty / error state pattern for data screens
 
 ## Phase 2 — Local store & sync engine
 
@@ -82,13 +84,18 @@ no schema), the progress-key format, and the 90% / 60s completion rule.
 
 ## Phase 3 — Addon subsystem
 
-- [ ] Manifest client: fetch `{url}` or `{url}/manifest.json`, validate shape (`id`, `types`, `resources`, `catalogs`, `idPrefixes`, `behaviorHints`)
-- [ ] Addon registry: merge enabled addons; resolve which addon serves a given resource+type+id (respect `idPrefixes`, `resources[].idPrefixes`)
-- [ ] Resource clients: `catalog` (with `skip` pagination + `genre`/`search` extra), `meta`, `stream`, `subtitles`; per-addon timeout + error isolation
-- [ ] Response cache with TTL in IndexedDB (`addonCache`)
-- [ ] Addons management UI `/addons`: installed list, add by URL with manifest preview, enable/disable, drag-reorder, remove → `client.addons.replace` (full-replace, `p_profile_id`), plus a `uses_primary_addons` toggle on non-primary profiles
-- [ ] Addon catalog discovery (`addon_catalog` resource) — browse an addon's advertised catalogs before adding
-- [ ] Handle CORS failures gracefully (some addons block browser origins) — document the limitation, surface a clear error
+`src/lib/addons/` (framework-agnostic) + `src/lib/addons/addons.remote.ts` (server-side remote fns).
+
+- [x] Manifest client — `manifest.ts`: `parseAddonUrl` (strips `/manifest.json`), `fetchManifest` (30-min cache, 10s timeout), `validateManifest` (normalizes `resources` string|object)
+- [x] Addon registry — `registry.ts`: `buildRegistry(nuvioRows, fetch)` (per-addon isolation, collects load errors), `AddonRegistry` — `catalogs()`, `findCatalog()`, `providersFor(resource, type, id)` respecting resource strings vs objects + manifest/resource `idPrefixes` + `types`
+- [x] Resource clients — `client.ts` `AddonClient`: `getCatalog` (`genre`/`skip`/`search` extra), `getMeta` (first provider wins), `getStreams` / `getSubtitles` (fan out, per-addon error isolation → `AddonError[]`), 15s timeout, 5-min response cache (streams/subs uncached)
+- [x] Response cache with TTL — `TtlCache` (in-memory, per server instance). IndexedDB upgrade deferred to Phase 2 if needed
+- [x] `/addons` management UI: installed list (logo, resource badges, catalog count, unreachable flag), add-by-URL with manifest preview, enable/disable switch, up/down reorder, remove → `saveAddons` command (full-replace via `client.addons.replace`). In the profile dropdown nav
+- [x] CORS: addon fetches run server-side (remote fns), so no browser CORS. Unreachable addons surfaced in the UI; a server-side addon proxy stays out of scope
+- [x] Remote queries for Phase 4: `browseCatalog`, `catalogList`, `getMeta` in `addons.remote.ts`
+- [ ] `uses_primary_addons` toggle for non-primary profiles (needs profile-1 addon context) — deferred to profile "manage" work
+- [ ] Addon catalog discovery (`addon_catalog` resource) — browse an addon's advertised catalogs before adding — deferred
+- [ ] Drag reorder (currently up/down buttons)
 
 ## Phase 4 — Browsing
 

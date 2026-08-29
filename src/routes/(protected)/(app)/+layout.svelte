@@ -70,6 +70,11 @@
 							</DropdownMenu.Item>
 							<DropdownMenu.Item>
 								{#snippet child({ props })}
+									<a href="/addons" {...props}>Addons</a>
+								{/snippet}
+							</DropdownMenu.Item>
+							<DropdownMenu.Item>
+								{#snippet child({ props })}
 									<a href="/settings" {...props}>Settings</a>
 								{/snippet}
 							</DropdownMenu.Item>
