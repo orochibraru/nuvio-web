@@ -43,7 +43,9 @@ function asStringArray(value: unknown): string[] {
 function normalizeResources(
 	value: unknown,
 ): Array<AddonResourceName | AddonResourceObject> {
-	if (!Array.isArray(value)) return [];
+	if (!Array.isArray(value)) {
+		return [];
+	}
 	const out: Array<AddonResourceName | AddonResourceObject> = [];
 	for (const entry of value) {
 		if (
@@ -74,8 +76,12 @@ export function validateManifest(data: unknown): AddonManifest {
 	const record = data as Record<string, unknown>;
 	const id = asString(record.id);
 	const name = asString(record.name);
-	if (!id) throw new Error("Manifest is missing `id`");
-	if (!name) throw new Error("Manifest is missing `name`");
+	if (!id) {
+		throw new Error("Manifest is missing `id`");
+	}
+	if (!name) {
+		throw new Error("Manifest is missing `name`");
+	}
 
 	const resources = normalizeResources(record.resources);
 	if (resources.length === 0) {
@@ -125,7 +131,9 @@ export async function fetchManifest(
 
 	if (!force) {
 		const cached = manifestCache.get(baseUrl);
-		if (cached) return { manifest: cached, baseUrl };
+		if (cached) {
+			return { manifest: cached, baseUrl };
+		}
 	}
 
 	const response = await fetchImpl(manifestUrl, {

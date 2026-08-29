@@ -19,11 +19,14 @@ export interface StoredSession {
 
 export function readStoredSession(cookies: Cookies): StoredSession | null {
 	const raw = cookies.get(COOKIE_NAME);
-	if (!raw) return null;
+	if (!raw) {
+		return null;
+	}
 	try {
 		const parsed = JSON.parse(raw) as StoredSession;
-		if (!parsed.access_token || !parsed.refresh_token || !parsed.user)
+		if (!parsed.access_token || !parsed.refresh_token || !parsed.user) {
 			return null;
+		}
 		return parsed;
 	} catch {
 		return null;
@@ -57,7 +60,9 @@ export function clearStoredSession(cookies: Cookies): void {
 
 export function readProfileId(cookies: Cookies): number | null {
 	const raw = cookies.get(PROFILE_COOKIE_NAME);
-	if (!raw) return null;
+	if (!raw) {
+		return null;
+	}
 	const id = Number(raw);
 	return Number.isInteger(id) && id >= 1 && id <= 6 ? id : null;
 }
@@ -103,8 +108,11 @@ export function createServerClient(
 		fetch: event.fetch,
 		session: stored ? toAuthSession(stored) : null,
 		onSessionChange: (session) => {
-			if (session) writeStoredSession(event.cookies, session);
-			else clearStoredSession(event.cookies);
+			if (session) {
+				writeStoredSession(event.cookies, session);
+			} else {
+				clearStoredSession(event.cookies);
+			}
 		},
 	});
 }

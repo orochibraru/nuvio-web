@@ -21,7 +21,9 @@
 	}
 
 	function playable(stream: StreamWithSource): string | null {
-		if (stream.behaviorHints?.notWebReady) return null;
+		if (stream.behaviorHints?.notWebReady) {
+			return null;
+		}
 		return stream.url ?? stream.externalUrl ?? null;
 	}
 </script>

@@ -6,7 +6,9 @@ export class TtlCache<T> {
 
 	get(key: string): T | undefined {
 		const hit = this.store.get(key);
-		if (!hit) return undefined;
+		if (!hit) {
+			return undefined;
+		}
 		if (hit.expiresAt <= Date.now()) {
 			this.store.delete(key);
 			return undefined;
@@ -24,7 +26,9 @@ export class TtlCache<T> {
 		ttlMs = this.defaultTtlMs,
 	): Promise<T> {
 		const cached = this.get(key);
-		if (cached !== undefined) return cached;
+		if (cached !== undefined) {
+			return cached;
+		}
 		const value = await produce();
 		this.set(key, value, ttlMs);
 		return value;

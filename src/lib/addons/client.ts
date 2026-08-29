@@ -71,8 +71,9 @@ function normalizeMeta(raw: Meta): Meta {
 }
 
 function errorMessage(error: unknown): string {
-	if (error instanceof DOMException && error.name === "TimeoutError")
+	if (error instanceof DOMException && error.name === "TimeoutError") {
 		return "Addon timed out";
+	}
 	return error instanceof Error ? error.message : "Addon request failed";
 }
 
@@ -96,12 +97,20 @@ export class AddonClient {
 							entry.catalog.type === query.type &&
 							entry.catalog.id === query.id,
 					);
-		if (!ref) return null;
+		if (!ref) {
+			return null;
+		}
 
 		const extra: ResourceExtra = {};
-		if (query.search) extra.search = query.search;
-		if (query.genre) extra.genre = query.genre;
-		if (query.skip) extra.skip = query.skip;
+		if (query.search) {
+			extra.search = query.search;
+		}
+		if (query.genre) {
+			extra.genre = query.genre;
+		}
+		if (query.skip) {
+			extra.skip = query.skip;
+		}
 
 		const data = await this.request(
 			ref.addon,
@@ -134,7 +143,9 @@ export class AddonClient {
 					true,
 				);
 				const meta = (data as { meta?: Meta })?.meta;
-				if (meta) return { meta: normalizeMeta(meta), addon };
+				if (meta) {
+					return { meta: normalizeMeta(meta), addon };
+				}
 			} catch {
 				// fall through to the next meta provider
 			}
@@ -226,7 +237,9 @@ export class AddonClient {
 		const url = buildResourceUrl(addon.baseUrl, resource, type, id, extra);
 		if (cache) {
 			const hit = responseCache.get(url);
-			if (hit !== undefined) return hit;
+			if (hit !== undefined) {
+				return hit;
+			}
 		}
 
 		const response = await this.fetchImpl(url, {
@@ -237,7 +250,9 @@ export class AddonClient {
 			throw new Error(`${resource} request failed with ${response.status}`);
 		}
 		const data = await response.json();
-		if (cache) responseCache.set(url, data);
+		if (cache) {
+			responseCache.set(url, data);
+		}
 		return data;
 	}
 }

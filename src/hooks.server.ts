@@ -39,7 +39,9 @@ export const handle = async ({ event, resolve }) => {
 			}).refreshSession(stored.refresh_token);
 			stored = writeStoredSession(event.cookies, refreshed);
 		} catch (error) {
-			if (!(error instanceof NuvioApiError)) throw error;
+			if (!(error instanceof NuvioApiError)) {
+				throw error;
+			}
 			clearStoredSession(event.cookies);
 			stored = null;
 		}

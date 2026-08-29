@@ -37,7 +37,9 @@ function addonServes(
 	const match = manifest.resources.find((entry) =>
 		typeof entry === "string" ? entry === resource : entry.name === resource,
 	);
-	if (!match) return false;
+	if (!match) {
+		return false;
+	}
 
 	const types = typeof match === "string" ? manifest.types : match.types;
 	const idPrefixes =
@@ -45,7 +47,9 @@ function addonServes(
 			? manifest.idPrefixes
 			: (match.idPrefixes ?? manifest.idPrefixes);
 
-	if (types.length > 0 && !types.includes(type)) return false;
+	if (types.length > 0 && !types.includes(type)) {
+		return false;
+	}
 	if (
 		idPrefixes &&
 		idPrefixes.length > 0 &&

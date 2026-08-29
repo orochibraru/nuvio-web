@@ -62,7 +62,9 @@ export const createProfile = form(
 
 		const used = new Set(existing.map((profile) => profile.profile_index));
 		let nextIndex = 1;
-		while (used.has(nextIndex)) nextIndex += 1;
+		while (used.has(nextIndex)) {
+			nextIndex += 1;
+		}
 
 		await locals.nuvio.profiles.replace({
 			p_client_max_profiles: MAX_PROFILES,

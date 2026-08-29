@@ -173,7 +173,9 @@ export const browseCatalog = query(
 			{ type, id, genre, skip, search },
 			addonId,
 		);
-		if (!result) error(404, "Catalog not found");
+		if (!result) {
+			error(404, "Catalog not found");
+		}
 		return {
 			metas: result.metas,
 			addon: {
@@ -204,7 +206,9 @@ export const getMeta = query(
 		const { registry } = await getRegistry();
 		const client = new AddonClient(registry, getRequestEvent().fetch);
 		const result = await client.getMeta(type, id);
-		if (!result) error(404, "No metadata for this title");
+		if (!result) {
+			error(404, "No metadata for this title");
+		}
 		return { meta: result.meta, addonName: result.addon.manifest.name };
 	},
 );

@@ -42,13 +42,18 @@
 
 	function setGenre(value: string) {
 		const params = new URLSearchParams(page.url.searchParams);
-		if (value) params.set("g", value);
-		else params.delete("g");
+		if (value) {
+			params.set("g", value);
+		} else {
+			params.delete("g");
+		}
 		navigate(params);
 	}
 
 	async function loadMore() {
-		if (!selected || loadingMore) return;
+		if (!selected || loadingMore) {
+			return;
+		}
 		loadingMore = true;
 		try {
 			const next = await browseCatalog({
@@ -58,7 +63,9 @@
 				genre: data.genre || undefined,
 				skip: items.length,
 			});
-			if (next.metas.length === 0) exhausted = true;
+			if (next.metas.length === 0) {
+				exhausted = true;
+			}
 			more = [...more, ...next.metas];
 		} finally {
 			loadingMore = false;

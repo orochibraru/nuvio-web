@@ -30,7 +30,9 @@
 	const seasons = $derived.by(() => {
 		const set = new Set<number>();
 		for (const video of meta?.videos ?? []) {
-			if (video.season != null && video.season > 0) set.add(video.season);
+			if (video.season != null && video.season > 0) {
+				set.add(video.season);
+			}
 		}
 		return [...set].sort((a, b) => a - b);
 	});
@@ -47,7 +49,9 @@
 	let toggling = $state(false);
 
 	async function toggle() {
-		if (!meta) return;
+		if (!meta) {
+			return;
+		}
 		toggling = true;
 		try {
 			await toggleLibrary({

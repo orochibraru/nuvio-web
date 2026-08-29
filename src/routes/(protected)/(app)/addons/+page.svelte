@@ -65,7 +65,9 @@
 		const rows = toRows();
 		const index = rows.findIndex((row) => row.url === url);
 		const target = index + delta;
-		if (index < 0 || target < 0 || target >= rows.length) return;
+		if (index < 0 || target < 0 || target >= rows.length) {
+			return;
+		}
 		[rows[index], rows[target]] = [rows[target], rows[index]];
 		persist(rows);
 	}
@@ -84,7 +86,9 @@
 
 	async function confirmAdd() {
 		const current = preview;
-		if (!current?.ok) return;
+		if (!current?.ok) {
+			return;
+		}
 		const rows = toRows();
 		if (rows.some((row) => row.url === current.baseUrl)) {
 			toast.info("That addon is already installed.");

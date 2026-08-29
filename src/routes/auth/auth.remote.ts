@@ -64,7 +64,9 @@ export const signUp = form(signUpSchema, async (data, issue) => {
 			password: data.password,
 		});
 		hasSession = Boolean(session.access_token);
-		if (hasSession) writeStoredSession(cookies, session);
+		if (hasSession) {
+			writeStoredSession(cookies, session);
+		}
 	} catch (error) {
 		if (error instanceof NuvioApiError) {
 			if (error.status === 409 || error.status === 422) {
@@ -85,7 +87,9 @@ export const signOut = form(async () => {
 	try {
 		await locals.nuvio.signOut();
 	} catch (error) {
-		if (!(error instanceof NuvioApiError)) throw error;
+		if (!(error instanceof NuvioApiError)) {
+			throw error;
+		}
 	}
 	clearStoredSession(cookies);
 	redirect(303, "/auth/sign-in");

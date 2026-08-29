@@ -361,8 +361,12 @@ export class NuvioClient {
 		query: SupporterWallQuery = {},
 	): Promise<SupporterWall> {
 		const search = new URLSearchParams();
-		if (query.limit !== undefined) search.set("limit", String(query.limit));
-		if (query.offset !== undefined) search.set("offset", String(query.offset));
+		if (query.limit !== undefined) {
+			search.set("limit", String(query.limit));
+		}
+		if (query.offset !== undefined) {
+			search.set("offset", String(query.offset));
+		}
 		const suffix = search.toString() ? `?${search}` : "";
 		const response = await this.fetchImplementation(
 			`${this.websiteUrl}/api/supporters/wall${suffix}`,
