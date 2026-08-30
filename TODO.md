@@ -298,6 +298,11 @@ Nothing open.
 - Playwright smoke suite (`e2e/`, reuses the running dev server on :5173, shared
   auth token, zero-console-errors asserted on every page); Vitest for pure
   logic. Run `bun run test:e2e` after any UI change.
+- Dedicated showcase-screenshot sequence (`e2e/showcase.spec.ts`,
+  `bun run screenshots`) — a numbered walkthrough (sign-in → home → discover →
+  detail → sources drawer → library → collections → history → settings → addons
+  → account → player) for README/release screenshots. Its own Playwright
+  project, excluded from `bun run test:e2e`.
 - Small-screen gate overlay.
 
 </details>
