@@ -59,6 +59,22 @@ function normalizePreview(raw: MetaPreview): MetaPreview {
 	return { ...raw, genres: stringList(raw.genres) };
 }
 
+/** Cinemeta names the episode field `name`; the SDK spec calls it `title`. Accept both. */
+function normalizeVideo(
+	raw: MetaVideo & { name?: string; number?: number; description?: string },
+): MetaVideo {
+	const episode = raw.episode ?? raw.number;
+	return {
+		...raw,
+		title:
+			raw.title ||
+			raw.name ||
+			(episode != null ? `Episode ${episode}` : "Episode"),
+		episode,
+		overview: raw.overview || raw.description,
+	};
+}
+
 function normalizeMeta(raw: Meta): Meta {
 	return {
 		...raw,
@@ -66,7 +82,9 @@ function normalizeMeta(raw: Meta): Meta {
 		cast: stringList(raw.cast),
 		director: stringList(raw.director),
 		writer: stringList(raw.writer),
-		videos: asArray<MetaVideo>(raw.videos),
+		videos: asArray<
+			MetaVideo & { name?: string; number?: number; description?: string }
+		>(raw.videos).map(normalizeVideo),
 	};
 }
 

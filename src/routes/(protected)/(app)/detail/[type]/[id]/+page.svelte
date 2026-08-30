@@ -9,9 +9,10 @@
 	import { getMeta } from "$lib/addons/addons.remote";
 	import MediaHero from "$lib/components/media-hero.svelte";
 	import { Button } from "$lib/components/ui/button/index.js";
-	import { Spinner } from "$lib/components/ui/spinner/index.js";
-	import { libraryIds, toggleLibrary } from "$lib/library/library.remote";
+	import { libraryIds } from "$lib/library/library.remote";
+	import { sync } from "$lib/sync/store.svelte.js";
 	import { cn } from "$lib/utils.js";
+	import { titleProgress } from "$lib/watch/watch.remote";
 
 	const type = $derived(page.params.type ?? "movie");
 	const id = $derived(page.params.id ?? "");
@@ -19,9 +20,17 @@
 
 	const metaQuery = $derived(getMeta({ type, id }));
 	const libraryQuery = libraryIds();
+	const progressQuery = $derived(titleProgress({ contentId: id }));
+	const progress = $derived(
+		sync.authoritative ? sync.titleProgress(id) : (progressQuery.current ?? {}),
+	);
 
 	const meta = $derived(metaQuery.current?.meta);
-	const inLibrary = $derived((libraryQuery.current ?? []).includes(id));
+	const inLibrary = $derived(
+		sync.authoritative
+			? sync.isInLibrary(contentType, id)
+			: (libraryQuery.current ?? []).includes(id),
+	);
 	const rating = $derived(
 		typeof meta?.imdbRating === "number"
 			? meta.imdbRating.toFixed(1)
@@ -46,46 +55,67 @@
 			.sort((a, b) => (a.episode ?? 0) - (b.episode ?? 0)),
 	);
 
-	const firstEpisodeId = $derived(
+	const orderedEpisodes = $derived(
 		[...(meta?.videos ?? [])]
 			.filter((video) => (video.season ?? 0) > 0)
 			.sort(
 				(a, b) =>
 					(a.season ?? 0) - (b.season ?? 0) ||
 					(a.episode ?? 0) - (b.episode ?? 0),
-			)[0]?.id ?? null,
+			),
 	);
+	const firstEpisodeId = $derived(orderedEpisodes[0]?.id ?? null);
 
-	let toggling = $state(false);
+	// Series CTA target: an in-progress episode, else the first unwatched one.
+	const resumeEpisode = $derived.by(() => {
+		if (contentType !== "series" || orderedEpisodes.length === 0) {
+			return null;
+		}
+		const inProgress = orderedEpisodes.find((episode) => {
+			const p = progress[episode.id];
+			return p && !p.completed && p.fraction > 0.02;
+		});
+		if (inProgress) {
+			return {
+				id: inProgress.id,
+				label: `Resume S${inProgress.season}E${inProgress.episode}`,
+			};
+		}
+		const nextUp = orderedEpisodes.find(
+			(episode) => !progress[episode.id]?.completed,
+		);
+		if (nextUp && progress[orderedEpisodes[0].id]?.completed) {
+			return {
+				id: nextUp.id,
+				label: `Play S${nextUp.season}E${nextUp.episode}`,
+			};
+		}
+		return null;
+	});
 
 	function watch(videoId: string) {
 		goto(`/watch/${contentType}/${encodeURIComponent(videoId)}`);
 	}
 
-	async function toggle() {
+	function toggle() {
 		if (!meta) {
 			return;
 		}
-		toggling = true;
-		try {
-			await toggleLibrary({
-				content_id: id,
-				content_type: contentType,
-				remove: inLibrary,
-				name: meta.name,
-				poster: meta.poster,
-				background: meta.background,
-				description: meta.description,
-				release_info: meta.releaseInfo,
-				imdb_rating:
-					typeof meta.imdbRating === "number"
-						? meta.imdbRating
-						: Number(meta.imdbRating) || undefined,
-				genres: meta.genres,
-			});
-		} finally {
-			toggling = false;
-		}
+		sync.toggleLibrary({
+			contentId: id,
+			contentType,
+			remove: inLibrary,
+			name: meta.name,
+			poster: meta.poster ?? null,
+			background: meta.background ?? null,
+			description: meta.description ?? null,
+			releaseInfo: meta.releaseInfo ?? null,
+			imdbRating:
+				typeof meta.imdbRating === "number"
+					? meta.imdbRating
+					: Number(meta.imdbRating) || null,
+			genres: meta.genres,
+		});
 	}
 </script>
 
@@ -137,17 +167,25 @@
 			{#snippet actions()}
 				{#if contentType === "movie"}
 					<Button size="lg" onclick={() => watch(id)}>
-						<PlayIcon data-icon="inline-start" class="fill-current" /> Watch
+						<PlayIcon data-icon="inline-start" class="fill-current" />
+						{#if progress[id] && !progress[id].completed && progress[id].fraction > 0.02}
+							Resume
+						{:else}
+							Watch
+						{/if}
+					</Button>
+				{:else if resumeEpisode}
+					<Button size="lg" onclick={() => watch(resumeEpisode.id)}>
+						<PlayIcon data-icon="inline-start" class="fill-current" />
+						{resumeEpisode.label}
 					</Button>
 				{:else if firstEpisodeId}
 					<Button size="lg" onclick={() => watch(firstEpisodeId)}>
 						<PlayIcon data-icon="inline-start" class="fill-current" /> Play S1E1
 					</Button>
 				{/if}
-				<Button size="lg" variant="secondary" disabled={toggling} onclick={toggle}>
-					{#if toggling}
-						<Spinner data-icon="inline-start" />
-					{:else if inLibrary}
+				<Button size="lg" variant="secondary" onclick={toggle}>
+					{#if inLibrary}
 						<CheckIcon data-icon="inline-start" />
 					{:else}
 						<PlusIcon data-icon="inline-start" />
@@ -205,17 +243,18 @@
 						{/if}
 					</div>
 
-					<div class="flex flex-col gap-2">
+					<div class="flex max-w-4xl flex-col gap-2">
 						{#each episodes as episode (episode.id)}
+							{@const ep = progress[episode.id]}
 							<button
 								type="button"
 								onclick={() => watch(episode.id)}
-								class="group/ep flex items-center gap-4 rounded-xl border border-border/60 bg-card/40 p-2.5 text-left transition-all hover:border-primary/40 hover:bg-card"
+								class="group/ep flex items-start gap-4 rounded-xl border border-border/60 bg-card/40 p-3 text-left transition-all hover:border-primary/40 hover:bg-card"
 							>
-								<span class="w-8 shrink-0 text-center text-lg font-semibold text-muted-foreground">
+								<span class="w-5 shrink-0 pt-9 text-center text-sm font-semibold text-muted-foreground">
 									{episode.episode}
 								</span>
-								<div class="relative aspect-video w-36 shrink-0 overflow-hidden rounded-lg bg-muted">
+								<div class="relative aspect-video w-40 shrink-0 overflow-hidden rounded-lg bg-muted">
 									{#if episode.thumbnail}
 										<img
 											src={episode.thumbnail}
@@ -229,20 +268,45 @@
 									>
 										<PlayIcon class="size-6 fill-white text-white" />
 									</span>
-								</div>
-								<div class="min-w-0 flex-1 py-1">
-									<p class="truncate text-sm font-semibold">{episode.title}</p>
-									{#if episode.released}
-										<p class="mt-0.5 text-xs text-muted-foreground">
-											{new Date(episode.released).toLocaleDateString(undefined, {
-												day: "numeric",
-												month: "short",
-												year: "numeric",
-											})}
-										</p>
+									{#if ep?.completed}
+										<span
+											class="absolute top-1 right-1 flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground"
+										>
+											<CheckIcon class="size-3" />
+										</span>
+									{:else if ep && ep.fraction > 0.02}
+										<div class="absolute inset-x-0 bottom-0 h-1 bg-black/50">
+											<div
+												class="h-full rounded-r-full bg-primary"
+												style={`width: ${ep.fraction * 100}%`}
+											></div>
+										</div>
 									{/if}
+								</div>
+								<div class="min-w-0 flex-1">
+									<div class="flex items-baseline justify-between gap-3">
+										<p
+											class={cn(
+												"truncate text-sm font-semibold",
+												ep?.completed && "text-muted-foreground",
+											)}
+										>
+											{episode.title}
+										</p>
+										{#if episode.released}
+											<span class="shrink-0 text-xs text-muted-foreground">
+												{new Date(episode.released).toLocaleDateString(undefined, {
+													day: "numeric",
+													month: "short",
+													year: "numeric",
+												})}
+											</span>
+										{/if}
+									</div>
 									{#if episode.overview}
-										<p class="mt-1 line-clamp-2 text-xs text-muted-foreground">{episode.overview}</p>
+										<p class="mt-1 line-clamp-3 text-xs leading-relaxed text-muted-foreground">
+											{episode.overview}
+										</p>
 									{/if}
 								</div>
 							</button>

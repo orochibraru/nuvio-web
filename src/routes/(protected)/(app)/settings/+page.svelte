@@ -2,6 +2,7 @@
 	import CheckIcon from "@lucide/svelte/icons/check";
 	import { toast } from "svelte-sonner";
 	import * as Card from "$lib/components/ui/card/index.js";
+	import { Switch } from "$lib/components/ui/switch/index.js";
 	import { saveUiSettings } from "$lib/settings/settings.remote";
 	import { theme } from "$lib/settings/theme.svelte";
 	import type { Accent, UiSettings } from "$lib/settings/ui-settings.js";
@@ -115,6 +116,27 @@
 					{/each}
 				</div>
 			</div>
+		</Card.Content>
+	</Card.Root>
+
+	<Card.Root>
+		<Card.Header>
+			<Card.Title>Playback</Card.Title>
+			<Card.Description>How the player behaves for this profile.</Card.Description>
+		</Card.Header>
+		<Card.Content>
+			<label class="flex items-center justify-between gap-4">
+				<span class="flex flex-col gap-0.5">
+					<span class="text-sm font-medium">Autoplay next episode</span>
+					<span class="text-xs text-muted-foreground">
+						Start the next episode automatically after one finishes.
+					</span>
+				</span>
+				<Switch
+					checked={theme.current.autoPlayNext}
+					onCheckedChange={(value) => update({ autoPlayNext: value })}
+				/>
+			</label>
 		</Card.Content>
 	</Card.Root>
 </div>

@@ -12,6 +12,8 @@ const shots: Array<[string, string]> = [
 	["history", "/history"],
 	["settings", "/settings"],
 	["addons", "/addons"],
+	["account", "/account"],
+	["support", "/support"],
 	["watch-nostreams", "/watch/movie/tt0137523"],
 ];
 

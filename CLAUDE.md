@@ -22,3 +22,15 @@ call). **After any UI or route change, run `bun run test:e2e`** (Playwright, in
 `e2e/`) and make it pass before calling the work done. Add a spec when you add a
 screen or a flow. Needs `NUVIO_TEST_EMAIL` / `NUVIO_TEST_PASSWORD` in `.env`
 (see `.env.example`); the config starts its own dev server on :4173.
+
+`bun run test:unit` (Vitest, node env, `src/**/*.test.ts`) covers framework-agnostic
+logic — currently `src/lib/sync/reconcile.ts`. Keep the sync reconcile pure and tested.
+
+## Sync store
+
+`src/lib/sync/store.svelte.ts` exports `sync`, a local-first mirror of library /
+watch-progress / history (IndexedDB + optimistic write queue + background delta
+pull). Components read `sync.ready ? sync.X : data.X` and write through `sync.*`
+(no more direct `toggleLibrary` / `saveProgress` / `deleteHistory` remote calls
+from pages). Reactive reads must go through the published `$state` arrays
+(`sync.library` etc.), never the private maps. `+page.server.ts` loads stay for SSR.

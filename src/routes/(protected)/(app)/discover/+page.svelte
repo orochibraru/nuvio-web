@@ -23,6 +23,25 @@
 		new Set(data.catalogs.map((entry) => entry.addonId)).size > 1,
 	);
 
+	// Cinemeta reuses one catalog name ("Popular", "New"…) for both movie and
+	// series, so pill labels collide. Suffix the repeats with their type.
+	const catalogLabels = $derived.by(() => {
+		const counts = new Map<string, number>();
+		for (const entry of data.catalogs) {
+			counts.set(entry.name, (counts.get(entry.name) ?? 0) + 1);
+		}
+		return new Map(
+			data.catalogs.map((entry) => {
+				const key = `${entry.addonId}|${entry.type}|${entry.id}`;
+				if ((counts.get(entry.name) ?? 0) > 1) {
+					const noun = entry.type === "series" ? "Series" : "Movies";
+					return [key, `${entry.name} · ${noun}`];
+				}
+				return [key, entry.name];
+			}),
+		);
+	});
+
 	let more = $state<MetaPreview[]>([]);
 	let loadingMore = $state(false);
 	let exhausted = $state(false);
@@ -110,7 +129,7 @@
 							: "bg-foreground/5 text-muted-foreground hover:bg-foreground/10 hover:text-foreground",
 					)}
 				>
-					{entry.name}
+					{catalogLabels.get(key) ?? entry.name}
 					{#if multipleAddons}
 						<span class="text-xs opacity-60">· {entry.addonName}</span>
 					{/if}

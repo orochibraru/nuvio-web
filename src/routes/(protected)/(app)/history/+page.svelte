@@ -4,11 +4,33 @@
 	import Trash2Icon from "@lucide/svelte/icons/trash-2";
 	import TvIcon from "@lucide/svelte/icons/tv";
 	import EmptyState from "$lib/components/empty-state.svelte";
-	import { deleteHistory } from "$lib/history/history.remote";
+	import { sync } from "$lib/sync/store.svelte.js";
 
 	let { data } = $props();
 
-	let deleted = $state<string[]>([]);
+	type Row = {
+		id: string;
+		contentId: string;
+		type: "movie" | "series";
+		title: string;
+		season: number | null;
+		episode: number | null;
+		watchedAt: number;
+	};
+
+	const items = $derived<Row[]>(
+		sync.authoritative
+			? sync.history.map((record) => ({
+					id: record.id,
+					contentId: record.contentId,
+					type: record.contentType,
+					title: record.title,
+					season: record.season,
+					episode: record.episode,
+					watchedAt: record.watchedAt,
+				}))
+			: data.items,
+	);
 
 	function dayLabel(ts: number): string {
 		const date = new Date(ts);
@@ -36,9 +58,8 @@
 	}
 
 	const groups = $derived.by(() => {
-		const visible = data.items.filter((item) => !deleted.includes(item.id));
-		const map = new Map<string, typeof visible>();
-		for (const item of visible) {
+		const map = new Map<string, Row[]>();
+		for (const item of items) {
 			const label = dayLabel(item.watchedAt);
 			const bucket = map.get(label);
 			if (bucket) {
@@ -57,17 +78,12 @@
 		return ` · S${season}E${episode}`;
 	}
 
-	async function remove(item: (typeof data.items)[number]) {
-		deleted = [...deleted, item.id];
-		try {
-			await deleteHistory({
-				content_id: item.contentId,
-				season: item.season ?? undefined,
-				episode: item.episode ?? undefined,
-			});
-		} catch {
-			deleted = deleted.filter((id) => id !== item.id);
-		}
+	function remove(item: Row) {
+		sync.deleteHistory({
+			contentId: item.contentId,
+			season: item.season,
+			episode: item.episode,
+		});
 	}
 </script>
 

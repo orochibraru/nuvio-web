@@ -5,6 +5,7 @@
 	import * as DropdownMenu from "$lib/components/ui/dropdown-menu/index.js";
 	import { saveUiSettings } from "$lib/settings/settings.remote";
 	import { theme } from "$lib/settings/theme.svelte";
+	import { sync } from "$lib/sync/store.svelte.js";
 	import { cn } from "$lib/utils.js";
 	import { signOut } from "../../auth/auth.remote";
 
@@ -27,6 +28,14 @@
 
 	$effect(() => {
 		theme.seed(data.ui);
+	});
+
+	// Local-first store for library / progress / history: hydrates from IndexedDB,
+	// reconciles deltas in the background, flushes optimistic writes.
+	$effect(() => {
+		const profileIndex = data.profile.profile_index;
+		void sync.attach(profileIndex);
+		return () => sync.detach();
 	});
 
 	// Server value for SSR / first paint; the client controller takes over once seeded.
@@ -54,7 +63,7 @@
 <svelte:window onscroll={() => (scrolled = window.scrollY > 12)} />
 
 <div
-	class="relative isolate min-h-svh overflow-x-clip"
+	class="relative isolate flex min-h-svh flex-col overflow-x-clip"
 	data-accent={accent}
 	data-amoled={amoled}
 >
@@ -175,7 +184,21 @@
 		</div>
 	</header>
 
-	<main class="mx-auto max-w-(--breakpoint-2xl) px-6 pt-20 pb-20">
-		{@render children()}
+	<main class="mx-auto flex w-full max-w-(--breakpoint-2xl) flex-1 flex-col px-6 pt-20 pb-16">
+		<div class="flex-1">
+			{@render children()}
+		</div>
+
+		<footer
+			class="mt-16 flex flex-col items-center gap-2 border-t border-border/60 pt-6 text-center text-xs text-muted-foreground"
+		>
+			<span class="font-medium text-foreground/70">Nuvio</span>
+			<span>A web client for your Nuvio library, addons and streams.</span>
+			<div class="flex items-center gap-4">
+				<a href="/support" class="transition hover:text-foreground">Supporters</a>
+				<a href="/settings" class="transition hover:text-foreground">Appearance</a>
+				<a href="/addons" class="transition hover:text-foreground">Addons</a>
+			</div>
+		</footer>
 	</main>
 </div>

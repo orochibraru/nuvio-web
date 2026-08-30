@@ -4,19 +4,42 @@
 	import EmptyState from "$lib/components/empty-state.svelte";
 	import MediaPoster from "$lib/components/media-poster.svelte";
 	import { Button } from "$lib/components/ui/button/index.js";
-	import { toggleLibrary } from "$lib/library/library.remote";
+	import { sync } from "$lib/sync/store.svelte.js";
 	import { cn } from "$lib/utils.js";
 
 	let { data } = $props();
 
 	let filter = $state<"all" | "movie" | "series">("all");
 	let sort = $state<"added" | "name">("added");
-	let removed = $state<string[]>([]);
+
+	type GridItem = {
+		id: string;
+		type: "movie" | "series";
+		name: string;
+		poster?: string;
+		releaseInfo?: string;
+		imdbRating?: number;
+	};
+
+	// Local store once it has hydrated; the SSR payload carries first paint.
+	const items = $derived<GridItem[]>(
+		sync.authoritative
+			? sync.library.map((record) => ({
+					id: record.contentId,
+					type: record.contentType,
+					name: record.name,
+					poster: record.poster ?? undefined,
+					releaseInfo: record.releaseInfo ?? undefined,
+					imdbRating: record.imdbRating ?? undefined,
+				}))
+			: data.items,
+	);
+	const progress = $derived(
+		sync.authoritative ? sync.libraryProgress : data.progress,
+	);
 
 	const shown = $derived.by(() => {
-		let list = data.items.filter(
-			(item) => !removed.includes(`${item.type}:${item.id}`),
-		);
+		let list = items;
 		if (filter !== "all") {
 			list = list.filter((item) => item.type === filter);
 		}
@@ -32,18 +55,12 @@
 		{ value: "series", label: "Series" },
 	];
 
-	async function remove(item: (typeof data.items)[number]) {
-		const key = `${item.type}:${item.id}`;
-		removed = [...removed, key];
-		try {
-			await toggleLibrary({
-				content_id: item.id,
-				content_type: item.type === "series" ? "series" : "movie",
-				remove: true,
-			});
-		} catch {
-			removed = removed.filter((entry) => entry !== key);
-		}
+	function remove(item: GridItem) {
+		sync.toggleLibrary({
+			contentId: item.id,
+			contentType: item.type,
+			remove: true,
+		});
 	}
 </script>
 
@@ -52,7 +69,7 @@
 		<div class="flex flex-col gap-1">
 			<h1 class="text-3xl font-bold tracking-tight">Library</h1>
 			<p class="text-sm text-muted-foreground">
-				{data.items.length} title{data.items.length === 1 ? "" : "s"} saved
+				{items.length} title{items.length === 1 ? "" : "s"} saved
 			</p>
 		</div>
 		<div class="flex items-center gap-2">
@@ -98,7 +115,7 @@
 		>
 			{#each shown as item (`${item.type}:${item.id}`)}
 				<div class="group relative">
-					<MediaPoster {item} />
+					<MediaPoster {item} progress={progress[item.id]} />
 					<button
 						type="button"
 						aria-label="Remove from library"

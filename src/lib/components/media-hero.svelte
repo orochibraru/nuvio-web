@@ -68,7 +68,7 @@
 	</div>
 
 	<div
-		class="mx-auto flex max-w-(--breakpoint-2xl) items-end gap-8 px-6 pt-36 pb-12 sm:pt-44 lg:min-h-[80vh] lg:pb-16"
+		class="mx-auto flex max-w-(--breakpoint-2xl) items-end gap-8 px-6 pt-32 pb-12 lg:min-h-[72vh] lg:pb-14"
 	>
 		{#if showPoster && poster}
 			<div

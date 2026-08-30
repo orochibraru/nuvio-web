@@ -72,11 +72,11 @@
 				{#each data.resume as item (`${item.type}:${item.videoId}`)}
 					<a
 						href={`/watch/${item.type}/${encodeURIComponent(item.videoId)}`}
-						class="group/cw relative aspect-video w-64 shrink-0 overflow-hidden rounded-xl bg-muted ring-1 ring-white/5 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_50px_-16px] hover:shadow-black/70 hover:ring-primary/60"
+						class="group/cw relative aspect-video w-72 shrink-0 overflow-hidden rounded-xl bg-muted ring-1 ring-white/5 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_50px_-16px] hover:shadow-black/70 hover:ring-primary/60"
 					>
-						{#if item.poster}
+						{#if item.background}
 							<img
-								src={item.poster}
+								src={item.background}
 								alt={item.name}
 								loading="lazy"
 								class="size-full object-cover transition-transform duration-500 group-hover/cw:scale-105"

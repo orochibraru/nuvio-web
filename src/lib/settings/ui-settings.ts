@@ -18,6 +18,7 @@ export const uiSettingsSchema = v.object({
 	mode: v.fallback(v.picklist(["light", "dark", "system"]), "system"),
 	darkStyle: v.fallback(v.picklist(["dim", "amoled"]), "dim"),
 	accent: v.fallback(v.picklist(ACCENTS), "blue"),
+	autoPlayNext: v.fallback(v.boolean(), true),
 });
 
 export type UiSettings = v.InferOutput<typeof uiSettingsSchema>;
@@ -26,4 +27,5 @@ export const DEFAULT_UI_SETTINGS: UiSettings = {
 	mode: "system",
 	darkStyle: "dim",
 	accent: "blue",
+	autoPlayNext: true,
 };

@@ -72,15 +72,22 @@ no schema), the progress-key format, and the 90% / 60s completion rule.
 
 ## Phase 2 — Local store & sync engine
 
-- [ ] IndexedDB wrapper (schema: `library`, `watchProgress`, `watchHistory`, `cursors`, `writeQueue`, `addonCache`)
-- [ ] Library sync: bootstrap (`client.library.deltaCursor` → `client.library.pull` pages → `client.library.pullDelta`), then delta pulls; apply events by `event_id` asc, identity `(content_type, content_id)`
-- [ ] Watch progress sync: `client.watchProgress.deltaCursor` / `pull` / `pullDelta`; same event-cursor pattern
-- [ ] Watch history sync: `client.watchHistory.deltaCursor` / `pull` / `pullDelta`
-- [ ] Write queue: optimistic local mutation + enqueue + flush → `client.library.upsertItems` / `deleteItems`, `client.watchProgress.push`, `client.watchHistory.push`, with `p_origin_client_id` (stable per-install id) and 500-item batching
-- [ ] Reconcile / dedupe on delta arrival; last-write-wins
-- [ ] Sync scheduler: on profile load, on window focus, on interval, after writes
-- [ ] `$state`-based stores exposing `library`, `continueWatching` (from progress), `history` to components
-- [ ] Unit tests for the reconcile / cursor logic (Vitest)
+`src/lib/sync/`: `idb.ts` (dep-free IndexedDB wrapper, stores `library`/`progress`/
+`history`/`meta`, keyed `${profileId}:${identity}`, degrades to no-op when IDB is
+unavailable), `reconcile.ts` (pure delta-fold, Vitest target), `sync.remote.ts`
+(`syncSnapshot` / `syncDeltas` / `flushWrites` — the only network layer), `store.svelte.ts`
+(`sync` singleton, `$state` views + optimistic mutators). `+page.server.ts` loads stay
+for SSR / first paint; pages read `sync.ready ? store : data.X`.
+
+- [x] IndexedDB wrapper (`library`, `progress`, `history`, `meta` = cursors + queue + bootstrapped flag). `addonCache` still on the addon layer's in-memory `TtlCache`
+- [x] Bootstrap: `syncSnapshot` reads all three delta cursors *before* paging the snapshot; `syncDeltas` then catches anything that moved during paging. `bootstrapped` flag in `meta` so it runs once per device/profile
+- [x] Library / progress / history delta pulls on an interval (90s) + on `visibilitychange` + 4s after attach (deferred so it doesn't fight first paint). Applied by `event_id` asc, identity `(type,id)` / `progress_key` / `(id,season,episode)`
+- [x] Write queue: optimistic local mutate → enqueue (collapsing repeats on same target) → 1.5s-debounced `flushWrites` → `upsertItems`/`deleteItems`/`watchProgress.push`/`watchHistory.delete` with `p_origin_client_id: "nuvio-web"` + 500-item batching. Survives reload (persisted to `meta`), retries on the next sync tick
+- [x] Reconcile: `reconcileDeltas` (last-write-wins by `event_id`); `overlayPendingLibrary` / `overlayPendingProgress` re-apply still-queued writes so a pull that lands before our push doesn't flicker
+- [x] Scheduler: 4s-after-attach + 90s interval + focus + implicit after every write (debounced flush)
+- [x] `$state` views: `sync.library` / `sync.progress` / `sync.history` (sorted), `sync.libraryProgress` / `sync.titleProgress()` / `sync.isInLibrary()`. Wired into `/library`, `/history`, `/detail` (in-library + resume/watched), `/watch` (`saveProgress`). Home continue-watching keeps its meta-enriched `continueWatching` query
+- [x] Unit tests — `src/lib/sync/reconcile.test.ts`, 17 cases (`bun run test:unit`)
+- [ ] `continueWatching` from the local progress store (needs poster/title — either enrich from the library mirror or a cached meta lookup)
 
 ## Phase 3 — Addon subsystem
 
@@ -107,7 +114,7 @@ Content via the Phase 3 remote queries; pages use `+page.server.ts` loads that `
 - [x] Search `/search?q=` — `searchCatalogs` fans out to `search`-capable catalogs server-side, dedupes by `type:id`, grouped Movies / Series / Other. (`command`-palette nav search deferred)
 - [x] Detail `/detail/[type]/[id]` — `getMeta`: backdrop + poster + title/year/runtime/genres/rating, description, cast/director
 - [x] Detail actions: Add to / Remove from library (`library.remote.ts` `toggleLibrary` → `client.library.upsertItems`/`deleteItems`, `p_origin_client_id: "nuvio-web"`). Play → streams; "Mark watched" + share deferred
-- [x] Series: season pills + episode list (thumb, title, aired date) → per-episode `StreamList`. Watched tick / resume bar deferred (Phase 2)
+- [x] Series: season pills + episode list (thumb, title, aired date). Per-episode resume bar + watched tick via `titleProgress` query (`$lib/watch`); series CTA resolves to Resume S_E_ / next-unwatched. Library grid cards get resume bars via `libraryProgress`
 - [x] `StreamList` — lazy `getStreams`, per-stream Play/Open link (opens `url`/`externalUrl` in a tab until Phase 6 player), `not web-ready` flagged, addon badge. Grouping/sort/remember-choice deferred
 - [ ] Home layout editor (in Settings) → Phase 7
 - [ ] Hero banner on home; continue-watching row; watched/resume indicators → after Phase 2
@@ -137,7 +144,8 @@ dev-only (404 in prod) harness; `e2e/watch.spec.ts` drives it against `static/e2
 - [x] Progress → `saveProgress` command every 15s while playing + on unmount (`onDestroy`). Completion history is the server's job (≥90% & ≥60s rule)
 - [x] Subtitles: `getSubtitles` (dedupe by lang) → `<track>` via `/api/subtitle` proxy (SRT→WebVTT, auth-gated)
 - [x] Detail "Watch" (movie) / episode click (series) → `/watch/...`; Continue-watching row on home (`continueWatching`, with progress bars)
-- [ ] Next-episode autoplay + "up next" card; `auto_play_next` setting; subtitle size/colour/offset controls; audio-track selection; "mark watched" button
+- [x] Next-episode autoplay + "up next" card — `watchData` returns `next` (video id / label / thumb); end-of-episode overlay with a 10s countdown (gated on the `autoPlayNext` setting), plus a persistent "Next episode" card below the player
+- [ ] Subtitle size/colour/offset controls; audio-track selection; "mark watched" button
 
 ## Phase 7 — Settings
 
@@ -150,23 +158,25 @@ uses server data — no accent/amoled flash).
 - [x] `/settings` Appearance: mode (system / light / dark), dark style (dim / **AMOLED** = pure black), accent colour (7 presets → `--primary`/`--ring` via `[data-accent]` on the app wrapper + `<html>`)
 - [x] Quick mode toggle in the profile dropdown
 - [x] Per-profile, cloud-stored; `mode-watcher` handles the light/dark mechanism, we layer cloud sync + accent + amoled on top
-- [ ] Player defaults (quality, subtitle language, subtitle appearance), `auto_play_next` → with Phase 6
+- [x] Playback section on `/settings`: "Autoplay next episode" toggle (`autoPlayNext` in `uiSettingsSchema`, defaults on)
+- [ ] Player defaults: quality, subtitle language, subtitle appearance
 - [ ] Home layout editor (Phase 4 rows) → needs `client.homeCatalog`
 - [ ] Addon shortcut card into `/addons`
 
 ## Phase 8 — Account, polish, hardening
 
-- [ ] `/account`: email, change password (if the API supports it — otherwise link out), sign out everywhere, delete profile data (`client.profiles.deleteData`)
-- [ ] Sync status widget: `client.getSyncOverview()` counts per profile + last-sync time + pending write-queue size
-- [ ] `/support` (public): Supporter Wall — `client.getSupporterWall()` Top / Recent tabs, pagination
+- [x] `/account` (in `(app)`): email + member-since, change-password link-out to nuvio.tv (no API method), sign out, per-profile sync counts table (`getSyncOverview` via `account.remote.ts`), danger-zone "clear this profile's data" (`profiles.deleteData`) behind a confirm dialog
+- [x] Sync status: per-profile counts table on `/account`. Last-sync time + write-queue size wait on Phase 2
+- [x] `/support` (public, outside `(protected)`): Supporter Wall — `getSupporterWall` via `support.remote.ts`, Top + Recently-joined grids, offset pagination, become-a-supporter link. Linked from the app footer
 - [ ] Health indicator using `client.healthCheck()` / `client.healthPing()` for a status page or degraded-mode banner
-- [ ] Error / empty / offline states across every screen; retry affordances
+- [~] Error / empty / offline states across every screen; retry affordances — shared `empty-state.svelte` on library / history / collections / discover / watch / search; `+error.svelte` restyled. Offline + retry still open
+- [~] Visual pass ("sexy af"): cinematic full-bleed `media-hero.svelte` (home spotlight + detail), scroll-aware transparent header, hover-lift posters with scroll-button rails, shimmer skeletons, ambient accent glow, `N` wordmark. Tokens/utilities in `layout.css` (`skeleton`, `no-scrollbar`, `animate-hero-zoom`)
 - [ ] Image handling: lazy-load, decode async; decide on a poster proxy route (CORS + resize + cache) vs raw `<img>`
-- [ ] Accessibility pass: focus management, ARIA on rows/tiles/player, reduced-motion
+- [~] Accessibility pass: focus management, ARIA on rows/tiles/player, reduced-motion — hero/skeleton honour `prefers-reduced-motion`; full pass still open
 - [ ] Perf: route-level code splitting, virtualized grids for large libraries, prefetch on hover
-- [~] Tests: **Playwright smoke suite in `e2e/`** (`bun run test:e2e`, own dev server on :4173, real API via `NUVIO_TEST_*` in `.env`) — every route renders + client-nav + detail library toggle, all asserting no runtime errors. Still to add: Vitest for sync engine + addon registry, and playback once Phase 6 lands. **Run `bun run test:e2e` after any UI change** (also in CLAUDE.md)
+- [~] Tests: **Playwright smoke suite in `e2e/`** (`bun run test:e2e`, own dev server on :4173, real API via `NUVIO_TEST_*` in `.env`) — every route renders + client-nav + detail library toggle, all asserting no runtime errors. **Vitest** (`bun run test:unit`) covers `src/lib/sync/reconcile.ts`. Still to add: Vitest for the addon registry. **Run `bun run test:e2e` after any UI change** (also in CLAUDE.md)
 - [ ] Rate-limit safety: keep per-user request rate well under 100 req/s; batch via RPC
-- [ ] Add a screen under desktop sizes with a link to tell users to use the mobile app instead.
+- [x] Small-screen gate: `small-screen-notice.svelte` in the root layout, `md:hidden` full-screen overlay pointing phone/tablet users at the mobile app
 
 ---
 

@@ -1,5 +1,5 @@
 import * as v from "valibot";
-import { command, query } from "$app/server";
+import { query } from "$app/server";
 import { getAddonClient } from "$lib/addons/server.js";
 import { requireProfile } from "$lib/server/guards.js";
 
@@ -57,6 +57,38 @@ export const watchData = query(
 		const progress =
 			progressRows.find((row) => row.progress_key === key) ?? null;
 
+		// Next episode in play order, for autoplay / "up next".
+		let next: {
+			videoId: string;
+			label: string;
+			thumbnail: string | null;
+		} | null = null;
+		if (
+			type === "series" &&
+			season != null &&
+			episode != null &&
+			meta?.videos
+		) {
+			const ordered = [...meta.videos]
+				.filter((entry) => (entry.season ?? 0) > 0)
+				.sort(
+					(a, b) =>
+						(a.season ?? 0) - (b.season ?? 0) ||
+						(a.episode ?? 0) - (b.episode ?? 0),
+				);
+			const index = ordered.findIndex(
+				(entry) => entry.season === season && entry.episode === episode,
+			);
+			const candidate = index >= 0 ? ordered[index + 1] : undefined;
+			if (candidate) {
+				next = {
+					videoId: candidate.id,
+					label: `S${candidate.season}E${candidate.episode} · ${candidate.title}`,
+					thumbnail: candidate.thumbnail ?? null,
+				};
+			}
+		}
+
 		return {
 			metaType,
 			contentId,
@@ -69,42 +101,12 @@ export const watchData = query(
 			poster: meta?.poster ?? null,
 			streams: streamResult.streams,
 			streamErrors: streamResult.errors,
+			next,
 			resume:
 				progress && progress.duration > 0 && progress.position > 5000
 					? { position: progress.position, duration: progress.duration }
 					: null,
 		};
-	},
-);
-
-export const saveProgress = command(
-	v.object({
-		contentId: v.string(),
-		contentType: v.picklist(["movie", "series"]),
-		videoId: v.string(),
-		season: v.optional(v.number()),
-		episode: v.optional(v.number()),
-		position: v.number(),
-		duration: v.number(),
-	}),
-	async (input) => {
-		const { nuvio, profileId } = requireProfile();
-		await nuvio.watchProgress.push({
-			p_profile_id: profileId,
-			p_entries: [
-				{
-					content_id: input.contentId,
-					content_type: input.contentType,
-					video_id: input.videoId,
-					season: input.season,
-					episode: input.episode,
-					position: Math.round(input.position),
-					duration: Math.round(input.duration),
-					last_watched: Date.now(),
-				},
-			],
-		});
-		return { ok: true };
 	},
 );
 
@@ -135,7 +137,9 @@ export const continueWatching = query(async () => {
 				id: row.content_id,
 				type: row.content_type,
 				name: meta?.meta.name ?? row.content_id,
-				poster: meta?.meta.poster,
+				poster: meta?.meta.poster ?? null,
+				background: meta?.meta.background ?? meta?.meta.poster ?? null,
+				logo: meta?.meta.logo ?? null,
 				videoId: row.video_id,
 				season: row.season,
 				episode: row.episode,
@@ -146,6 +150,31 @@ export const continueWatching = query(async () => {
 
 	return items;
 });
+
+/** Progress for every video of one title, keyed by `video_id`. Powers resume bars. */
+export const titleProgress = query(
+	v.object({ contentId: v.string() }),
+	async ({ contentId }) => {
+		const { nuvio, profileId } = requireProfile();
+		const rows = await nuvio.watchProgress.pull({
+			p_profile_id: profileId,
+			p_limit: 500,
+		});
+		const byVideo: Record<string, { fraction: number; completed: boolean }> =
+			{};
+		for (const row of rows) {
+			if (row.content_id !== contentId || row.duration <= 0) {
+				continue;
+			}
+			const fraction = Math.min(1, row.position / row.duration);
+			byVideo[row.video_id] = {
+				fraction,
+				completed: fraction >= 0.9 && row.duration >= 60_000,
+			};
+		}
+		return byVideo;
+	},
+);
 
 export const getSubtitles = query(
 	v.object({ type: v.string(), id: v.string() }),

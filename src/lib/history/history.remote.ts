@@ -1,5 +1,4 @@
-import * as v from "valibot";
-import { command, query } from "$app/server";
+import { query } from "$app/server";
 import { requireProfile } from "$lib/server/guards.js";
 
 export const watchHistory = query(async () => {
@@ -18,17 +17,4 @@ export const watchHistory = query(async () => {
 		episode: item.episode,
 		watchedAt: item.watched_at,
 	}));
-});
-
-const deleteSchema = v.object({
-	content_id: v.string(),
-	season: v.optional(v.number()),
-	episode: v.optional(v.number()),
-});
-
-export const deleteHistory = command(deleteSchema, async (key) => {
-	const { nuvio, profileId } = requireProfile();
-	await nuvio.watchHistory.delete([key], profileId);
-	await watchHistory().refresh();
-	return { ok: true };
 });

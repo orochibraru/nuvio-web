@@ -10,6 +10,8 @@ const routes = [
 	"/collections",
 	"/settings",
 	"/addons",
+	"/account",
+	"/support",
 	"/search?q=breaking%20bad",
 	"/detail/movie/tt0137523",
 	"/detail/series/tt0903747",
@@ -65,11 +67,55 @@ test("detail page: add to library then remove", async ({ page }) => {
 	await page.waitForLoadState("networkidle");
 
 	const toggle = page.getByRole("button", { name: /library/i });
-	const initial = (await toggle.textContent())?.trim();
+	// Normalise to "not in library" regardless of what a prior run left.
+	if ((await toggle.textContent())?.includes("In library")) {
+		await toggle.click();
+		await expect(toggle).toHaveText(/Add to library/i, { timeout: 10_000 });
+	}
 	await toggle.click();
-	await expect(toggle).not.toHaveText(initial ?? "", { timeout: 10_000 });
+	await expect(toggle).toHaveText(/In library/i, { timeout: 10_000 });
 	await toggle.click();
 	await expect(toggle).toHaveText(/Add to library/i, { timeout: 10_000 });
 
 	expect(errors, "runtime errors on detail toggle").toEqual([]);
+});
+
+test("local store: an optimistic add shows on the library page after client nav", async ({
+	page,
+}) => {
+	const errors = collectRuntimeErrors(page);
+
+	// Interstellar — not part of the test account's baseline library.
+	await page.goto("/detail/movie/tt0816692");
+	await page.waitForLoadState("networkidle");
+
+	const toggle = page.getByRole("button", { name: /library/i });
+	// Start from "not in library" whatever a prior run left behind.
+	if ((await toggle.textContent())?.includes("In library")) {
+		await toggle.click();
+		await expect(toggle).toHaveText(/Add to library/i, { timeout: 10_000 });
+	}
+	await toggle.click();
+	await expect(toggle).toHaveText(/In library/i, { timeout: 10_000 });
+
+	await page
+		.getByRole("navigation")
+		.getByRole("link", { name: "Library" })
+		.click();
+	await expect(page.getByRole("heading", { name: "Library" })).toBeVisible();
+	// No reload: the row is present purely from the local store.
+	await expect(
+		page.getByRole("link", { name: /Interstellar/i }).first(),
+	).toBeVisible({ timeout: 10_000 });
+
+	// Restore: remove what this test added.
+	await page.goto("/detail/movie/tt0816692");
+	await page.waitForLoadState("networkidle");
+	const t2 = page.getByRole("button", { name: /library/i });
+	if ((await t2.textContent())?.includes("In library")) {
+		await t2.click();
+		await expect(t2).toHaveText(/Add to library/i, { timeout: 10_000 });
+	}
+
+	expect(errors, "runtime errors").toEqual([]);
 });
