@@ -15,15 +15,45 @@ function currentTime(page: Page): Promise<number> {
 	return page.evaluate(() => document.querySelector("video")?.currentTime ?? 0);
 }
 
-test("watch page with no streams renders cleanly", async ({
+test("streams page: instant shell, async list, refresh", async ({
 	page,
 	context,
 }) => {
 	await signIn(context);
 	const errors = collectRuntimeErrors(page);
-	await page.goto("/watch/movie/tt0137523");
+	await page.goto("/streams/movie/tt0137523");
+
+	// The heading paints from SSR before streams resolve.
+	await expect(
+		page.getByRole("heading", { name: "Fight Club", level: 1 }),
+	).toBeVisible();
+	await expect(page.getByRole("button", { name: "Refresh" })).toBeVisible();
+
 	await page.waitForLoadState("networkidle");
-	await expect(page.getByText("No streams available")).toBeVisible();
+	// Test account has only Cinemeta (no stream addon) → resolves to empty.
+	await expect(page.getByText("No streams yet")).toBeVisible({
+		timeout: 15_000,
+	});
+	await page.getByRole("button", { name: "Refresh" }).click();
+	await expect(page.getByText("No streams yet")).toBeVisible();
+
+	expect(errors).toEqual([]);
+});
+
+test("player page with no resolvable stream renders cleanly", async ({
+	page,
+	context,
+}) => {
+	await signIn(context);
+	const errors = collectRuntimeErrors(page);
+	await page.goto("/player/movie/tt0137523");
+	await page.waitForLoadState("networkidle");
+	await expect(page.getByText("No playable stream")).toBeVisible({
+		timeout: 15_000,
+	});
+	await expect(
+		page.getByRole("button", { name: "Choose a source" }),
+	).toBeVisible();
 	expect(errors).toEqual([]);
 });
 

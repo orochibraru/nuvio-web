@@ -1,3 +1,11 @@
-bun run lint:fix
+#!/bin/sh
+
+bun run prettier --log-level warn --write "**/*.md"
+
+bun run markdownlint-cli2 --fix "**/*.md"
+
+bun run tailwint --fix . "**/*.svelte"
+
+bun run biome check --write --unsafe .
 
 git add .

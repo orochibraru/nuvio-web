@@ -1,12 +1,15 @@
 # Icons
 
-**Always use the project's configured `iconLibrary` for imports.** Check the `iconLibrary` field in `components.json`: `lucide` → `@lucide/svelte`, `tabler` → `@tabler/icons-svelte`, etc. Never assume `@lucide/svelte`.
+**Always use the project's configured `iconLibrary` for imports.** Check the
+`iconLibrary` field in `components.json`: `lucide` → `@lucide/svelte`, `tabler`
+→ `@tabler/icons-svelte`, etc. Never assume `@lucide/svelte`.
 
 ---
 
 ## Icons in Button use data-icon attribute
 
-Add `data-icon="inline-start"` (prefix) or `data-icon="inline-end"` (suffix) to the icon. No sizing classes on the icon.
+Add `data-icon="inline-start"` (prefix) or `data-icon="inline-end"` (suffix) to
+the icon. No sizing classes on the icon.
 
 **Incorrect:**
 
@@ -46,7 +49,10 @@ Add `data-icon="inline-start"` (prefix) or `data-icon="inline-end"` (suffix) to 
 
 ## No sizing classes on icons inside components
 
-Components handle icon sizing via CSS. Don't add `size-4`, `w-4 h-4`, or other sizing classes to icons inside `<Button>`, `DropdownMenu.Item`, `Alert.Root`, `Sidebar.*`, or other shadcn-svelte components — unless the user explicitly asks for custom icon sizes.
+Components handle icon sizing via CSS. Don't add `size-4`, `w-4 h-4`, or other
+sizing classes to icons inside `<Button>`, `DropdownMenu.Item`, `Alert.Root`,
+`Sidebar.*`, or other shadcn-svelte components — unless the user explicitly asks
+for custom icon sizes.
 
 **Incorrect:**
 
@@ -76,7 +82,8 @@ Components handle icon sizing via CSS. Don't add `size-4`, `w-4 h-4`, or other s
 </Button>
 ```
 
-The same applies to icons inside `DropdownMenu.Item`, sidebar items, and other menu rows — no extra sizing classes on the icon component.
+The same applies to icons inside `DropdownMenu.Item`, sidebar items, and other
+menu rows — no extra sizing classes on the icon component.
 
 ---
 

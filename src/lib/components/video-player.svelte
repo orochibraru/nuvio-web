@@ -1,6 +1,7 @@
 <script lang="ts">
 	import ArrowLeftIcon from "@lucide/svelte/icons/arrow-left";
 	import CaptionsIcon from "@lucide/svelte/icons/captions";
+	import LayersIcon from "@lucide/svelte/icons/layers";
 	import MaximizeIcon from "@lucide/svelte/icons/maximize";
 	import MinimizeIcon from "@lucide/svelte/icons/minimize";
 	import PauseIcon from "@lucide/svelte/icons/pause";
@@ -12,6 +13,7 @@
 	import VolumeXIcon from "@lucide/svelte/icons/volume-x";
 	import Hls from "hls.js";
 	import { onDestroy } from "svelte";
+	import PlaybackLoading from "$lib/components/playback-loading.svelte";
 	import { cn } from "$lib/utils.js";
 
 	type SubtitleTrack = { lang: string; url: string };
@@ -19,23 +21,30 @@
 	let {
 		src,
 		poster = null,
+		logo = null,
 		title,
 		subheading = null,
 		startTime = 0,
 		subtitles = [],
+		fill = false,
 		onProgress,
 		onEnded,
 		onBack,
+		onSources,
 	}: {
 		src: string;
 		poster?: string | null;
+		logo?: string | null;
 		title: string;
 		subheading?: string | null;
 		startTime?: number;
 		subtitles?: SubtitleTrack[];
+		/** Fill the parent instead of holding a 16:9 box (full-page player). */
+		fill?: boolean;
 		onProgress?: (position: number, duration: number) => void;
 		onEnded?: () => void;
 		onBack?: () => void;
+		onSources?: () => void;
 	} = $props();
 
 	let container = $state<HTMLDivElement | null>(null);
@@ -50,6 +59,7 @@
 	let rate = $state(1);
 	let fullscreen = $state(false);
 	let fatalError = $state<string | null>(null);
+	let loading = $state(true);
 	let controlsVisible = $state(true);
 	let settingsOpen = $state(false);
 	let activeCaption = $state<string | null>(null);
@@ -69,6 +79,7 @@
 		}
 		fatalError = null;
 		seeded = false;
+		loading = true;
 
 		if (src.toLowerCase().includes(".m3u8") && Hls.isSupported()) {
 			const hls = new Hls({ maxBufferLength: 30 });
@@ -116,6 +127,14 @@
 			video.currentTime = startTime;
 			seeded = true;
 		}
+	}
+
+	function onReady() {
+		loading = false;
+	}
+
+	function onWaiting() {
+		loading = true;
 	}
 
 	function togglePlay() {
@@ -265,7 +284,10 @@
 	bind:this={container}
 	role="region"
 	aria-label="Video player"
-	class="relative aspect-video w-full overflow-hidden rounded-lg bg-black select-none"
+	class={cn(
+		"relative w-full overflow-hidden bg-black select-none",
+		fill ? "h-full" : "aspect-video rounded-lg",
+	)}
 	class:cursor-none={!controlsVisible}
 	onmousemove={nudgeControls}
 	onmouseleave={() => !paused && (controlsVisible = false)}
@@ -279,10 +301,14 @@
 		bind:volume
 		bind:muted
 		bind:buffered
-		{poster}
-		class="size-full"
+		autoplay
+		class="size-full object-contain"
 		playsinline
 		onloadedmetadata={onLoadedMetadata}
+		onloadeddata={onReady}
+		oncanplay={onReady}
+		onplaying={onReady}
+		onwaiting={onWaiting}
 		onclick={togglePlay}
 		onended={onEnded}
 	>
@@ -295,6 +321,10 @@
 			/>
 		{/each}
 	</video>
+
+	{#if loading && !fatalError}
+		<PlaybackLoading backdrop={poster} {logo} {title} label="Loading stream…" />
+	{/if}
 
 	{#if fatalError}
 		<div class="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/80 text-center text-white">
@@ -309,7 +339,7 @@
 
 	<div
 		class={cn(
-			"absolute inset-0 flex flex-col justify-between bg-gradient-to-t from-black/70 via-transparent to-black/50 p-3 transition-opacity sm:p-4",
+			"absolute inset-0 flex flex-col justify-between bg-linear-to-t from-black/70 via-transparent to-black/50 p-3 transition-opacity sm:p-4",
 			controlsVisible ? "opacity-100" : "pointer-events-none opacity-0",
 		)}
 	>
@@ -319,15 +349,24 @@
 					<ArrowLeftIcon class="size-5" />
 				</button>
 			{/if}
-			<div class="min-w-0">
+			<div class="min-w-0 flex-1">
 				<p class="truncate font-medium">{title}</p>
 				{#if subheading}
 					<p class="truncate text-sm text-white/70">{subheading}</p>
 				{/if}
 			</div>
+			{#if onSources}
+				<button
+					type="button"
+					onclick={onSources}
+					class="flex shrink-0 items-center gap-1.5 rounded-md bg-white/10 px-2.5 py-1.5 text-xs font-medium hover:bg-white/20"
+				>
+					<LayersIcon class="size-4" /> Sources
+				</button>
+			{/if}
 		</div>
 
-		{#if paused && !fatalError}
+		{#if paused && !fatalError && !loading}
 			<button
 				type="button"
 				aria-label="Play"

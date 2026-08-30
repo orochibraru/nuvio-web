@@ -25,7 +25,11 @@ function progressKey(
 		: contentId;
 }
 
-export const watchData = query(
+/**
+ * Everything the streams / player screens need *except* the streams themselves —
+ * so the page can paint instantly while `resolveStreams` fans out in the client.
+ */
+export const playbackContext = query(
 	v.object({ type: v.string(), id: v.string() }),
 	async ({ type, id }) => {
 		const { client } = await getAddonClient();
@@ -33,10 +37,15 @@ export const watchData = query(
 		const { contentId, season, episode } = parseVideoId(type, id);
 		const metaType: "movie" | "series" = type === "series" ? "series" : "movie";
 
-		const [streamResult, metaResult, progressRows] = await Promise.all([
-			client.getStreams(type, id),
-			client.getMeta(metaType, contentId),
-			nuvio.watchProgress.pull({ p_profile_id: profileId }),
+		// Both are best-effort: a missing addon or a hiccup on the progress pull
+		// must not stop the streams / player screens from painting.
+		const [metaResult, progressRows] = await Promise.all([
+			client.getMeta(metaType, contentId).catch(() => null),
+			nuvio.watchProgress
+				.pull({ p_profile_id: profileId })
+				.catch(
+					() => [] as Awaited<ReturnType<typeof nuvio.watchProgress.pull>>,
+				),
 		]);
 
 		const meta = metaResult?.meta;
@@ -99,13 +108,41 @@ export const watchData = query(
 			subheading,
 			background: meta?.background ?? null,
 			poster: meta?.poster ?? null,
-			streams: streamResult.streams,
-			streamErrors: streamResult.errors,
+			logo: meta?.logo ?? null,
 			next,
 			resume:
 				progress && progress.duration > 0 && progress.position > 5000
 					? { position: progress.position, duration: progress.duration }
 					: null,
+		};
+	},
+);
+
+/**
+ * Fan out to every stream provider for this title. Slow and best-effort — called
+ * from the client with `.current` (skeleton) and re-run by a "Refresh" button.
+ */
+export const resolveStreams = query(
+	v.object({ type: v.string(), id: v.string() }),
+	async ({ type, id }) => {
+		const { client } = await getAddonClient();
+		const { streams, errors } = await client.getStreams(type, id);
+		return {
+			streams: streams.map((stream, index) => ({
+				index,
+				url: stream.url ?? null,
+				externalUrl: stream.externalUrl ?? null,
+				notWebReady: Boolean(stream.behaviorHints?.notWebReady),
+				name: stream.name ?? null,
+				title: stream.title ?? null,
+				description: stream.description ?? null,
+				addonName: stream.addonName,
+				fileSize: stream.behaviorHints?.videoSize ?? null,
+			})),
+			errors: errors.map((entry) => ({
+				addonName: entry.addonName,
+				message: entry.message,
+			})),
 		};
 	},
 );
@@ -118,6 +155,7 @@ export const continueWatching = query(async () => {
 		p_profile_id: profileId,
 		p_limit: 30,
 	});
+	const seen = new Set<string>();
 	const inProgress = rows
 		.filter(
 			(row) =>
@@ -126,6 +164,14 @@ export const continueWatching = query(async () => {
 				row.position > 30_000,
 		)
 		.sort((a, b) => b.last_watched - a.last_watched)
+		// One entry per title — the most recently watched episode wins.
+		.filter((row) => {
+			if (seen.has(row.content_id)) {
+				return false;
+			}
+			seen.add(row.content_id);
+			return true;
+		})
 		.slice(0, 12);
 
 	const items = await Promise.all(

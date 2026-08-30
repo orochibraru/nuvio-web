@@ -12,11 +12,28 @@
 	import { libraryIds } from "$lib/library/library.remote";
 	import { sync } from "$lib/sync/store.svelte.js";
 	import { cn } from "$lib/utils.js";
+	import StreamPanel from "$lib/watch/stream-panel.svelte";
 	import { titleProgress } from "$lib/watch/watch.remote";
 
 	const type = $derived(page.params.type ?? "movie");
 	const id = $derived(page.params.id ?? "");
 	const contentType = $derived(type === "series" ? "series" : "movie");
+
+	function openSources(videoId: string) {
+		const params = new URLSearchParams(page.url.searchParams);
+		params.set("v", videoId);
+		void goto(`?${params}`, { keepFocus: true, noScroll: true });
+	}
+
+	function closeSources() {
+		const params = new URLSearchParams(page.url.searchParams);
+		params.delete("v");
+		const query = params.toString();
+		void goto(query ? `?${query}` : page.url.pathname, {
+			keepFocus: true,
+			noScroll: true,
+		});
+	}
 
 	const metaQuery = $derived(getMeta({ type, id }));
 	const libraryQuery = libraryIds();
@@ -30,6 +47,19 @@
 		sync.authoritative
 			? sync.isInLibrary(contentType, id)
 			: (libraryQuery.current ?? []).includes(id),
+	);
+
+	// `?v=<videoId>` opens the source sidebar for that video (movie id or episode id).
+	const activeVideoId = $derived(page.url.searchParams.get("v"));
+	const activeEpisode = $derived(
+		activeVideoId
+			? (meta?.videos?.find((entry) => entry.id === activeVideoId) ?? null)
+			: null,
+	);
+	const sourcesSubheading = $derived(
+		activeEpisode
+			? `S${activeEpisode.season}E${activeEpisode.episode} · ${activeEpisode.title}`
+			: null,
 	);
 	const rating = $derived(
 		typeof meta?.imdbRating === "number"
@@ -94,7 +124,7 @@
 	});
 
 	function watch(videoId: string) {
-		goto(`/watch/${contentType}/${encodeURIComponent(videoId)}`);
+		openSources(videoId);
 	}
 
 	function toggle() {
@@ -323,3 +353,13 @@
 		</div>
 	{/if}
 </div>
+
+{#if activeVideoId}
+	<StreamPanel
+		type={contentType}
+		videoId={activeVideoId}
+		heading={meta?.name ?? id}
+		subheading={sourcesSubheading}
+		onClose={closeSources}
+	/>
+{/if}

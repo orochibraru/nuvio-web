@@ -1,0 +1,21 @@
+{
+	"config": {
+		"default": true,
+		"MD013": {
+			"code_blocks": false,
+			"headings": false,
+			"line_length": 80,
+			"tables": false
+		},
+		"MD028": false
+	},
+	"fix": true,
+	"ignores": [
+		"node_modules",
+		"dist",
+		"CHANGELOG.md",
+		"test-results",
+		"src/lib/nuvio/nuvio-public-api.snapshot.md",
+		"TODO.md"
+	]
+}

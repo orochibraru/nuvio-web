@@ -199,6 +199,24 @@
 	}
 }
 
+/* Gentle breathing pulse for a loading title treatment. */
+@utility animate-soft-pulse {
+	animation: nuvio-soft-pulse 1.9s ease-in-out infinite;
+	@media (prefers-reduced-motion: reduce) {
+		animation: none;
+	}
+}
+
+@keyframes nuvio-soft-pulse {
+	0%,
+	100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0.35;
+	}
+}
+
 /* Shimmering loading placeholder — replaces bare animate-pulse. */
 @utility skeleton {
 	position: relative;

@@ -1,10 +1,18 @@
 # shadcn-svelte CLI Reference
 
-Configuration is read from `components.json`. See [components.json](https://shadcn-svelte.com/docs/components-json) on the docs site for the full schema.
+Configuration is read from `components.json`. See
+[components.json](https://shadcn-svelte.com/docs/components-json) on the docs
+site for the full schema.
 
-> **IMPORTANT:** Always run commands using the project's package runner: `npx shadcn-svelte@latest`, `pnpm dlx shadcn-svelte@latest`, or `bunx --bun shadcn-svelte@latest`. Check `packageManager` from the project (or lockfile) to choose the right one. Examples below use `npx shadcn-svelte@latest` but substitute the correct runner for the project.
+> **IMPORTANT:** Always run commands using the project's package runner:
+> `npx shadcn-svelte@latest`, `pnpm dlx shadcn-svelte@latest`, or
+> `bunx --bun shadcn-svelte@latest`. Check `packageManager` from the project (or
+> lockfile) to choose the right one. Examples below use
+> `npx shadcn-svelte@latest` but substitute the correct runner for the project.
 
-> **IMPORTANT:** Only use the flags documented below. Do not invent or guess flags — if a flag isn't listed here, it doesn't exist. The CLI auto-detects the package manager; there is no `--package-manager` flag.
+> **IMPORTANT:** Only use the flags documented below. Do not invent or guess
+> flags — if a flag isn't listed here, it doesn't exist. The CLI auto-detects
+> the package manager; there is no `--package-manager` flag.
 
 ## Contents
 
@@ -22,7 +30,8 @@ Configuration is read from `components.json`. See [components.json](https://shad
 npx shadcn-svelte@latest init [options]
 ```
 
-Installs dependencies, adds the `cn` util, creates `components.json`, and sets up CSS variables. Run `init` from the root of your project.
+Installs dependencies, adds the `cn` util, creates `components.json`, and sets
+up CSS variables. Run `init` from the root of your project.
 
 | Flag                        | Short | Description                                                               | Default   |
 | --------------------------- | ----- | ------------------------------------------------------------------------- | --------- |
@@ -50,7 +59,9 @@ Installs dependencies, adds the `cn` util, creates `components.json`, and sets u
 npx shadcn-svelte@latest add [options] [components...]
 ```
 
-Adds components from the configured registry. Arguments are component names from the registry index, or a **URL** to a registry JSON item. With **no** component names, the CLI prompts you to pick components interactively.
+Adds components from the configured registry. Arguments are component names from
+the registry index, or a **URL** to a registry JSON item. With **no** component
+names, the CLI prompts you to pick components interactively.
 
 | Flag               | Short | Description                                     | Default   |
 | ------------------ | ----- | ----------------------------------------------- | --------- |
@@ -71,11 +82,16 @@ Adds components from the configured registry. Arguments are component names from
 npx shadcn-svelte@latest apply [options]
 ```
 
-Applies a design-system preset to a project that has already been initialized. Updates `components.json` with the preset settings, reinstalls existing components (except `utils`) with the new styles, and installs any required dependencies.
+Applies a design-system preset to a project that has already been initialized.
+Updates `components.json` with the preset settings, reinstalls existing
+components (except `utils`) with the new styles, and installs any required
+dependencies.
 
-Use `--only theme` or `--only font` to apply only part of a preset without reinstalling UI components.
+Use `--only theme` or `--only font` to apply only part of a preset without
+reinstalling UI components.
 
-Get a preset code from the builder at [shadcn-svelte.com/create](https://shadcn-svelte.com/create).
+Get a preset code from the builder at
+[shadcn-svelte.com/create](https://shadcn-svelte.com/create).
 
 | Flag                | Short | Description                                    | Default   |
 | ------------------- | ----- | ---------------------------------------------- | --------- |
@@ -88,7 +104,8 @@ Get a preset code from the builder at [shadcn-svelte.com/create](https://shadcn-
 | `--proxy <proxy>`   | —     | Fetch registry items through this proxy        | env-based |
 | `-h, --help`        | `-h`  | Help                                           | —         |
 
-Requires an existing `components.json`. Run `init` first if the project is not yet configured.
+Requires an existing `components.json`. Run `init` first if the project is not
+yet configured.
 
 ---
 
@@ -98,7 +115,8 @@ Requires an existing `components.json`. Run `init` first if the project is not y
 npx shadcn-svelte@latest update [options] [components...]
 ```
 
-Re-fetches and applies registry content for components **already present** in the project. Run `shadcn-svelte update --help` for options.
+Re-fetches and applies registry content for components **already present** in
+the project. Run `shadcn-svelte update --help` for options.
 
 | Flag               | Short | Description                                     | Default   |
 | ------------------ | ----- | ----------------------------------------------- | --------- |
@@ -120,7 +138,8 @@ Commit your work before updating; overwrites are destructive.
 npx shadcn-svelte@latest registry build [options] [registry]
 ```
 
-Reads a `registry.json` and writes registry JSON files for distribution. Default input: `./registry.json`, default output: `./static/r`.
+Reads a `registry.json` and writes registry JSON files for distribution. Default
+input: `./registry.json`, default output: `./static/r`.
 
 | Flag                  | Short | Description                     | Default      |
 | --------------------- | ----- | ------------------------------- | ------------ |
@@ -134,7 +153,9 @@ Reads a `registry.json` and writes registry JSON files for distribution. Default
 
 ### Proxy
 
-The CLI can fetch the registry through a proxy. If `HTTP_PROXY` or `http_proxy` is set, requests respect it. You can also pass `--proxy` on `init`, `add`, `apply`, or `update`.
+The CLI can fetch the registry through a proxy. If `HTTP_PROXY` or `http_proxy`
+is set, requests respect it. You can also pass `--proxy` on `init`, `add`,
+`apply`, or `update`.
 
 ```bash
 HTTP_PROXY="<proxy-url>" npx shadcn-svelte@latest init
@@ -144,10 +165,13 @@ HTTP_PROXY="<proxy-url>" npx shadcn-svelte@latest init
 
 ## Presets
 
-Design-system options (style, theme, icons, fonts, etc.) can be captured as an encoded **preset** string from the builder on [shadcn-svelte.com/create](https://shadcn-svelte.com/create).
+Design-system options (style, theme, icons, fonts, etc.) can be captured as an
+encoded **preset** string from the builder on
+[shadcn-svelte.com/create](https://shadcn-svelte.com/create).
 
 - **New project:** pass the preset to **`init`** with `--preset <string>`.
-- **Existing project:** use **`apply --preset <string>`** to update configuration, restyle installed components, and install any new dependencies.
+- **Existing project:** use **`apply --preset <string>`** to update
+  configuration, restyle installed components, and install any new dependencies.
 
 ---
 
@@ -163,4 +187,6 @@ Design-system options (style, theme, icons, fonts, etc.) can be captured as an e
 | `iconLibrary`        | Icon set key (`lucide`, `tabler`, …) — drives generated imports  |
 | `typescript`         | Whether TS and optional custom config path                       |
 
-Resolved paths (including `tailwindCss`, `ui`, `components`) are computed by the CLI from `components.json` and the filesystem. Read `components.json` and list the UI directory when you need a snapshot of what is installed.
+Resolved paths (including `tailwindCss`, `ui`, `components`) are computed by the
+CLI from `components.json` and the filesystem. Read `components.json` and list
+the UI directory when you need a snapshot of what is installed.

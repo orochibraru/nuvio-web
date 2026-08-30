@@ -71,7 +71,7 @@
 			<div class="no-scrollbar -mx-2 flex gap-4 overflow-x-auto scroll-smooth px-2 pt-1 pb-2">
 				{#each data.resume as item (`${item.type}:${item.videoId}`)}
 					<a
-						href={`/watch/${item.type}/${encodeURIComponent(item.videoId)}`}
+						href={`/player/${item.type}/${encodeURIComponent(item.videoId)}`}
 						class="group/cw relative aspect-video w-72 shrink-0 overflow-hidden rounded-xl bg-muted ring-1 ring-white/5 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_50px_-16px] hover:shadow-black/70 hover:ring-primary/60"
 					>
 						{#if item.background}

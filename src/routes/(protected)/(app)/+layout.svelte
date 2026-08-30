@@ -24,6 +24,9 @@
 			: page.url.pathname.startsWith(href);
 	}
 
+	// The player is a whole-page surface — no header / footer / page padding.
+	const immersive = $derived(page.url.pathname.startsWith("/player/"));
+
 	let scrolled = $state(false);
 
 	$effect(() => {
@@ -75,6 +78,7 @@
   <header
     class={cn(
       "fixed inset-x-0 top-0 z-50 transition-colors duration-300",
+      immersive && "hidden",
       scrolled
         ? "border-b border-border bg-background/80 backdrop-blur-xl"
         : "border-b border-transparent bg-transparent",
@@ -195,13 +199,21 @@
     </div>
   </header>
 
-  <main class="mx-auto flex w-full flex-1 flex-col px-6 pt-20 pb-16">
+  <main
+    class={cn(
+      "mx-auto flex w-full flex-1 flex-col",
+      immersive ? "p-0" : "px-6 pt-20 pb-16",
+    )}
+  >
     <div class="flex-1">
       {@render children()}
     </div>
 
     <footer
-      class="mt-16 flex flex-col items-center gap-2 border-t border-border/60 pt-6 text-center text-xs text-muted-foreground"
+      class={cn(
+        "mt-16 flex flex-col items-center gap-2 border-t border-border/60 pt-6 text-center text-xs text-muted-foreground",
+        immersive && "hidden",
+      )}
     >
       <span class="font-medium text-foreground/70">Nuvio</span>
       <span>A web client for your Nuvio library, addons and streams.</span>

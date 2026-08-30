@@ -135,7 +135,7 @@
 				<section class="mt-14 flex flex-col gap-4">
 					<h2 class="text-xl font-semibold tracking-tight">Top supporters</h2>
 					<div class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-						{#each top as member (member.displayName + member.supporterSince)}
+						{#each top as member, i (`${member.displayName}-${member.supporterSince}-${i}`)}
 							{@render memberCard(member)}
 						{/each}
 					</div>
@@ -146,7 +146,7 @@
 				<section class="mt-14 flex flex-col gap-4">
 					<h2 class="text-xl font-semibold tracking-tight">Recently joined</h2>
 					<div class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-						{#each recent as member (member.displayName + member.supporterSince)}
+						{#each recent as member, i (`${member.displayName}-${member.supporterSince}-${i}`)}
 							{@render memberCard(member)}
 						{/each}
 					</div>

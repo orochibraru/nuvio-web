@@ -15,7 +15,8 @@ const routes = [
 	"/search?q=breaking%20bad",
 	"/detail/movie/tt0137523",
 	"/detail/series/tt0903747",
-	"/watch/movie/tt0137523",
+	"/streams/movie/tt0137523",
+	"/player/movie/tt0137523",
 ];
 
 test.beforeEach(async ({ context }) => {

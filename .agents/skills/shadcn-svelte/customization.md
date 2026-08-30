@@ -1,6 +1,7 @@
 # Customization & Theming
 
-Components reference semantic CSS variable tokens. Change the variables to change every component.
+Components reference semantic CSS variable tokens. Change the variables to
+change every component.
 
 ## Contents
 
@@ -19,13 +20,15 @@ Components reference semantic CSS variable tokens. Change the variables to chang
 
 1. CSS variables defined in `:root` (light) and `.dark` (dark mode).
 2. Tailwind maps them to utilities: `bg-primary`, `text-muted-foreground`, etc.
-3. Components use these utilities — changing a variable changes all components that reference it.
+3. Components use these utilities — changing a variable changes all components
+   that reference it.
 
 ---
 
 ## Color Variables
 
-Every color follows the `name` / `name-foreground` convention. The base variable is for backgrounds, `-foreground` is for text/icons on that background.
+Every color follows the `name` / `name-foreground` convention. The base variable
+is for backgrounds, `-foreground` is for text/icons on that background.
 
 | Variable                                     | Purpose                          |
 | -------------------------------------------- | -------------------------------- |
@@ -43,13 +46,16 @@ Every color follows the `name` / `name-foreground` convention. The base variable
 | `--sidebar-*`                                | Sidebar-specific colors          |
 | `--surface` / `--surface-foreground`         | Secondary surface                |
 
-Colors use OKLCH: `--primary: oklch(0.205 0 0)` where values are lightness (0–1), chroma (0 = gray), and hue (0–360).
+Colors use OKLCH: `--primary: oklch(0.205 0 0)` where values are lightness
+(0–1), chroma (0 = gray), and hue (0–360).
 
 ---
 
 ## Dark Mode
 
-Class-based toggle via `.dark` on the root element. In SvelteKit, use [mode-watcher](https://github.com/svecosystem/mode-watcher) (see [Dark mode — Svelte](https://shadcn-svelte.com/docs/dark-mode/svelte)):
+Class-based toggle via `.dark` on the root element. In SvelteKit, use
+[mode-watcher](https://github.com/svecosystem/mode-watcher) (see
+[Dark mode — Svelte](https://shadcn-svelte.com/docs/dark-mode/svelte)):
 
 ```svelte
 <script lang="ts">
@@ -65,21 +71,26 @@ Class-based toggle via `.dark` on the root element. In SvelteKit, use [mode-watc
 
 ## Changing the Theme
 
-Use a **preset** from the design-system builder on [shadcn-svelte.com](https://shadcn-svelte.com) and pass it to `init`:
+Use a **preset** from the design-system builder on
+[shadcn-svelte.com](https://shadcn-svelte.com) and pass it to `init`:
 
 ```bash
 npx shadcn-svelte@latest init --preset <code>
 ```
 
-Or edit CSS variables directly in the file set in `components.json` as `tailwind.css` (for example `src/app.css`).
+Or edit CSS variables directly in the file set in `components.json` as
+`tailwind.css` (for example `src/app.css`).
 
-To align config and components with a new preset, re-run `init` with `--preset` and confirm overwrites when prompted.
+To align config and components with a new preset, re-run `init` with `--preset`
+and confirm overwrites when prompted.
 
 ---
 
 ## Adding Custom Colors
 
-Add variables to the global CSS file path in `components.json` (`tailwind.css`). Do not create a second global CSS file for theming unless the project already uses that pattern.
+Add variables to the global CSS file path in `components.json` (`tailwind.css`).
+Do not create a second global CSS file for theming unless the project already
+uses that pattern.
 
 ```css
 /* 1. Define in the global CSS file. */
@@ -101,7 +112,9 @@ Add variables to the global CSS file path in `components.json` (`tailwind.css`).
 }
 ```
 
-On Tailwind v3, register in `tailwind.config.js` (see the [Tailwind v3 docs](https://tw3.shadcn-svelte.com) if you maintain a legacy setup):
+On Tailwind v3, register in `tailwind.config.js` (see the
+[Tailwind v3 docs](https://tw3.shadcn-svelte.com) if you maintain a legacy
+setup):
 
 ```js
 // 2b. Register with Tailwind v3 (tailwind.config.js).
@@ -127,7 +140,8 @@ module.exports = {
 
 ## Border Radius
 
-`--radius` controls border radius globally. Components derive values from it (`rounded-lg` = `var(--radius)`, `rounded-md` = `calc(var(--radius) - 2px)`).
+`--radius` controls border radius globally. Components derive values from it
+(`rounded-lg` = `var(--radius)`, `rounded-md` = `calc(var(--radius) - 2px)`).
 
 ---
 
@@ -161,7 +175,8 @@ Prefer these approaches in order:
 
 ### 3. Add a new variant
 
-Edit the component source to add a variant via `tailwind-variants` / `cva` in the `.svelte` or shared variants file:
+Edit the component source to add a variant via `tailwind-variants` / `cva` in
+the `.svelte` or shared variants file:
 
 ```ts
 // e.g. in button variants
@@ -210,4 +225,5 @@ npx shadcn-svelte@latest update button
 npx shadcn-svelte@latest update --all
 ```
 
-See [Updating Components in SKILL.md](./SKILL.md#updating-components). Review `git diff` after `update` to see what changed.
+See [Updating Components in SKILL.md](./SKILL.md#updating-components). Review
+`git diff` after `update` to see what changed.

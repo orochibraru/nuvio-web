@@ -14,7 +14,8 @@ const shots: Array<[string, string]> = [
 	["addons", "/addons"],
 	["account", "/account"],
 	["support", "/support"],
-	["watch-nostreams", "/watch/movie/tt0137523"],
+	["streams", "/streams/movie/tt0137523"],
+	["player", "/player/movie/tt0137523"],
 ];
 
 test.use({ viewport: { width: 1440, height: 900 } });

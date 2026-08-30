@@ -1,42 +1,33 @@
-# sv
+# Nuvio Web
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+Unofficial implementation of the Nuvio API in a web UI (since there is none,
+yet).
 
-## Creating a project
+## Getting Started
 
-If you're seeing this, you've probably already done this step. Congrats!
+### Docker run
 
-```sh
-# create a new project
-npx sv create my-app
+```bash
+docker run -p 3000:3000 orochibraru/nuvio-web:latest
 ```
 
-To recreate this project with the same configuration:
+### Docker Compose
 
-```sh
-# recreate this project
-bun x sv@0.17.0 create --template minimal --types ts --add tailwindcss="plugins:typography,forms" experimental="versions:kit+features:async,remoteFunctions,explicitEnvironmentVariables,handleRenderingErrors,forkPreloads" ai-tools="ide:claude-code+delivery:plugin" --install bun nuvio-web
+```yaml
+services:
+  nuvio:
+    image: orochibraru/nuvio-web:latest
+    restart: unless-stopped
+    ports:
+      - 3000:3000
+    healthcheck:
+      interval: 30s
+      retries: 3
+      start_period: 5s
+      test: ["CMD", "/app/build/healthcheck"]
+      timeout: 30s
 ```
 
-## Developing
+## Development
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
-
-```sh
-npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
-```
-
-## Building
-
-To create a production version of your app:
-
-```sh
-npm run build
-```
-
-You can preview the production build with `npm run preview`.
-
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+See [contributing.md](CONTRIBUTING.md)

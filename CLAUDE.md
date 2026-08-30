@@ -4,15 +4,17 @@
 
 ## Conventions
 
-- **Always brace control statements.** `if (x) { return; }` — never `if (x) return;`
-  on one line, never a braceless body. Same for `for` / `while` / `else`. Enforced
-  by Biome (`style/useBlockStatements: error`); its fix is "unsafe" so `bun run
-  lint:fix` won't add the braces for you — write them.
-- Package manager is **bun**. `bun run lint` / `lint:fix` / `check`. Never npx/npm.
+- **Always brace control statements.** `if (x) { return; }` — never
+  `if (x) return;` on one line, never a braceless body. Same for `for` / `while`
+  / `else`. Enforced by Biome (`style/useBlockStatements: error`); its fix is
+  "unsafe" so `bun run lint:fix` won't add the braces for you — write them.
+- Package manager is **bun**. `bun run lint` / `lint:fix` / `check`. Never
+  npx/npm.
 - `$lib` alias (SvelteKit). Import barrels as `$lib/foo/index.js`.
-- Remote `query` functions are `await`ed in `+page.server.ts` loads for real SSR.
-- A `.remote.ts` file may export **only** remote functions — put schemas / types /
-  constants in a sibling `*.ts` (see `$lib/settings/ui-settings.ts`).
+- Remote `query` functions are `await`ed in `+page.server.ts` loads for real
+  SSR.
+- A `.remote.ts` file may export **only** remote functions — put schemas / types
+  / constants in a sibling `*.ts` (see `$lib/settings/ui-settings.ts`).
 
 ## Verifying UI changes
 
@@ -23,8 +25,9 @@ call). **After any UI or route change, run `bun run test:e2e`** (Playwright, in
 screen or a flow. Needs `NUVIO_TEST_EMAIL` / `NUVIO_TEST_PASSWORD` in `.env`
 (see `.env.example`); the config starts its own dev server on :4173.
 
-`bun run test:unit` (Vitest, node env, `src/**/*.test.ts`) covers framework-agnostic
-logic — currently `src/lib/sync/reconcile.ts`. Keep the sync reconcile pure and tested.
+`bun run test:unit` (Vitest, node env, `src/**/*.test.ts`) covers
+framework-agnostic logic — currently `src/lib/sync/reconcile.ts`. Keep the sync
+reconcile pure and tested.
 
 ## Sync store
 
@@ -33,4 +36,5 @@ watch-progress / history (IndexedDB + optimistic write queue + background delta
 pull). Components read `sync.ready ? sync.X : data.X` and write through `sync.*`
 (no more direct `toggleLibrary` / `saveProgress` / `deleteHistory` remote calls
 from pages). Reactive reads must go through the published `$state` arrays
-(`sync.library` etc.), never the private maps. `+page.server.ts` loads stay for SSR.
+(`sync.library` etc.), never the private maps. `+page.server.ts` loads stay for
+SSR.
