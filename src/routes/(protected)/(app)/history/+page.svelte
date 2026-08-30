@@ -1,6 +1,7 @@
 <script lang="ts">
 	import ClockIcon from "@lucide/svelte/icons/clock";
 	import FilmIcon from "@lucide/svelte/icons/film";
+	import PlayIcon from "@lucide/svelte/icons/play";
 	import Trash2Icon from "@lucide/svelte/icons/trash-2";
 	import TvIcon from "@lucide/svelte/icons/tv";
 	import EmptyState from "$lib/components/empty-state.svelte";
@@ -10,6 +11,16 @@
 	pageTitle.set("Watch history");
 
 	let { data } = $props();
+
+	// Poster + a clean title come from the SSR-enriched payload, keyed by id.
+	const posters = $derived(
+		new Map(
+			(data.items ?? []).map((item) => [item.contentId, item.poster ?? null]),
+		),
+	);
+	const names = $derived(
+		new Map((data.items ?? []).map((item) => [item.contentId, item.title])),
+	);
 
 	type Row = {
 		id: string;
@@ -27,7 +38,8 @@
 					id: record.id,
 					contentId: record.contentId,
 					type: record.contentType,
-					title: record.title,
+					title:
+						names.get(record.contentId) || record.title || record.contentId,
 					season: record.season,
 					episode: record.episode,
 					watchedAt: record.watchedAt,
@@ -78,7 +90,15 @@
 		if (season == null || episode == null) {
 			return "";
 		}
-		return ` · S${season}E${episode}`;
+		return `S${season}E${episode}`;
+	}
+
+	function watchHref(item: Row): string {
+		const videoId =
+			item.type === "series" && item.season != null && item.episode != null
+				? `${item.contentId}:${item.season}:${item.episode}`
+				: item.contentId;
+		return `/player/${item.type}/${encodeURIComponent(videoId)}`;
 	}
 
 	function remove(item: Row) {
@@ -90,8 +110,13 @@
 	}
 </script>
 
-<div class="mx-auto flex max-w-3xl flex-col gap-6">
-	<h1 class="text-3xl font-bold tracking-tight">Watch history</h1>
+<div class="mx-auto flex max-w-4xl flex-col gap-8">
+	<div class="flex flex-col gap-1">
+		<h1 class="text-3xl font-bold tracking-tight">Watch history</h1>
+		<p class="text-sm text-muted-foreground">
+			{items.length} title{items.length === 1 ? "" : "s"} watched, newest first
+		</p>
+	</div>
 
 	{#if groups.length === 0}
 		<EmptyState
@@ -100,46 +125,71 @@
 			description="Titles you finish will be listed here, newest first."
 		/>
 	{:else}
-		{#each groups as [label, items] (label)}
-			<section class="flex flex-col gap-2">
+		{#each groups as [label, rows] (label)}
+			<section class="flex flex-col gap-3">
 				<h2 class="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
 					{label}
 				</h2>
-				<div class="overflow-hidden rounded-xl border border-border/60">
-					{#each items as item, index (item.id)}
+				<div class="grid gap-3 sm:grid-cols-2">
+					{#each rows as item (item.id)}
 						<div
-							class="group/row flex items-center gap-3 bg-card/40 p-3 transition-colors hover:bg-card"
-							class:border-t={index > 0}
-							class:border-border={index > 0}
+							class="group/row relative flex gap-3 overflow-hidden rounded-xl border border-border/60 bg-card/40 p-2.5 transition-colors hover:border-primary/40 hover:bg-card"
 						>
-							<span
-								class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-foreground/5 text-muted-foreground"
+							<a
+								href={`/detail/${item.type}/${encodeURIComponent(item.contentId)}`}
+								class="relative aspect-2/3 w-16 shrink-0 overflow-hidden rounded-lg bg-muted"
 							>
-								{#if item.type === "series"}
-									<TvIcon class="size-4" />
-								{:else}
-									<FilmIcon class="size-4" />
+								<span class="absolute inset-0 flex items-center justify-center bg-linear-to-br from-muted to-background">
+									{#if item.type === "series"}
+										<TvIcon class="size-5 text-muted-foreground/40" />
+									{:else}
+										<FilmIcon class="size-5 text-muted-foreground/40" />
+									{/if}
+								</span>
+								{#if posters.get(item.contentId)}
+									<img
+										src={posters.get(item.contentId)}
+										alt=""
+										loading="lazy"
+										class="relative size-full object-cover"
+									/>
 								{/if}
-							</span>
-							<div class="min-w-0 flex-1">
+							</a>
+
+							<div class="flex min-w-0 flex-1 flex-col justify-center gap-1">
 								<a
 									href={`/detail/${item.type}/${encodeURIComponent(item.contentId)}`}
-									class="truncate text-sm font-medium transition-colors hover:text-primary"
+									class="line-clamp-2 text-sm font-semibold transition-colors hover:text-primary"
 								>
-									{item.title}{episodeTag(item.season, item.episode)}
+									{item.title}
 								</a>
-								<p class="text-xs text-muted-foreground">
-									{new Date(item.watchedAt).toLocaleTimeString(undefined, {
-										hour: "numeric",
-										minute: "2-digit",
-									})}
-								</p>
+								<div class="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
+									{#if episodeTag(item.season, item.episode)}
+										<span class="rounded bg-foreground/5 px-1 py-px font-medium text-foreground/70">
+											{episodeTag(item.season, item.episode)}
+										</span>
+									{/if}
+									<span>
+										{new Date(item.watchedAt).toLocaleTimeString(undefined, {
+											hour: "numeric",
+											minute: "2-digit",
+										})}
+									</span>
+								</div>
+								<a
+									href={watchHref(item)}
+									class="mt-1 inline-flex w-fit items-center gap-1 text-xs font-medium text-primary transition hover:underline"
+								>
+									<PlayIcon class="size-3 fill-current" />
+									{item.type === "series" ? "Rewatch episode" : "Rewatch"}
+								</a>
 							</div>
+
 							<button
 								type="button"
 								aria-label="Remove from history"
 								onclick={() => remove(item)}
-								class="shrink-0 rounded-md p-1.5 text-muted-foreground opacity-0 transition group-hover/row:opacity-100 hover:bg-destructive/10 hover:text-destructive"
+								class="absolute top-2 right-2 rounded-md p-1.5 text-muted-foreground opacity-0 transition group-hover/row:opacity-100 hover:bg-destructive/10 hover:text-destructive"
 							>
 								<Trash2Icon class="size-4" />
 							</button>

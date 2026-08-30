@@ -13,6 +13,7 @@
 		year = null,
 		runtime = null,
 		genres = [],
+		flag = null,
 		showPoster = false,
 		actions,
 		overlay,
@@ -27,6 +28,8 @@
 		year?: string | null;
 		runtime?: string | null;
 		genres?: string[];
+		/** Small status pill shown before the meta line (e.g. "Watched"). */
+		flag?: string | null;
 		showPoster?: boolean;
 		actions?: Snippet;
 		/** Rendered inside the hero `<section>` — e.g. carousel dots. */
@@ -110,10 +113,15 @@
         </h1>
       {/if}
 
-      {#if rating || year || runtime || genres.length > 0}
+      {#if flag || rating || year || runtime || genres.length > 0}
         <div
           class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-medium text-foreground/70"
         >
+          {#if flag}
+            <span class="rounded-full bg-primary/15 px-2 py-0.5 text-xs font-semibold text-primary">
+              {flag}
+            </span>
+          {/if}
           {#if rating}
             <span class="flex items-center gap-1 text-foreground" title="IMDb rating">
               <StarIcon class="size-3.5 fill-amber-400 text-amber-400" />

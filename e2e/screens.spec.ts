@@ -14,7 +14,6 @@ const shots: Array<[string, string]> = [
 	["settings", "/settings"],
 	["addons", "/addons"],
 	["account", "/account"],
-	["support", "/support"],
 	["player", "/player/movie/tt0137523"],
 ];
 

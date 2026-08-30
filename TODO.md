@@ -7,8 +7,8 @@ the Nuvio public API (`$lib/nuvio`, client methods in
 `src/lib/nuvio/client.ts`).
 
 Target: **desktop web only** (mouse + keyboard, large screen). Mobile and TV are
-covered by the existing Nuvio mobile app — not our problem. This is net-new:
-there is no Nuvio web today, and the desktop experience is what's lacking.
+covered by the existing Nuvio mobile app. This is net-new — there is no Nuvio
+web today, and the desktop experience is what's lacking.
 
 The mobile app is the reference for behaviour the API doesn't pin down: the
 shapes of the settings / home-catalog / collections JSON blobs (server enforces
@@ -18,609 +18,339 @@ no schema), the progress-key format, and the 90% / 60s completion rule.
 
 ## Architecture
 
-- **Two data sources.** (1) The Nuvio API — user data only: profiles, the addon
+- **Two data sources.** (1) The Nuvio API — user data only: profiles, addon
   list, library, watch progress, history, settings, collections. (2) **Addons**
-  — the Stremio addon protocol, fetched client-side from each addon's manifest
-  URL. All actual content (posters, metadata, episodes, streams, subtitles)
-  comes from addons, not from Nuvio.
-- **Local store (IndexedDB).** Mirror of the synced library / progress / history
-  plus their delta cursors, so screens render instantly and reconcile in the
-  background. Also caches addon manifests and catalog/meta responses with a TTL.
+  — the Stremio addon protocol, fetched from each addon's manifest URL. All
+  content (posters, metadata, episodes, streams, subtitles) comes from addons.
+- **Local store (IndexedDB).** Mirror of synced library / progress / history +
+  delta cursors, so screens render instantly and reconcile in the background.
+  Also caches addon manifests and catalog/meta responses with a TTL.
 - **Sync engine.** Bootstrap = capture cursor → page the snapshot → apply deltas
-  since the cursor → persist the max `event_id` (per the spec's incremental-sync
-  section). Then delta pulls on an interval and on focus. Writes are optimistic:
-  mutate local → enqueue → push. Progress/history use non-destructive merge;
-  library uses incremental upsert/delete; addons/collections/profiles/settings
-  are full-replace (always send complete state).
-- **Current profile.** Every sync RPC needs `p_profile_id`. Track the active
-  profile server-side in a cookie; `hooks.server.ts` puts `locals.profileId`
-  alongside `locals.nuvio`. No profile selected → routes bounce to `/profiles`.
-- **Routing.** `(protected)` = signed in. Nest an app group inside it that also
-  requires a selected profile. `/profiles` and `/account` sit in `(protected)`
-  but outside the profile-gated group. `/support` is public.
+  since the cursor → persist the max `event_id`. Then delta pulls on an interval
+  and on focus. Writes are optimistic: mutate local → enqueue → push.
+  Progress/history use non-destructive merge; library uses incremental
+  upsert/delete; addons/collections/profiles/settings are full-replace.
+- **Current profile.** Every sync RPC needs `p_profile_id`. Tracked server-side
+  in a cookie; `hooks.server.ts` puts `locals.profileId` alongside
+  `locals.nuvio`. No profile selected → routes bounce to `/profiles`.
+- **Routing.** `(protected)` = signed in; nested `(app)` group also requires a
+  selected profile. `(watch)` group wraps `/detail` + `/player` and owns the
+  shared source drawer. `/profiles` and `/account` sit outside `(app)`.
+- **Content vs user data on the server.** `+page.server.ts` loads may `await`
+  **user-data** remote functions (real SSR). **Addon-sourced content** loads
+  client-side with a skeleton so a slow addon never stalls SSR or navigation.
+  Every page guards `data.*` against undefined (a `forkPreloads` speculative
+  render can instantiate a component before its `data` prop is populated).
 - **IDs.** `content_id` e.g. `tmdb:550`; `content_type` `movie` | `series`.
-  Episodes: `video_id` `tmdb:1396:1:1` + `season`/`episode`. The server computes
+  Episodes: `video_id` `tmdb:1396:1:1` + `season`/`episode`. Server computes
   `progress_key`.
-- **Zero config.** No env vars. The app ships pointed at the hosted Nuvio API
-  (the publishable key is public and lives in `client.ts`). The one allowed
-  override is `NUVIO_API_URL` for the handful of self-hosters — read once in
-  `hooks.server.ts`, nowhere else.
+- **Zero config.** No env vars. Ships pointed at the hosted Nuvio API
+  (publishable key is public, in `client.ts`). One allowed override:
+  `NUVIO_API_URL` for self-hosters, read once in `hooks.server.ts`.
+
+Status legend: `[ ]` open · `[~]` partially done · shipped work is folded into
+each area's collapsed **Shipped** list (implementation detail lives in the code,
+not here).
 
 ---
 
-## Phase 0 — Foundation
+## Home & discovery
 
-- [x] Typed Nuvio API client — `src/lib/nuvio/` (`types.ts` + `NuvioRpcMap`,
-      `client.ts`)
-- [x] Auth: `/auth/sign-in`, `/auth/sign-up`, httpOnly-cookie session, route
-      guards
-- [x] Spec drift check — `bun run nuvio:check`
-- [x] Root `+error.svelte` + `App.Error` shape (`errorId`); `handleError` in
-      `hooks.server.ts`
-- [x] `mode-watcher` (`<ModeWatcher/>` in root layout); theme→settings-blob
-      wiring comes with Phase 7
-- [x] Toast host — `<Toaster/>` (sonner) in root layout
-- [x] Core shadcn components added:
-      `button card input field label separator alert spinner avatar badge skeleton tooltip dialog dropdown-menu sonner`.
-      Add the rest per-phase:
-      `sheet tabs scroll-area select slider switch toggle-group progress popover command`
-- [ ] (low priority) Single optional `NUVIO_API_URL` override for self-hosters —
-      passed to `NuvioClient` in `hooks.server.ts` when set, default otherwise.
-      No other env vars anywhere; the app runs against the hosted API with zero
-      config.
+- [ ] Make the UI sexier — colourful, playful, we should _want_ to use it
+      (background blurs, colour accents, custom backgrounds).
+- [ ] Home hero → real slide animation between spotlights (currently a
+      crossfade).
+- [ ] Home layout editor in Settings → needs `client.homeCatalog`.
+- [ ] Search with no query → show the discover content. A search with no results
+      → "no results" + "you might like" + discover content.
+- [ ] `command`-palette style nav search.
 
-## Phase 1 — Profiles & app shell
+<details><summary>Shipped</summary>
 
-- [x] `locals.profileId` from the `nuvio_profile` cookie; profile-gate in
-      `(protected)/(app)/+layout.server.ts`
-- [x] `profiles.remote.ts`: `selectProfile` (form → cookie → `/`),
-      `createProfile` (form → full-replace push → cookie → `/`)
-- [x] `/profiles` — picker: avatar grid + "add profile" dialog (name / catalog
-      avatar / colour)
-- [x] Avatar picker: `client.listAvatars()` catalog + `avatar_color_hex`
-      fallback; `client.avatarUrl()` resolves `storage_path`
-- [x] App shell — `(app)/+layout.svelte`: top nav (Home / Discover / Library /
-      Collections / Search) + profile dropdown (switch / settings / account /
-      sign out)
-- [x] Stub pages: `/discover`, `/library`, `/collections`, `/search`
-- [ ] Profile "manage" mode: rename, recolour, custom `avatar_url`, delete —
-      `saveProfiles` (full-replace) + `deleteProfileData`
-      (`client.profiles.deleteData`). Show PIN-locked profiles as locked
-      (read-only, no PIN flow in the public API)
-- [ ] `PosterTile`, `ContentRow` (horizontal scroll + arrows), `HeroBanner`,
-      `RatingBadge`, skeleton variants — build when Phase 4 first needs them
-- [ ] Loading / empty / error state pattern for data screens
+- Home `/` — catalog rows (`homeRows`, client-side + skeleton), "My library" row
+  (reads the local store live), continue-watching row with time-remaining.
+- Auto-advancing featured hero carousel — up to 6 backdropped titles, dot
+  indicators + prev/next arrows, pause on hover/focus, off under reduced-motion,
+  fade between slides, skeleton hero (same box, no layout jump).
+- "Add to library" on the hero spotlight.
+- Discover `/discover?c=<addon|type|catalog>&g=<genre>` — catalog + genre pills,
+  `MediaGrid` + "Load more" (`browseCatalog` client-side + skeleton).
+- Search `/search?q=` — auto-searches on type (450ms debounce, `replaceState`),
+  Enter searches immediately, results grouped Movies / Series / Other, remote
+  query cached by args.
 
-## Phase 2 — Local store & sync engine
+</details>
 
-`src/lib/sync/`: `idb.ts` (dep-free IndexedDB wrapper, stores
-`library`/`progress`/ `history`/`meta`, keyed `${profileId}:${identity}`,
-degrades to no-op when IDB is unavailable), `reconcile.ts` (pure delta-fold,
-Vitest target), `sync.remote.ts` (`syncSnapshot` / `syncDeltas` / `flushWrites`
-— the only network layer), `store.svelte.ts` (`sync` singleton, `$state` views +
-optimistic mutators). `+page.server.ts` loads stay for SSR / first paint; pages
-read `sync.ready ? store : data.X`.
+## Title detail
 
-- [x] IndexedDB wrapper (`library`, `progress`, `history`, `meta` = cursors +
-      queue + bootstrapped flag). `addonCache` still on the addon layer's
-      in-memory `TtlCache`
-- [x] Bootstrap: `syncSnapshot` reads all three delta cursors _before_ paging
-      the snapshot; `syncDeltas` then catches anything that moved during paging.
-      `bootstrapped` flag in `meta` so it runs once per device/profile
-- [x] Library / progress / history delta pulls on an interval (90s) + on
-      `visibilitychange` + 4s after attach (deferred so it doesn't fight first
-      paint). Applied by `event_id` asc, identity `(type,id)` / `progress_key` /
-      `(id,season,episode)`
-- [x] Write queue: optimistic local mutate → enqueue (collapsing repeats on same
-      target) → 1.5s-debounced `flushWrites` →
-      `upsertItems`/`deleteItems`/`watchProgress.push`/`watchHistory.delete`
-      with `p_origin_client_id: "nuvio-web"` + 500-item batching. Survives
-      reload (persisted to `meta`), retries on the next sync tick
-- [x] Reconcile: `reconcileDeltas` (last-write-wins by `event_id`);
-      `overlayPendingLibrary` / `overlayPendingProgress` re-apply still-queued
-      writes so a pull that lands before our push doesn't flicker
-- [x] Scheduler: 4s-after-attach + 90s interval + focus + implicit after every
-      write (debounced flush)
-- [x] `$state` views: `sync.library` / `sync.progress` / `sync.history`
-      (sorted), `sync.libraryProgress` / `sync.titleProgress()` /
-      `sync.isInLibrary()`. Wired into `/library`, `/history`, `/detail`
-      (in-library + resume/watched), `/watch` (`saveProgress`). Home
-      continue-watching keeps its meta-enriched `continueWatching` query
-- [x] Unit tests — `src/lib/sync/reconcile.test.ts`, 17 cases
-      (`bun run test:unit`)
+- [ ] Cast with photos (needs a TMDB-style addon; Cinemeta is names-only).
+- [ ] Details-page watched badge for **series** (movies done).
+
+<details><summary>Shipped</summary>
+
+- `/detail/[type]/[id]` — `getMeta` hero (backdrop / poster / logo / title /
+  year / runtime / genres / IMDb rating), description, expanded facts (director
+  / writer / country / released / awards), `meta.status` for series. Renders
+  from a `stableMeta` mirror (fork-preload safe).
+- Cast chips link to `/search?q=<name>`.
+- Trailers row → `trailer-modal.svelte` (`youtube-nocookie` embed).
+- "More like this" row — `similarTitles` (top-genre catalog browse minus self).
+- Season carousel (`season-carousel.svelte`) — scrollable season pills + a
+  snap-scrolling row of 16:9 episode cards (number, title, synopsis, per-episode
+  IMDb rating, air date, runtime), hover arrows, resume bar / watched tick /
+  mark-watched, hover warms that episode's streams.
+- Watched flag on the hero for movies.
+- Right-click menus (`ContextMenu`): poster (add/remove library, mark
+  watched/unwatched, view details) · episode card (mark watched, "mark up to
+  here") · season pill ("mark season N", "mark through season N"). Each fires a
+  sonner toast.
+- Streams preloaded ~700ms after `getMeta` for the CTA target; episode hover
+  warms per-episode. One id at a time (addon rate limits).
+
+</details>
+
+## Playback
+
+- [ ] End-of-episode overlay: "episode over" + next-episode CTA; if the show is
+      airing, show the next air time instead; if it's the last episode of a
+      finished show, "the show's over" + similar-show suggestions.
+- [ ] When an episode is marked watched on a running show with a known next
+      episode, surface the next episode + air date in continue-watching.
+- [ ] Skip intro / skip outro — no addon supplies intro/outro timestamps
+      (Stremio has no chapter data; AniSkip is anime-only). Needs a data source.
+- [ ] Playback error handling — catch unplayable / no-audio content, offer
+      "switch stream" + "open in external player" CTAs inline (external-player
+      handoff already exists on the no-playable-stream state).
+
+<details><summary>Shipped</summary>
+
+- Flow: `/detail` → "Watch" / episode opens the right-hand source drawer
+  (`sources-panel.svelte.ts` module state, owned by `(watch)` layout, shared
+  with `/player`, no URL param) → pick → `/player/[type]/[id]`. "Sources"
+  reopens the drawer in place.
+- Source drawer (`stream-panel.svelte`) — async list + skeleton + Refresh, addon
+  - quality filter chips, per-row attribution / quality / size.
+- `/player/[type]/[id]` — `playbackContext` loads client-side (shell paints
+  instantly on nav; `contextFallback` keeps `context.*` safe); reads the stream
+  handoff or cold-resolves + auto-picks the first playable; floating Back button
+  whenever no stream is loaded; always seeks to the saved resume position (no
+  "you left off at" prompt); "open in VLC" + "copy link" for non-web-playable
+  sources.
+- `VideoPlayer` redesign — big centre transport cluster (±10s skip flanking
+  play/pause, replay when ended), thick hover-scrub scrubber with time preview +
+  buffered range, always-visible volume, size-9 hit targets, rate / PiP /
+  fullscreen / captions cluster, auto-hide, keyboard (space/k, ←→/jl, ↑↓, f, m,
+  c, n=next, e=episodes).
+- Subtitle overlay — "Off" + every source with language name, addon, SDH badge;
+  `getSubtitles` returns `{id, lang, url, addonName, sdh}`; appearance controls
+  (size / colour / plate) persist; subtitle timing nudge (±0.5s).
+- Audio-track selection — HLS only (hls.js), in the settings menu.
+- Content-warning card on stream load — cert + genre descriptors, soft fade.
+- Next-episode autoplay + "up next" card (10s countdown, gated on
+  `autoPlayNext`).
+- In-player episode drawer + season switcher (`player-episodes-panel.svelte`);
+  next-episode button.
+- Progress → `sync.saveProgress` every 15s + on unmount. Mark-watched via
+  `sync.markWatched` (synthetic 100% row) / `sync.clearProgress`.
+- Subtitles served via `/api/subtitle` (SRT→WebVTT, auth-gated).
+
+</details>
+
+## Library, collections & history
+
+- [ ] Collection folder reorder, tile shape / hide-title / cover image,
+      `FOLLOW_LAYOUT` mode, "All" tab.
 - [ ] `continueWatching` from the local progress store (needs poster/title —
-      either enrich from the library mirror or a cached meta lookup)
+      enrich from the library mirror or a cached meta lookup).
+- [ ] Continue-watching is unreliable: items randomly removed, new ones not
+      added.
+- [ ] Stats page — minutes watched (movies vs shows), counts (shows / episodes /
+      movies), preferred format, preferred categories.
 
-## Phase 3 — Addon subsystem
+<details><summary>Shipped</summary>
 
-`src/lib/addons/` (framework-agnostic) + `src/lib/addons/addons.remote.ts`
-(server-side remote fns).
+- `/library` — grid from the local store (falls back to the SSR payload while
+  the store is authoritative-but-empty), filter (all / movie / series / watched
+  / unwatched) + sort (recently added / A–Z / top rated) in `?filter`/`?sort`,
+  hover-remove.
+- `/history` — poster grid grouped Today / Yesterday / weekday / date, per-title
+  poster + name (SSR-enriched via `getMeta` for unique recent ids), episode
+  badge, "Rewatch" CTA, per-row delete.
+- `/collections` — pin-sorted list, create / rename / pin / delete.
+- `/collections/[id]` — folder contents resolve client-side + skeleton;
+  `TABBED_GRID` / `ROWS` toggle; add folder (catalog multi-pick); delete folder.
+- Poster cards show a watched check + in-library bookmark once the store is
+  authoritative.
 
-- [x] Manifest client — `manifest.ts`: `parseAddonUrl` (strips
-      `/manifest.json`), `fetchManifest` (30-min cache, 10s timeout),
-      `validateManifest` (normalizes `resources` string|object)
-- [x] Addon registry — `registry.ts`: `buildRegistry(nuvioRows, fetch)`
-      (per-addon isolation, collects load errors), `AddonRegistry` —
-      `catalogs()`, `findCatalog()`, `providersFor(resource, type, id)`
-      respecting resource strings vs objects + manifest/resource `idPrefixes` +
-      `types`
-- [x] Resource clients — `client.ts` `AddonClient`: `getCatalog`
-      (`genre`/`skip`/`search` extra), `getMeta` (first provider wins),
-      `getStreams` / `getSubtitles` (fan out, per-addon error isolation →
-      `AddonError[]`), 15s timeout, 5-min response cache (streams/subs uncached)
-- [x] Response cache with TTL — `TtlCache` (in-memory, per server instance).
-      IndexedDB upgrade deferred to Phase 2 if needed
-- [x] `/addons` management UI: installed list (logo, resource badges, catalog
-      count, unreachable flag), add-by-URL with manifest preview, enable/disable
-      switch, up/down reorder, remove → `saveAddons` command (full-replace via
-      `client.addons.replace`). In the profile dropdown nav
-- [x] CORS: addon fetches run server-side (remote fns), so no browser CORS.
-      Unreachable addons surfaced in the UI; a server-side addon proxy stays out
-      of scope
-- [x] Remote queries for Phase 4: `browseCatalog`, `catalogList`, `getMeta` in
-      `addons.remote.ts`
-- [ ] `uses_primary_addons` toggle for non-primary profiles (needs profile-1
-      addon context) — deferred to profile "manage" work
-- [ ] Addon catalog discovery (`addon_catalog` resource) — browse an addon's
-      advertised catalogs before adding — deferred
-- [ ] Drag reorder (currently up/down buttons)
+</details>
 
-## Phase 4 — Browsing
+## Sync & data
 
-Primitives in `src/lib/components/` (`media-poster`, `media-grid`, `media-row`,
-`stream-list`). Content via the Phase 3 remote queries; pages use
-`+page.server.ts` loads that `await` them (real SSR).
-
-- [x] Home `/` — `+page.server.ts` → `homeRows` (first 8 catalogs, 20 items
-      each) + `libraryItems` row. Hero + `client.homeCatalog.pull` ordering +
-      continue-watching still to do (needs Phase 2)
-- [x] Discover `/discover?c=<addon|type|catalog>&g=<genre>` — catalog pills +
-      genre pills + `MediaGrid` + "Load more" (`browseCatalog` with `skip`)
-- [x] Search `/search?q=` — `searchCatalogs` fans out to `search`-capable
-      catalogs server-side, dedupes by `type:id`, grouped Movies / Series /
-      Other. (`command`-palette nav search deferred)
-- [x] Detail `/detail/[type]/[id]` — `getMeta`: backdrop + poster +
-      title/year/runtime/genres/rating, description, cast/director
-- [x] Detail actions: Add to / Remove from library (`library.remote.ts`
-      `toggleLibrary` → `client.library.upsertItems`/`deleteItems`,
-      `p_origin_client_id: "nuvio-web"`). Play → streams; "Mark watched" + share
-      deferred
-- [x] Series: season pills + episode list (thumb, title, aired date).
-      Per-episode resume bar + watched tick via `titleProgress` query
-      (`$lib/watch`); series CTA resolves to Resume S_E_ / next-unwatched.
-      Library grid cards get resume bars via `libraryProgress`
-- [x] `StreamList` — lazy `getStreams`, per-stream Play/Open link (opens
-      `url`/`externalUrl` in a tab until Phase 6 player), `not web-ready`
-      flagged, addon badge. Grouping/sort/remember-choice deferred
-- [x] A fuller details page for every media:
-  - [x] **Cast** section — names (photos need a TMDB addon; Cinemeta is
-        names-only). Chips / row.
-  - [x] **Trailers** — `meta.trailerStreams` (`{title, ytId}`), thumbnail cards
-        → `trailer-modal.svelte` with a `youtube-nocookie.com/embed/<ytId>`
-        iframe.
-  - [x] Expanded facts — country, awards, released date, writer(s), full genre
-        list.
-  - [x] **"More like this"** row — no true "similar" endpoint anywhere
-        (Cinemeta/Nuvio-API). MVP: `similarTitles` remote query = browse the
-        primary catalog filtered by the title's top genre, drop the current id.
-  - [x] **Series episodes → season carousel.** `season-carousel.svelte`
-        (replaced the accordion — hard to navigate): scrollable season pills + a
-        horizontal, snap-scrolling row of 16:9 episode cards (number, title,
-        synopsis, per-episode IMDb rating, air date, runtime fallback to the
-        series runtime) with hover arrows. Resume bar / watched tick /
-        mark-watched toggle kept; hover warms that episode's streams.
-  - [x] **Fuller show detail** — episodes carousel sits directly under the hero
-        (primary content for a series); the hero meta line carries `meta.status`
-        ("Ended" / "Continuing") for series; the carousel header shows
-        `N seasons · M episodes`.
-- [ ] Make the UI sexier, colorfoul, playful. We need to WANT to use it not just
-      have to (background blurs, color accents, custom backgrounds)
-- [ ] Home layout editor (in Settings) → Phase 7
-- [ ] Hero banner on home; continue-watching row; watched/resume indicators →
-      after Phase 2
-- [x] Search page: auto-search on type with a debounce → 450ms debounce pushes
-      the query into `?q=` (`replaceState`, so back isn't polluted per
-      keystroke); Enter still searches immediately; `afterNavigate` re-syncs the
-      box on back/forward. Results are the `searchCatalogs` remote query, which
-      is client-cached by args — retyping a prior term is a cache hit, no
-      refetch.
-- [x] The streams drawer shouldn't be url based it has a big impact on UX when
-      trying to navigate to the previous page. → now `sources-panel.svelte.ts`
-      module state, owned by the `(watch)` layout. Opening / closing it never
-      touches history; back leaves the page.
-- [x] The home hero should be a carousel that's auto-scrolling and allows the
-      user to see next featured media → `+page.server.ts` returns `spotlights`
-      (up to 6 backdropped titles, deduped + shuffled); the home hero cycles
-      them every 8s (pauses on hover/focus, off under `prefers-reduced-motion`)
-      with dot indicators + prev/next arrows in a new `MediaHero` `overlay`
-      snippet. `{#key spotlight.id}` replays the Ken-Burns zoom on each change.
-- [x] Continue watching cards should show how much time is remaining →
-      `continueWatching` returns `remainingMs`; the home card shows
-      `formatRemaining()` ("23 min left" / "1 h 12 min left" / "Almost done",
-      unit-tested in `runtime.test.ts`).
-- [x] Each time we display a rating, show where it comes from (IMDB, TVDB?) →
-      every rating we render is Cinemeta's `imdbRating` (or `MetaVideo.rating`,
-      normalised from it), so it's labelled **IMDb**: an inline "IMDb" tag on
-      the `media-hero` and `episode-accordion` ratings, `title="IMDb rating"` on
-      the compact `media-poster` badge. If an addon ever gives a real source
-      field, revisit.
-- [x] Create a svelte store called "title". `pageTitle` in
-      `$lib/stores/title.svelte.ts` — `Nuvio · ${segment}` (plain `Nuvio` when
-      unset). Root layout renders it into `<svelte:head>` and mirrors it to
-      `document.title` in an `$effect` (a view transition can swallow the head
-      update). Each page sets its segment at script top (static) or in an
-      `$effect` (data-driven: detail = `meta.name`, player = `context.heading`,
-      collection = folder title, search = the query). Client-only so the module
-      singleton can't leak one request's title into another during SSR;
-      `beforeNavigate` clears it between pages.
-- [x] Preload streams on the detail page so the source drawer / player feel
-      instant. `resolveStreams` + `playbackContext` are warmed ~700ms after
-      `getMeta` lands for the CTA target (movie id, or resume / first episode);
-      remote queries are client-cached by args so the drawer and player reuse
-      the result. Hovering an episode in the accordion warms that episode too
-      (`onPrefetch`). One id at a time — no episode-by-episode sweep, to stay
-      clear of the addon rate limits.
-- [x] Right-click actions on media / episode / season cards (`ContextMenu`): -
-      **Poster** (`media-poster.svelte`): Add to / In library, Mark watched /
-      unwatched (movies), View details. - **Episode card**
-      (`season-carousel.svelte`): Mark watched / unwatched, "Mark up to here
-      watched" (`onMarkUpTo` → detail loops `sync.markWatched` over
-      `orderedEpisodes` up to that index; queue collapses + batches). - **Season
-      pill**: "Mark season N watched", "Mark through season N"
-      (`onMarkSeason(season, includeEarlier)`). Fixed a latent crash this
-      surfaced: a `forkPreloads` speculative render of `/detail` could enter the
-      loaded branch while `getMeta` was mid-flight — the page now renders from a
-      `stableMeta` mirror that's only ever set to a real object.
-- [ ] Add the cast list to a show/movie page details with pictures and links
-      that redirect to the search page if you click on them with the actor's
-      name as a prefilled search query.
-- [x] On hero items add an "Add to library" button → home spotlight actions now
-      have Watch now / Add to library (or "In library") / More info.
-- [~] Watched / in-library markers:
-  - [x] Poster cards (`media-poster.svelte`) get a top-right check badge when a
-        movie is watched and a bookmark badge when it's in the library (any
-        page, once the sync store is authoritative).
-  - [ ] Details-page "watched" badge; library page filter by watched/unwatched.
-- [ ] When sorting on the library page add the sort order or the filters to url
-      search params to trigger a page transition
-- [ ] Replace the supporters page with an external link to
-      https://nuvio.tv/support
-- [x] Right-click actions fire a sonner toast (`media-poster` add/remove/mark,
-      detail-page library toggle + "mark up to here" / "mark season" with a
-      count) so the invisible mutation is confirmed.
-- [ ] When a show's episode is marked as watched AND it does not exist in the
-      watch history AND it has an available next episode either in the next
-      season if there's one or in the current season add it to continue watching
-      system. If it's a running show do show the next episode and a marker
-      saying when it's going to air.
-
-## Phase 6b — Player UX overhaul
-
-The player controls are weak and the source picker requires leaving the player.
-
-- [x] **Source switch from the player.** `(watch)` route group `+layout.svelte`
-      wraps both `/detail` and `/player` (URLs unchanged), owns the drawer via
-      `sources-panel.svelte.ts` module state (not the URL — opening it doesn't
-      push history) and the `<StreamPanel>` mount. `stream-panel.svelte` fetches
-      its own `playbackContext`; `playback.ts` → `playback.svelte.ts` so the
-      picked stream is `$state`. `resolveStreams` is client-cached by args so
-      moving detail ↔ player doesn't re-resolve.
-- [x] **Better controls** — redesigned `video-player.svelte`: large centre
-      transport cluster (±10s skip flanking a big play/pause, replay icon when
-      ended), thicker scrubber that grows on hover with a time-preview tooltip +
-      buffered range, always-visible volume slider, size-9 hit targets, a clean
-      rate / PiP / fullscreen / captions cluster. Auto-hide + all shortcuts
-      kept.
-- [x] **Subtitle overlay** — a dedicated in-player panel (captions button, not
-      the settings cog): "Off" + every option with language name
-      (`Intl.     DisplayNames`), source addon and an SDH badge. `getSubtitles`
-      now returns `{ id, lang, url, addonName, sdh }` (one row per source,
-      exact-URL dedupe only); `client.getSubtitles` carries `addonName` via
-      `SubtitleWithSource`. Appearance controls (size / colour / plate) live
-      alongside and persist through `onSubtitleAppearance` → `saveUiSettings`.
-- [x] **Content-warning card** on stream load — `playback-loading.svelte` shows
-      the certification (`playbackContext.certification`: `meta.certification`
-      when an addon supplies one, else `18+` for `behaviorHints.adult`; Cinemeta
-      gives neither) big for ~3.2s, plus genre descriptors, with a soft fade.
-      Falls back to just genres when there's no rating.
-- [ ] When a show episode is done and another is available, show a sexy overlay
-      on the player saying the episode is over with a CTA to play the next
-      episode if there's any. If the show is currently airing and the next
-      episode is set to air at a specific time display just that. If the show is
-      completely over and this is the last episode display a message saying the
-      show's over alongside suggestions of similar shows to watch next.
-
-## Phase 5c — Alternative sync backends (Trakt / SIMKL)
-
-Nuvio (mobile) lets you pick the **library source** and the **watch-progress
-source** independently from: Nuvio Sync (default), Trakt, or SIMKL. **The Nuvio
-public API does NOT proxy Trakt/SIMKL** — the mobile app talks to them directly.
-So this is a real integration, not a setting:
-
-- [x] Settings scaffold — a "Sync" card in `/settings` with two segmented
-      selectors ("Library from" / "Watch progress from"), stored in
-      `uiSettingsSchema` (`librarySource`, `progressSource`; `SYNC_SOURCES`,
-      default `"nuvio"`). Trakt / SIMKL options render disabled until the
-      integration lands. The store doesn't branch on these yet.
 - [ ] Trakt: OAuth (device or redirect) → token in an httpOnly cookie / settings
       blob → `$lib/trakt/` client for `sync/history`, `sync/watched`,
       `sync/collection`, `scrobble`. Map to the local store's shapes.
 - [ ] SIMKL: same shape, SIMKL API.
 - [ ] `$lib/sync/store.svelte.ts` reads/writes through whichever backend each
-      domain is set to (Nuvio stays the fallback + the cross-device mirror).
+      domain (`librarySource` / `progressSource`) is set to; Nuvio stays the
+      fallback + cross-device mirror.
+- [ ] Store theme preferences locally + reconcile in the background — an AMOLED
+      theme currently only applies after settings load (flicker).
+- [ ] Right-click add/remove should invalidate any list still on a server
+      snapshot (home library row now reads the store; audit the rest).
 
-## Phase 5 — Library, collections, history
+<details><summary>Shipped</summary>
 
-`$lib/{library,history,collections}/*.remote.ts`. Shared `$lib/server/guards.ts`
-`requireProfile`, `$lib/addons/server.ts` (`getRegistry`/`getAddonClient`,
-extracted from `addons.remote.ts`). Pages use `+page.server.ts` loads. Direct
-API writes for now; Phase 2 wraps them in the queue.
+- IndexedDB wrapper + bootstrap (cursor-before-snapshot, `bootstrapped` flag),
+  delta pulls (90s interval + `visibilitychange` + 4s after attach), optimistic
+  write queue (collapse repeats → 1.5s-debounced flush → 500-item batches,
+  survives reload), reconcile (`reconcileDeltas` LWW + pending-write overlay).
+- `$state` views (`sync.library/progress/history`, `libraryProgress`,
+  `titleProgress()`, `isInLibrary()`), wired into library / history / detail /
+  player.
+- Unit tests: `reconcile.test.ts` (17 cases), `runtime.test.ts`.
+- Settings scaffold for alternative sync backends — "Sync" card, `SYNC_SOURCES`
+  in `uiSettingsSchema`, Trakt/SIMKL disabled until built.
 
-- [x] `/library` — grid from `libraryItems`, filter all/movie/series, sort
-      recent/name, hover-remove → `toggleLibrary({remove:true})`
-- [x] `/history` — `watchHistory` grouped Today / Yesterday / weekday / date,
-      per-row delete → `watchHistory.delete`
-- [x] `/collections` — list (pin-sorted), create / rename / pin / delete →
-      `saveCollections` (full-replace)
-- [x] `/collections/[id]` — `collectionContents` resolves each folder's
-      `catalogSources` via the addon client; `TABBED_GRID` (folder tabs) /
-      `ROWS` view toggle; add folder (title + catalog multi-pick from
-      `catalogList`); delete folder
-- [ ] Folder reorder, tile shape / hide-title / cover image, `FOLLOW_LAYOUT`
-      mode, "All" tab — later
-- [x] Sort by rating; library from the local store instead of a live pull →
-      `/library` sort cycles Recently added → A–Z → Top rated (`imdbRating`
-      desc); the grid already reads `sync.library` once the store is
-      authoritative, `data.items` only for first paint.
+</details>
 
-## Phase 6 — Playback
+## Settings & appearance
 
-`$lib/watch/`: `watch.remote.ts` (`playbackContext` — meta/logo/resume/next, no
-streams, both awaits `.catch`-guarded; `resolveStreams` — the slow fan-out,
-client-side; `getSubtitles`, `titleProgress`, `continueWatching` — deduped to
-one row per title), `stream-format.ts` (pure `describeStream` / `formatFileSize`
-/ `isPlayable`, Vitest'd), `playback.ts` (`playbackHandoff` —
-sessionStorage-backed stream handoff, sidebar→player), `stream-panel.svelte`
-(the source sidebar).
+- [ ] Player defaults: stream quality (subtitle language / appearance done).
+- [ ] Home layout editor → needs `client.homeCatalog`.
 
-**Flow (mirrors the Nuvio apps):** `/detail` → **"Watch" / episode opens a
-right-hand source drawer** (`sources-panel.svelte.ts` module state, owned by the
-`(watch)` layout — shared with `/player`, no URL param): SSR page stays put, the
-list fans out client-side (`resolveStreams.current`, skeleton + "Refresh"),
-filterable by addon and by quality → pick → `/player/[type]/[id]` (whole-page
-surface: `(app)/+layout` drops all chrome when the path starts `/player/`;
-"Sources" reopens the same drawer in place). Continue-watching tiles jump
-straight to `/player/*`.
+<details><summary>Shipped</summary>
 
-- [x] `VideoPlayer` — `hls.js` for `.m3u8`, native `<video>` (autoplay)
-      otherwise; `fill` prop for the full-page player; `onSources` button;
-      `object-contain`; a `loading` state (`waiting` / `canplay` / `playing`)
-      shows `playback-loading.svelte` — 16:9 backdrop + softly-pulsing logo
-- [x] Source drawer (`stream-panel.svelte`) — opens from `sourcesPanel` state,
-      scrim + Esc to close, async list with skeleton + "Refresh", addon +
-      quality filter chips, per-row addon attribution / quality / size, pick →
-      handoff + `/player`
-- [x] `/player/[type]/[id]` — reads the handoff (or cold-resolves + auto-picks
-      the first playable), `playback-loading` while resolving, resume prompt,
-      up-next autoplay, `onSources` reopens the drawer in place. A floating
-      **Back** button shows whenever no stream is loaded (resolving / no-stream
-      / can't-play states, where `VideoPlayer` isn't mounted) —
-      `history.back()`, or `/detail` as a fallback on a cold entry.
-- [x] Custom controls: play/pause, seek bar with buffered range, time, volume,
-      playback rate, PiP, fullscreen, captions toggle + menu; auto-hide;
-      keyboard (space/k, ←→/jl, ↑↓, f, m, c)
-- [x] Resume: `startTime` seek on `loadedmetadata`
-- [x] Progress → `sync.saveProgress` (optimistic, batched) every 15s + on
-      unmount
-- [x] Subtitles: `getSubtitles` (dedupe by lang) → `<track>` via `/api/subtitle`
-      proxy (SRT→WebVTT, auth-gated)
-- [x] Next-episode autoplay + "up next" card — `playbackContext.next`;
-      end-of-episode overlay with a 10s countdown (gated on `autoPlayNext`)
-- [x] "Mark watched" — `sync.markWatched` (synthetic 100% progress row using the
-      parsed `runtime`, `$lib/watch/runtime.ts`) + `sync.clearProgress` (new
-      `progress.delete` queue kind → `watchProgress.deleteMany`). Toggle on each
-      detail episode row and a movie CTA button
-- [x] Subtitle offset control; audio-track selection → - **Subtitle timing** — a
-      −0.5s / +0.5s nudge in the subtitle overlay (only when a track is active);
-      shifts the showing track's cue times by the delta, resets to 0 on track
-      change. - **Audio tracks** — HLS only (hls.js `audioTracks` /
-      `audioTrack`, driven by `AUDIO_TRACKS_UPDATED` / `AUDIO_TRACK_SWITCHED`);
-      shown as an "Audio" section in the settings menu when there's more than
-      one. Plain mp4/mkv `<video>` has no reliable audio-track API, so it's
-      hidden there.
-- [~] Episode control from the player:
-  - [x] **Episode drawer + season switcher** — `player-episodes-panel.svelte`
-        (right drawer, scrim + Esc), season tabs, per-episode thumb / number /
-        title / rating / air date / synopsis, current episode marked "Now",
-        resume bars + watched ticks from `titleProgress`. `playbackContext` now
-        returns the full `episodes` list. Opened by the player's list button
-        (`e` key), picking one navigates without leaving `/player`.
-  - [x] **Next episode button** — `VideoPlayer` `onNext` (skip-forward icon, `n`
-        key), wired to `playbackContext.next`.
-  - [ ] **Skip intro / skip outro** — no addon gives intro/outro timestamps
-        (Stremio protocol has no chapter data; AniSkip is anime-only). Needs a
-        data source before it's more than a guess. Deferred.
+- `/settings` Appearance — mode (system/light/dark), dark style (dim / AMOLED),
+  7 accent presets; quick mode toggle in the profile dropdown; per-profile,
+  cloud-stored, `ready`-gated so SSR uses server data.
+- Playback section — autoplay-next toggle, preferred subtitle language, subtitle
+  size / colour / background.
+- Sync section (scaffold). Addons shortcut card.
+- `title` store (`pageTitle`) — `Nuvio · <segment>`, into `<svelte:head>` +
+  mirrored to `document.title`, per-page segments, client-only.
 
-## Phase 7 — Settings
+</details>
 
-Blob lives at `client.settings.pull/replace` with `p_platform: "web"`, shape
-owned by us, `uiVersion` in the blob. `src/lib/settings/`: `ui-settings.ts`
-(schema/types — kept out of the `.remote.ts` file since SvelteKit rejects
-non-remote exports there), `settings.remote.ts`
-(`getUiSettings`/`saveUiSettings`), `theme.svelte.ts` (client controller,
-`ready`-gated so SSR uses server data — no accent/amoled flash).
+## Profiles & account
 
-- [x] `/settings` Appearance: mode (system / light / dark), dark style (dim /
-      **AMOLED** = pure black), accent colour (7 presets → `--primary`/`--ring`
-      via `[data-accent]` on the app wrapper + `<html>`)
-- [x] Quick mode toggle in the profile dropdown
-- [x] Per-profile, cloud-stored; `mode-watcher` handles the light/dark
-      mechanism, we layer cloud sync + accent + amoled on top
-- [x] Playback section on `/settings`: "Autoplay next episode" toggle
-      (`autoPlayNext` in `uiSettingsSchema`, defaults on)
-- [ ] Player defaults: quality, subtitle language, subtitle appearance
-- [ ] Home layout editor (Phase 4 rows) → needs `client.homeCatalog`
-- [ ] Addon shortcut card into `/addons`$
+- [ ] Profile "manage" mode: rename, recolour, custom `avatar_url`, delete
+      (`saveProfiles` + `deleteProfileData`). Show PIN-locked profiles as locked
+      (read-only; no PIN flow in the public API).
+- [ ] `uses_primary_addons` toggle for non-primary profiles.
 
-## Phase 8 — Account, polish, hardening
+<details><summary>Shipped</summary>
 
-- [x] `/account` (in `(app)`): email + member-since, change-password link-out to
-      nuvio.tv (no API method), sign out, per-profile sync counts table
-      (`getSyncOverview` via `account.remote.ts`), danger-zone "clear this
-      profile's data" (`profiles.deleteData`) behind a confirm dialog
-- [x] Sync status: per-profile counts table on `/account`. Last-sync time +
-      write-queue size wait on Phase 2
-- [x] `/support` (public, outside `(protected)`): Supporter Wall —
-      `getSupporterWall` via `support.remote.ts`, Top + Recently-joined grids,
-      offset pagination, become-a-supporter link. Linked from the app footer
-- [ ] Health indicator using `client.healthCheck()` / `client.healthPing()` for
-      a status page or degraded-mode banner
-- [~] Error / empty / offline states across every screen; retry affordances —
-  shared `empty-state.svelte` on library / history / collections / discover /
-  watch / search; `+error.svelte` restyled. Offline + retry still open
-- [~] Visual pass ("sexy af"): cinematic full-bleed `media-hero.svelte` (home
-  spotlight + detail), scroll-aware transparent header, hover-lift posters with
-  scroll-button rails, shimmer skeletons, ambient accent glow, `N` wordmark.
-  Tokens/utilities in `layout.css` (`skeleton`, `no-scrollbar`,
-  `animate-hero-zoom`)
-- [ ] Image handling: lazy-load, decode async; decide on a poster proxy route
-      (CORS + resize + cache) vs raw `<img>`
-- [~] Accessibility pass: focus management, ARIA on rows/tiles/player,
-  reduced-motion — hero/skeleton honour `prefers-reduced-motion`; full pass
-  still open
-- [ ] Perf: route-level code splitting, virtualized grids for large libraries,
-      prefetch on hover
-- [~] Tests: **Playwright smoke suite in `e2e/`** (`bun run test:e2e`, reuses
-  the running `bun run dev` on :5173, real API via `NUVIO_TEST_*` in `.env`) —
-  every route renders + client-nav + detail library toggle, all asserting no
-  runtime errors. **Vitest** (`bun run test:unit`) covers
-  `src/lib/sync/reconcile.ts`. Still to add: Vitest for the addon registry.
-  **Run `bun run test:e2e` after any UI change** (also in CLAUDE.md)
-- [ ] Rate-limit safety: keep per-user request rate well under 100 req/s; batch
-      via RPC
-- [x] Small-screen gate: `small-screen-notice.svelte` in the root layout,
-      `md:hidden` full-screen overlay pointing phone/tablet users at the mobile
-      app
-- [ ] EDIT on the above! Actually let's make the app mobile friendly but display
-      a dismissable banner on the bottom to tell the users the nuvio app is
-      better. Use the branding logos as well in either lib/assets or the static
-      directory.
-- [x] Brand the auth pages with logo, theming, dark mode by default etc.. →
-      `auth/+layout.svelte`: `/logo-text.webp` wordmark + tagline, twin radial
-      primary glows, and a scoped `.dark` wrapper so the sign-in / sign-up
-      screens are always dark without touching the global mode-watcher state.
-- [x] Add fallback images for posters and/or backgrounds if they don't exist
-      (catch 404 behaviour on assets). They need to be pretty → `media-poster`
-      fallback gets a film/TV glyph over a gradient + wrapped title; episode
-      thumbnails (accordion + in-player drawer) and the continue-watching cards
-      render a glyph/gradient behind the `<img>` so a missing or 404'd image
-      degrades cleanly. `onerror` flips to the fallback.
-- [ ] The watch history page's a bit shit. Looks like ass, no posters, no info,
-      no CTAs?
-- [ ] The continue watching feature isn't working well at all. Items get
-      randomly removed, new items don't get added.
-- [x] Remove the prompt "You left off at" when loading a media in the player,
-      always pick back where the user left off → the player seeks straight to
-      `context.resume.position`; the resume/start-over overlay is gone.
-- [ ] Store user theme preferences locally and then reconciliate in the
-      background. If picking an amoled theme it loads only after the data is
-      loaded which causes a bit of flickering.
-- [ ] When adding/removing a media from a right click action, invalidate the
-      data so the lists update.
-- [ ] When going to the next item on the hero carousel on the home page add an
-      animation going to the next slide.
+- `/profiles` picker — avatar grid + add-profile dialog; `selectProfile` /
+  `createProfile`.
+- App shell — top nav + profile dropdown (switch / settings / account / sign
+  out).
+- `/account` — email + member-since, change-password link-out, sign out,
+  per-profile sync-counts table, danger-zone "clear this profile's data".
+- Supporters — footer link goes straight to `nuvio.tv/support` (the in-app wall
+  page was removed).
+
+</details>
+
+## Addons
+
+- [ ] Addon catalog discovery (`addon_catalog` resource) — browse an addon's
+      advertised catalogs before adding.
+- [ ] Drag reorder (currently up/down buttons).
+
+<details><summary>Shipped</summary>
+
+- Manifest client (`parseAddonUrl`, `fetchManifest` 30-min cache, validate),
+  registry (`buildRegistry`, per-addon isolation, `providersFor`), resource
+  clients (`getCatalog` / `getMeta` / `getStreams` / `getSubtitles`, fan-out +
+  per-addon error isolation, 15s timeout, 5-min response cache).
+- `/addons` UI — installed list (logo, resource badges, catalog count,
+  unreachable flag), add-by-URL + manifest preview, enable/disable, up/down
+  reorder, remove → `saveAddons` full-replace.
+
+</details>
+
+## Polish & hardening
+
+- [ ] Make the app mobile-friendly (currently a small-screen gate overlay); keep
+      a dismissable bottom banner pointing at the mobile app instead. Use the
+      branding logos in `lib/assets` / `static`.
+- [ ] Health indicator (`client.healthCheck()` / `healthPing()`) → status page
+      or degraded-mode banner.
+- [ ] Image handling — lazy-load, decode async; provider poster URLs only.
+- [ ] Perf — route-level code splitting, virtualised grids, prefetch on hover.
+- [ ] Accessibility pass — focus management, ARIA on rows/tiles/player (partial;
+      reduced-motion honoured).
+- [ ] Offline states + retry affordances (empty-state component done;
+      `+error.svelte` restyled; offline still open).
+- [ ] Rate-limit safety — keep per-user request rate well under 100 req/s.
+- [ ] Add Vitest for the addon registry.
+
+<details><summary>Shipped</summary>
+
+- Auth pages branded — wordmark + tagline, radial glows, scoped-dark.
+- Fallback images — poster glyph + gradient, episode-thumbnail and
+  continue-watching-card fallbacks with `onerror`.
+- No content-await blocks SSR (home / discover / collections / player moved to
+  client queries + skeletons). `data.*` guarded everywhere.
+- Playwright smoke suite (`e2e/`, reuses the running dev server on :5173, shared
+  auth token, zero-console-errors asserted on every page); Vitest for pure
+  logic. Run `bun run test:e2e` after any UI change.
+- Small-screen gate overlay.
+
+</details>
 
 ---
 
 ## CI/CD
 
-- [ ] Create a Strict TS Lint, check & formatting pipeline w/ md formatting &
-      tailwint. Add test jobs for both unit, integration & e2e.
-- [ ] Create a periodic nuvio API sync job that ensures consistency with the
-      app, alert on sync errors / breaking changes
-- [ ] Create a release mechanism (release-please from Google) which screenshots
-      the app to update the readme and releases the docker image.
-
-## Performance
-
-- [x] Remove any await that loads content (not user data) on the server and
-      replace with a client-side query + skeleton — a slow addon no longer
-      stalls SSR or the click that navigated to the page: - **Home** (`homeRows`
-      → client) — catalog rows + spotlight carousel load client-side; a skeleton
-      hero (same box as `media-hero`, so no jump) + skeleton rows show
-      meanwhile. - **Discover** (`browseCatalog` → client) — catalog pills stay
-      server-side (`catalogList`, cached manifests); the grid loads with a
-      skeleton. - **Collections/[id]** (`collectionContents` → client) — folder
-      metadata server-side, resolved folder contents load with a skeleton
-      grid. - **Player** (`playbackContext` → client, `+page.server.ts` deleted)
-      — the player shell paints instantly on nav; a `contextFallback` keeps
-      every `context.X` access safe until the query resolves. Every page that
-      reads `data.*` now guards it (`data.x ?? []` / `?.`) — a `forkPreloads`
-      speculative render can instantiate a page component before its `data` prop
-      is populated, which was crashing `/discover` and others.
+- [ ] Strict TS / lint / check / format pipeline (biome + tailwint + markdown);
+      unit + integration + e2e jobs.
+- [ ] Periodic Nuvio-API contract-check job; alert on drift.
+- [ ] Release mechanism (release-please) — screenshot the app for the README,
+      publish the Docker image.
 
 ## Legal / compliance
 
-The theory the app rests on: Nuvio web is a shell. Addons (the Stremio protocol,
-installed by the user) do all content provisioning. The app hosts nothing and is
-not accountable for what a given addon returns. The items below are where the
-current code diverges from that theory or fails to state it.
+The theory: Nuvio web is a shell. Addons (Stremio protocol, user-installed) do
+all content provisioning. The app hosts nothing. Items below are where the code
+diverges from that or fails to state it.
 
-- [ ] **Disclaimer + minimal ToS.** No content is hosted; addons are
-      third-party; the user chooses them and is responsible for what they
-      install and stream. Surface it in-app (first run + top of `/addons`) and
-      in the README. This is what the "not accountable" position needs in order
-      to stand on anything. Kodi / Stremio all carry equivalent language.
-- [ ] **`LICENSE` file.** None today. Public repo + published Docker image with
-      no license = nobody has rights to use it and there is no "as is" warranty
-      disclaimer. Pick one and add it.
+- [ ] **Disclaimer + minimal ToS** — no content hosted; addons are third-party;
+      the user chooses them and is responsible. Surface in-app (first run + top
+      of `/addons`) + README.
+- [ ] **`LICENSE` file** — none today. Public repo + published image with no
+      license = nobody has rights and there's no warranty disclaimer.
 - [ ] **Move addon resource fetching client-side.** `getStreams` /
-      `resolveStreams` / `getCatalog` / `getMeta` run in remote functions, i.e.
-      on the host's server (done deliberately for CORS, Phase 3). That makes the
-      operator's server query scraper / torrent addons, receive infringing
-      stream URLs + magnet links, and relay them. Stremio keeps this on the
-      user's machine. Move stream resolution to the browser; where CORS forces
-      server involvement keep it a dumb non-caching pass-through. Stop caching
-      catalog/meta responses server-side (`client.ts` `RESPONSE_TTL_MS`).
-- [ ] **Subtitle proxy (`/api/subtitle`).** Server fetches addon subtitle files,
-      converts SRT→WebVTT, and re-serves them under our origin with
-      `cache-control: public, max-age=86400`. Subtitles are copyrightable and
-      this is the one place the app itself hosts + redistributes third-party
-      text. Do the SRT→WebVTT conversion in the browser so the bytes never touch
-      the server; if a proxy is unavoidable (CORS), drop the cache.
-- [ ] **Never bundle default addons** that point at infringing sources. Keep the
-      suggested-addon copy on `/addons` to metadata-only providers (Cinemeta,
-      TMDB). Currently clean; keep it that way.
-- [ ] **Keep playback client-side.** `video-player.svelte` sets `video.src` /
-      `hls.loadSource` in the browser, so media never transits our server. Do
-      not build the server-side stream proxy or general addon proxy floated in
-      "Open decisions" — a poster/`/img` proxy is fine, a stream proxy is not.
-- [~] **Nuvio affiliation.** App ships a hardcoded `api.nuvio.tv` publishable
-  key, authenticates real users against the Nuvio production backend, writes to
-  it, and uses the Nuvio name + logo. README says "unofficial". Plan: ask the
-  Nuvio team to review once the app is far enough along; if they decline to
-  sanction it, either get written permission or self-host the backend and drop
-  the marks.
+      `resolveStreams` / `getCatalog` / `getMeta` run in remote functions (on
+      the host's server, done for CORS). That makes the operator's server query
+      scraper/torrent addons and relay infringing URLs. Move stream resolution
+      to the browser; where CORS forces server involvement, keep it a dumb
+      non-caching pass-through. Stop caching catalog/meta server-side.
+- [ ] **Subtitle proxy (`/api/subtitle`)** — server fetches + converts +
+      re-serves subtitle files under our origin with a 1-day cache. Do the
+      SRT→WebVTT conversion in the browser; if a proxy is unavoidable, drop the
+      cache.
+- [ ] **Never bundle default addons** pointing at infringing sources. Keep
+      `/addons` suggestions to metadata-only providers (Cinemeta, TMDB).
+- [ ] **Keep playback client-side** — `video.src` / `hls.loadSource` in the
+      browser, media never transits our server. No server-side stream proxy.
+- [~] **Nuvio affiliation** — app ships a hardcoded `api.nuvio.tv` key, auths
+  real users against the Nuvio backend, uses the Nuvio name + logo. README says
+  "unofficial". Plan: ask the Nuvio team to review; if they decline, get written
+  permission or self-host the backend and drop the marks.
 
 ## Open decisions
 
-- **Playable containers.** Browsers can't play most mkv/torrent streams. Scope =
-  direct http(s) mp4 + HLS. Decide whether to offer an "open in external player"
-  handoff (e.g. `vlc://` / copy stream URL) for the rest ==> Yeah offer that
-  option from the player. Add error handling to catch unplayable content or
-  content that has no audio. Provide two CTAs: One to switch stream and one to
-  open in external player.
-- **Poster proxy.** Build a `/img` proxy route (CORS, resize, cache) or rely on
-  addon-provided URLs directly? ==> Provider URLs only to prevent handling
-  copyrightable content on the server.
-- **Addon CORS.** Some addons don't send CORS headers for browser origins.
-  Optional server-side addon proxy route to work around it — decide if that's in
-  scope => No. Addons send copyrightable links so keep browser only.
-- **Offline.** How far does the local store go — read-only browsing offline, or
-  also queueing writes offline (already implied by the write queue)? ==> Meta
-  only.
+- **Playable containers.** Scope = direct http(s) mp4 + HLS. External-player
+  handoff (`vlc://` / copy URL) for the rest → **done** on the no-playable
+  state; still want it inline as a fallback CTA when a stream fails mid-play.
+- **Poster proxy.** Provider URLs only (no server-side handling of copyrightable
+  content).
+- **Addon CORS.** No server-side addon proxy (addons return copyrightable links;
+  keep it browser-only).
+- **Offline.** Meta only — read-only browsing + the existing write queue.
 - **Legacy library push.** Stay on incremental `upsertItems`/`deleteItems`;
-  never call the legacy full-replace `client.library.replaceLegacy`.
-- **Trailer playback.** YouTube embed vs skip.
+  never `replaceLegacy`.
+- **Trailer playback.** YouTube embed (chosen).
 - **Multi-tab.** BroadcastChannel to keep the local store / player state
   coherent across tabs?

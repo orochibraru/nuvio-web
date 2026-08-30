@@ -1,7 +1,9 @@
 <script lang="ts">
 	import ArrowLeftIcon from "@lucide/svelte/icons/arrow-left";
+	import CopyIcon from "@lucide/svelte/icons/copy";
 	import ExternalLinkIcon from "@lucide/svelte/icons/external-link";
 	import PlayIcon from "@lucide/svelte/icons/play";
+	import { toast } from "svelte-sonner";
 	import { goto } from "$app/navigation";
 	import { page } from "$app/state";
 	import PlaybackLoading from "$lib/components/playback-loading.svelte";
@@ -196,6 +198,26 @@
 			void goto(`/detail/${type}/${encodeURIComponent(id)}`);
 		}
 	}
+
+	// A stream that can't play here but has a direct URL — hand it to an
+	// external player (VLC scheme / copy).
+	const externalLink = $derived(
+		active?.notWebReady ? (active.url ?? active.externalUrl) : null,
+	);
+	let copied = $state(false);
+	async function copyStreamLink() {
+		if (!externalLink) {
+			return;
+		}
+		try {
+			await navigator.clipboard.writeText(externalLink);
+			copied = true;
+			toast.success("Stream link copied");
+			setTimeout(() => (copied = false), 2000);
+		} catch {
+			toast.error("Couldn't copy the link");
+		}
+	}
 </script>
 
 <div class="fixed inset-0 z-40 flex items-center justify-center bg-black text-white">
@@ -290,7 +312,18 @@
 			</p>
 			<div class="flex flex-wrap items-center justify-center gap-2">
 				<Button onclick={openSources}>Choose a source</Button>
-				{#if active?.externalUrl}
+				{#if externalLink}
+					<Button
+						variant="secondary"
+						href={`vlc://${externalLink}`}
+					>
+						<ExternalLinkIcon data-icon="inline-start" /> Open in VLC
+					</Button>
+					<Button variant="ghost" onclick={copyStreamLink}>
+						<CopyIcon data-icon="inline-start" />
+						{copied ? "Copied" : "Copy link"}
+					</Button>
+				{:else if active?.externalUrl}
 					<Button
 						variant="secondary"
 						href={active.externalUrl}

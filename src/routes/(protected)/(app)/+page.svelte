@@ -6,6 +6,7 @@
 	import PlayIcon from "@lucide/svelte/icons/play";
 	import PlusIcon from "@lucide/svelte/icons/plus";
 	import SparklesIcon from "@lucide/svelte/icons/sparkles";
+	import { fade } from "svelte/transition";
 	import { toast } from "svelte-sonner";
 	import { browser } from "$app/env";
 	import { homeRows } from "$lib/addons/addons.remote";
@@ -21,9 +22,25 @@
 
 	// `data.*` can be briefly undefined during a `forkPreloads` speculative
 	// render — read every field defensively.
-	const library = $derived(data.library ?? []);
 	const resume = $derived(data.resume ?? []);
 	const profileName = $derived(data.profile?.name ?? "");
+
+	// The "My library" row reads the local store once it's authoritative so an
+	// add/remove (incl. a right-click action on any poster) reflects instantly —
+	// unless the store is authoritative-but-empty over a non-empty SSR payload.
+	const library = $derived(
+		sync.authoritative &&
+			(sync.library.length > 0 || (data.library ?? []).length === 0)
+			? sync.library.map((record) => ({
+					id: record.contentId,
+					type: record.contentType,
+					name: record.name,
+					poster: record.poster ?? undefined,
+					releaseInfo: record.releaseInfo ?? undefined,
+					imdbRating: record.imdbRating ?? undefined,
+				}))
+			: (data.library ?? []),
+	);
 
 	// Catalog rows load client-side so a slow addon never stalls SSR / nav.
 	const rowsQuery = homeRows();
@@ -165,8 +182,10 @@
 			onmouseleave={() => (heroPaused = false)}
 			onfocusin={() => (heroPaused = true)}
 			onfocusout={() => (heroPaused = false)}
+			class="grid *:col-start-1 *:row-start-1"
 		>
 			{#key spotlight.id}
+				<div in:fade={{ duration: 450 }} out:fade={{ duration: 450 }}>
 				<MediaHero
 					title={spotlight.name}
 					logo={spotlight.logo}
@@ -239,6 +258,7 @@
 						{/if}
 					{/snippet}
 				</MediaHero>
+				</div>
 			{/key}
 		</div>
 	{:else if rowsLoading || (rows.length > 0 && spotlights.length === 0)}

@@ -308,6 +308,9 @@
 				: m.releaseInfo}
 			runtime={m.runtime}
 			genres={m.genres ?? []}
+			flag={contentType === "movie" && progress[id]?.completed
+				? "Watched"
+				: null}
 		>
 			{#snippet actions()}
 				{#if contentType === "movie"}
@@ -405,9 +408,12 @@
 					<h2 class="text-xl font-semibold tracking-tight">Cast</h2>
 					<div class="flex flex-wrap gap-2">
 						{#each m.cast.slice(0, 18) as person (person)}
-							<span class="rounded-full bg-foreground/5 px-3 py-1.5 text-sm text-foreground/90">
+							<a
+								href={`/search?q=${encodeURIComponent(person)}`}
+								class="rounded-full bg-foreground/5 px-3 py-1.5 text-sm text-foreground/90 transition hover:bg-foreground/10 hover:text-foreground"
+							>
 								{person}
-							</span>
+							</a>
 						{/each}
 					</div>
 				</div>

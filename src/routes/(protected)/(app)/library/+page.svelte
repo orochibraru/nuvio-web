@@ -1,6 +1,8 @@
 <script lang="ts">
 	import BookmarkIcon from "@lucide/svelte/icons/bookmark";
 	import XIcon from "@lucide/svelte/icons/x";
+	import { goto } from "$app/navigation";
+	import { page } from "$app/state";
 	import EmptyState from "$lib/components/empty-state.svelte";
 	import MediaPoster from "$lib/components/media-poster.svelte";
 	import { Button } from "$lib/components/ui/button/index.js";
@@ -12,14 +14,41 @@
 
 	let { data } = $props();
 
-	let filter = $state<"all" | "movie" | "series">("all");
+	// Filter + sort live in the URL so they survive back/forward and are shareable.
+	const filters = [
+		{ value: "all", label: "All" },
+		{ value: "movie", label: "Movies" },
+		{ value: "series", label: "Series" },
+		{ value: "watched", label: "Watched" },
+		{ value: "unwatched", label: "Unwatched" },
+	] as const;
+	type Filter = (typeof filters)[number]["value"];
+	const filter = $derived<Filter>(
+		(filters.find((f) => f.value === page.url.searchParams.get("filter"))
+			?.value ?? "all") as Filter,
+	);
 
 	const sorts = [
 		{ value: "added", label: "Recently added" },
 		{ value: "name", label: "A–Z" },
 		{ value: "rating", label: "Top rated" },
 	] as const;
-	let sort = $state<(typeof sorts)[number]["value"]>("added");
+	type Sort = (typeof sorts)[number]["value"];
+	const sort = $derived<Sort>(
+		(sorts.find((s) => s.value === page.url.searchParams.get("sort"))?.value ??
+			"added") as Sort,
+	);
+
+	function setParam(key: string, value: string, fallback: string) {
+		const params = new URLSearchParams(page.url.searchParams);
+		if (value === fallback) {
+			params.delete(key);
+		} else {
+			params.set(key, value);
+		}
+		const query = params.toString();
+		void goto(query ? `?${query}` : "?", { keepFocus: true, noScroll: true });
+	}
 
 	type GridItem = {
 		id: string;
@@ -30,9 +59,15 @@
 		imdbRating?: number;
 	};
 
-	// Local store once it has hydrated; the SSR payload carries first paint.
+	// Local store once it has hydrated. Keep showing the SSR payload while the
+	// store is authoritative-but-empty (a snapshot pull that fails / returns
+	// nothing shouldn't blank a library the server just rendered).
+	const ssrItems = $derived<GridItem[]>(data.items ?? []);
+	const useStore = $derived(
+		sync.authoritative && (sync.library.length > 0 || ssrItems.length === 0),
+	);
 	const items = $derived<GridItem[]>(
-		sync.authoritative
+		useStore
 			? sync.library.map((record) => ({
 					id: record.contentId,
 					type: record.contentType,
@@ -41,16 +76,20 @@
 					releaseInfo: record.releaseInfo ?? undefined,
 					imdbRating: record.imdbRating ?? undefined,
 				}))
-			: (data.items ?? []),
+			: ssrItems,
 	);
 	const progress = $derived(
-		sync.authoritative ? sync.libraryProgress : (data.progress ?? {}),
+		useStore ? sync.libraryProgress : (data.progress ?? {}),
 	);
 
 	const shown = $derived.by(() => {
 		let list = items;
-		if (filter !== "all") {
+		if (filter === "movie" || filter === "series") {
 			list = list.filter((item) => item.type === filter);
+		} else if (filter === "watched") {
+			list = list.filter((item) => (progress[item.id] ?? 0) >= 0.9);
+		} else if (filter === "unwatched") {
+			list = list.filter((item) => (progress[item.id] ?? 0) < 0.9);
 		}
 		if (sort === "name") {
 			list = [...list].sort((a, b) => a.name.localeCompare(b.name));
@@ -61,12 +100,6 @@
 		}
 		return list;
 	});
-
-	const filters: Array<{ value: typeof filter; label: string }> = [
-		{ value: "all", label: "All" },
-		{ value: "movie", label: "Movies" },
-		{ value: "series", label: "Series" },
-	];
 
 	function remove(item: GridItem) {
 		sync.toggleLibrary({
@@ -86,13 +119,13 @@
 			</p>
 		</div>
 		<div class="flex items-center gap-2">
-			<div class="flex gap-1 rounded-full bg-foreground/5 p-1">
+			<div class="no-scrollbar flex gap-1 overflow-x-auto rounded-full bg-foreground/5 p-1">
 				{#each filters as option (option.value)}
 					<button
 						type="button"
-						onclick={() => (filter = option.value)}
+						onclick={() => setParam("filter", option.value, "all")}
 						class={cn(
-							"rounded-full px-3 py-1 text-sm font-medium transition",
+							"shrink-0 rounded-full px-3 py-1 text-sm font-medium transition",
 							filter === option.value
 								? "bg-background text-foreground shadow-sm"
 								: "text-muted-foreground hover:text-foreground",
@@ -106,7 +139,7 @@
 				type="button"
 				onclick={() => {
 					const next = (sorts.findIndex((s) => s.value === sort) + 1) % sorts.length;
-					sort = sorts[next].value;
+					setParam("sort", sorts[next].value, "added");
 				}}
 				class="rounded-full bg-foreground/5 px-3 py-1.5 text-sm font-medium text-muted-foreground transition hover:text-foreground"
 			>
@@ -115,7 +148,11 @@
 		</div>
 	</div>
 
-	{#if shown.length === 0}
+	{#if shown.length === 0 && items.length > 0}
+		<p class="py-16 text-center text-sm text-muted-foreground">
+			No titles match this filter.
+		</p>
+	{:else if shown.length === 0}
 		<EmptyState
 			icon={BookmarkIcon}
 			title="Your library is empty"

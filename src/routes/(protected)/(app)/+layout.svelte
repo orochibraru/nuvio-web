@@ -190,9 +190,14 @@
       <span class="font-medium text-foreground/70">Nuvio</span>
       <span>A web client for your Nuvio library, addons and streams.</span>
       <div class="flex items-center gap-4">
-        <a href="/support" class="transition hover:text-foreground"
-          >Supporters</a
+        <a
+          href="https://nuvio.tv/support"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="transition hover:text-foreground"
         >
+          Support Nuvio
+        </a>
         <a href="/settings" class="transition hover:text-foreground"
           >Appearance</a
         >

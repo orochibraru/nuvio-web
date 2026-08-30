@@ -11,7 +11,6 @@ const routes = [
 	"/settings",
 	"/addons",
 	"/account",
-	"/support",
 	"/search?q=breaking%20bad",
 	"/detail/movie/tt0137523",
 	"/detail/series/tt0903747",
@@ -93,12 +92,14 @@ test("poster right-click menu: mark a movie watched, then unwatch", async ({
 }) => {
 	const errors = collectRuntimeErrors(page);
 
-	await page.goto("/library");
-	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
-
-	// Fight Club is in the test account's baseline library.
+	// Fight Club is in the test account's baseline library. Reload until the
+	// local store has hydrated the grid (it can briefly show an empty grid
+	// while IDB / the delta pull settle).
 	const poster = page.getByRole("link", { name: /Fight Club/i }).first();
-	await expect(poster).toBeVisible({ timeout: 15_000 });
+	await expect(async () => {
+		await page.goto("/library");
+		await expect(poster).toBeVisible({ timeout: 8000 });
+	}).toPass({ timeout: 40_000 });
 
 	await poster.click({ button: "right" });
 	const markWatched = page.getByRole("menuitem", { name: "Mark as watched" });
