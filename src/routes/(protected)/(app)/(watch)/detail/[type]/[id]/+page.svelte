@@ -4,11 +4,13 @@
 	import EyeIcon from "@lucide/svelte/icons/eye";
 	import EyeOffIcon from "@lucide/svelte/icons/eye-off";
 	import FilmIcon from "@lucide/svelte/icons/film";
+	import ListVideoIcon from "@lucide/svelte/icons/list-video";
 	import PlayIcon from "@lucide/svelte/icons/play";
 	import PlayCircleIcon from "@lucide/svelte/icons/play-circle";
 	import PlusIcon from "@lucide/svelte/icons/plus";
 	import { toast } from "svelte-sonner";
 	import { browser } from "$app/env";
+	import { goto } from "$app/navigation";
 	import { page } from "$app/state";
 	import { getMeta, similarTitles } from "$lib/addons/addons.remote";
 	import CastRow from "$lib/components/cast-row.svelte";
@@ -148,7 +150,14 @@
 		return null;
 	});
 
+	// Primary CTA: jump straight to the player, which auto-resolves the preferred
+	// stream (first available, browser-friendly audio) on a cold load.
 	function watch(videoId: string) {
+		void goto(`/player/${type}/${encodeURIComponent(videoId)}`);
+	}
+
+	// Secondary CTA: let the viewer pick the exact source themselves.
+	function selectStream(videoId: string) {
 		openSources(videoId);
 	}
 
@@ -349,6 +358,15 @@
 				{:else if firstEpisodeId}
 					<Button size="lg" onclick={() => watch(firstEpisodeId)}>
 						<PlayIcon data-icon="inline-start" class="fill-current" /> Play S1E1
+					</Button>
+				{/if}
+				{#if ctaVideoId}
+					<Button
+						size="lg"
+						variant="outline"
+						onclick={() => selectStream(ctaVideoId)}
+					>
+						<ListVideoIcon data-icon="inline-start" /> Select stream
 					</Button>
 				{/if}
 				<Button size="lg" variant="secondary" onclick={toggle}>

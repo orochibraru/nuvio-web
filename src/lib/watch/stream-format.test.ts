@@ -6,6 +6,8 @@ import {
 	isPlayable,
 	pickPreferredStream,
 	type ResolvedStream,
+	streamKind,
+	streamMeta,
 	streamQuality,
 } from "./stream-format.js";
 
@@ -20,6 +22,8 @@ function stream(over: Partial<ResolvedStream>): ResolvedStream {
 		description: null,
 		addonName: "Torrentio",
 		fileSize: null,
+		infoHash: null,
+		filename: null,
 		...over,
 	};
 }
@@ -60,6 +64,55 @@ describe("describeStream", () => {
 	});
 });
 
+describe("streamMeta", () => {
+	it("pulls structured release info from a torrent-style label", () => {
+		const meta = streamMeta(
+			stream({
+				name: "Torrentio\n4k",
+				title:
+					"Dune.Part.Two.2024.2160p.BluRay.REMUX.HEVC.DV.HDR.TrueHD.Atmos.7.1\n👤 210 💾 82.4 GB ⚙️ ThePirateBay\n🇬🇧 🇫🇷",
+			}),
+		);
+		expect(meta.quality).toBe("4K");
+		expect(meta.source).toBe("REMUX");
+		expect(meta.videoCodec).toBe("HEVC");
+		expect(meta.audioCodec).toBe("Atmos");
+		expect(meta.hdr).toBe("DV");
+		expect(meta.seeders).toBe(210);
+		expect(meta.size).toBe("82.4 GB");
+		expect(meta.languages).toEqual(expect.arrayContaining(["🇬🇧", "🇫🇷"]));
+		expect(meta.audio).toBe("risky");
+	});
+
+	it("prefers behaviorHints filename and videoSize when present", () => {
+		const meta = streamMeta(
+			stream({
+				filename: "The.Matrix.1999.1080p.WEB-DL.DDP5.1.H.264-GROUP.mkv",
+				fileSize: 1_500_000_000,
+				title: "The Matrix 1080p",
+			}),
+		);
+		expect(meta.title).toContain("The Matrix 1999 1080p WEB-DL");
+		expect(meta.title).not.toContain(".mkv");
+		expect(meta.filename).toContain(".mkv");
+		expect(meta.size).toBe("1.4 GB");
+		expect(meta.videoCodec).toBe("H.264");
+	});
+
+	it("marks 10-bit and detects a browser-safe audio codec", () => {
+		const meta = streamMeta(
+			stream({ title: "Show 1080p WEB-DL 10bit HEVC AAC" }),
+		);
+		expect(meta.tenBit).toBe(true);
+		expect(meta.audioCodec).toBe("AAC");
+		expect(meta.audio).toBe("ok");
+	});
+
+	it("falls back to the addon name for an empty label", () => {
+		expect(streamMeta(stream({})).title).toBe("Torrentio");
+	});
+});
+
 describe("formatFileSize", () => {
 	it("scales bytes to a readable unit", () => {
 		expect(formatFileSize(1_500_000_000)).toBe("1.4 GB");
@@ -74,6 +127,31 @@ describe("isPlayable", () => {
 		expect(isPlayable(stream({}))).toBe(true);
 		expect(isPlayable(stream({ url: null }))).toBe(false);
 		expect(isPlayable(stream({ notWebReady: true }))).toBe(false);
+	});
+});
+
+describe("streamKind", () => {
+	it("is p2p for a torrent info hash", () => {
+		expect(streamKind(stream({ infoHash: "abc123", url: null }))).toBe("p2p");
+	});
+
+	it("is p2p for a magnet url", () => {
+		expect(streamKind(stream({ url: "magnet:?xt=urn:btih:abc" }))).toBe("p2p");
+	});
+
+	it("is p2p for a notWebReady link with no url", () => {
+		expect(
+			streamKind(stream({ url: null, externalUrl: null, notWebReady: true })),
+		).toBe("p2p");
+	});
+
+	it("is direct for a plain http url (incl. debrid-resolved)", () => {
+		expect(streamKind(stream({ url: "https://debrid.example/x.mkv" }))).toBe(
+			"direct",
+		);
+		expect(
+			streamKind(stream({ url: "https://cdn/x.mp4", infoHash: null })),
+		).toBe("direct");
 	});
 });
 

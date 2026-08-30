@@ -9,6 +9,31 @@ export interface ResolvedStream {
 	description: string | null;
 	addonName: string;
 	fileSize: number | null;
+	/** Torrent info hash, when the addon returned a P2P stream. */
+	infoHash: string | null;
+	/** `behaviorHints.filename` — the exact release file name, when the addon sends it. */
+	filename: string | null;
+}
+
+export type StreamKind = "direct" | "p2p";
+
+/**
+ * `p2p` when the addon handed back a torrent (an `infoHash`, a `magnet:` url, or
+ * a `notWebReady` link with no http url) — these stream over BitTorrent and
+ * can't play directly in the browser. `direct` otherwise (an http(s) url,
+ * including debrid-resolved torrents).
+ */
+export function streamKind(stream: ResolvedStream): StreamKind {
+	if (stream.infoHash) {
+		return "p2p";
+	}
+	if (stream.url?.startsWith("magnet:")) {
+		return "p2p";
+	}
+	if (!stream.url && stream.notWebReady && !stream.externalUrl) {
+		return "p2p";
+	}
+	return "direct";
 }
 
 const QUALITY_TOKENS: Array<[RegExp, string]> = [
@@ -30,6 +55,38 @@ const FEATURE_TOKENS: Array<[RegExp, string]> = [
 	[/\b(web-?dl|webrip)\b/i, "WEB"],
 ];
 
+const SOURCE_TOKENS: Array<[RegExp, string]> = [
+	[/\bremux\b/i, "REMUX"],
+	[/\b(blu-?ray|bdrip|bd-?remux)\b/i, "BluRay"],
+	[/\bweb-?dl\b/i, "WEB-DL"],
+	[/\bweb-?rip\b/i, "WEBRip"],
+	[/\bhdtv\b/i, "HDTV"],
+	[/\b(dvdrip|dvd-?r)\b/i, "DVD"],
+	[/\b(cam|hdcam|ts|telesync)\b/i, "CAM"],
+];
+
+const VIDEO_CODEC_TOKENS: Array<[RegExp, string]> = [
+	[/\b(av1)\b/i, "AV1"],
+	[/\b(x265|hevc|h\.?265)\b/i, "HEVC"],
+	[/\b(x264|avc|h\.?264)\b/i, "H.264"],
+	[/\b(xvid|divx|mpeg-?4)\b/i, "MPEG-4"],
+];
+
+// Human audio-codec label, best → simplest match wins.
+const AUDIO_CODEC_TOKENS: Array<[RegExp, string]> = [
+	[/\batmos\b/i, "Atmos"],
+	[/\b(true-?hd)\b/i, "TrueHD"],
+	[/\b(dts-?hd|dts\s?ma|dts-?x)\b/i, "DTS-HD"],
+	[/\bdts\b/i, "DTS"],
+	[/\b(e-?ac-?3|eac3|dd\s?\+|ddp\d?\.?\d?|dolby\s?digital\s?plus)\b/i, "DD+"],
+	[/\b(ac-?3|dd\s?[0-9]\.[0-9]|dolby\s?digital)\b/i, "DD"],
+	[/\bflac\b/i, "FLAC"],
+	[/\b(opus)\b/i, "Opus"],
+	[/\b(aac|he-?aac|lc-?aac)\b/i, "AAC"],
+	[/\b(mp3)\b/i, "MP3"],
+	[/\b(pcm|lpcm)\b/i, "PCM"],
+];
+
 // Audio codecs a browser `<video>` element usually can't decode — a stream
 // tagged with one of these tends to play with no sound in the browser. Chrome's
 // support for AC-3 / E-AC-3 is platform- and build-dependent, so this is a
@@ -46,12 +103,58 @@ const SAFE_AUDIO = /\b(aac|opus|mp3|vorbis|e-ac-3 to aac|→\s?aac|to aac)\b/i;
 
 export type AudioSupport = "ok" | "risky";
 
-function streamText(stream: ResolvedStream): string {
+/** Everything from the addon's stream label + `behaviorHints`, structured. */
+export interface StreamMeta {
+	/** Clean, human title for the row (release name, else the label's first line). */
+	title: string;
+	/** The exact file name when the addon provides one. */
+	filename: string | null;
+	quality: string | null;
+	source: string | null;
+	videoCodec: string | null;
+	audioCodec: string | null;
+	hdr: string | null;
+	tenBit: boolean;
+	/** Seeder count parsed from the label (`👤 N`) — P2P only. */
+	seeders: number | null;
+	/** Human size — `behaviorHints.videoSize`, else parsed from the label. */
+	size: string | null;
+	/** Flag emojis + text markers (MULTI / Dual) found in the label. */
+	languages: string[];
+	audio: AudioSupport;
+	/** Short quality/feature chips, kept for back-compat with older callers. */
+	tags: string[];
+}
+
+/** All label text with line structure preserved, for line-oriented parsing. */
+function rawLabel(stream: ResolvedStream): string {
 	return [stream.name, stream.title, stream.description]
 		.filter((part): part is string => Boolean(part))
-		.join(" · ")
+		.join("\n");
+}
+
+/**
+ * All label text collapsed to one line, for token matching. The
+ * `behaviorHints.filename` is folded in — release tags (codec, source, HDR)
+ * often live only in the file name, not the human label.
+ */
+function flatLabel(stream: ResolvedStream): string {
+	return [rawLabel(stream), stream.filename ?? ""]
+		.join(" ")
 		.replace(/\s+/g, " ")
 		.trim();
+}
+
+function firstMatch(
+	text: string,
+	tokens: Array<[RegExp, string]>,
+): string | null {
+	for (const [pattern, label] of tokens) {
+		if (pattern.test(text)) {
+			return label;
+		}
+	}
+	return null;
 }
 
 /**
@@ -59,7 +162,7 @@ function streamText(stream: ResolvedStream): string {
  * label. `risky` = a Dolby/DTS codec tag with no AAC/Opus fallback mentioned.
  */
 export function audioSupport(stream: ResolvedStream): AudioSupport {
-	const raw = streamText(stream);
+	const raw = flatLabel(stream);
 	const risky = RISKY_AUDIO_TOKENS.some(([pattern]) => pattern.test(raw));
 	if (!risky) {
 		return "ok";
@@ -67,39 +170,105 @@ export function audioSupport(stream: ResolvedStream): AudioSupport {
 	return SAFE_AUDIO.test(raw) ? "ok" : "risky";
 }
 
-/** Split an addon's stream label into a clean title line + short quality/feature chips. */
-export function describeStream(stream: ResolvedStream): {
-	title: string;
-	tags: string[];
-	audio: AudioSupport;
-} {
-	const raw = streamText(stream);
+/** Regional-indicator flag emojis (as-is) found in the text. */
+function flagEmojis(text: string): string[] {
+	const out =
+		text.match(/\p{Regional_Indicator}\p{Regional_Indicator}/gu) ?? [];
+	return [...new Set(out)];
+}
 
+function parseSize(stream: ResolvedStream, flat: string): string | null {
+	if (stream.fileSize && stream.fileSize > 0) {
+		return formatFileSize(stream.fileSize);
+	}
+	const match = flat.match(/(\d+(?:\.\d+)?)\s?(TB|GB|MB|KB)\b/i);
+	return match ? `${match[1]} ${match[2].toUpperCase()}` : null;
+}
+
+function parseSeeders(flat: string): number | null {
+	const match = flat.match(/(?:👤|seeders?[:\s]|👥)\s*(\d[\d,]*)/i);
+	return match ? Number(match[1].replace(/,/g, "")) : null;
+}
+
+/**
+ * A clean release name: the file name (minus extension, dots → spaces) when the
+ * addon gives one, else the first line of the label, else the addon name.
+ */
+function releaseTitle(stream: ResolvedStream, raw: string): string {
+	const candidate =
+		stream.filename ??
+		raw
+			.split("\n")
+			.map((line) => line.trim())
+			.find(
+				(line) =>
+					line && !/^[^\p{L}\p{N}]+$/u.test(line) && !/^👤|^💾/.test(line),
+			);
+	if (!candidate) {
+		return stream.addonName;
+	}
+	const cleaned = candidate
+		.replace(/\.(mkv|mp4|avi|m4v|ts|webm)$/i, "")
+		.replace(/[._]/g, " ")
+		.replace(/\s+/g, " ")
+		.trim();
+	return cleaned.length > 90 ? `${cleaned.slice(0, 88)}…` : cleaned;
+}
+
+/** Parse an addon's stream label + `behaviorHints` into structured metadata. */
+export function streamMeta(stream: ResolvedStream): StreamMeta {
+	const raw = rawLabel(stream);
+	const flat = flatLabel(stream);
+
+	const quality = firstMatch(flat, QUALITY_TOKENS);
+	const source = firstMatch(flat, SOURCE_TOKENS);
+	const videoCodec = firstMatch(flat, VIDEO_CODEC_TOKENS);
+	const audioCodec = firstMatch(flat, AUDIO_CODEC_TOKENS);
+	const hdr = /\bdolby\s?vision\b|\bdv\b/i.test(flat)
+		? "DV"
+		: /\bhdr10\+\b/i.test(flat)
+			? "HDR10+"
+			: /\bhdr\b/i.test(flat)
+				? "HDR"
+				: null;
+
+	const languages = [
+		...flagEmojis(raw),
+		...(/\bmulti(?:-?(?:audio|sub))?\b/i.test(flat) ? ["MULTI"] : []),
+		...(/\bdual[\s-]?audio\b/i.test(flat) ? ["Dual"] : []),
+	];
+
+	// Back-compat chip list.
 	const tags: string[] = [];
-	for (const [pattern, label] of QUALITY_TOKENS) {
-		if (pattern.test(raw)) {
-			tags.push(label);
-			break;
-		}
+	if (quality) {
+		tags.push(quality);
 	}
 	for (const [pattern, label] of FEATURE_TOKENS) {
-		if (pattern.test(raw) && !tags.includes(label)) {
+		if (pattern.test(flat) && !tags.includes(label)) {
 			tags.push(label);
 		}
 	}
-	for (const [pattern, label] of RISKY_AUDIO_TOKENS) {
-		if (pattern.test(raw) && !tags.includes(label)) {
-			tags.push(label);
-			break;
-		}
-	}
 
-	// First non-empty line of the label, trimmed of noise, as the title.
-	const firstLine = raw.split(/[\n·]/)[0]?.trim() || stream.addonName;
-	const title =
-		firstLine.length > 90 ? `${firstLine.slice(0, 88)}…` : firstLine;
+	return {
+		title: releaseTitle(stream, raw),
+		filename: stream.filename,
+		quality,
+		source,
+		videoCodec,
+		audioCodec,
+		hdr,
+		tenBit: /\b10[\s-]?bit\b/i.test(flat),
+		seeders: parseSeeders(flat),
+		size: parseSize(stream, flat),
+		languages,
+		audio: audioSupport(stream),
+		tags,
+	};
+}
 
-	return { title, tags, audio: audioSupport(stream) };
+/** @deprecated use {@link streamMeta}. Kept for callers that only need the label. */
+export function describeStream(stream: ResolvedStream): StreamMeta {
+	return streamMeta(stream);
 }
 
 export function formatFileSize(bytes: number | null): string | null {

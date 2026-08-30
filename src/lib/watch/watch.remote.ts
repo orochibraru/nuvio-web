@@ -156,6 +156,8 @@ export const resolveStreams = query(
 				description: stream.description ?? null,
 				addonName: stream.addonName,
 				fileSize: stream.behaviorHints?.videoSize ?? null,
+				infoHash: stream.infoHash ?? null,
+				filename: stream.behaviorHints?.filename ?? null,
 			})),
 			errors: errors.map((entry) => ({
 				addonName: entry.addonName,

@@ -14,6 +14,7 @@
 	import MediaRow from "$lib/components/media-row.svelte";
 	import QueryError from "$lib/components/query-error.svelte";
 	import { Button } from "$lib/components/ui/button/index.js";
+	import { Checkbox } from "$lib/components/ui/checkbox/index.js";
 	import * as Dialog from "$lib/components/ui/dialog/index.js";
 	import { Input } from "$lib/components/ui/input/index.js";
 	import type { CollectionFolder } from "$lib/nuvio/index.js";
@@ -267,11 +268,10 @@
 			{#each catalogs as catalog (`${catalog.addonId}|${catalog.type}|${catalog.id}`)}
 				{@const key = `${catalog.addonId}|${catalog.type}|${catalog.id}`}
 				<label class="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted">
-					<input
-						type="checkbox"
+					<Checkbox
 						checked={picked.includes(key)}
-						onchange={(event) => {
-							picked = event.currentTarget.checked
+						onCheckedChange={(value) => {
+							picked = value
 								? [...picked, key]
 								: picked.filter((entry) => entry !== key);
 						}}

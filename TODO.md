@@ -61,6 +61,9 @@ here).
 - [ ] Make the UI sexier — colourful, playful, we should _want_ to use it
       (background blurs, colour accents, custom backgrounds).
 - [ ] Home layout editor in Settings → needs `client.homeCatalog`.
+- [ ] Continue-watching card interactions — click the card → `/detail`, click
+      the play button → `/player`; right-click context menu (Details / Play /
+      Clear progress i.e. remove from the row).
 
 <details><summary>Shipped</summary>
 
@@ -139,8 +142,9 @@ Nothing open.
   no-playable-stream state offers the external-player handoff.
 - No-audio handling —
   - **label**: streams naming a codec the browser can't decode (Dolby Digital /
-    DTS / Atmos, no AAC fallback) are flagged "may be silent" in the source
-    drawer and de-prioritised by `pickPreferredStream` (`audioSupport`).
+    DTS / Atmos, no AAC fallback) are flagged "may be silent", sunk to the
+    bottom of the source drawer (stable sort), and de-prioritised by
+    `pickPreferredStream` (`audioSupport`).
   - **runtime** (`silent-audio.ts`, unit-tested): a rolling window of Chrome's
     `webkit{Video,Audio}DecodedByteCount` is classified by _delta_ — audio that
     decodes then stalls → "codec"; audio that never produced a byte → "no
@@ -150,12 +154,21 @@ Nothing open.
     tries switching to a stereo/AAC alt track. The banner distinguishes "no
     audio" from "codec not supported"; both dismissible, both offer other
     sources.
-- Flow: `/detail` → "Watch" / episode opens the right-hand source drawer
-  (`sources-panel.svelte.ts` module state, owned by `(watch)` layout, shared
-  with `/player`, no URL param) → pick → `/player/[type]/[id]`. "Sources"
-  reopens the drawer in place.
-- Source drawer (`stream-panel.svelte`) — async list + skeleton + Refresh, addon
-  - quality filter chips, per-row attribution / quality / size.
+- Flow: `/detail` → "Watch" / episode CTA jumps straight to
+  `/player/[type]/[id]` (the player cold-resolves + auto-picks the first
+  playable, browser-friendly stream). A secondary "Select stream" button opens
+  the right-hand source drawer (`sources-panel.svelte.ts` module state, owned by
+  `(watch)` layout, shared with `/player`, no URL param) → pick →
+  `/player/[type]/[id]`. "Sources" reopens the drawer in place.
+- Source drawer (`stream-panel.svelte`) — async list + skeleton + Refresh,
+  frosted-glass backdrop (`bg-background/80 backdrop-blur-xl`). Rich per-row
+  meta parsed from the addon label + `behaviorHints` (`streamMeta`,
+  unit-tested): release name, quality, source (REMUX / BluRay / WEB-DL…),
+  video + audio codec, HDR / DV, 10-bit, size, seeders (P2P), language flags,
+  "may be silent" badge. Left-hand filter panel (`filtersOpen`): Direct / P2P
+  (default Direct only, counts per kind), quality chips, addon chips, and a show
+  / hide toggle for likely-silent sources (hidden by default). Filters reset on
+  video change.
 - `/player/[type]/[id]` — `playbackContext` loads client-side (shell paints
   instantly on nav; `contextFallback` keeps `context.*` safe); reads the stream
   handoff or cold-resolves + auto-picks the first playable; floating Back button
@@ -334,7 +347,8 @@ Nothing open.
 
 - [~] Mobile-friendly — the small-screen gate is now a dismissable bottom banner
   (`small-screen-notice.svelte`, `localStorage`), so the app is usable on a
-  phone. Touch-target / layout polish for small screens is still open.
+  phone. Still open: responsive header (collapse the nav into a burger menu
+  below `md`); touch-target / layout polish for small screens.
 - [x] Degraded-mode / offline banner (`health-banner.svelte` + `apiHealth`
       remote over `client.healthCheck()`) — full-bleed amber strip on `degraded`
       / `down` (Retry + Dismiss, re-probes every 60s) or when `navigator.onLine`

@@ -29,7 +29,9 @@ type Shot = {
 };
 
 async function openSourcesPanel(page: Page): Promise<void> {
-	await page.getByRole("button", { name: "Watch", exact: true }).click();
+	await page
+		.getByRole("button", { name: "Select stream", exact: true })
+		.click();
 	await page.getByRole("complementary").waitFor();
 }
 
