@@ -1,0 +1,57 @@
+name: Nuvio API contract
+
+on:
+  schedule:
+    # Every day at 07:00 UTC.
+    - cron: "0 7 * * *"
+  workflow_dispatch:
+
+jobs:
+  drift:
+    name: spec drift check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - run: bun install --frozen-lockfile
+
+      - name: Compare the committed snapshot to the live spec
+        id: check
+        run: bun run nuvio:check
+
+      - name: Open an issue on drift
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = "Nuvio API spec has drifted";
+            const body = [
+              "`bun run nuvio:check` failed on the scheduled run.",
+              "",
+              "The live spec at https://nuvio.tv/docs/nuvio-public-api.md no longer",
+              "matches `src/lib/nuvio/nuvio-public-api.snapshot.md`.",
+              "",
+              "Reconcile `src/lib/nuvio/types.ts` + `client.ts`, then run",
+              "`bun run nuvio:check:accept` to update the snapshot.",
+              "",
+              `Run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+            ].join("\n");
+            const existing = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: "open",
+              labels: "api-drift",
+            });
+            if (existing.data.length === 0) {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body,
+                labels: ["api-drift"],
+              });
+            }

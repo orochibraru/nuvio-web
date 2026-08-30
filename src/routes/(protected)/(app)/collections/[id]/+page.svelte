@@ -35,7 +35,8 @@
 	let addOpen = $state(false);
 	let folderTitle = $state("");
 	let picked = $state<string[]>([]);
-	let activeTab = $state(0);
+	// -1 = the aggregated "All" tab, 0+ = a folder index.
+	let activeTab = $state(-1);
 
 	// Folder contents (addon catalog fetches) load client-side with a skeleton.
 	const contentsQuery = $derived(
@@ -48,6 +49,30 @@
 	const folders = $derived(contents?.folders ?? []);
 	const title = $derived(contents?.title ?? collection?.title ?? "");
 	const viewMode = $derived(collection?.viewMode ?? "TABBED_GRID");
+
+	// The "All" tab: every folder's titles, de-duplicated by type + id.
+	const allMetas = $derived.by(() => {
+		const seen = new Set<string>();
+		const out: (typeof folders)[number]["metas"] = [];
+		for (const folder of folders) {
+			for (const meta of folder.metas) {
+				const key = `${meta.type}:${meta.id}`;
+				if (seen.has(key)) {
+					continue;
+				}
+				seen.add(key);
+				out.push(meta);
+			}
+		}
+		return out;
+	});
+
+	// Keep the selected tab in range as folders are added / removed.
+	$effect(() => {
+		if (activeTab >= folders.length) {
+			activeTab = folders.length > 1 ? -1 : 0;
+		}
+	});
 
 	async function persist(folders: CollectionFolder[]) {
 		if (!collection) {
@@ -174,6 +199,20 @@
 		</div>
 	{:else}
 		<div class="no-scrollbar flex items-center gap-1.5 overflow-x-auto border-b border-border pb-2">
+			{#if folders.length > 1}
+				<button
+					type="button"
+					onclick={() => (activeTab = -1)}
+					class={cn(
+						"shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium whitespace-nowrap transition",
+						activeTab === -1
+							? "bg-primary text-primary-foreground"
+							: "bg-foreground/5 text-muted-foreground hover:text-foreground",
+					)}
+				>
+					All <span class="opacity-70">{allMetas.length}</span>
+				</button>
+			{/if}
 			{#each folders as folder, index (folder.id)}
 				<button
 					type="button"
@@ -188,16 +227,20 @@
 					{`${folder.coverEmoji ?? ""} ${folder.title}`.trim()}
 				</button>
 			{/each}
-			<button
-				type="button"
-				aria-label="Remove folder"
-				onclick={() => removeFolder(folders[activeTab]?.id ?? "")}
-				class="ml-auto shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-			>
-				<Trash2Icon class="size-4" />
-			</button>
+			{#if activeTab >= 0 && folders[activeTab]}
+				<button
+					type="button"
+					aria-label="Remove folder"
+					onclick={() => removeFolder(folders[activeTab]?.id ?? "")}
+					class="ml-auto shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+				>
+					<Trash2Icon class="size-4" />
+				</button>
+			{/if}
 		</div>
-		{#if folders[activeTab]}
+		{#if activeTab === -1}
+			<MediaGrid items={allMetas} />
+		{:else if folders[activeTab]}
 			{#key folders[activeTab].id}
 				<MediaGrid items={folders[activeTab].metas} />
 			{/key}

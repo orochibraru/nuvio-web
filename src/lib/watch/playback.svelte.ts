@@ -1,5 +1,5 @@
 import { browser } from "$app/env";
-import type { ResolvedStream } from "./stream-format.js";
+import { audioSupport, type ResolvedStream } from "./stream-format.js";
 
 const STORAGE_KEY = "nuvio:selected-stream";
 
@@ -10,6 +10,8 @@ export interface SelectedStream {
 	notWebReady: boolean;
 	label: string;
 	addonName: string;
+	/** The label hints at an audio codec the browser probably can't decode. */
+	audioRisky: boolean;
 }
 
 /**
@@ -28,6 +30,7 @@ class PlaybackHandoff {
 			notWebReady: stream.notWebReady,
 			label,
 			addonName: stream.addonName,
+			audioRisky: audioSupport(stream) === "risky",
 		};
 		this.#current = value;
 		if (browser) {

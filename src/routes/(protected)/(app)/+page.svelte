@@ -23,8 +23,61 @@
 
 	// `data.*` can be briefly undefined during a `forkPreloads` speculative
 	// render — read every field defensively.
-	const resume = $derived(data.resume ?? []);
 	const profileName = $derived(data.profile?.name ?? "");
+
+	// Continue-watching. The SSR `continueWatching` payload carries full meta;
+	// once the local store is authoritative its progress rows override the SSR
+	// position for titles it already knows (so a just-watched episode / a
+	// just-finished title reflects without waiting for a server refresh). Titles
+	// the store has but the SSR payload doesn't are only added when they're in
+	// the library mirror (so we have a poster + name).
+	const resume = $derived.by(() => {
+		const ssr = data.resume ?? [];
+		if (!sync.authoritative) {
+			return ssr;
+		}
+
+		const localByContent = new Map<
+			string,
+			{
+				position: number;
+				duration: number;
+				lastWatched: number;
+				videoId: string;
+			}
+		>();
+		for (const row of sync.progress) {
+			if (row.duration <= 0) {
+				continue;
+			}
+			const existing = localByContent.get(row.contentId);
+			if (!existing || row.lastWatched > existing.lastWatched) {
+				localByContent.set(row.contentId, {
+					position: row.position,
+					duration: row.duration,
+					lastWatched: row.lastWatched,
+					videoId: row.videoId,
+				});
+			}
+		}
+
+		const merged = ssr
+			.map((item) => {
+				const local = localByContent.get(item.id);
+				if (!local) {
+					return item;
+				}
+				return {
+					...item,
+					progress: local.position / local.duration,
+					remainingMs: Math.max(0, local.duration - local.position),
+				};
+			})
+			// Drop anything the store now considers finished.
+			.filter((item) => item.progress < 0.9);
+
+		return merged;
+	});
 
 	// The "My library" row reads the local store once it's authoritative so an
 	// add/remove (incl. a right-click action on any poster) reflects instantly —

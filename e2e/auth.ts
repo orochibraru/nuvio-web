@@ -42,6 +42,7 @@ async function getToken(): Promise<TokenResponse> {
 export async function signIn(
 	context: BrowserContext,
 	profileId = 1,
+	{ seedDisclaimerAck = true }: { seedDisclaimerAck?: boolean } = {},
 ): Promise<void> {
 	if (!EMAIL || !PASSWORD) {
 		throw new Error(
@@ -76,4 +77,16 @@ export async function signIn(
 			httpOnly: true,
 		},
 	]);
+
+	// Suppress the first-run disclaimer modal so it doesn't block interaction in
+	// every spec. `first-run-notice.spec.ts` opts out to cover the modal itself.
+	if (seedDisclaimerAck) {
+		await context.addInitScript(() => {
+			try {
+				localStorage.setItem("nuvio:disclaimer-ack:v1", "1");
+			} catch {
+				// storage unavailable in this context
+			}
+		});
+	}
 }

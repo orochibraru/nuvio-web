@@ -199,3 +199,56 @@ test("player episode drawer: season switcher + jump to another episode", async (
 	await page.waitForTimeout(1000);
 	expect(errors, "runtime errors").toEqual([]);
 });
+
+// Regression: navigating right after an optimistic write must not drop it. The
+// sync store's debounced flush (~1.5s) and its pending-write queue used to be
+// torn down by the `(app)` layout effect's cleanup on every navigation, so a
+// write made just before a route change never reached the server. Uses a
+// library toggle because it needs no video playback (browser-agnostic).
+test("sync: an optimistic write survives an immediate navigation", async ({
+	page,
+	context,
+}) => {
+	await signIn(context);
+	const errors = collectRuntimeErrors(page);
+
+	let flushed = false;
+	page.on("request", (request) => {
+		if (request.url().includes("flushWrites")) {
+			flushed = true;
+		}
+	});
+
+	// Interstellar — not in the test account's baseline library.
+	await page.goto("/detail/movie/tt0816692");
+	await page.waitForLoadState("networkidle");
+
+	const toggle = page.getByRole("button", { name: /library/i });
+	if ((await toggle.textContent())?.includes("In library")) {
+		await toggle.click();
+		await expect(toggle).toHaveText(/Add to library/i, { timeout: 10_000 });
+	}
+
+	// Toggle, then navigate away well within the flush debounce window.
+	await toggle.click();
+	await expect(toggle).toHaveText(/In library/i, { timeout: 10_000 });
+	await page
+		.getByRole("navigation")
+		.getByRole("link", { name: "Library" })
+		.click();
+	await expect(page.getByRole("heading", { name: "Library" })).toBeVisible();
+
+	// The queued write must still flush after the navigation.
+	await expect(() => expect(flushed).toBe(true)).toPass({ timeout: 15_000 });
+
+	// Restore: remove what this test added.
+	await page.goto("/detail/movie/tt0816692");
+	await page.waitForLoadState("networkidle");
+	const t2 = page.getByRole("button", { name: /library/i });
+	if ((await t2.textContent())?.includes("In library")) {
+		await t2.click();
+		await expect(t2).toHaveText(/Add to library/i, { timeout: 10_000 });
+	}
+
+	expect(errors, "runtime errors").toEqual([]);
+});

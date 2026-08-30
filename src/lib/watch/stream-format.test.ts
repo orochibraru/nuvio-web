@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+	audioSupport,
 	describeStream,
 	formatFileSize,
 	isPlayable,
@@ -117,5 +118,55 @@ describe("pickPreferredStream", () => {
 			stream({ index: 7, title: "Movie 720p" }),
 		];
 		expect(pickPreferredStream(mixed, "1080p")?.index).toBe(7);
+	});
+
+	it("prefers browser-friendly audio at the same quality", () => {
+		const opts = [
+			stream({ index: 0, title: "Movie 1080p BluRay TrueHD Atmos" }),
+			stream({ index: 1, title: "Movie 1080p WEB-DL AAC" }),
+		];
+		expect(pickPreferredStream(opts, "1080p")?.index).toBe(1);
+	});
+
+	it("'auto' skips a leading likely-silent stream", () => {
+		const opts = [
+			stream({ index: 0, title: "Movie 2160p REMUX DTS-HD MA 5.1" }),
+			stream({ index: 1, title: "Movie 1080p WEB-DL EAC3" }),
+			stream({ index: 2, title: "Movie 1080p WEB-DL AAC" }),
+		];
+		expect(pickPreferredStream(opts, "auto")?.index).toBe(2);
+	});
+
+	it("'auto' keeps the first stream when none are clearly safe", () => {
+		const opts = [
+			stream({ index: 0, title: "Movie 1080p DD5.1" }),
+			stream({ index: 1, title: "Movie 720p AC3" }),
+		];
+		expect(pickPreferredStream(opts, "auto")?.index).toBe(0);
+	});
+});
+
+describe("audioSupport", () => {
+	it("flags Dolby / DTS codec tags with no AAC fallback", () => {
+		expect(audioSupport(stream({ title: "Movie 1080p EAC3 5.1" }))).toBe(
+			"risky",
+		);
+		expect(audioSupport(stream({ title: "Movie REMUX TrueHD Atmos" }))).toBe(
+			"risky",
+		);
+		expect(audioSupport(stream({ name: "Movie DTS-HD MA" }))).toBe("risky");
+	});
+
+	it("treats an explicit AAC/Opus tag as safe even next to a Dolby tag", () => {
+		expect(audioSupport(stream({ title: "Movie WEB-DL AAC" }))).toBe("ok");
+		expect(
+			audioSupport(stream({ title: "Movie EAC3 -> AAC (transcoded)" })),
+		).toBe("ok");
+	});
+
+	it("defaults to ok when the label says nothing about audio", () => {
+		expect(audioSupport(stream({ title: "Movie 1080p BluRay x265" }))).toBe(
+			"ok",
+		);
 	});
 });

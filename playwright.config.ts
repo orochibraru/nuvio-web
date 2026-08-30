@@ -22,7 +22,10 @@ export default defineConfig({
 		trace: "retain-on-failure",
 		navigationTimeout: 45_000,
 	},
-	projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+	projects: [
+		{ name: "chromium", use: { ...devices["Desktop Chrome"] } },
+		{ name: "firefox", use: { ...devices["Desktop Firefox"] } },
+	],
 	webServer: {
 		command: "bun run dev",
 		url: `http://localhost:${PORT}`,

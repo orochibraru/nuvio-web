@@ -2,10 +2,13 @@
 	import ArrowLeftIcon from "@lucide/svelte/icons/arrow-left";
 	import CopyIcon from "@lucide/svelte/icons/copy";
 	import ExternalLinkIcon from "@lucide/svelte/icons/external-link";
+	import InfoIcon from "@lucide/svelte/icons/info";
 	import PlayIcon from "@lucide/svelte/icons/play";
+	import RotateCcwIcon from "@lucide/svelte/icons/rotate-ccw";
 	import { toast } from "svelte-sonner";
 	import { goto } from "$app/navigation";
 	import { page } from "$app/state";
+	import { similarTitles } from "$lib/addons/addons.remote";
 	import PlaybackLoading from "$lib/components/playback-loading.svelte";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import VideoPlayer from "$lib/components/video-player.svelte";
@@ -18,6 +21,7 @@
 	import PlayerEpisodesPanel from "$lib/watch/player-episodes-panel.svelte";
 	import { sourcesPanel } from "$lib/watch/sources-panel.svelte.js";
 	import {
+		audioSupport,
 		describeStream,
 		pickPreferredStream,
 	} from "$lib/watch/stream-format.js";
@@ -125,9 +129,23 @@
 	);
 	const resolving = $derived(!handed && !streamsQuery?.current);
 
+	// The chosen stream's label hints at a codec the browser can't decode for
+	// audio — used to make the player's no-sound detection more eager.
+	const audioRisky = $derived(
+		handed
+			? handed.audioRisky
+			: autoStream
+				? audioSupport(autoStream) === "risky"
+				: false,
+	);
+
+	// Bumped by "Watch again" to remount the player and replay from the start.
+	let replayNonce = $state(0);
+
 	// Always pick up where the viewer left off — no "resume vs start over" prompt.
+	// "Watch again" (replayNonce > 0) restarts from the top.
 	const startTime = $derived(
-		context.resume ? context.resume.position / 1000 : 0,
+		replayNonce === 0 && context.resume ? context.resume.position / 1000 : 0,
 	);
 
 	const subtitlesQuery = $derived(
@@ -162,8 +180,34 @@
 	}
 
 	// "Up next" autoplay after an episode ends.
+	let ended = $state(false);
 	let upNextCountdown = $state<number | null>(null);
 	let countdownTimer: ReturnType<typeof setInterval> | undefined;
+
+	const detailHref = $derived(`/detail/${type}/${encodeURIComponent(id)}`);
+
+	// End card once the video finishes: autoplay the next episode when enabled,
+	// otherwise show a "what next" panel (next-episode CTA, replay, back to
+	// details) plus a few suggestions when this was the last episode.
+	function onVideoEnded() {
+		ended = true;
+		if (context.next && theme.current.autoPlayNext) {
+			startUpNext();
+		}
+	}
+
+	const suggestionsQuery = $derived(
+		ended && !context.next
+			? similarTitles({
+					type: context.metaType,
+					id: context.contentId,
+					genres: context.genres,
+				})
+			: undefined,
+	);
+	const suggestions = $derived(
+		(suggestionsQuery?.current?.metas ?? []).slice(0, 12),
+	);
 
 	function cancelUpNext() {
 		clearInterval(countdownTimer);
@@ -192,6 +236,8 @@
 
 	$effect(() => {
 		void page.params.id;
+		ended = false;
+		replayNonce = 0;
 		return cancelUpNext;
 	});
 
@@ -246,7 +292,7 @@
 	{/if}
 
 	{#if playableSrc}
-		{#key playableSrc}
+		{#key `${playableSrc}:${replayNonce}`}
 			<VideoPlayer
 				src={playableSrc}
 				fill
@@ -262,8 +308,9 @@
 				subtitleColor={theme.current.subtitleColor}
 				subtitleBackground={theme.current.subtitleBackground}
 				preferredLanguage={theme.current.subtitleLanguage}
+				{audioRisky}
 				onProgress={report}
-				onEnded={startUpNext}
+				onEnded={onVideoEnded}
 				onBack={() => history.back()}
 				onSources={openSources}
 				onSubtitleAppearance={saveSubtitleAppearance}
@@ -293,6 +340,70 @@
 					</Button>
 					<Button size="lg" variant="secondary" onclick={cancelUpNext}>Cancel</Button>
 				</div>
+			</div>
+		{:else if ended}
+			<div
+				class="absolute inset-0 z-20 flex flex-col items-center justify-center gap-5 overflow-y-auto bg-black/88 p-6 text-center backdrop-blur-sm"
+			>
+				<p class="text-xs font-semibold tracking-[0.2em] text-white/60 uppercase">
+					{context.next ? "Episode finished" : "You're all caught up"}
+				</p>
+				<p class="max-w-md text-lg font-semibold">{context.heading}</p>
+
+				<div class="flex flex-wrap items-center justify-center gap-2">
+					{#if context.next}
+						{@const upNext = context.next}
+						<Button size="lg" onclick={() => goto(playerHref(upNext.videoId))}>
+							<PlayIcon data-icon="inline-start" class="fill-current" />
+							Next episode
+						</Button>
+					{/if}
+					<Button
+						size="lg"
+						variant={context.next ? "secondary" : "default"}
+						onclick={() => {
+							ended = false;
+							replayNonce += 1;
+						}}
+					>
+						<RotateCcwIcon data-icon="inline-start" /> Watch again
+					</Button>
+					<Button size="lg" variant="ghost" href={detailHref}>
+						<InfoIcon data-icon="inline-start" /> Back to details
+					</Button>
+				</div>
+
+				{#if !context.next && suggestions.length > 0}
+					<div class="mt-2 w-full max-w-3xl">
+						<p class="mb-2 text-left text-sm font-medium text-white/70">
+							More like this
+						</p>
+						<div class="no-scrollbar flex gap-3 overflow-x-auto pb-2">
+							{#each suggestions as meta (meta.id)}
+								<a
+									href={`/detail/${meta.type}/${encodeURIComponent(meta.id)}`}
+									class="w-28 shrink-0"
+								>
+									<div
+										class="aspect-2/3 overflow-hidden rounded-lg bg-white/10 ring-1 ring-white/10"
+									>
+										{#if meta.poster}
+											<img
+												src={meta.poster}
+												alt={meta.name}
+												loading="lazy"
+												class="size-full object-cover"
+											/>
+										{/if}
+									</div>
+									<p class="mt-1.5 line-clamp-2 text-left text-xs text-white/80">
+										{meta.name}
+									</p>
+								</a>
+							{/each}
+						</div>
+					</div>
+				{/if}
 			</div>
 		{/if}
 	{:else if resolving}

@@ -2,6 +2,7 @@
 	import SearchIcon from "@lucide/svelte/icons/search";
 	import { page } from "$app/state";
 	import CommandPalette from "$lib/components/command-palette.svelte";
+	import FirstRunNotice from "$lib/components/first-run-notice.svelte";
 	import HealthBanner from "$lib/components/health-banner.svelte";
 	import ProfileAvatar from "$lib/components/profile-avatar.svelte";
 	import * as DropdownMenu from "$lib/components/ui/dropdown-menu/index.js";
@@ -36,11 +37,18 @@
 
 	// Local-first store for library / progress / history: hydrates from IndexedDB,
 	// reconciles deltas in the background, flushes optimistic writes.
+	// `attach` no-ops when the profile is unchanged, so it is safe for this to
+	// re-run on every navigation. `detach` must NOT be this effect's cleanup —
+	// that fires on every nav and would clear the pending-write queue / cancel a
+	// scheduled flush mid-navigation (losing watch progress). Detach only when
+	// the whole app shell unmounts.
 	$effect(() => {
-		const profileIndex = data.profile.profile_index;
-		void sync.attach(profileIndex);
-		return () => sync.detach();
+		const profileIndex = data.profile?.profile_index;
+		if (profileIndex != null) {
+			void sync.attach(profileIndex);
+		}
 	});
+	$effect(() => () => sync.detach());
 
 	// Server value for SSR / first paint; the client controller takes over once seeded.
 	const active = $derived(theme.ready ? theme.current : data.ui);
@@ -61,6 +69,7 @@
 <svelte:window onscroll={() => (scrolled = window.scrollY > 12)} />
 
 <CommandPalette />
+<FirstRunNotice />
 
 <div
   class="relative isolate flex min-h-svh flex-col overflow-x-clip"

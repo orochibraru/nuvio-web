@@ -3,6 +3,7 @@
 	import PlayIcon from "@lucide/svelte/icons/play";
 	import PuzzleIcon from "@lucide/svelte/icons/puzzle";
 	import RefreshCwIcon from "@lucide/svelte/icons/refresh-cw";
+	import VolumeXIcon from "@lucide/svelte/icons/volume-x";
 	import XIcon from "@lucide/svelte/icons/x";
 	import { goto } from "$app/navigation";
 	import { cn } from "$lib/utils.js";
@@ -278,6 +279,14 @@
 									<span class="rounded bg-foreground/5 px-1 py-px">{tag}</span>
 								{/each}
 								{#if size}<span>{size}</span>{/if}
+								{#if playable && row.info.audio === "risky"}
+									<span
+										class="flex items-center gap-0.5 rounded bg-amber-500/15 px-1 py-px text-amber-600 dark:text-amber-400"
+										title="This audio codec may not play in the browser (no sound)"
+									>
+										<VolumeXIcon class="size-2.5" /> may be silent
+									</span>
+								{/if}
 								{#if !playable}<span class="text-amber-500">external</span>{/if}
 							</div>
 						</div>

@@ -57,6 +57,7 @@
 		subtitleColor = "#ffffff",
 		subtitleBackground = true,
 		preferredLanguage = "",
+		audioRisky = false,
 		onProgress,
 		onEnded,
 		onBack,
@@ -80,6 +81,8 @@
 		subtitleColor?: string;
 		subtitleBackground?: boolean;
 		preferredLanguage?: string;
+		/** The stream label hints at an audio codec the browser can't decode. */
+		audioRisky?: boolean;
 		onProgress?: (position: number, duration: number) => void;
 		onEnded?: () => void;
 		onBack?: () => void;
@@ -110,6 +113,9 @@
 	let subtitlesOpen = $state(false);
 	let activeCaption = $state<string | null>(null);
 	let seeded = false;
+	// One silent reload is attempted on a recoverable media error before we
+	// surface a fatal screen; reset whenever the source changes.
+	let recoveryAttempted = false;
 
 	// Subtitle timing nudge (seconds), applied as a delta to the showing track's
 	// cues. Resets when the track changes.
@@ -186,6 +192,7 @@
 			return;
 		}
 		fatalError = null;
+		recoveryAttempted = false;
 		seeded = false;
 		loading = true;
 		ended = false;
@@ -275,13 +282,87 @@
 	}
 
 	function onMediaError() {
-		// `<video>` fires this for a 404 / unsupported codec / decode failure. The
-		// HLS path reports its own fatals via `Hls.Events.ERROR`.
-		if (!src.toLowerCase().includes(".m3u8")) {
-			fatalError = "This source failed to play in the browser.";
-			loading = false;
+		// The HLS path reports its own fatals via `Hls.Events.ERROR`.
+		if (src.toLowerCase().includes(".m3u8")) {
+			return;
 		}
+		const mediaError = video?.error;
+		const code = mediaError?.code;
+
+		// `SRC_NOT_SUPPORTED` (4) means the container/codec can't be played at
+		// all — no point retrying.
+		if (!mediaError || code === mediaError.MEDIA_ERR_SRC_NOT_SUPPORTED) {
+			fatalError =
+				"This source can't play in the browser. Its container or codec isn't supported.";
+			loading = false;
+			return;
+		}
+
+		// A network / decode error mid-load (debrid + torrent links stall and
+		// hiccup): try one silent reload from the last position before giving up.
+		if (!recoveryAttempted && video) {
+			recoveryAttempted = true;
+			const resumeAt = currentTime;
+			loading = true;
+			video.load();
+			video.currentTime = resumeAt;
+			void video.play().catch(() => {});
+			return;
+		}
+
+		fatalError = "This source stopped playing and couldn't be recovered.";
+		loading = false;
 	}
+
+	// Best-effort detection of a source that plays video but no audio (an
+	// undecodable audio codec — Dolby Digital / DTS / Atmos). Chrome exposes
+	// decoded-byte counters; if video is advancing and audio isn't after a few
+	// seconds of playback, flag it. Non-fatal: the video keeps playing.
+	let audioUnavailable = $state(false);
+	$effect(() => {
+		// Re-arm whenever the source changes.
+		void src;
+		audioUnavailable = false;
+		if (!video) {
+			return;
+		}
+		const el = video as HTMLVideoElement & {
+			webkitAudioDecodedByteCount?: number;
+			webkitVideoDecodedByteCount?: number;
+		};
+		const haveCounters = el.webkitVideoDecodedByteCount !== undefined;
+		if (!haveCounters && !audioRisky) {
+			return; // no counters (not Chromium) and no label hint — can't tell
+		}
+		const needed = audioRisky ? 2 : 3;
+		let silentTicks = 0;
+		let playedSeconds = 0;
+		const timer = setInterval(() => {
+			if (fatalError || el.paused || el.currentTime < 3) {
+				return;
+			}
+			playedSeconds += 1;
+			if (haveCounters) {
+				const videoMoving = (el.webkitVideoDecodedByteCount ?? 0) > 0;
+				const audioMoving = (el.webkitAudioDecodedByteCount ?? 0) > 0;
+				if (videoMoving && !audioMoving) {
+					silentTicks += 1;
+				} else {
+					silentTicks = 0;
+				}
+				if (silentTicks >= needed) {
+					audioUnavailable = true;
+					clearInterval(timer);
+				}
+			} else if (audioRisky && playedSeconds >= 6) {
+				// No counters, but the label warned us and it has been playing a
+				// while — surface the (dismissible) hint.
+				audioUnavailable = true;
+				clearInterval(timer);
+			}
+		}, 1000);
+		return () => clearInterval(timer);
+	});
 
 	function onEndedInternal() {
 		ended = true;
@@ -547,6 +628,35 @@
 			{genres}
 			label="Loading stream…"
 		/>
+	{/if}
+
+	{#if audioUnavailable && !fatalError}
+		<div
+			class="absolute inset-x-0 top-0 z-20 flex items-start gap-3 bg-amber-500/95 px-4 py-2.5 text-sm text-black"
+		>
+			<Volume2Icon class="mt-0.5 size-4 shrink-0" />
+			<p class="flex-1">
+				This source is playing without sound. Its audio codec (Dolby Digital,
+				DTS or Atmos) isn't supported by the browser.
+			</p>
+			{#if onSources}
+				<button
+					type="button"
+					onclick={onSources}
+					class="shrink-0 rounded-md bg-black/85 px-2.5 py-1 text-xs font-medium text-white transition hover:bg-black"
+				>
+					Other sources
+				</button>
+			{/if}
+			<button
+				type="button"
+				aria-label="Dismiss"
+				onclick={() => (audioUnavailable = false)}
+				class="shrink-0 rounded-md p-1 transition hover:bg-black/10"
+			>
+				<XIcon class="size-4" />
+			</button>
+		</div>
 	{/if}
 
 	{#if fatalError}

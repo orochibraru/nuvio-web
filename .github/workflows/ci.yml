@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  static:
+    name: check · lint · unit · build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - run: bun install --frozen-lockfile
+
+      - name: Type + Svelte check
+        run: bun run check
+
+      - name: Lint + format (biome + tailwint)
+        run: bun run lint
+
+      - name: Unit tests
+        run: bun run test:unit
+
+      - name: Build
+        run: bun run build
+
+  e2e:
+    name: playwright e2e
+    runs-on: ubuntu-latest
+    # Needs the shared test-account credentials; skipped on forks / when unset.
+    if: ${{ vars.RUN_E2E == 'true' }}
+    env:
+      NUVIO_TEST_EMAIL: ${{ secrets.NUVIO_TEST_EMAIL }}
+      NUVIO_TEST_PASSWORD: ${{ secrets.NUVIO_TEST_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - run: bun install --frozen-lockfile
+
+      - name: Install Playwright browser
+        run: bunx playwright install --with-deps chromium
+
+      - name: Run e2e
+        run: bun run test:e2e
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7

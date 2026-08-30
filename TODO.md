@@ -117,9 +117,11 @@ Nothing open.
 
 ## Playback
 
-- [ ] End-of-episode overlay: "episode over" + next-episode CTA; if the show is
-      airing, show the next air time instead; if it's the last episode of a
-      finished show, "the show's over" + similar-show suggestions.
+- [~] End-of-episode overlay — "Episode finished" (next-episode CTA) or "You're
+  all caught up" (last episode) with Watch again + Back to details, and a "More
+  like this" poster row on the last episode (`similarTitles`). Autoplay still
+  runs first when enabled. Next-air-time for a still-airing show is open (needs
+  a schedule source).
 - [ ] When an episode is marked watched on a running show with a known next
       episode, surface the next episode + air date in continue-watching.
 - [ ] Skip intro / skip outro — no addon supplies intro/outro timestamps
@@ -127,10 +129,17 @@ Nothing open.
 
 <details><summary>Shipped</summary>
 
-- Playback error handling — a `<video>` `error` event (404 / bad codec / decode
-  failure) or an HLS fatal flips the player to a fatal-error overlay with
-  "Choose another source" (reopens the drawer) + "Back" CTAs. The
-  no-playable-stream state already offers the external-player handoff.
+- Playback error handling — `SRC_NOT_SUPPORTED` (bad container/codec) goes
+  straight to the fatal overlay ("Choose another source" + "Back"); a
+  network/decode error (debrid + torrent links stall and hiccup) gets one silent
+  reload-from-position before the overlay. HLS fatals still route here. The
+  no-playable-stream state offers the external-player handoff.
+- No-audio handling — streams whose label names a codec the browser can't decode
+  (Dolby Digital / DTS / Atmos, no AAC fallback) are flagged "may be silent" in
+  the source drawer and de-prioritised by `pickPreferredStream`. At runtime the
+  player watches Chrome's decoded-byte counters; if video advances and audio
+  doesn't, it shows a dismissible "playing without sound — try another source"
+  banner (`audioSupport` in `stream-format.ts`, unit-tested).
 - Flow: `/detail` → "Watch" / episode opens the right-hand source drawer
   (`sources-panel.svelte.ts` module state, owned by `(watch)` layout, shared
   with `/player`, no URL param) → pick → `/player/[type]/[id]`. "Sources"
@@ -154,11 +163,18 @@ Nothing open.
 - Audio-track selection — HLS only (hls.js), in the settings menu.
 - Content-warning card on stream load — cert + genre descriptors, soft fade.
 - Next-episode autoplay + "up next" card (10s countdown, gated on
-  `autoPlayNext`).
+  `autoPlayNext`); when autoplay is off or it was the last episode, an end card
+  (next-episode / Watch again / Back to details + "More like this" suggestions).
 - In-player episode drawer + season switcher (`player-episodes-panel.svelte`);
   next-episode button.
 - Progress → `sync.saveProgress` every 15s + on unmount. Mark-watched via
-  `sync.markWatched` (synthetic 100% row) / `sync.clearProgress`.
+  `sync.markWatched` (synthetic 100% row) / `sync.clearProgress`. The `(app)`
+  layout's sync-store `$effect` detaches only on shell unmount (a separate
+  no-dep effect), never as the attach effect's cleanup. `watch.spec.ts` asserts
+  an optimistic write still flushes across an immediate navigation.
+- Continue-watching on `/` merges the local progress store over the SSR
+  `continueWatching` payload (SSR supplies meta; the store supplies live
+  position + drops anything now finished).
 - Subtitles served via `/api/subtitle` (SRT→WebVTT, auth-gated).
 
 </details>
@@ -166,11 +182,11 @@ Nothing open.
 ## Library, collections & history
 
 - [ ] Collection folder reorder, tile shape / hide-title / cover image,
-      `FOLLOW_LAYOUT` mode, "All" tab.
-- [ ] `continueWatching` from the local progress store (needs poster/title —
-      enrich from the library mirror or a cached meta lookup).
+      `FOLLOW_LAYOUT` mode. ([x] "All" tab — aggregated, de-duped view across a
+      collection's folders, default when there's more than one.)
 - [ ] Continue-watching is unreliable: items randomly removed, new ones not
-      added.
+      added (partly mitigated — `/` now overlays the local progress store on the
+      SSR list, see Playback).
 
 <details><summary>Shipped</summary>
 
@@ -244,15 +260,18 @@ Nothing open.
 
 ## Profiles & account
 
-- [ ] Profile "manage" mode: rename, recolour, custom `avatar_url`, delete
-      (`saveProfiles` + `deleteProfileData`). Show PIN-locked profiles as locked
-      (read-only; no PIN flow in the public API).
-- [ ] `uses_primary_addons` toggle for non-primary profiles.
+- [ ] Show PIN-locked profiles as locked (read-only; no PIN flow in the public
+      API).
 
 <details><summary>Shipped</summary>
 
 - `/profiles` picker — avatar grid + add-profile dialog; `selectProfile` /
   `createProfile`.
+- `/profiles` "Manage profiles" mode — per-profile editor dialog: rename,
+  recolour, change avatar, `uses_primary_addons` toggle (non-primary only),
+  delete (`updateProfile` / `deleteProfile` forms; delete runs
+  `deleteProfileData` then a full-replace, clears the cookie if it was active,
+  primary profile protected).
 - App shell — top nav + profile dropdown (switch / settings / account / sign
   out).
 - `/account` — email + member-since, change-password link-out, sign out,
@@ -266,9 +285,11 @@ Nothing open.
 
 - [ ] Addon catalog discovery (`addon_catalog` resource) — browse an addon's
       advertised catalogs before adding.
-- [ ] Drag reorder (currently up/down buttons).
 
 <details><summary>Shipped</summary>
+
+- `/addons` drag-to-reorder — grip handle per row (HTML5 DnD, drop-target ring),
+  up/down buttons kept for keyboard.
 
 - Manifest client (`parseAddonUrl`, `fetchManifest` 30-min cache, validate),
   registry (`buildRegistry`, per-addon isolation, `providersFor`), resource
@@ -285,20 +306,22 @@ Nothing open.
 - [ ] Make the app mobile-friendly (currently a small-screen gate overlay); keep
       a dismissable bottom banner pointing at the mobile app instead. Use the
       branding logos in `lib/assets` / `static`.
-- [x] Degraded-mode banner (`health-banner.svelte` + `apiHealth` remote over
-      `client.healthCheck()`) — full-bleed amber strip on `degraded` / `down`,
-      Retry + Dismiss, re-probes every 60s and clears itself on recovery. A
-      dedicated status page is still open.
+- [x] Degraded-mode / offline banner (`health-banner.svelte` + `apiHealth`
+      remote over `client.healthCheck()`) — full-bleed amber strip on `degraded`
+      / `down` (Retry + Dismiss, re-probes every 60s) or when `navigator.onLine`
+      is false (auto-clears on reconnect). A dedicated status page is still
+      open.
 - [~] Image handling — posters / episode thumbs / trailer stills carry
   `loading="lazy"` + `decoding="async"`; provider poster URLs only. Still want
   responsive `srcset` and a blur-up placeholder.
 - [ ] Perf — route-level code splitting, virtualised grids, prefetch on hover.
 - [ ] Accessibility pass — focus management, ARIA on rows/tiles/player (partial;
       reduced-motion honoured).
-- [ ] Offline states + retry affordances (empty-state component done;
-      `+error.svelte` restyled; offline still open).
+- [~] Offline states + retry affordances — `health-banner.svelte` also handles
+  `navigator.onLine` (offline strip, auto-clears + re-probes on `online`);
+  empty-state component + restyled `+error.svelte` done. Per-query retry buttons
+  on content loads still open.
 - [ ] Rate-limit safety — keep per-user request rate well under 100 req/s.
-- [ ] Add Vitest for the addon registry.
 
 <details><summary>Shipped</summary>
 
@@ -309,8 +332,9 @@ Nothing open.
   client queries + skeletons). `data.*` guarded everywhere.
 - Playwright smoke suite (`e2e/`, reuses the running dev server on :5173, shared
   auth token, zero-console-errors asserted on every page); Vitest for pure logic
-  (`reconcile`, `runtime`, `stream-format`). Run `bun run test:e2e` after any UI
-  change.
+  (`reconcile`, `runtime`, `stream-format`, addon `registry` — manifest
+  validation, `providersFor` type/idPrefix filtering, `buildRegistry` sort +
+  error isolation). Run `bun run test:e2e` after any UI change.
 - Small-screen gate overlay.
 
 </details>
@@ -319,11 +343,19 @@ Nothing open.
 
 ## CI/CD
 
-- [ ] Strict TS / lint / check / format pipeline (biome + tailwint + markdown);
-      unit + integration + e2e jobs.
-- [ ] Periodic Nuvio-API contract-check job; alert on drift.
 - [ ] Release mechanism (release-please) — screenshot the app for the README,
       publish the Docker image.
+
+<details><summary>Shipped</summary>
+
+- `.github/workflows/ci.yml` — on push / PR: `check`, `lint` (biome + tailwint),
+  `test:unit`, `build`. Optional `e2e` job gated on `vars.RUN_E2E` +
+  `NUVIO_TEST_EMAIL` / `NUVIO_TEST_PASSWORD` secrets, uploads the Playwright
+  report on failure.
+- `.github/workflows/nuvio-contract.yml` — daily + manual `bun run nuvio:check`;
+  opens a single `api-drift`-labelled issue when the live spec moves.
+
+</details>
 
 ## Legal / compliance
 
@@ -331,9 +363,9 @@ The theory: Nuvio web is a shell. Addons (Stremio protocol, user-installed) do
 all content provisioning. The app hosts nothing. Items below are where the code
 diverges from that or fails to state it.
 
-- [~] **Disclaimer + minimal ToS** — README `## Disclaimer` + an `Alert` at the
-  top of `/addons` (no content hosted; addons are third-party; the user chooses
-  them and is responsible). Still want a first-run acknowledgement.
+- [x] **Disclaimer + minimal ToS** — README `## Disclaimer`, an `Alert` at the
+      top of `/addons`, and a blocking first-run acknowledgement modal
+      (`first-run-notice.svelte`, `localStorage` `nuvio:disclaimer-ack:v1`).
 - [x] **`LICENSE` file** — AGPL-3.0-or-later (`LICENSE` + `package.json` +
       README `## License`).
 - [ ] **Move addon resource fetching client-side.** `getStreams` /

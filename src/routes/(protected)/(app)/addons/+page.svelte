@@ -1,6 +1,7 @@
 <script lang="ts">
 	import ArrowDownIcon from "@lucide/svelte/icons/arrow-down";
 	import ArrowUpIcon from "@lucide/svelte/icons/arrow-up";
+	import GripVerticalIcon from "@lucide/svelte/icons/grip-vertical";
 	import InfoIcon from "@lucide/svelte/icons/info";
 	import PlusIcon from "@lucide/svelte/icons/plus";
 	import PuzzleIcon from "@lucide/svelte/icons/puzzle";
@@ -22,6 +23,7 @@
 	import { Spinner } from "$lib/components/ui/spinner/index.js";
 	import { Switch } from "$lib/components/ui/switch/index.js";
 	import { pageTitle } from "$lib/stores/title.svelte.js";
+	import { cn } from "$lib/utils.js";
 
 	pageTitle.set("Addons");
 
@@ -73,6 +75,30 @@
 			return;
 		}
 		[rows[index], rows[target]] = [rows[target], rows[index]];
+		persist(rows);
+	}
+
+	// Drag reorder. `dragUrl` is the row being dragged, `dropUrl` the row it is
+	// hovering over (for the drop indicator).
+	let dragUrl = $state<string | null>(null);
+	let dropUrl = $state<string | null>(null);
+
+	function onDrop() {
+		const from = dragUrl;
+		const to = dropUrl;
+		dragUrl = null;
+		dropUrl = null;
+		if (!from || !to || from === to) {
+			return;
+		}
+		const rows = toRows();
+		const fromIndex = rows.findIndex((row) => row.url === from);
+		const toIndex = rows.findIndex((row) => row.url === to);
+		if (fromIndex < 0 || toIndex < 0) {
+			return;
+		}
+		const [moved] = rows.splice(fromIndex, 1);
+		rows.splice(toIndex, 0, moved);
 		persist(rows);
 	}
 
@@ -167,8 +193,40 @@
 		{:else}
 			<div class="flex flex-col gap-3">
 				{#each addonsQuery.current.addons as addon, index (addon.url)}
-					<Card.Root class={addon.enabled ? "" : "opacity-60"}>
+					<!-- svelte-ignore a11y_no_static_element_interactions -->
+					<div
+						ondragover={(event) => {
+							if (dragUrl) {
+								event.preventDefault();
+								dropUrl = addon.url;
+							}
+						}}
+						ondrop={(event) => {
+							event.preventDefault();
+							onDrop();
+						}}
+					>
+					<Card.Root
+						class={cn(
+							addon.enabled ? "" : "opacity-60",
+							dragUrl === addon.url && "opacity-40",
+							dropUrl === addon.url && dragUrl !== addon.url && "ring-2 ring-primary",
+						)}
+					>
 						<Card.Content class="flex items-center gap-4 py-4">
+							<button
+								type="button"
+								aria-label="Drag to reorder"
+								class="hidden shrink-0 cursor-grab touch-none text-muted-foreground active:cursor-grabbing sm:block"
+								draggable="true"
+								ondragstart={() => (dragUrl = addon.url)}
+								ondragend={() => {
+									dragUrl = null;
+									dropUrl = null;
+								}}
+							>
+								<GripVerticalIcon class="size-4" />
+							</button>
 							<div class="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted">
 								{#if addon.logo}
 									<img src={addon.logo} alt="" class="size-full object-contain" />
@@ -233,6 +291,7 @@
 							</div>
 						</Card.Content>
 					</Card.Root>
+					</div>
 				{/each}
 			</div>
 		{/if}
