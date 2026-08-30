@@ -91,13 +91,30 @@ function normalizeVideo(
 	};
 }
 
+/**
+ * Pull people out of `meta.links` (Cinemeta's newer shape puts cast / crew
+ * there — `{ name, category, url: "stremio:///search?search=..." }` — and leaves
+ * the flat `cast` / `director` / `writer` fields empty).
+ */
+function peopleFromLinks(links: Meta["links"], category: string): string[] {
+	const wanted = category.toLowerCase();
+	return (links ?? [])
+		.filter((link) => link.category?.toLowerCase() === wanted)
+		.map((link) => link.name.trim())
+		.filter(Boolean);
+}
+
 function normalizeMeta(raw: Meta): Meta {
+	const links = raw.links;
+	const cast = stringList(raw.cast);
+	const director = stringList(raw.director);
+	const writer = stringList(raw.writer);
 	return {
 		...raw,
 		genres: stringList(raw.genres),
-		cast: stringList(raw.cast),
-		director: stringList(raw.director),
-		writer: stringList(raw.writer),
+		cast: cast.length ? cast : peopleFromLinks(links, "Cast"),
+		director: director.length ? director : peopleFromLinks(links, "Directors"),
+		writer: writer.length ? writer : peopleFromLinks(links, "Writers"),
 		videos: asArray<
 			MetaVideo & { name?: string; number?: number; description?: string }
 		>(raw.videos).map(normalizeVideo),

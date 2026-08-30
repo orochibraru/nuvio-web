@@ -61,8 +61,6 @@ not here).
 - [ ] Home hero → real slide animation between spotlights (currently a
       crossfade).
 - [ ] Home layout editor in Settings → needs `client.homeCatalog`.
-- [ ] Search with no query → show the discover content. A search with no results
-      → "no results" + "you might like" + discover content.
 - [ ] `command`-palette style nav search.
 
 <details><summary>Shipped</summary>
@@ -77,14 +75,14 @@ not here).
   `MediaGrid` + "Load more" (`browseCatalog` client-side + skeleton).
 - Search `/search?q=` — auto-searches on type (450ms debounce, `replaceState`),
   Enter searches immediately, results grouped Movies / Series / Other, remote
-  query cached by args.
+  query cached by args. No query / no results → discover catalog rows ("you
+  might like").
 
 </details>
 
 ## Title detail
 
-- [ ] Cast with photos (needs a TMDB-style addon; Cinemeta is names-only).
-- [ ] Details-page watched badge for **series** (movies done).
+Nothing open.
 
 <details><summary>Shipped</summary>
 
@@ -92,14 +90,19 @@ not here).
   year / runtime / genres / IMDb rating), description, expanded facts (director
   / writer / country / released / awards), `meta.status` for series. Renders
   from a `stableMeta` mirror (fork-preload safe).
-- Cast chips link to `/search?q=<name>`.
+- Watched flag on the hero — "Watched" for a finished movie, "Watched" / "N/M
+  watched" for a series.
+- Cast row (`cast-row.svelte`) — photo, name · age, short bio per person,
+  sourced from Wikipedia's REST summary API (fetched client-side, memoised;
+  initials-avatar fallback when there's no clear person match). Card links to
+  `/search?q=<name>`. `getMeta` also recovers cast/crew from `meta.links` when
+  the flat fields are empty (Cinemeta's newer shape).
 - Trailers row → `trailer-modal.svelte` (`youtube-nocookie` embed).
 - "More like this" row — `similarTitles` (top-genre catalog browse minus self).
 - Season carousel (`season-carousel.svelte`) — scrollable season pills + a
   snap-scrolling row of 16:9 episode cards (number, title, synopsis, per-episode
   IMDb rating, air date, runtime), hover arrows, resume bar / watched tick /
   mark-watched, hover warms that episode's streams.
-- Watched flag on the hero for movies.
 - Right-click menus (`ContextMenu`): poster (add/remove library, mark
   watched/unwatched, view details) · episode card (mark watched, "mark up to
   here") · season pill ("mark season N", "mark through season N"). Each fires a

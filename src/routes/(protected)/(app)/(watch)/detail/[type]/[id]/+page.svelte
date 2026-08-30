@@ -11,6 +11,7 @@
 	import { browser } from "$app/env";
 	import { page } from "$app/state";
 	import { getMeta, similarTitles } from "$lib/addons/addons.remote";
+	import CastRow from "$lib/components/cast-row.svelte";
 	import MediaHero from "$lib/components/media-hero.svelte";
 	import MediaRow from "$lib/components/media-row.svelte";
 	import SeasonCarousel from "$lib/components/season-carousel.svelte";
@@ -103,6 +104,22 @@
 			),
 	);
 	const firstEpisodeId = $derived(orderedEpisodes[0]?.id ?? null);
+
+	const watchedEpisodes = $derived(
+		orderedEpisodes.filter((episode) => progress[episode.id]?.completed).length,
+	);
+	const seriesFlag = $derived.by(() => {
+		if (contentType !== "series" || orderedEpisodes.length === 0) {
+			return null;
+		}
+		if (watchedEpisodes === 0) {
+			return null;
+		}
+		if (watchedEpisodes >= orderedEpisodes.length) {
+			return "Watched";
+		}
+		return `${watchedEpisodes}/${orderedEpisodes.length} watched`;
+	});
 
 	// Series CTA target: an in-progress episode, else the first unwatched one.
 	const resumeEpisode = $derived.by(() => {
@@ -308,9 +325,11 @@
 				: m.releaseInfo}
 			runtime={m.runtime}
 			genres={m.genres ?? []}
-			flag={contentType === "movie" && progress[id]?.completed
-				? "Watched"
-				: null}
+			flag={contentType === "movie"
+				? progress[id]?.completed
+					? "Watched"
+					: null
+				: seriesFlag}
 		>
 			{#snippet actions()}
 				{#if contentType === "movie"}
@@ -406,16 +425,7 @@
 			{#if m.cast?.length}
 				<div class="flex flex-col gap-3">
 					<h2 class="text-xl font-semibold tracking-tight">Cast</h2>
-					<div class="flex flex-wrap gap-2">
-						{#each m.cast.slice(0, 18) as person (person)}
-							<a
-								href={`/search?q=${encodeURIComponent(person)}`}
-								class="rounded-full bg-foreground/5 px-3 py-1.5 text-sm text-foreground/90 transition hover:bg-foreground/10 hover:text-foreground"
-							>
-								{person}
-							</a>
-						{/each}
-					</div>
+					<CastRow names={m.cast.slice(0, 18)} />
 				</div>
 			{/if}
 

@@ -2,8 +2,9 @@
 	import SearchIcon from "@lucide/svelte/icons/search";
 	import { afterNavigate, goto } from "$app/navigation";
 	import { page } from "$app/state";
-	import { searchCatalogs } from "$lib/addons/addons.remote";
+	import { homeRows, searchCatalogs } from "$lib/addons/addons.remote";
 	import MediaGrid from "$lib/components/media-grid.svelte";
+	import MediaRow from "$lib/components/media-row.svelte";
 	import { Input } from "$lib/components/ui/input/index.js";
 	import { pageTitle } from "$lib/stores/title.svelte.js";
 
@@ -60,7 +61,26 @@
 		event.preventDefault();
 		runSearch(input, false);
 	}
+
+	// Discover fallback — shown when there's no query, or when a query returned
+	// nothing. Same catalog rows as the home feed.
+	const browseQuery = homeRows();
+	const browseRows = $derived((browseQuery.current ?? []).slice(0, 8));
 </script>
+
+{#snippet discoverRows()}
+	{#if browseQuery.current === undefined}
+		<MediaGrid items={[]} loading skeletonCount={12} />
+	{:else}
+		{#each browseRows as row (`${row.addonId}:${row.type}:${row.id}`)}
+			<MediaRow
+				title={row.title}
+				items={row.metas}
+				href={`/discover?c=${encodeURIComponent(`${row.addonId}|${row.type}|${row.id}`)}`}
+			/>
+		{/each}
+	{/if}
+{/snippet}
 
 <div class="flex flex-col gap-8">
 	<div class="flex flex-col gap-4">
@@ -80,23 +100,18 @@
 	</div>
 
 	{#if !term}
-		<div class="flex flex-col items-center gap-3 py-20 text-center">
-			<span
-				class="flex size-14 items-center justify-center rounded-2xl bg-muted text-muted-foreground ring-1 ring-border"
-			>
-				<SearchIcon class="size-7" />
-			</span>
-			<p class="text-lg font-semibold tracking-tight">Find something to watch</p>
-			<p class="max-w-sm text-sm text-muted-foreground">
-				Type a title and press Enter to search across every catalog your addons support.
-			</p>
-		</div>
+		{@render discoverRows()}
 	{:else if results?.error}
 		<p class="py-10 text-center text-sm text-destructive">Search failed. Try again.</p>
 	{:else if !results?.current}
 		<MediaGrid items={[]} loading />
 	{:else if results.current.metas.length === 0}
-		<p class="py-10 text-center text-sm text-muted-foreground">No results for "{term}".</p>
+		<div class="flex flex-col gap-8">
+			<p class="text-sm text-muted-foreground">
+				No results for "{term}". You might like:
+			</p>
+			{@render discoverRows()}
+		</div>
 	{:else}
 		{#if groups.movies.length > 0}
 			<section class="flex flex-col gap-3">
