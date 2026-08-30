@@ -70,6 +70,38 @@ test("client-side navigation through the whole shell", async ({ page }) => {
 	expect(errors, "runtime errors during client navigation").toEqual([]);
 });
 
+// Regression: a navigation that interrupts an in-flight view transition used to
+// leave the previous page painted over the new one (URL changed, content
+// didn't). Start a debounced `goto` from the search box, then immediately
+// navigate away and assert the destination renders.
+test("interrupting a pending navigation still swaps the page", async ({
+	page,
+}) => {
+	const errors = collectRuntimeErrors(page);
+
+	await page.goto("/search");
+	await page.waitForLoadState("networkidle");
+
+	await page.getByRole("textbox").fill("inter");
+	// Well inside the 450ms debounce — a /search?q= navigation is now pending.
+	await page.waitForTimeout(150);
+	await page
+		.getByRole("navigation")
+		.getByRole("link", { name: "Home", exact: true })
+		.click();
+
+	await expect(page).toHaveURL(/\/$/);
+	await expect(page).toHaveTitle("Nuvio", { timeout: 10_000 });
+	// The search box and its <h1> only exist on /search — gone once the page
+	// component actually swapped.
+	await expect(page.getByRole("textbox")).toHaveCount(0);
+	await expect(
+		page.getByRole("heading", { name: "Search", level: 1 }),
+	).toHaveCount(0);
+
+	expect(errors, "runtime errors").toEqual([]);
+});
+
 test("search auto-runs while typing (debounced)", async ({ page }) => {
 	const errors = collectRuntimeErrors(page);
 

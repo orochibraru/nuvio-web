@@ -21,19 +21,33 @@
 		document.title = pageTitle.full;
 	});
 
+	// Guards a race that leaves the browser painting a stale page: if a second
+	// navigation starts while a view transition is still running, Chromium can
+	// keep the previous transition's `::view-transition-old` snapshot on top of
+	// the (already updated) DOM — the URL changes but the old page stays visible.
+	let activeTransition: { skipTransition: () => void } | null = null;
+
 	onNavigate((navigation) => {
-		if (!browser) {
+		if (!browser || typeof document.startViewTransition !== "function") {
 			return;
 		}
 
-		if (!document.startViewTransition) {
-			return;
-		}
+		// Drop any in-flight transition before starting the next one.
+		activeTransition?.skipTransition();
 
 		return new Promise((resolve) => {
-			document.startViewTransition(async () => {
+			const transition = document.startViewTransition(async () => {
 				resolve();
-				await navigation.complete;
+				// `navigation.complete` rejects when the navigation is superseded or
+				// aborted — swallow it so the update callback still settles and the
+				// transition pseudo-elements are torn down cleanly.
+				await navigation.complete.catch(() => {});
+			});
+			activeTransition = transition;
+			void transition.finished.finally(() => {
+				if (activeTransition === transition) {
+					activeTransition = null;
+				}
 			});
 		});
 	});
