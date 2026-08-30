@@ -1,38 +1,33 @@
 <script lang="ts">
 	import ArrowLeftIcon from "@lucide/svelte/icons/arrow-left";
 	import CheckIcon from "@lucide/svelte/icons/check";
+	import EyeIcon from "@lucide/svelte/icons/eye";
+	import EyeOffIcon from "@lucide/svelte/icons/eye-off";
 	import FilmIcon from "@lucide/svelte/icons/film";
 	import PlayIcon from "@lucide/svelte/icons/play";
+	import PlayCircleIcon from "@lucide/svelte/icons/play-circle";
 	import PlusIcon from "@lucide/svelte/icons/plus";
-	import { goto } from "$app/navigation";
 	import { page } from "$app/state";
-	import { getMeta } from "$lib/addons/addons.remote";
+	import { getMeta, similarTitles } from "$lib/addons/addons.remote";
+	import EpisodeAccordion from "$lib/components/episode-accordion.svelte";
 	import MediaHero from "$lib/components/media-hero.svelte";
+	import MediaRow from "$lib/components/media-row.svelte";
+	import TrailerModal from "$lib/components/trailer-modal.svelte";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { libraryIds } from "$lib/library/library.remote";
 	import { sync } from "$lib/sync/store.svelte.js";
 	import { cn } from "$lib/utils.js";
-	import StreamPanel from "$lib/watch/stream-panel.svelte";
+	import { parseRuntimeMs } from "$lib/watch/runtime.js";
+	import { sourcesPanel } from "$lib/watch/sources-panel.svelte.js";
 	import { titleProgress } from "$lib/watch/watch.remote";
 
 	const type = $derived(page.params.type ?? "movie");
 	const id = $derived(page.params.id ?? "");
 	const contentType = $derived(type === "series" ? "series" : "movie");
 
+	// The source drawer itself lives in the (watch) layout, driven by module state.
 	function openSources(videoId: string) {
-		const params = new URLSearchParams(page.url.searchParams);
-		params.set("v", videoId);
-		void goto(`?${params}`, { keepFocus: true, noScroll: true });
-	}
-
-	function closeSources() {
-		const params = new URLSearchParams(page.url.searchParams);
-		params.delete("v");
-		const query = params.toString();
-		void goto(query ? `?${query}` : page.url.pathname, {
-			keepFocus: true,
-			noScroll: true,
-		});
+		sourcesPanel.open(type, videoId);
 	}
 
 	const metaQuery = $derived(getMeta({ type, id }));
@@ -49,18 +44,14 @@
 			: (libraryQuery.current ?? []).includes(id),
 	);
 
-	// `?v=<videoId>` opens the source sidebar for that video (movie id or episode id).
-	const activeVideoId = $derived(page.url.searchParams.get("v"));
-	const activeEpisode = $derived(
-		activeVideoId
-			? (meta?.videos?.find((entry) => entry.id === activeVideoId) ?? null)
-			: null,
+	const trailers = $derived(meta?.trailerStreams ?? []);
+	let trailerId = $state<string | null>(null);
+
+	const similarQuery = $derived(
+		meta ? similarTitles({ type, id, genres: meta.genres ?? [] }) : undefined,
 	);
-	const sourcesSubheading = $derived(
-		activeEpisode
-			? `S${activeEpisode.season}E${activeEpisode.episode} · ${activeEpisode.title}`
-			: null,
-	);
+	const similar = $derived(similarQuery?.current?.metas ?? []);
+
 	const rating = $derived(
 		typeof meta?.imdbRating === "number"
 			? meta.imdbRating.toFixed(1)
@@ -76,14 +67,6 @@
 		}
 		return [...set].sort((a, b) => a - b);
 	});
-
-	let chosenSeason = $state<number | null>(null);
-	const activeSeason = $derived(chosenSeason ?? seasons[0] ?? null);
-	const episodes = $derived(
-		(meta?.videos ?? [])
-			.filter((video) => video.season === activeSeason)
-			.sort((a, b) => (a.episode ?? 0) - (b.episode ?? 0)),
-	);
 
 	const orderedEpisodes = $derived(
 		[...(meta?.videos ?? [])]
@@ -125,6 +108,28 @@
 
 	function watch(videoId: string) {
 		openSources(videoId);
+	}
+
+	const runtimeMs = $derived(parseRuntimeMs(meta?.runtime));
+
+	function toggleWatched(
+		videoId: string,
+		season: number | null,
+		episode: number | null,
+		watched: boolean,
+	) {
+		if (watched) {
+			sync.clearProgress({ contentId: id, season, episode });
+		} else {
+			sync.markWatched({
+				contentId: id,
+				contentType,
+				videoId,
+				season,
+				episode,
+				durationMs: runtimeMs,
+			});
+		}
 	}
 
 	function toggle() {
@@ -222,12 +227,68 @@
 					{/if}
 					{inLibrary ? "In library" : "Add to library"}
 				</Button>
+				{#if contentType === "movie"}
+					<Button
+						size="lg"
+						variant="ghost"
+						onclick={() =>
+							toggleWatched(id, null, null, Boolean(progress[id]?.completed))}
+					>
+						{#if progress[id]?.completed}
+							<EyeOffIcon data-icon="inline-start" /> Watched
+						{:else}
+							<EyeIcon data-icon="inline-start" /> Mark watched
+						{/if}
+					</Button>
+				{/if}
 			{/snippet}
 		</MediaHero>
 
 		<div class="flex flex-col gap-10 pt-2">
-			{#if meta.director?.length || meta.cast?.length || meta.writer?.length}
-				<div class="grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-3">
+			{#if trailers.length > 0}
+				<div class="flex flex-col gap-3">
+					<h2 class="text-xl font-semibold tracking-tight">Trailers</h2>
+					<div class="no-scrollbar -mx-2 flex gap-4 overflow-x-auto px-2 pb-2">
+						{#each trailers.slice(0, 8) as trailer, i (trailer.ytId)}
+							<button
+								type="button"
+								onclick={() => (trailerId = trailer.ytId)}
+								class="group/tr relative aspect-video w-72 shrink-0 overflow-hidden rounded-xl bg-muted ring-1 ring-white/5 transition-all hover:-translate-y-1 hover:ring-primary/60"
+							>
+								<img
+									src={`https://i.ytimg.com/vi/${trailer.ytId}/hqdefault.jpg`}
+									alt=""
+									loading="lazy"
+									class="size-full object-cover transition-transform duration-500 group-hover/tr:scale-105"
+								/>
+								<div class="absolute inset-0 bg-black/30 transition-colors group-hover/tr:bg-black/10"></div>
+								<span class="absolute inset-0 flex items-center justify-center text-white">
+									<PlayCircleIcon class="size-12 drop-shadow-lg" />
+								</span>
+								<span class="absolute bottom-2 left-3 text-xs font-medium text-white drop-shadow">
+									{trailer.title || `Trailer ${i + 1}`}
+								</span>
+							</button>
+						{/each}
+					</div>
+				</div>
+			{/if}
+
+			{#if meta.cast?.length}
+				<div class="flex flex-col gap-3">
+					<h2 class="text-xl font-semibold tracking-tight">Cast</h2>
+					<div class="flex flex-wrap gap-2">
+						{#each meta.cast.slice(0, 18) as person (person)}
+							<span class="rounded-full bg-foreground/5 px-3 py-1.5 text-sm text-foreground/90">
+								{person}
+							</span>
+						{/each}
+					</div>
+				</div>
+			{/if}
+
+			{#if meta.director?.length || meta.writer?.length || meta.country || meta.awards || meta.released}
+				<div class="grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
 					{#if meta.director?.length}
 						<div>
 							<p class="text-xs font-medium tracking-wide text-muted-foreground uppercase">Director</p>
@@ -240,10 +301,28 @@
 							<p class="mt-1 text-foreground/90">{meta.writer.slice(0, 3).join(", ")}</p>
 						</div>
 					{/if}
-					{#if meta.cast?.length}
+					{#if meta.country}
 						<div>
-							<p class="text-xs font-medium tracking-wide text-muted-foreground uppercase">Cast</p>
-							<p class="mt-1 text-foreground/90">{meta.cast.slice(0, 5).join(", ")}</p>
+							<p class="text-xs font-medium tracking-wide text-muted-foreground uppercase">Country</p>
+							<p class="mt-1 text-foreground/90">{meta.country}</p>
+						</div>
+					{/if}
+					{#if meta.released}
+						<div>
+							<p class="text-xs font-medium tracking-wide text-muted-foreground uppercase">Released</p>
+							<p class="mt-1 text-foreground/90">
+								{new Date(meta.released).toLocaleDateString(undefined, {
+									day: "numeric",
+									month: "long",
+									year: "numeric",
+								})}
+							</p>
+						</div>
+					{/if}
+					{#if meta.awards}
+						<div class="sm:col-span-2 lg:col-span-4">
+							<p class="text-xs font-medium tracking-wide text-muted-foreground uppercase">Awards</p>
+							<p class="mt-1 text-foreground/90">{meta.awards}</p>
 						</div>
 					{/if}
 				</div>
@@ -251,97 +330,18 @@
 
 			{#if contentType === "series" && seasons.length > 0}
 				<div class="flex flex-col gap-4">
-					<div class="flex flex-wrap items-center gap-3">
-						<h2 class="text-xl font-semibold tracking-tight">Episodes</h2>
-						{#if seasons.length > 1}
-							<div class="no-scrollbar flex gap-2 overflow-x-auto">
-								{#each seasons as season (season)}
-									<button
-										type="button"
-										onclick={() => (chosenSeason = season)}
-										class={cn(
-											"shrink-0 rounded-full px-3 py-1 text-sm font-medium transition",
-											season === activeSeason
-												? "bg-primary text-primary-foreground"
-												: "bg-foreground/5 text-muted-foreground hover:text-foreground",
-										)}
-									>
-										Season {season}
-									</button>
-								{/each}
-							</div>
-						{/if}
-					</div>
-
-					<div class="flex max-w-4xl flex-col gap-2">
-						{#each episodes as episode (episode.id)}
-							{@const ep = progress[episode.id]}
-							<button
-								type="button"
-								onclick={() => watch(episode.id)}
-								class="group/ep flex items-start gap-4 rounded-xl border border-border/60 bg-card/40 p-3 text-left transition-all hover:border-primary/40 hover:bg-card"
-							>
-								<span class="w-5 shrink-0 pt-9 text-center text-sm font-semibold text-muted-foreground">
-									{episode.episode}
-								</span>
-								<div class="relative aspect-video w-40 shrink-0 overflow-hidden rounded-lg bg-muted">
-									{#if episode.thumbnail}
-										<img
-											src={episode.thumbnail}
-											alt=""
-											loading="lazy"
-											class="size-full object-cover transition-transform duration-500 group-hover/ep:scale-105"
-										/>
-									{/if}
-									<span
-										class="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover/ep:opacity-100"
-									>
-										<PlayIcon class="size-6 fill-white text-white" />
-									</span>
-									{#if ep?.completed}
-										<span
-											class="absolute top-1 right-1 flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground"
-										>
-											<CheckIcon class="size-3" />
-										</span>
-									{:else if ep && ep.fraction > 0.02}
-										<div class="absolute inset-x-0 bottom-0 h-1 bg-black/50">
-											<div
-												class="h-full rounded-r-full bg-primary"
-												style={`width: ${ep.fraction * 100}%`}
-											></div>
-										</div>
-									{/if}
-								</div>
-								<div class="min-w-0 flex-1">
-									<div class="flex items-baseline justify-between gap-3">
-										<p
-											class={cn(
-												"truncate text-sm font-semibold",
-												ep?.completed && "text-muted-foreground",
-											)}
-										>
-											{episode.title}
-										</p>
-										{#if episode.released}
-											<span class="shrink-0 text-xs text-muted-foreground">
-												{new Date(episode.released).toLocaleDateString(undefined, {
-													day: "numeric",
-													month: "short",
-													year: "numeric",
-												})}
-											</span>
-										{/if}
-									</div>
-									{#if episode.overview}
-										<p class="mt-1 line-clamp-3 text-xs leading-relaxed text-muted-foreground">
-											{episode.overview}
-										</p>
-									{/if}
-								</div>
-							</button>
-						{/each}
-					</div>
+					<h2 class="text-xl font-semibold tracking-tight">Episodes</h2>
+					<EpisodeAccordion
+						videos={meta.videos ?? []}
+						seriesRuntime={meta.runtime ?? null}
+						{progress}
+						initialSeason={resumeEpisode
+							? (meta.videos?.find((v) => v.id === resumeEpisode.id)?.season ??
+								null)
+							: null}
+						onPlay={watch}
+						onToggleWatched={toggleWatched}
+					/>
 				</div>
 			{/if}
 
@@ -350,16 +350,16 @@
 					<FilmIcon class="size-4" /> No synopsis available for this title.
 				</div>
 			{/if}
+
+			{#if similar.length > 0}
+				<MediaRow title="More like this" items={similar} />
+			{/if}
 		</div>
 	{/if}
 </div>
 
-{#if activeVideoId}
-	<StreamPanel
-		type={contentType}
-		videoId={activeVideoId}
-		heading={meta?.name ?? id}
-		subheading={sourcesSubheading}
-		onClose={closeSources}
-	/>
-{/if}
+<TrailerModal
+	ytId={trailerId}
+	title={meta?.name ?? "Trailer"}
+	onClose={() => (trailerId = null)}
+/>

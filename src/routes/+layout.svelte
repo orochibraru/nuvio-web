@@ -3,7 +3,7 @@
 	import { ModeWatcher } from "mode-watcher";
 	import { browser } from "$app/env";
 	import { onNavigate } from "$app/navigation";
-	import favicon from "$lib/assets/favicon.svg";
+	import favicon from "$lib/assets/logo.png";
 	import SmallScreenNotice from "$lib/components/small-screen-notice.svelte";
 	import TopLoadingBar from "$lib/components/top-loading-bar.svelte";
 	import { Toaster } from "$lib/components/ui/sonner/index.js";

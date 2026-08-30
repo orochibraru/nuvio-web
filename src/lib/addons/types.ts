@@ -83,6 +83,7 @@ export interface MetaVideo {
 	episode?: number;
 	thumbnail?: string;
 	overview?: string;
+	rating?: string;
 	streams?: Stream[];
 }
 
@@ -94,11 +95,14 @@ export interface Meta extends MetaPreview {
 	director?: string[];
 	writer?: string[];
 	awards?: string;
+	/** Age rating / content certification when an addon provides one (e.g. "PG-13"). */
+	certification?: string;
 	videos?: MetaVideo[];
 	trailerStreams?: Array<{ title?: string; ytId: string }>;
 	behaviorHints?: {
 		defaultVideoId?: string;
 		hasScheduledVideos?: boolean;
+		adult?: boolean;
 	};
 }
 

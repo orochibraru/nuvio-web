@@ -14,7 +14,6 @@ const shots: Array<[string, string]> = [
 	["addons", "/addons"],
 	["account", "/account"],
 	["support", "/support"],
-	["streams-panel", "/detail/movie/tt1375666?v=tt1375666"],
 	["player", "/player/movie/tt0137523"],
 ];
 
@@ -24,8 +23,21 @@ for (const [name, path] of shots) {
 	test(`shot ${name}`, async ({ page, context }) => {
 		await signIn(context);
 		await page.goto(path);
-		await page.waitForLoadState("networkidle");
+		// A playing stream never reaches network idle — don't block the shot on it.
+		await page
+			.waitForLoadState("networkidle", { timeout: 8000 })
+			.catch(() => {});
 		await page.waitForTimeout(1200);
 		await page.screenshot({ path: `screens/${name}.png`, fullPage: true });
 	});
 }
+
+test("shot streams-panel", async ({ page, context }) => {
+	await signIn(context);
+	await page.goto("/detail/movie/tt1375666");
+	await page.waitForLoadState("networkidle").catch(() => {});
+	await page.getByRole("button", { name: "Watch", exact: true }).click();
+	await page.getByRole("complementary").waitFor();
+	await page.waitForTimeout(1200);
+	await page.screenshot({ path: "screens/streams-panel.png", fullPage: true });
+});

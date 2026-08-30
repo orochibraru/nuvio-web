@@ -1,22 +1,44 @@
 <script lang="ts">
 	import ArrowLeftIcon from "@lucide/svelte/icons/arrow-left";
 	import CaptionsIcon from "@lucide/svelte/icons/captions";
+	import CaptionsOffIcon from "@lucide/svelte/icons/captions-off";
+	import CheckIcon from "@lucide/svelte/icons/check";
 	import LayersIcon from "@lucide/svelte/icons/layers";
 	import MaximizeIcon from "@lucide/svelte/icons/maximize";
 	import MinimizeIcon from "@lucide/svelte/icons/minimize";
 	import PauseIcon from "@lucide/svelte/icons/pause";
 	import PictureInPictureIcon from "@lucide/svelte/icons/picture-in-picture-2";
 	import PlayIcon from "@lucide/svelte/icons/play";
+	import RotateCcwIcon from "@lucide/svelte/icons/rotate-ccw";
+	import RotateCwIcon from "@lucide/svelte/icons/rotate-cw";
 	import SettingsIcon from "@lucide/svelte/icons/settings";
 	import Volume1Icon from "@lucide/svelte/icons/volume-1";
 	import Volume2Icon from "@lucide/svelte/icons/volume-2";
 	import VolumeXIcon from "@lucide/svelte/icons/volume-x";
+	import XIcon from "@lucide/svelte/icons/x";
 	import Hls from "hls.js";
 	import { onDestroy } from "svelte";
 	import PlaybackLoading from "$lib/components/playback-loading.svelte";
+	import {
+		SUBTITLE_SIZES,
+		type SubtitleSize,
+		subtitleFontSize,
+	} from "$lib/settings/ui-settings.js";
 	import { cn } from "$lib/utils.js";
 
-	type SubtitleTrack = { lang: string; url: string };
+	type SubtitleTrack = {
+		id?: string;
+		lang: string;
+		url: string;
+		addonName?: string;
+		sdh?: boolean;
+	};
+
+	type SubtitleAppearance = {
+		subtitleSize?: SubtitleSize;
+		subtitleColor?: string;
+		subtitleBackground?: boolean;
+	};
 
 	let {
 		src,
@@ -27,10 +49,17 @@
 		startTime = 0,
 		subtitles = [],
 		fill = false,
+		certification = null,
+		genres = [],
+		subtitleSize = "medium",
+		subtitleColor = "#ffffff",
+		subtitleBackground = true,
+		preferredLanguage = "",
 		onProgress,
 		onEnded,
 		onBack,
 		onSources,
+		onSubtitleAppearance,
 	}: {
 		src: string;
 		poster?: string | null;
@@ -41,10 +70,17 @@
 		subtitles?: SubtitleTrack[];
 		/** Fill the parent instead of holding a 16:9 box (full-page player). */
 		fill?: boolean;
+		certification?: string | null;
+		genres?: string[];
+		subtitleSize?: SubtitleSize;
+		subtitleColor?: string;
+		subtitleBackground?: boolean;
+		preferredLanguage?: string;
 		onProgress?: (position: number, duration: number) => void;
 		onEnded?: () => void;
 		onBack?: () => void;
 		onSources?: () => void;
+		onSubtitleAppearance?: (patch: SubtitleAppearance) => void;
 	} = $props();
 
 	let container = $state<HTMLDivElement | null>(null);
@@ -60,17 +96,72 @@
 	let fullscreen = $state(false);
 	let fatalError = $state<string | null>(null);
 	let loading = $state(true);
+	let ended = $state(false);
 	let controlsVisible = $state(true);
 	let settingsOpen = $state(false);
+	let subtitlesOpen = $state(false);
 	let activeCaption = $state<string | null>(null);
 	let seeded = false;
+
+	// Hover-scrub preview.
+	let scrubTrack = $state<HTMLDivElement | null>(null);
+	let hoverRatio = $state<number | null>(null);
 
 	let hideTimer: ReturnType<typeof setTimeout> | undefined;
 	let progressTimer: ReturnType<typeof setInterval> | undefined;
 
 	const rates = [0.5, 0.75, 1, 1.25, 1.5, 2];
+	const sizeLabels: Record<SubtitleSize, string> = {
+		small: "Small",
+		medium: "Medium",
+		large: "Large",
+	};
+	const swatches = ["#ffffff", "#ffe14d", "#7fd4ff", "#9dffb0", "#ff9db1"];
 
 	const bufferedEnd = $derived(buffered.at(-1)?.end ?? 0);
+	const progressRatio = $derived(duration ? currentTime / duration : 0);
+	const bufferedRatio = $derived(duration ? bufferedEnd / duration : 0);
+
+	const cueFontSize = $derived(subtitleFontSize(subtitleSize));
+	const cueBackground = $derived(
+		subtitleBackground ? "rgba(0,0,0,0.75)" : "transparent",
+	);
+
+	const trackKey = (track: SubtitleTrack, index: number): string =>
+		track.id ?? `${track.lang}:${index}`;
+
+	const options = $derived(
+		subtitles.map((track, index) => ({
+			...track,
+			key: trackKey(track, index),
+			name: langName(track.lang),
+		})),
+	);
+	const menuOpen = $derived(settingsOpen || subtitlesOpen);
+
+	let autoSubDone = false;
+
+	function langName(code: string): string {
+		const raw = code.trim();
+		const short = raw.toLowerCase().slice(0, 2);
+		try {
+			const resolved = new Intl.DisplayNames(["en"], { type: "language" }).of(
+				short,
+			);
+			if (resolved && resolved.toLowerCase() !== short) {
+				return resolved;
+			}
+		} catch {
+			// Intl.DisplayNames unsupported — fall through.
+		}
+		return raw.toUpperCase();
+	}
+
+	function langMatches(a: string, b: string): boolean {
+		const x = a.trim().toLowerCase().slice(0, 3);
+		const y = b.trim().toLowerCase().slice(0, 3);
+		return x.length > 0 && (x.startsWith(y) || y.startsWith(x));
+	}
 
 	$effect(() => {
 		const el = video;
@@ -80,6 +171,8 @@
 		fatalError = null;
 		seeded = false;
 		loading = true;
+		ended = false;
+		autoSubDone = false;
 
 		if (src.toLowerCase().includes(".m3u8") && Hls.isSupported()) {
 			const hls = new Hls({ maxBufferLength: 30 });
@@ -131,17 +224,35 @@
 
 	function onReady() {
 		loading = false;
+		ended = false;
+		if (!autoSubDone && preferredLanguage && !activeCaption) {
+			autoSubDone = true;
+			const match = options.find((entry) =>
+				langMatches(entry.lang, preferredLanguage),
+			);
+			if (match) {
+				setCaption(match.key);
+			}
+		}
 	}
 
 	function onWaiting() {
 		loading = true;
 	}
 
+	function onEndedInternal() {
+		ended = true;
+		onEnded?.();
+	}
+
 	function togglePlay() {
 		if (!video) {
 			return;
 		}
-		if (video.paused) {
+		if (video.ended) {
+			video.currentTime = 0;
+			void video.play();
+		} else if (video.paused) {
 			void video.play();
 		} else {
 			video.pause();
@@ -158,11 +269,28 @@
 		video.currentTime = Math.min(Math.max(0, video.currentTime + delta), upper);
 	}
 
+	function seekToRatio(ratio: number) {
+		if (video && duration > 0) {
+			video.currentTime = Math.min(Math.max(0, ratio), 1) * duration;
+		}
+	}
+
 	function onScrub(event: Event) {
 		const value = Number((event.currentTarget as HTMLInputElement).value);
 		if (video) {
 			video.currentTime = value;
 		}
+	}
+
+	function onScrubHover(event: PointerEvent) {
+		if (!scrubTrack) {
+			return;
+		}
+		const rect = scrubTrack.getBoundingClientRect();
+		hoverRatio = Math.min(
+			1,
+			Math.max(0, (event.clientX - rect.left) / rect.width),
+		);
 	}
 
 	function adjustVolume(delta: number) {
@@ -192,31 +320,34 @@
 		}
 	}
 
-	function setCaption(lang: string | null) {
+	function setCaption(key: string | null) {
 		if (!video) {
 			return;
 		}
 		for (const track of Array.from(video.textTracks)) {
-			track.mode = track.language === lang ? "showing" : "disabled";
+			track.mode = track.label === key ? "showing" : "disabled";
 		}
-		activeCaption = lang;
-		settingsOpen = false;
+		activeCaption = key;
 	}
 
 	function cycleCaption() {
-		if (subtitles.length === 0) {
+		if (options.length === 0) {
 			return;
 		}
-		const index = subtitles.findIndex((entry) => entry.lang === activeCaption);
-		const next = subtitles[index + 1]?.lang ?? null;
-		setCaption(index === -1 ? subtitles[0].lang : next);
+		const keys = [null, ...options.map((entry) => entry.key)];
+		const index = keys.indexOf(activeCaption);
+		setCaption(keys[(index + 1) % keys.length]);
+	}
+
+	function applyAppearance(patch: SubtitleAppearance) {
+		onSubtitleAppearance?.(patch);
 	}
 
 	function nudgeControls() {
 		controlsVisible = true;
 		clearTimeout(hideTimer);
 		hideTimer = setTimeout(() => {
-			if (!paused && !settingsOpen) {
+			if (!paused && !menuOpen) {
 				controlsVisible = false;
 			}
 		}, 3000);
@@ -255,6 +386,12 @@
 			case "c":
 				cycleCaption();
 				break;
+			case "Escape":
+				if (menuOpen) {
+					settingsOpen = false;
+					subtitlesOpen = false;
+				}
+				break;
 			default:
 				return;
 		}
@@ -285,12 +422,15 @@
 	role="region"
 	aria-label="Video player"
 	class={cn(
-		"relative w-full overflow-hidden bg-black select-none",
+		"nuvio-player group/player relative w-full overflow-hidden bg-black select-none",
 		fill ? "h-full" : "aspect-video rounded-lg",
 	)}
 	class:cursor-none={!controlsVisible}
+	style:--cue-size={cueFontSize}
+	style:--cue-color={subtitleColor}
+	style:--cue-bg={cueBackground}
 	onmousemove={nudgeControls}
-	onmouseleave={() => !paused && (controlsVisible = false)}
+	onmouseleave={() => !paused && !menuOpen && (controlsVisible = false)}
 >
 	<!-- svelte-ignore a11y_media_has_caption -->
 	<video
@@ -310,20 +450,27 @@
 		onplaying={onReady}
 		onwaiting={onWaiting}
 		onclick={togglePlay}
-		onended={onEnded}
+		onended={onEndedInternal}
 	>
-		{#each subtitles as track (track.lang)}
+		{#each options as track (track.key)}
 			<track
 				kind="subtitles"
 				srclang={track.lang}
-				label={track.lang}
+				label={track.key}
 				src={`/api/subtitle?url=${encodeURIComponent(track.url)}`}
 			/>
 		{/each}
 	</video>
 
 	{#if loading && !fatalError}
-		<PlaybackLoading backdrop={poster} {logo} {title} label="Loading stream…" />
+		<PlaybackLoading
+			backdrop={poster}
+			{logo}
+			{title}
+			{certification}
+			{genres}
+			label="Loading stream…"
+		/>
 	{/if}
 
 	{#if fatalError}
@@ -339,18 +486,24 @@
 
 	<div
 		class={cn(
-			"absolute inset-0 flex flex-col justify-between bg-linear-to-t from-black/70 via-transparent to-black/50 p-3 transition-opacity sm:p-4",
+			"absolute inset-0 flex flex-col justify-between bg-linear-to-t from-black/80 via-black/10 to-black/60 transition-opacity duration-200",
 			controlsVisible ? "opacity-100" : "pointer-events-none opacity-0",
 		)}
 	>
-		<div class="flex items-start gap-3 text-white">
+		<!-- Top row -->
+		<div class="flex items-start gap-3 p-3 text-white sm:p-4">
 			{#if onBack}
-				<button type="button" aria-label="Back" onclick={onBack} class="rounded-md p-1.5 hover:bg-white/15">
+				<button
+					type="button"
+					aria-label="Back"
+					onclick={onBack}
+					class="flex size-9 shrink-0 items-center justify-center rounded-full transition hover:bg-white/15"
+				>
 					<ArrowLeftIcon class="size-5" />
 				</button>
 			{/if}
-			<div class="min-w-0 flex-1">
-				<p class="truncate font-medium">{title}</p>
+			<div class="min-w-0 flex-1 pt-1">
+				<p class="truncate font-semibold">{title}</p>
 				{#if subheading}
 					<p class="truncate text-sm text-white/70">{subheading}</p>
 				{/if}
@@ -359,34 +512,83 @@
 				<button
 					type="button"
 					onclick={onSources}
-					class="flex shrink-0 items-center gap-1.5 rounded-md bg-white/10 px-2.5 py-1.5 text-xs font-medium hover:bg-white/20"
+					class="flex shrink-0 items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-xs font-medium backdrop-blur-sm transition hover:bg-white/20"
 				>
 					<LayersIcon class="size-4" /> Sources
 				</button>
 			{/if}
 		</div>
 
-		{#if paused && !fatalError && !loading}
-			<button
-				type="button"
-				aria-label="Play"
-				onclick={togglePlay}
-				class="absolute top-1/2 left-1/2 flex size-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white/15 text-white backdrop-blur transition hover:bg-white/25"
-			>
-				<PlayIcon class="size-8" />
-			</button>
+		<!-- Centre transport cluster -->
+		{#if !loading && !fatalError}
+			<div class="pointer-events-none absolute inset-0 flex items-center justify-center gap-6 sm:gap-10">
+				<button
+					type="button"
+					aria-label="Back 10 seconds"
+					onclick={() => seek(-10)}
+					class="pointer-events-auto flex size-11 items-center justify-center rounded-full text-white/90 transition hover:bg-white/15 hover:text-white"
+				>
+					<RotateCcwIcon class="size-6" />
+				</button>
+				<button
+					type="button"
+					aria-label={ended ? "Replay" : paused ? "Play" : "Pause"}
+					onclick={togglePlay}
+					class="pointer-events-auto flex size-16 items-center justify-center rounded-full bg-white/15 text-white backdrop-blur-sm transition hover:scale-105 hover:bg-white/25 sm:size-20"
+				>
+					{#if ended}
+						<RotateCwIcon class="size-8 sm:size-9" />
+					{:else if paused}
+						<PlayIcon class="size-8 fill-current sm:size-9" />
+					{:else}
+						<PauseIcon class="size-8 fill-current sm:size-9" />
+					{/if}
+				</button>
+				<button
+					type="button"
+					aria-label="Forward 10 seconds"
+					onclick={() => seek(10)}
+					class="pointer-events-auto flex size-11 items-center justify-center rounded-full text-white/90 transition hover:bg-white/15 hover:text-white"
+				>
+					<RotateCwIcon class="size-6" />
+				</button>
+			</div>
 		{/if}
 
-		<div class="flex flex-col gap-2 text-white">
-			<div class="relative flex items-center">
-				<div class="absolute h-1 w-full rounded-full bg-white/25"></div>
+		<!-- Bottom bar -->
+		<div class="flex flex-col gap-2 px-3 pb-3 text-white sm:px-4 sm:pb-4">
+			<!-- Scrubber -->
+			<div
+				bind:this={scrubTrack}
+				role="presentation"
+				class="group/scrub relative flex h-5 items-center"
+				onpointermove={onScrubHover}
+				onpointerleave={() => (hoverRatio = null)}
+			>
+				<div class="pointer-events-none absolute inset-x-0 h-1 rounded-full bg-white/25 transition-all group-hover/scrub:h-1.5"></div>
 				<div
-					class="absolute h-1 rounded-full bg-white/40"
-					style={`width: ${duration ? (bufferedEnd / duration) * 100 : 0}%`}
+					class="pointer-events-none absolute h-1 rounded-full bg-white/40 transition-all group-hover/scrub:h-1.5"
+					style={`width: ${bufferedRatio * 100}%`}
+				></div>
+				{#if hoverRatio !== null}
+					<div
+						class="pointer-events-none absolute h-1 rounded-full bg-white/40 transition-all group-hover/scrub:h-1.5"
+						style={`width: ${hoverRatio * 100}%`}
+					></div>
+					<div
+						class="pointer-events-none absolute -top-7 -translate-x-1/2 rounded bg-black/85 px-1.5 py-0.5 text-[11px] tabular-nums"
+						style={`left: ${hoverRatio * 100}%`}
+					>
+						{fmt(hoverRatio * duration)}
+					</div>
+				{/if}
+				<div
+					class="pointer-events-none absolute h-1 rounded-full bg-primary transition-all group-hover/scrub:h-1.5"
+					style={`width: ${progressRatio * 100}%`}
 				></div>
 				<div
-					class="absolute h-1 rounded-full bg-primary"
-					style={`width: ${duration ? (currentTime / duration) * 100 : 0}%`}
+					class="pointer-events-none absolute size-3 -translate-x-1/2 rounded-full bg-primary opacity-0 shadow transition-opacity group-hover/scrub:opacity-100"
+					style={`left: ${progressRatio * 100}%`}
 				></div>
 				<input
 					type="range"
@@ -396,17 +598,33 @@
 					value={currentTime}
 					aria-label="Seek"
 					oninput={onScrub}
-					class="relative h-4 w-full cursor-pointer appearance-none bg-transparent [&::-webkit-slider-thumb]:size-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary"
+					class="relative h-5 w-full cursor-pointer appearance-none bg-transparent focus-visible:outline-none [&::-moz-range-thumb]:size-4 [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-transparent [&::-webkit-slider-thumb]:size-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-transparent"
 				/>
 			</div>
 
-			<div class="flex items-center gap-3">
-				<button type="button" aria-label={paused ? "Play" : "Pause"} onclick={togglePlay}>
-					{#if paused}<PlayIcon class="size-5" />{:else}<PauseIcon class="size-5" />{/if}
+			<div class="flex items-center gap-2 sm:gap-3">
+				<button
+					type="button"
+					aria-label={ended ? "Replay" : paused ? "Play" : "Pause"}
+					onclick={togglePlay}
+					class="flex size-9 items-center justify-center rounded-full transition hover:bg-white/15"
+				>
+					{#if ended}
+						<RotateCwIcon class="size-5" />
+					{:else if paused}
+						<PlayIcon class="size-5 fill-current" />
+					{:else}
+						<PauseIcon class="size-5 fill-current" />
+					{/if}
 				</button>
 
-				<div class="group/vol flex items-center gap-1.5">
-					<button type="button" aria-label="Mute" onclick={() => (muted = !muted)}>
+				<div class="flex items-center gap-1.5">
+					<button
+						type="button"
+						aria-label={muted ? "Unmute" : "Mute"}
+						onclick={() => (muted = !muted)}
+						class="flex size-9 items-center justify-center rounded-full transition hover:bg-white/15"
+					>
 						{#if muted || volume === 0}
 							<VolumeXIcon class="size-5" />
 						{:else if volume < 0.5}
@@ -422,35 +640,55 @@
 						step="0.05"
 						bind:value={volume}
 						aria-label="Volume"
-						class="h-1 w-0 cursor-pointer appearance-none rounded-full bg-white/30 opacity-0 transition-all group-hover/vol:w-16 group-hover/vol:opacity-100 [&::-webkit-slider-thumb]:size-2.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white"
+						class="h-1 w-16 cursor-pointer appearance-none rounded-full bg-white/30 [&::-webkit-slider-thumb]:size-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white"
 					/>
 				</div>
 
-				<span class="text-xs tabular-nums text-white/80">
-					{fmt(currentTime)} / {fmt(duration)}
+				<span class="ml-1 text-xs tabular-nums text-white/80">
+					{fmt(currentTime)} <span class="text-white/40">/ {fmt(duration)}</span>
 				</span>
 
-				<div class="ml-auto flex items-center gap-2">
-					{#if subtitles.length > 0}
+				<div class="ml-auto flex items-center gap-1 sm:gap-2">
+					{#if options.length > 0}
 						<button
 							type="button"
-							aria-label="Captions"
-							onclick={() => setCaption(activeCaption ? null : subtitles[0].lang)}
-							class={cn("rounded p-1", activeCaption && "text-primary")}
+							aria-label="Subtitles"
+							aria-pressed={subtitlesOpen}
+							onclick={() => {
+								subtitlesOpen = !subtitlesOpen;
+								settingsOpen = false;
+							}}
+							class={cn(
+								"flex size-9 items-center justify-center rounded-full transition hover:bg-white/15",
+								activeCaption && "text-primary",
+							)}
 						>
-							<CaptionsIcon class="size-5" />
+							{#if activeCaption}
+								<CaptionsIcon class="size-5" />
+							{:else}
+								<CaptionsOffIcon class="size-5" />
+							{/if}
 						</button>
 					{/if}
 
 					<div class="relative">
-						<button type="button" aria-label="Settings" onclick={() => (settingsOpen = !settingsOpen)}>
+						<button
+							type="button"
+							aria-label="Settings"
+							aria-pressed={settingsOpen}
+							onclick={() => {
+								settingsOpen = !settingsOpen;
+								subtitlesOpen = false;
+							}}
+							class="flex size-9 items-center justify-center rounded-full transition hover:bg-white/15"
+						>
 							<SettingsIcon class="size-5" />
 						</button>
 						{#if settingsOpen}
 							<div
-								class="absolute right-0 bottom-8 w-40 rounded-md border border-white/15 bg-black/90 p-1 text-sm backdrop-blur"
+								class="absolute right-0 bottom-11 w-44 rounded-lg border border-white/15 bg-black/90 p-1.5 text-sm backdrop-blur-md"
 							>
-								<p class="px-2 py-1 text-xs text-white/50">Speed</p>
+								<p class="px-2 py-1 text-xs font-medium text-white/50">Playback speed</p>
 								{#each rates as option (option)}
 									<button
 										type="button"
@@ -459,44 +697,25 @@
 											settingsOpen = false;
 										}}
 										class={cn(
-											"block w-full rounded px-2 py-1 text-left hover:bg-white/10",
+											"flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left transition hover:bg-white/10",
 											rate === option && "text-primary",
 										)}
 									>
-										{option}×
+										{option === 1 ? "Normal" : `${option}×`}
+										{#if rate === option}<CheckIcon class="size-3.5" />{/if}
 									</button>
 								{/each}
-								{#if subtitles.length > 0}
-									<p class="mt-1 px-2 py-1 text-xs text-white/50">Subtitles</p>
-									<button
-										type="button"
-										onclick={() => setCaption(null)}
-										class={cn(
-											"block w-full rounded px-2 py-1 text-left hover:bg-white/10",
-											!activeCaption && "text-primary",
-										)}
-									>
-										Off
-									</button>
-									{#each subtitles as track (track.lang)}
-										<button
-											type="button"
-											onclick={() => setCaption(track.lang)}
-											class={cn(
-												"block w-full rounded px-2 py-1 text-left hover:bg-white/10",
-												activeCaption === track.lang && "text-primary",
-											)}
-										>
-											{track.lang}
-										</button>
-									{/each}
-								{/if}
 							</div>
 						{/if}
 					</div>
 
 					{#if typeof document !== "undefined" && document.pictureInPictureEnabled}
-						<button type="button" aria-label="Picture in picture" onclick={togglePip}>
+						<button
+							type="button"
+							aria-label="Picture in picture"
+							onclick={togglePip}
+							class="flex size-9 items-center justify-center rounded-full transition hover:bg-white/15"
+						>
 							<PictureInPictureIcon class="size-5" />
 						</button>
 					{/if}
@@ -505,11 +724,135 @@
 						type="button"
 						aria-label={fullscreen ? "Exit fullscreen" : "Fullscreen"}
 						onclick={toggleFullscreen}
+						class="flex size-9 items-center justify-center rounded-full transition hover:bg-white/15"
 					>
 						{#if fullscreen}<MinimizeIcon class="size-5" />{:else}<MaximizeIcon class="size-5" />{/if}
 					</button>
 				</div>
 			</div>
 		</div>
+
+		<!-- Subtitle overlay -->
+		{#if subtitlesOpen}
+			<div
+				class="absolute inset-y-0 right-0 flex w-full max-w-90 flex-col border-l border-white/10 bg-black/85 text-white backdrop-blur-md"
+			>
+				<div class="flex items-center justify-between border-b border-white/10 px-4 py-3">
+					<p class="text-sm font-semibold">Subtitles</p>
+					<button
+						type="button"
+						aria-label="Close subtitles"
+						onclick={() => (subtitlesOpen = false)}
+						class="flex size-8 items-center justify-center rounded-full transition hover:bg-white/15"
+					>
+						<XIcon class="size-4" />
+					</button>
+				</div>
+
+				<div class="min-h-0 flex-1 overflow-y-auto p-2 scrollbar-thin">
+					<button
+						type="button"
+						onclick={() => setCaption(null)}
+						class={cn(
+							"flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition hover:bg-white/10",
+							!activeCaption && "text-primary",
+						)}
+					>
+						<CheckIcon class={cn("size-4 shrink-0", activeCaption && "invisible")} />
+						Off
+					</button>
+					{#each options as option (option.key)}
+						<button
+							type="button"
+							onclick={() => setCaption(option.key)}
+							class={cn(
+								"flex w-full items-start gap-2 rounded-md px-3 py-2 text-left text-sm transition hover:bg-white/10",
+								activeCaption === option.key && "text-primary",
+							)}
+						>
+							<CheckIcon
+								class={cn(
+									"mt-0.5 size-4 shrink-0",
+									activeCaption !== option.key && "invisible",
+								)}
+							/>
+							<span class="min-w-0 flex-1">
+								<span class="flex items-center gap-1.5">
+									{option.name}
+									{#if option.sdh}
+										<span class="rounded bg-white/15 px-1 text-[10px] font-medium tracking-wide">SDH</span>
+									{/if}
+								</span>
+								{#if option.addonName}
+									<span class="block truncate text-xs text-white/50">{option.addonName}</span>
+								{/if}
+							</span>
+						</button>
+					{/each}
+				</div>
+
+				<div class="space-y-3 border-t border-white/10 p-4">
+					<p class="text-xs font-medium text-white/50">Appearance</p>
+					<div class="flex gap-1.5">
+						{#each SUBTITLE_SIZES as size (size)}
+							<button
+								type="button"
+								onclick={() => applyAppearance({ subtitleSize: size })}
+								class={cn(
+									"flex-1 rounded-md border px-2 py-1.5 text-xs font-medium transition",
+									subtitleSize === size
+										? "border-primary bg-primary/15 text-primary"
+										: "border-white/15 text-white/70 hover:bg-white/10",
+								)}
+							>
+								{sizeLabels[size]}
+							</button>
+						{/each}
+					</div>
+					<div class="flex items-center gap-2">
+						{#each swatches as swatch (swatch)}
+							<button
+								type="button"
+								aria-label={`Subtitle colour ${swatch}`}
+								onclick={() => applyAppearance({ subtitleColor: swatch })}
+								class={cn(
+									"size-6 rounded-full ring-2 transition",
+									subtitleColor === swatch ? "ring-primary" : "ring-white/20",
+								)}
+								style={`background-color: ${swatch}`}
+							></button>
+						{/each}
+					</div>
+					<button
+						type="button"
+						onclick={() =>
+							applyAppearance({ subtitleBackground: !subtitleBackground })}
+						class="flex w-full items-center justify-between rounded-md border border-white/15 px-3 py-2 text-xs font-medium text-white/80 transition hover:bg-white/10"
+					>
+						Background plate
+						<span
+							class={cn(
+								"rounded-full px-2 py-0.5 text-[10px]",
+								subtitleBackground
+									? "bg-primary/20 text-primary"
+									: "bg-white/10 text-white/50",
+							)}
+						>
+							{subtitleBackground ? "On" : "Off"}
+						</span>
+					</button>
+				</div>
+			</div>
+		{/if}
 	</div>
 </div>
+
+<style>
+	/* `::cue` only honours a small set of properties; size / colour / plate are it. */
+	:global(.nuvio-player video::cue) {
+		font-size: var(--cue-size);
+		color: var(--cue-color);
+		background-color: var(--cue-bg);
+		line-height: 1.3;
+	}
+</style>

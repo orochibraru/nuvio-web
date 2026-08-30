@@ -6,28 +6,28 @@
 	import XIcon from "@lucide/svelte/icons/x";
 	import { goto } from "$app/navigation";
 	import { cn } from "$lib/utils.js";
-	import { playbackHandoff } from "./playback.js";
+	import { playbackHandoff } from "./playback.svelte.js";
 	import {
 		describeStream,
 		formatFileSize,
 		isPlayable,
 		type ResolvedStream,
 	} from "./stream-format.js";
-	import { resolveStreams } from "./watch.remote";
+	import { playbackContext, resolveStreams } from "./watch.remote";
 
 	let {
 		type,
 		videoId,
-		heading,
-		subheading = null,
 		onClose,
 	}: {
 		type: string;
 		videoId: string;
-		heading: string;
-		subheading?: string | null;
 		onClose: () => void;
 	} = $props();
+
+	const contextQuery = $derived(playbackContext({ type, id: videoId }));
+	const heading = $derived(contextQuery.current?.heading ?? "Sources");
+	const subheading = $derived(contextQuery.current?.subheading ?? null);
 
 	const streamsQuery = $derived(resolveStreams({ type, id: videoId }));
 	const result = $derived(streamsQuery.current);
@@ -81,6 +81,7 @@
 	function pick(row: Row) {
 		if (isPlayable(row)) {
 			playbackHandoff.select(videoId, row, row.info.title);
+			// The (watch) layout closes the drawer on `afterNavigate`.
 			void goto(`/player/${type}/${encodeURIComponent(videoId)}`);
 		} else if (row.externalUrl) {
 			window.open(row.externalUrl, "_blank", "noopener");

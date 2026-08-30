@@ -115,6 +115,7 @@ const writeBatchSchema = v.object({
 		),
 		[],
 	),
+	progressDeletes: v.optional(v.array(v.string()), []),
 	historyDeletes: v.optional(
 		v.array(
 			v.object({
@@ -180,6 +181,10 @@ export const flushWrites = command(writeBatchSchema, async (batch) => {
 				p_entries: entries.slice(i, i + 500),
 			});
 		}
+	}
+
+	if (batch.progressDeletes.length > 0) {
+		await nuvio.watchProgress.deleteMany(batch.progressDeletes, profileId);
 	}
 
 	for (const entry of batch.historyDeletes) {

@@ -18,7 +18,7 @@ export interface SelectedStream {
  * sessionStorage so a player-page reload still resolves.
  */
 class PlaybackHandoff {
-	#current: SelectedStream | null = null;
+	#current = $state<SelectedStream | null>(null);
 
 	select(videoId: string, stream: ResolvedStream, label: string): void {
 		const value: SelectedStream = {

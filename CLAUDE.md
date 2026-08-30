@@ -23,7 +23,9 @@ catch runtime errors (bad reactive access, hydration mismatch, a broken remote
 call). **After any UI or route change, run `bun run test:e2e`** (Playwright, in
 `e2e/`) and make it pass before calling the work done. Add a spec when you add a
 screen or a flow. Needs `NUVIO_TEST_EMAIL` / `NUVIO_TEST_PASSWORD` in `.env`
-(see `.env.example`); the config starts its own dev server on :4173.
+(see `.env.example`). Playwright **reuses your running `bun run dev` on :5173**
+(`reuseExistingServer`), only starting one if nothing's listening — never kill
+the dev server to run tests.
 
 `bun run test:unit` (Vitest, node env, `src/**/*.test.ts`) covers
 framework-agnostic logic — currently `src/lib/sync/reconcile.ts`. Keep the sync

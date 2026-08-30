@@ -89,12 +89,7 @@
         href="/"
         class="flex items-center gap-2 text-lg font-bold tracking-tight"
       >
-        <span
-          class="flex size-7 items-center justify-center rounded-lg bg-primary text-sm text-primary-foreground shadow-sm"
-        >
-          N
-        </span>
-        Nuvio
+      <img  alt="Nuvio logo" src="/logo-text.webp" width={100}/>
       </a>
 
       <nav class="flex items-center gap-1 text-sm">

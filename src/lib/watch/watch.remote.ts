@@ -109,6 +109,11 @@ export const playbackContext = query(
 			background: meta?.background ?? null,
 			poster: meta?.poster ?? null,
 			logo: meta?.logo ?? null,
+			certification:
+				meta?.certification ??
+				(meta?.behaviorHints?.adult ? "18+" : null) ??
+				null,
+			genres: meta?.genres ?? [],
 			next,
 			resume:
 				progress && progress.duration > 0 && progress.position > 5000
@@ -222,17 +227,37 @@ export const titleProgress = query(
 	},
 );
 
+const SDH_MARKER = /\b(sdh|cc|hi|hearing[- ]impaired)\b|\[cc\]/i;
+
 export const getSubtitles = query(
 	v.object({ type: v.string(), id: v.string() }),
 	async ({ type, id }) => {
 		const { client } = await getAddonClient();
 		const { subtitles } = await client.getSubtitles(type, id);
-		const byLang = new Map<string, { lang: string; url: string }>();
+
+		// Keep every option (one per source), not one per language — the overlay
+		// lets the viewer pick the exact release. Drop only exact URL duplicates.
+		const seen = new Set<string>();
+		const options: Array<{
+			id: string;
+			lang: string;
+			url: string;
+			addonName: string;
+			sdh: boolean;
+		}> = [];
 		for (const subtitle of subtitles) {
-			if (!byLang.has(subtitle.lang)) {
-				byLang.set(subtitle.lang, { lang: subtitle.lang, url: subtitle.url });
+			if (!subtitle.url || seen.has(subtitle.url)) {
+				continue;
 			}
+			seen.add(subtitle.url);
+			options.push({
+				id: `${subtitle.addonId}:${subtitle.id || options.length}`,
+				lang: subtitle.lang,
+				url: subtitle.url,
+				addonName: subtitle.addonName,
+				sdh: SDH_MARKER.test(`${subtitle.lang} ${subtitle.id}`),
+			});
 		}
-		return [...byLang.values()];
+		return options;
 	},
 );

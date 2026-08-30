@@ -181,6 +181,51 @@ export const getStreams = query(
 	},
 );
 
+/**
+ * "More like this" — no catalog / meta provider exposes a real "similar" list, so
+ * approximate it: the biggest catalog of the right type, filtered to a shared
+ * genre, minus the title itself.
+ */
+export const similarTitles = query(
+	v.object({
+		type: v.string(),
+		id: v.string(),
+		genres: v.array(v.string()),
+	}),
+	async ({ type, id, genres }) => {
+		const { client, registry } = await getAddonClient();
+		const candidates = registry
+			.catalogs()
+			.filter(
+				({ catalog }) =>
+					catalog.type === type && !catalog.extraRequired?.length,
+			);
+		if (candidates.length === 0) {
+			return { metas: [] };
+		}
+		const wanted = genres.slice(0, 2);
+		for (const genre of wanted.length > 0 ? wanted : [undefined]) {
+			for (const { addon, catalog } of candidates) {
+				try {
+					const result = await client.getCatalog(
+						{ type: catalog.type, id: catalog.id, genre },
+						addon.manifest.id,
+					);
+					const metas = (result?.metas ?? [])
+						.filter((meta) => meta.id !== id)
+						.slice(0, 20);
+					if (metas.length >= 6) {
+						return { metas };
+					}
+				} catch {
+					// try the next catalog / genre
+				}
+			}
+		}
+		return { metas: [] };
+	},
+);
+
 export const homeRows = query(async () => {
 	const { client, registry } = await getAddonClient();
 	const catalogs = registry

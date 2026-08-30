@@ -68,6 +68,7 @@ export type PendingWrite =
 			queuedAt: number;
 	  }
 	| { kind: "progress.push"; record: ProgressRecord; queuedAt: number }
+	| { kind: "progress.delete"; progressKey: string; queuedAt: number }
 	| { kind: "history.delete"; record: HistoryRecord; queuedAt: number };
 
 export function contentType(value: string): ContentType {

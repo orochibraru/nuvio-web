@@ -6,6 +6,38 @@ const PUBLISHABLE_KEY = "sb_publishable_1Clq8rlTVACkdcZuqr6_AD__xUUC_EN";
 const EMAIL = process.env.NUVIO_TEST_EMAIL;
 const PASSWORD = process.env.NUVIO_TEST_PASSWORD;
 
+type TokenResponse = {
+	access_token: string;
+	refresh_token: string;
+	expires_in: number;
+	user: unknown;
+};
+
+// One password grant per test run, shared by every test — the real auth endpoint
+// rate-limits (429) and a full suite is dozens of `signIn` calls otherwise.
+let tokenPromise: Promise<TokenResponse> | null = null;
+let tokenExpiresAt = 0;
+
+async function getToken(): Promise<TokenResponse> {
+	if (tokenPromise && Date.now() < tokenExpiresAt - 60_000) {
+		return tokenPromise;
+	}
+	tokenPromise = (async () => {
+		const response = await fetch(`${API}/auth/v1/token?grant_type=password`, {
+			method: "POST",
+			headers: { apikey: PUBLISHABLE_KEY, "content-type": "application/json" },
+			body: JSON.stringify({ email: EMAIL, password: PASSWORD }),
+		});
+		if (!response.ok) {
+			throw new Error(`Test account sign-in failed: ${response.status}`);
+		}
+		return (await response.json()) as TokenResponse;
+	})();
+	const data = await tokenPromise;
+	tokenExpiresAt = Date.now() + data.expires_in * 1000;
+	return data;
+}
+
 /** Signs the test account in against the real API and drops the session cookies onto the context. */
 export async function signIn(
 	context: BrowserContext,
@@ -17,20 +49,7 @@ export async function signIn(
 		);
 	}
 
-	const response = await fetch(`${API}/auth/v1/token?grant_type=password`, {
-		method: "POST",
-		headers: { apikey: PUBLISHABLE_KEY, "content-type": "application/json" },
-		body: JSON.stringify({ email: EMAIL, password: PASSWORD }),
-	});
-	if (!response.ok) {
-		throw new Error(`Test account sign-in failed: ${response.status}`);
-	}
-	const data = (await response.json()) as {
-		access_token: string;
-		refresh_token: string;
-		expires_in: number;
-		user: unknown;
-	};
+	const data = await getToken();
 
 	const session = encodeURIComponent(
 		JSON.stringify({

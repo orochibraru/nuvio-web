@@ -6,9 +6,12 @@
 	import PlaybackLoading from "$lib/components/playback-loading.svelte";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import VideoPlayer from "$lib/components/video-player.svelte";
+	import { saveUiSettings } from "$lib/settings/settings.remote";
 	import { theme } from "$lib/settings/theme.svelte";
+	import type { UiSettings } from "$lib/settings/ui-settings.js";
 	import { sync } from "$lib/sync/store.svelte.js";
-	import { playbackHandoff } from "$lib/watch/playback.js";
+	import { playbackHandoff } from "$lib/watch/playback.svelte.js";
+	import { sourcesPanel } from "$lib/watch/sources-panel.svelte.js";
 	import { describeStream, isPlayable } from "$lib/watch/stream-format.js";
 	import { getSubtitles, resolveStreams } from "$lib/watch/watch.remote";
 
@@ -17,10 +20,11 @@
 	const context = $derived(data.context);
 	const type = $derived(page.params.type ?? "movie");
 	const id = $derived(page.params.id ?? "");
-	// Back to the detail page with its stream sidebar open on this video.
-	const sourcesHref = $derived(
-		`/detail/${context.metaType}/${encodeURIComponent(context.contentId)}?v=${encodeURIComponent(id)}`,
-	);
+
+	// The source drawer, shared with /detail through the (watch) layout.
+	function openSources() {
+		sourcesPanel.open(type, id);
+	}
 
 	// The stream picked on /streams; on a cold load, resolve one here.
 	const handed = $derived(playbackHandoff.take(id));
@@ -69,6 +73,12 @@
 			? getSubtitles({ type: context.metaType, id: context.videoId })
 			: undefined,
 	);
+
+	function saveSubtitleAppearance(patch: Partial<UiSettings>) {
+		const next = { ...theme.current, ...patch };
+		theme.preview(next);
+		void saveUiSettings(next);
+	}
 
 	function report(position: number, duration: number) {
 		sync.saveProgress({
@@ -152,10 +162,17 @@
 				subheading={active?.label ?? context.subheading}
 				{startTime}
 				subtitles={subtitlesQuery?.current ?? []}
+				certification={context.certification}
+				genres={context.genres}
+				subtitleSize={theme.current.subtitleSize}
+				subtitleColor={theme.current.subtitleColor}
+				subtitleBackground={theme.current.subtitleBackground}
+				preferredLanguage={theme.current.subtitleLanguage}
 				onProgress={report}
 				onEnded={startUpNext}
 				onBack={() => history.back()}
-				onSources={() => goto(sourcesHref)}
+				onSources={openSources}
+				onSubtitleAppearance={saveSubtitleAppearance}
 			/>
 		{/key}
 
@@ -201,6 +218,8 @@
 			backdrop={context.background ?? context.poster}
 			logo={context.logo}
 			title={context.heading}
+			certification={context.certification}
+			genres={context.genres}
 			label="Finding a stream…"
 		/>
 	{:else}
@@ -214,7 +233,7 @@
 					: "None of your addons returned a stream that plays here."}
 			</p>
 			<div class="flex flex-wrap items-center justify-center gap-2">
-				<Button onclick={() => goto(sourcesHref)}>Choose a source</Button>
+				<Button onclick={openSources}>Choose a source</Button>
 				{#if active?.externalUrl}
 					<Button
 						variant="secondary"

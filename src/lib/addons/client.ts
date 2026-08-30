@@ -20,6 +20,11 @@ export interface StreamWithSource extends Stream {
 	addonName: string;
 }
 
+export interface SubtitleWithSource extends Subtitle {
+	addonId: string;
+	addonName: string;
+}
+
 function buildResourceUrl(
 	baseUrl: string,
 	resource: AddonResourceName,
@@ -61,9 +66,17 @@ function normalizePreview(raw: MetaPreview): MetaPreview {
 
 /** Cinemeta names the episode field `name`; the SDK spec calls it `title`. Accept both. */
 function normalizeVideo(
-	raw: MetaVideo & { name?: string; number?: number; description?: string },
+	raw: MetaVideo & {
+		name?: string;
+		number?: number;
+		description?: string;
+		firstAired?: string;
+		imdbRating?: string | number;
+	},
 ): MetaVideo {
 	const episode = raw.episode ?? raw.number;
+	const rating =
+		raw.rating ?? (raw.imdbRating != null ? String(raw.imdbRating) : undefined);
 	return {
 		...raw,
 		title:
@@ -72,6 +85,8 @@ function normalizeVideo(
 			(episode != null ? `Episode ${episode}` : "Episode"),
 		episode,
 		overview: raw.overview || raw.description,
+		released: raw.released || raw.firstAired,
+		rating: rating && rating !== "0" ? rating : undefined,
 	};
 }
 
@@ -195,13 +210,19 @@ export class AddonClient {
 		type: string,
 		id: string,
 		extra?: ResourceExtra,
-	): Promise<{ subtitles: Subtitle[]; errors: AddonError[] }> {
+	): Promise<{ subtitles: SubtitleWithSource[]; errors: AddonError[] }> {
 		const { items, errors } = await this.fanOut(
 			"subtitles",
 			type,
 			id,
-			(_addon, data) =>
-				asArray<Subtitle>((data as { subtitles?: unknown })?.subtitles),
+			(addon, data) =>
+				asArray<Subtitle>((data as { subtitles?: unknown })?.subtitles).map(
+					(subtitle) => ({
+						...subtitle,
+						addonId: addon.manifest.id,
+						addonName: addon.manifest.name,
+					}),
+				),
 			extra,
 		);
 		return { subtitles: items, errors };

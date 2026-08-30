@@ -25,22 +25,50 @@ test("detail source sidebar: opens, resolves async, refreshes, closes", async ({
 	// tt1375666 (Inception) — no watch progress, so the play button is "Watch".
 	await page.goto("/detail/movie/tt1375666");
 	await page.waitForLoadState("networkidle");
+
+	const url = page.url();
 	await page.getByRole("button", { name: "Watch", exact: true }).click();
 
 	const panel = page.getByRole("complementary");
-	await expect(panel.getByText("Sources")).toBeVisible();
+	await expect(panel.getByText("Sources").first()).toBeVisible();
 	await expect(panel.getByRole("button", { name: "Refresh" })).toBeVisible();
+	// The drawer is module state, not a URL param — opening it must not navigate.
+	expect(page.url()).toBe(url);
 
 	// Test account has only Cinemeta (no stream addon) → resolves to empty.
+	// The addon fan-out can be slow under a cold cache, so give it room.
 	await expect(panel.getByText("No streams yet")).toBeVisible({
-		timeout: 15_000,
+		timeout: 30_000,
 	});
 	await panel.getByRole("button", { name: "Refresh" }).click();
 	await expect(panel.getByText("No streams yet")).toBeVisible();
 
 	await page.keyboard.press("Escape");
 	await expect(panel).toBeHidden();
-	expect(new URL(page.url()).searchParams.has("v")).toBe(false);
+	expect(page.url()).toBe(url);
+
+	expect(errors).toEqual([]);
+});
+
+test("detail: mark a movie watched, then unwatch", async ({
+	page,
+	context,
+}) => {
+	await signIn(context);
+	const errors = collectRuntimeErrors(page);
+
+	await page.goto("/detail/movie/tt1375666");
+	await page.waitForLoadState("networkidle");
+
+	const mark = page.getByRole("button", { name: /Mark watched|Watched/ });
+	if ((await mark.textContent())?.includes("Watched")) {
+		await mark.click();
+		await expect(mark).toHaveText(/Mark watched/, { timeout: 10_000 });
+	}
+	await mark.click();
+	await expect(mark).toHaveText(/Watched/, { timeout: 10_000 });
+	await mark.click();
+	await expect(mark).toHaveText(/Mark watched/, { timeout: 10_000 });
 
 	expect(errors).toEqual([]);
 });

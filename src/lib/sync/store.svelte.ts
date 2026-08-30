@@ -264,6 +264,12 @@ class SyncStore {
 			prog.records,
 			this.#pendingProgress(),
 		);
+		// Honour still-pending "mark unwatched" deletes over a stale delta.
+		for (const write of this.#queue) {
+			if (write.kind === "progress.delete") {
+				this.#progress.delete(write.progressKey);
+			}
+		}
 		this.#history = hist.records;
 		this.#cursors = {
 			library: lib.cursor,
@@ -346,6 +352,52 @@ class SyncStore {
 		};
 		this.#progress.set(progressKey, record);
 		this.#enqueue({ kind: "progress.push", record, queuedAt: Date.now() });
+		this.mutated = true;
+		this.#publish();
+		void this.#persist("progress");
+		this.#scheduleFlush();
+	}
+
+	/** Mark a title/episode as fully watched without playing it. */
+	markWatched(input: {
+		contentId: string;
+		contentType: ContentType;
+		videoId: string;
+		season: number | null;
+		episode: number | null;
+		durationMs: number;
+	}): void {
+		const duration = Math.max(input.durationMs, 60_000);
+		this.saveProgress({
+			contentId: input.contentId,
+			contentType: input.contentType,
+			videoId: input.videoId,
+			season: input.season,
+			episode: input.episode,
+			position: duration,
+			duration,
+		});
+	}
+
+	/** Drop a watch-progress row (e.g. "mark unwatched"). */
+	clearProgress(input: {
+		contentId: string;
+		season: number | null;
+		episode: number | null;
+	}): void {
+		const progressKey =
+			input.season != null && input.episode != null
+				? `${input.contentId}_s${input.season}e${input.episode}`
+				: input.contentId;
+		if (!this.#progress.has(progressKey)) {
+			return;
+		}
+		this.#progress.delete(progressKey);
+		this.#enqueue({
+			kind: "progress.delete",
+			progressKey,
+			queuedAt: Date.now(),
+		});
 		this.mutated = true;
 		this.#publish();
 		void this.#persist("progress");
@@ -482,6 +534,9 @@ class SyncStore {
 							last_watched: record.lastWatched,
 						};
 					}),
+				progressDeletes: batch
+					.filter((write) => write.kind === "progress.delete")
+					.map((write) => (write as { progressKey: string }).progressKey),
 				historyDeletes: batch
 					.filter((write) => write.kind === "history.delete")
 					.map((write) => {
@@ -565,14 +620,26 @@ function libraryTarget(
 	return null;
 }
 
+function progressKeyOf(write: PendingWrite): string | null {
+	if (write.kind === "progress.push") {
+		return write.record.progressKey;
+	}
+	if (write.kind === "progress.delete") {
+		return write.progressKey;
+	}
+	return null;
+}
+
 function sameTarget(a: PendingWrite, b: PendingWrite): boolean {
 	const al = libraryTarget(a);
 	const bl = libraryTarget(b);
 	if (al && bl) {
 		return al.contentId === bl.contentId && al.contentType === bl.contentType;
 	}
-	if (a.kind === "progress.push" && b.kind === "progress.push") {
-		return a.record.progressKey === b.record.progressKey;
+	const ap = progressKeyOf(a);
+	const bp = progressKeyOf(b);
+	if (ap && bp) {
+		return ap === bp;
 	}
 	if (a.kind === "history.delete" && b.kind === "history.delete") {
 		return a.record.id === b.record.id;

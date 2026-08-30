@@ -192,12 +192,89 @@ Primitives in `src/lib/components/` (`media-poster`, `media-grid`, `media-row`,
 - [x] `StreamList` — lazy `getStreams`, per-stream Play/Open link (opens
       `url`/`externalUrl` in a tab until Phase 6 player), `not web-ready`
       flagged, addon badge. Grouping/sort/remember-choice deferred
-- [ ] A fuller details page for every media.
+- [x] A fuller details page for every media:
+  - [x] **Cast** section — names (photos need a TMDB addon; Cinemeta is
+        names-only). Chips / row.
+  - [x] **Trailers** — `meta.trailerStreams` (`{title, ytId}`), thumbnail cards
+        → `trailer-modal.svelte` with a `youtube-nocookie.com/embed/<ytId>`
+        iframe.
+  - [x] Expanded facts — country, awards, released date, writer(s), full genre
+        list.
+  - [x] **"More like this"** row — no true "similar" endpoint anywhere
+        (Cinemeta/Nuvio-API). MVP: `similarTitles` remote query = browse the
+        primary catalog filtered by the title's top genre, drop the current id.
+  - [x] **Series episodes → accordion per season.** `episode-accordion.svelte`:
+        one collapsible section per season; inside, episode cards laid out 16:9
+        with number, title, synopsis, rating (`MetaVideo.rating`, normalised
+        from Cinemeta's `rating`/`imdbRating`), release date
+        (`released`/`firstAired`), length (per-episode runtime rarely in data →
+        falls back to series `runtime`). Keeps the resume bar / watched tick /
+        mark-watched toggle.
 - [ ] Make the UI sexier, colorfoul, playful. We need to WANT to use it not just
       have to (background blurs, color accents, custom backgrounds)
 - [ ] Home layout editor (in Settings) → Phase 7
 - [ ] Hero banner on home; continue-watching row; watched/resume indicators →
       after Phase 2
+- [x] The streams drawer shouldn't be url based it has a big impact on UX when
+      trying to navigate to the previous page. → now `sources-panel.svelte.ts`
+      module state, owned by the `(watch)` layout. Opening / closing it never
+      touches history; back leaves the page.
+- [ ] The home hero should be a carousel that's auto-scrolling and allows the
+      user to see next featured media
+- [ ] Continue watching cards should show how much time is remaining
+- [ ] Each time we display a rating, show where it comes from (IMDB, TVDB?)
+- [ ] Create a svelte store called "title". In the Main layout add a <title>
+      field with in it `Nuvio - ${title}`. This title store will be updated on
+      an `onMount` method in each page.
+
+## Phase 6b — Player UX overhaul
+
+The player controls are weak and the source picker requires leaving the player.
+
+- [x] **Source switch from the player.** `(watch)` route group `+layout.svelte`
+      wraps both `/detail` and `/player` (URLs unchanged), owns the drawer via
+      `sources-panel.svelte.ts` module state (not the URL — opening it doesn't
+      push history) and the `<StreamPanel>` mount. `stream-panel.svelte` fetches
+      its own `playbackContext`; `playback.ts` → `playback.svelte.ts` so the
+      picked stream is `$state`. `resolveStreams` is client-cached by args so
+      moving detail ↔ player doesn't re-resolve.
+- [x] **Better controls** — redesigned `video-player.svelte`: large centre
+      transport cluster (±10s skip flanking a big play/pause, replay icon when
+      ended), thicker scrubber that grows on hover with a time-preview tooltip +
+      buffered range, always-visible volume slider, size-9 hit targets, a clean
+      rate / PiP / fullscreen / captions cluster. Auto-hide + all shortcuts
+      kept.
+- [x] **Subtitle overlay** — a dedicated in-player panel (captions button, not
+      the settings cog): "Off" + every option with language name
+      (`Intl.     DisplayNames`), source addon and an SDH badge. `getSubtitles`
+      now returns `{ id, lang, url, addonName, sdh }` (one row per source,
+      exact-URL dedupe only); `client.getSubtitles` carries `addonName` via
+      `SubtitleWithSource`. Appearance controls (size / colour / plate) live
+      alongside and persist through `onSubtitleAppearance` → `saveUiSettings`.
+- [x] **Content-warning card** on stream load — `playback-loading.svelte` shows
+      the certification (`playbackContext.certification`: `meta.certification`
+      when an addon supplies one, else `18+` for `behaviorHints.adult`; Cinemeta
+      gives neither) big for ~3.2s, plus genre descriptors, with a soft fade.
+      Falls back to just genres when there's no rating.
+
+## Phase 5c — Alternative sync backends (Trakt / SIMKL)
+
+Nuvio (mobile) lets you pick the **library source** and the **watch-progress
+source** independently from: Nuvio Sync (default), Trakt, or SIMKL. **The Nuvio
+public API does NOT proxy Trakt/SIMKL** — the mobile app talks to them directly.
+So this is a real integration, not a setting:
+
+- [x] Settings scaffold — a "Sync" card in `/settings` with two segmented
+      selectors ("Library from" / "Watch progress from"), stored in
+      `uiSettingsSchema` (`librarySource`, `progressSource`; `SYNC_SOURCES`,
+      default `"nuvio"`). Trakt / SIMKL options render disabled until the
+      integration lands. The store doesn't branch on these yet.
+- [ ] Trakt: OAuth (device or redirect) → token in an httpOnly cookie / settings
+      blob → `$lib/trakt/` client for `sync/history`, `sync/watched`,
+      `sync/collection`, `scrobble`. Map to the local store's shapes.
+- [ ] SIMKL: same shape, SIMKL API.
+- [ ] `$lib/sync/store.svelte.ts` reads/writes through whichever backend each
+      domain is set to (Nuvio stays the fallback + the cross-device mirror).
 
 ## Phase 5 — Library, collections, history
 
@@ -232,23 +309,25 @@ sessionStorage-backed stream handoff, sidebar→player), `stream-panel.svelte`
 (the source sidebar).
 
 **Flow (mirrors the Nuvio apps):** `/detail` → **"Watch" / episode opens a
-right-hand source sidebar** (`?v=<videoId>`, `stream-panel.svelte`): SSR page
-stays put, the list fans out client-side (`resolveStreams.current`, skeleton +
-"Refresh"), filterable by addon and by quality → pick → `/player/[type]/[id]`
-(whole-page surface: `(app)/+layout` drops all chrome when the path starts
-`/player/`; "Sources" jumps back to `/detail?v=`). Continue-watching tiles jump
+right-hand source drawer** (`sources-panel.svelte.ts` module state, owned by the
+`(watch)` layout — shared with `/player`, no URL param): SSR page stays put, the
+list fans out client-side (`resolveStreams.current`, skeleton + "Refresh"),
+filterable by addon and by quality → pick → `/player/[type]/[id]` (whole-page
+surface: `(app)/+layout` drops all chrome when the path starts `/player/`;
+"Sources" reopens the same drawer in place). Continue-watching tiles jump
 straight to `/player/*`.
 
 - [x] `VideoPlayer` — `hls.js` for `.m3u8`, native `<video>` (autoplay)
       otherwise; `fill` prop for the full-page player; `onSources` button;
       `object-contain`; a `loading` state (`waiting` / `canplay` / `playing`)
       shows `playback-loading.svelte` — 16:9 backdrop + softly-pulsing logo
-- [x] Source sidebar (`stream-panel.svelte`) — opens on `?v=`, scrim + Esc to
-      close, async list with skeleton + "Refresh", addon + quality filter chips,
-      per-row addon attribution / quality / size, pick → handoff + `/player`
+- [x] Source drawer (`stream-panel.svelte`) — opens from `sourcesPanel` state,
+      scrim + Esc to close, async list with skeleton + "Refresh", addon +
+      quality filter chips, per-row addon attribution / quality / size, pick →
+      handoff + `/player`
 - [x] `/player/[type]/[id]` — reads the handoff (or cold-resolves + auto-picks
       the first playable), `playback-loading` while resolving, resume prompt,
-      up-next autoplay, `onSources` → `/detail?v=`
+      up-next autoplay, `onSources` reopens the drawer in place
 - [x] Custom controls: play/pause, seek bar with buffered range, time, volume,
       playback rate, PiP, fullscreen, captions toggle + menu; auto-hide;
       keyboard (space/k, ←→/jl, ↑↓, f, m, c)
@@ -259,8 +338,16 @@ straight to `/player/*`.
       proxy (SRT→WebVTT, auth-gated)
 - [x] Next-episode autoplay + "up next" card — `playbackContext.next`;
       end-of-episode overlay with a 10s countdown (gated on `autoPlayNext`)
-- [ ] Subtitle size/colour/offset controls; audio-track selection; "mark
-      watched" button
+- [x] "Mark watched" — `sync.markWatched` (synthetic 100% progress row using the
+      parsed `runtime`, `$lib/watch/runtime.ts`) + `sync.clearProgress` (new
+      `progress.delete` queue kind → `watchProgress.deleteMany`). Toggle on each
+      detail episode row and a movie CTA button
+- [ ] Subtitle offset control; audio-track selection
+- [ ] Episode control. From the player we need a button to show all episodes in
+      the season as well as a season switcher so we can switch episodes without
+      leaving the player. We also need a next episode button as well as "skip
+      intro" and "skip outro" buttons which are a big hit in the nuvio
+      community.
 
 ## Phase 7 — Settings
 
@@ -281,7 +368,7 @@ non-remote exports there), `settings.remote.ts`
       (`autoPlayNext` in `uiSettingsSchema`, defaults on)
 - [ ] Player defaults: quality, subtitle language, subtitle appearance
 - [ ] Home layout editor (Phase 4 rows) → needs `client.homeCatalog`
-- [ ] Addon shortcut card into `/addons`
+- [ ] Addon shortcut card into `/addons`$
 
 ## Phase 8 — Account, polish, hardening
 
@@ -311,12 +398,12 @@ non-remote exports there), `settings.remote.ts`
   still open
 - [ ] Perf: route-level code splitting, virtualized grids for large libraries,
       prefetch on hover
-- [~] Tests: **Playwright smoke suite in `e2e/`** (`bun run test:e2e`, own dev
-  server on :4173, real API via `NUVIO_TEST_*` in `.env`) — every route
-  renders + client-nav + detail library toggle, all asserting no runtime errors.
-  **Vitest** (`bun run test:unit`) covers `src/lib/sync/reconcile.ts`. Still to
-  add: Vitest for the addon registry. **Run `bun run test:e2e` after any UI
-  change** (also in CLAUDE.md)
+- [~] Tests: **Playwright smoke suite in `e2e/`** (`bun run test:e2e`, reuses
+  the running `bun run dev` on :5173, real API via `NUVIO_TEST_*` in `.env`) —
+  every route renders + client-nav + detail library toggle, all asserting no
+  runtime errors. **Vitest** (`bun run test:unit`) covers
+  `src/lib/sync/reconcile.ts`. Still to add: Vitest for the addon registry.
+  **Run `bun run test:e2e` after any UI change** (also in CLAUDE.md)
 - [ ] Rate-limit safety: keep per-user request rate well under 100 req/s; batch
       via RPC
 - [x] Small-screen gate: `small-screen-notice.svelte` in the root layout,
