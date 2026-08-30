@@ -4,7 +4,10 @@
 	import Trash2Icon from "@lucide/svelte/icons/trash-2";
 	import TvIcon from "@lucide/svelte/icons/tv";
 	import EmptyState from "$lib/components/empty-state.svelte";
+	import { pageTitle } from "$lib/stores/title.svelte.js";
 	import { sync } from "$lib/sync/store.svelte.js";
+
+	pageTitle.set("Watch history");
 
 	let { data } = $props();
 

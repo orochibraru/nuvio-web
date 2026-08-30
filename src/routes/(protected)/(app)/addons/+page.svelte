@@ -20,6 +20,9 @@
 	import { Input } from "$lib/components/ui/input/index.js";
 	import { Spinner } from "$lib/components/ui/spinner/index.js";
 	import { Switch } from "$lib/components/ui/switch/index.js";
+	import { pageTitle } from "$lib/stores/title.svelte.js";
+
+	pageTitle.set("Addons");
 
 	type Row = { url: string; name: string; enabled: boolean };
 

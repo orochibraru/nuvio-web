@@ -28,8 +28,13 @@ for (const route of routes) {
 
 		const response = await page.goto(route);
 		expect(response?.status(), `HTTP status for ${route}`).toBeLessThan(400);
-		await page.waitForLoadState("networkidle");
+		// A playing <video> keeps the network busy — bound the idle wait.
+		await page
+			.waitForLoadState("networkidle", { timeout: 8000 })
+			.catch(() => {});
 		await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+		// Give late / async errors a beat to surface before we assert.
+		await page.waitForTimeout(1000);
 
 		expect(errors, `runtime errors on ${route}`).toEqual([]);
 	});
@@ -41,6 +46,8 @@ test("client-side navigation through the whole shell", async ({ page }) => {
 	await page.goto("/");
 	await page.waitForLoadState("networkidle");
 
+	await expect(page).toHaveTitle("Nuvio");
+
 	for (const label of ["Discover", "Library", "Collections"]) {
 		await page
 			.getByRole("navigation")
@@ -48,6 +55,7 @@ test("client-side navigation through the whole shell", async ({ page }) => {
 			.click();
 		await page.waitForLoadState("networkidle");
 		await expect(page.getByRole("heading", { name: label })).toBeVisible();
+		await expect(page).toHaveTitle(`Nuvio · ${label}`);
 	}
 
 	await page.getByRole("button", { name: "Profile menu" }).click();
@@ -56,6 +64,7 @@ test("client-side navigation through the whole shell", async ({ page }) => {
 	await expect(
 		page.getByRole("heading", { name: "Watch history" }),
 	).toBeVisible();
+	await expect(page).toHaveTitle("Nuvio · Watch history");
 
 	expect(errors, "runtime errors during client navigation").toEqual([]);
 });

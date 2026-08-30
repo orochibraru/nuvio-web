@@ -5,12 +5,16 @@
 	import { searchCatalogs } from "$lib/addons/addons.remote";
 	import MediaGrid from "$lib/components/media-grid.svelte";
 	import { Input } from "$lib/components/ui/input/index.js";
+	import { pageTitle } from "$lib/stores/title.svelte.js";
 
 	const term = $derived((page.url.searchParams.get("q") ?? "").trim());
 
 	let input = $state("");
 	$effect(() => {
 		input = term;
+	});
+	$effect(() => {
+		pageTitle.set(term ? `Search: ${term}` : "Search");
 	});
 
 	const results = $derived(term ? searchCatalogs(term) : undefined);

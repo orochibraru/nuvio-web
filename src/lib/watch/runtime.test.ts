@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseRuntimeMs } from "./runtime.js";
+import { formatRemaining, parseRuntimeMs } from "./runtime.js";
 
 describe("parseRuntimeMs", () => {
 	const min = (n: number) => n * 60_000;
@@ -24,5 +24,24 @@ describe("parseRuntimeMs", () => {
 		expect(parseRuntimeMs(null)).toBe(min(45));
 		expect(parseRuntimeMs("")).toBe(min(45));
 		expect(parseRuntimeMs("unknown")).toBe(min(45));
+	});
+});
+
+describe("formatRemaining", () => {
+	const min = (n: number) => n * 60_000;
+
+	it("shows minutes under an hour", () => {
+		expect(formatRemaining(min(3))).toBe("3 min left");
+		expect(formatRemaining(min(59))).toBe("59 min left");
+	});
+
+	it("shows hours and minutes past an hour", () => {
+		expect(formatRemaining(min(60))).toBe("1 h left");
+		expect(formatRemaining(min(72))).toBe("1 h 12 min left");
+	});
+
+	it("collapses the last stretch to 'Almost done'", () => {
+		expect(formatRemaining(20_000)).toBe("Almost done");
+		expect(formatRemaining(0)).toBe("Almost done");
 	});
 });

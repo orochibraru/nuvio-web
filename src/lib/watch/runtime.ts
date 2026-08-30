@@ -18,3 +18,17 @@ export function parseRuntimeMs(runtime: string | null | undefined): number {
 	const bare = runtime.match(/(\d+)/);
 	return bare ? Number(bare[1]) * 60_000 : fallback;
 }
+
+/** Human "time left" for a resume row: "3 min left", "1 h 12 min left". */
+export function formatRemaining(ms: number): string {
+	const totalMinutes = Math.round(ms / 60_000);
+	if (totalMinutes < 1) {
+		return "Almost done";
+	}
+	if (totalMinutes < 60) {
+		return `${totalMinutes} min left`;
+	}
+	const hours = Math.floor(totalMinutes / 60);
+	const minutes = totalMinutes % 60;
+	return minutes === 0 ? `${hours} h left` : `${hours} h ${minutes} min left`;
+}

@@ -4,8 +4,11 @@
 	import EmptyState from "$lib/components/empty-state.svelte";
 	import MediaPoster from "$lib/components/media-poster.svelte";
 	import { Button } from "$lib/components/ui/button/index.js";
+	import { pageTitle } from "$lib/stores/title.svelte.js";
 	import { sync } from "$lib/sync/store.svelte.js";
 	import { cn } from "$lib/utils.js";
+
+	pageTitle.set("Library");
 
 	let { data } = $props();
 

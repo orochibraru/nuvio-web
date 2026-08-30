@@ -13,7 +13,10 @@
 	import * as DropdownMenu from "$lib/components/ui/dropdown-menu/index.js";
 	import { Input } from "$lib/components/ui/input/index.js";
 	import type { Collection } from "$lib/nuvio/index.js";
+	import { pageTitle } from "$lib/stores/title.svelte.js";
 	import { cn } from "$lib/utils.js";
+
+	pageTitle.set("Collections");
 
 	let { data } = $props();
 

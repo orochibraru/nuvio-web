@@ -158,9 +158,15 @@
 									</p>
 									<div class="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
 										{#if episode.rating}
-											<span class="flex items-center gap-0.5 text-foreground/80">
+											<span
+												class="flex items-center gap-0.5 text-foreground/80"
+												title="IMDb rating"
+											>
 												<StarIcon class="size-3 fill-amber-400 text-amber-400" />
 												{episode.rating}
+												<span class="ml-0.5 text-[10px] font-semibold tracking-wide text-muted-foreground">
+													IMDb
+												</span>
 											</span>
 										{/if}
 										{#if date}<span>{date}</span>{/if}

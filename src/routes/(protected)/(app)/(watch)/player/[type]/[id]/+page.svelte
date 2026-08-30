@@ -9,6 +9,7 @@
 	import { saveUiSettings } from "$lib/settings/settings.remote";
 	import { theme } from "$lib/settings/theme.svelte";
 	import type { UiSettings } from "$lib/settings/ui-settings.js";
+	import { pageTitle } from "$lib/stores/title.svelte.js";
 	import { sync } from "$lib/sync/store.svelte.js";
 	import { playbackHandoff } from "$lib/watch/playback.svelte.js";
 	import { sourcesPanel } from "$lib/watch/sources-panel.svelte.js";
@@ -20,6 +21,10 @@
 	const context = $derived(data.context);
 	const type = $derived(page.params.type ?? "movie");
 	const id = $derived(page.params.id ?? "");
+
+	$effect(() => {
+		pageTitle.set(context.heading);
+	});
 
 	// The source drawer, shared with /detail through the (watch) layout.
 	function openSources() {
@@ -137,8 +142,6 @@
 		return cancelUpNext;
 	});
 </script>
-
-<svelte:head><title>{context.heading} · Nuvio</title></svelte:head>
 
 <div class="fixed inset-0 z-40 flex items-center justify-center bg-black text-white">
 	<h1 class="sr-only">{context.heading}</h1>

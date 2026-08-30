@@ -221,11 +221,25 @@ Primitives in `src/lib/components/` (`media-poster`, `media-grid`, `media-row`,
       touches history; back leaves the page.
 - [ ] The home hero should be a carousel that's auto-scrolling and allows the
       user to see next featured media
-- [ ] Continue watching cards should show how much time is remaining
-- [ ] Each time we display a rating, show where it comes from (IMDB, TVDB?)
-- [ ] Create a svelte store called "title". In the Main layout add a <title>
-      field with in it `Nuvio - ${title}`. This title store will be updated on
-      an `onMount` method in each page.
+- [x] Continue watching cards should show how much time is remaining →
+      `continueWatching` returns `remainingMs`; the home card shows
+      `formatRemaining()` ("23 min left" / "1 h 12 min left" / "Almost done",
+      unit-tested in `runtime.test.ts`).
+- [x] Each time we display a rating, show where it comes from (IMDB, TVDB?) →
+      every rating we render is Cinemeta's `imdbRating` (or `MetaVideo.rating`,
+      normalised from it), so it's labelled **IMDb**: an inline "IMDb" tag on
+      the `media-hero` and `episode-accordion` ratings, `title="IMDb rating"` on
+      the compact `media-poster` badge. If an addon ever gives a real source
+      field, revisit.
+- [x] Create a svelte store called "title". `pageTitle` in
+      `$lib/stores/title.svelte.ts` — `Nuvio · ${segment}` (plain `Nuvio` when
+      unset). Root layout renders it into `<svelte:head>` and mirrors it to
+      `document.title` in an `$effect` (a view transition can swallow the head
+      update). Each page sets its segment at script top (static) or in an
+      `$effect` (data-driven: detail = `meta.name`, player = `context.heading`,
+      collection = folder title, search = the query). Client-only so the module
+      singleton can't leak one request's title into another during SSR;
+      `beforeNavigate` clears it between pages.
 
 ## Phase 6b — Player UX overhaul
 
@@ -409,8 +423,25 @@ non-remote exports there), `settings.remote.ts`
 - [x] Small-screen gate: `small-screen-notice.svelte` in the root layout,
       `md:hidden` full-screen overlay pointing phone/tablet users at the mobile
       app
+- [ ] EDIT on the above! Actually let's make the app mobile friendly but display
+      a dismissable banner on the bottom to tell the users the nuvio app is
+      better. Use the branding logos as well in either lib/assets or the static
+      directory.
+- [ ] Brand the auth pages with logo, theming, dark mode by default etc..
+- [ ] Add fallback images for posters and/or backgrounds if they don't exist
+      (catch 404 behaviour on assets). They need to be pretty to be coherent
+      with the rest of the app
 
 ---
+
+## CI/CD
+
+- [ ] Create a Strict TS Lint, check & formatting pipeline w/ md formatting &
+      tailwint. Add test jobs for both unit, integration & e2e.
+- [ ] Create a periodic nuvio API sync job that ensures consistency with the
+      app, alert on sync errors / breaking changes
+- [ ] Create a release mechanism (release-please from Google) which screenshots
+      the app to update the readme and releases the docker image.
 
 ## Open decisions
 

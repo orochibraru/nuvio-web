@@ -5,6 +5,7 @@
 	import MediaHero from "$lib/components/media-hero.svelte";
 	import MediaRow from "$lib/components/media-row.svelte";
 	import { Button } from "$lib/components/ui/button/index.js";
+	import { formatRemaining } from "$lib/watch/runtime.js";
 
 	let { data } = $props();
 
@@ -91,9 +92,12 @@
 						<div class="absolute inset-x-0 bottom-0 flex flex-col gap-2 p-3">
 							<div class="min-w-0">
 								<p class="truncate text-sm font-semibold text-white">{item.name}</p>
-								{#if item.season != null && item.episode != null}
-									<p class="text-xs text-white/70">S{item.season} · E{item.episode}</p>
-								{/if}
+								<p class="text-xs text-white/70">
+									{#if item.season != null && item.episode != null}
+										S{item.season} · E{item.episode} ·
+									{/if}
+									{formatRemaining(item.remainingMs)}
+								</p>
 							</div>
 							<div class="h-1 overflow-hidden rounded-full bg-white/25">
 								<div class="h-full rounded-full bg-primary" style={`width: ${item.progress * 100}%`}></div>

@@ -8,7 +8,10 @@
 	import { saveUiSettings } from "$lib/settings/settings.remote";
 	import { theme } from "$lib/settings/theme.svelte";
 	import type { Accent, UiSettings } from "$lib/settings/ui-settings.js";
+	import { pageTitle } from "$lib/stores/title.svelte.js";
 	import { cn } from "$lib/utils.js";
+
+	pageTitle.set("Settings");
 
 	const modes: Array<{ value: UiSettings["mode"]; label: string }> = [
 		{ value: "system", label: "System" },

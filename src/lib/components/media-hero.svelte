@@ -112,9 +112,10 @@
           class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-medium text-foreground/70"
         >
           {#if rating}
-            <span class="flex items-center gap-1 text-foreground">
+            <span class="flex items-center gap-1 text-foreground" title="IMDb rating">
               <StarIcon class="size-3.5 fill-amber-400 text-amber-400" />
               {rating}
+              <span class="text-[10px] font-semibold tracking-wide text-foreground/45">IMDb</span>
             </span>
           {/if}
           {#if year}<span>{year}</span>{/if}

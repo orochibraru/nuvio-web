@@ -7,9 +7,12 @@
 	import * as Dialog from "$lib/components/ui/dialog/index.js";
 	import { Spinner } from "$lib/components/ui/spinner/index.js";
 	import { NUVIO_WEBSITE_URL } from "$lib/nuvio/index.js";
+	import { pageTitle } from "$lib/stores/title.svelte.js";
 	import { sync } from "$lib/sync/store.svelte.js";
 	import { signOut } from "../../../auth/auth.remote";
 	import { deleteProfileData } from "./account.remote";
+
+	pageTitle.set("Account");
 
 	let { data } = $props();
 

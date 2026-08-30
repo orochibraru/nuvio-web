@@ -27,6 +27,19 @@ screen or a flow. Needs `NUVIO_TEST_EMAIL` / `NUVIO_TEST_PASSWORD` in `.env`
 (`reuseExistingServer`), only starting one if nothing's listening — never kill
 the dev server to run tests.
 
+**Zero console errors.** Every spec that loads a page uses
+`collectRuntimeErrors` (`e2e/errors.ts`) and asserts `errors` is empty — an
+uncaught exception or a genuine `console.error` fails the test. Don't relax this
+by widening the `IGNORE` list; fix the error. The only pre-approved ignores are
+third-party asset 404s (posters, favicons, `net::ERR_`). A page with a playing
+`<video>` never reaches `networkidle`, so bound that wait
+(`waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {})`) and give
+async errors a `waitForTimeout` beat before asserting.
+
+The e2e run shares **one** auth token across all specs (`e2e/auth.ts` memoises
+the password grant) — the real `api.nuvio.tv` rate-limits (429). Don't re-run
+the full suite gratuitously; run the specific spec you touched.
+
 `bun run test:unit` (Vitest, node env, `src/**/*.test.ts`) covers
 framework-agnostic logic — currently `src/lib/sync/reconcile.ts`. Keep the sync
 reconcile pure and tested.

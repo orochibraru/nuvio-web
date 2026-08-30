@@ -83,6 +83,7 @@
 
 		{#if rating}
 			<div
+				title="IMDb rating"
 				class="absolute top-2 left-2 flex items-center gap-1 rounded-md bg-black/55 px-1.5 py-0.5 text-xs font-semibold text-white ring-1 ring-white/10 backdrop-blur-md"
 			>
 				<StarIcon class="size-3 fill-amber-400 text-amber-400" />

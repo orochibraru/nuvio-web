@@ -7,7 +7,10 @@
 	import EmptyState from "$lib/components/empty-state.svelte";
 	import MediaGrid from "$lib/components/media-grid.svelte";
 	import { Button } from "$lib/components/ui/button/index.js";
+	import { pageTitle } from "$lib/stores/title.svelte.js";
 	import { cn } from "$lib/utils.js";
+
+	pageTitle.set("Discover");
 
 	let { data } = $props();
 

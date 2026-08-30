@@ -1,7 +1,7 @@
 # Nuvio Web
 
-Unofficial implementation of the Nuvio API in a web UI (since there is none,
-yet).
+Unofficial implementation of the [Nuvio](https://nuvio.tv/) API in a web UI
+(since there is none, yet).
 
 ## Getting Started
 

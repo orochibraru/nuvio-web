@@ -15,6 +15,7 @@
 	import TrailerModal from "$lib/components/trailer-modal.svelte";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { libraryIds } from "$lib/library/library.remote";
+	import { pageTitle } from "$lib/stores/title.svelte.js";
 	import { sync } from "$lib/sync/store.svelte.js";
 	import { cn } from "$lib/utils.js";
 	import { parseRuntimeMs } from "$lib/watch/runtime.js";
@@ -38,6 +39,10 @@
 	);
 
 	const meta = $derived(metaQuery.current?.meta);
+	$effect(() => {
+		pageTitle.set(meta?.name);
+	});
+
 	const inLibrary = $derived(
 		sync.authoritative
 			? sync.isInLibrary(contentType, id)

@@ -195,6 +195,7 @@ export const continueWatching = query(async () => {
 				season: row.season,
 				episode: row.episode,
 				progress: row.position / row.duration,
+				remainingMs: Math.max(0, row.duration - row.position),
 			};
 		}),
 	);

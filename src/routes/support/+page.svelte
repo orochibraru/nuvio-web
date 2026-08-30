@@ -4,7 +4,10 @@
 	import { Button } from "$lib/components/ui/button/index.js";
 	import type { SupporterMember } from "$lib/nuvio/index.js";
 	import { NUVIO_WEBSITE_URL } from "$lib/nuvio/index.js";
+	import { pageTitle } from "$lib/stores/title.svelte.js";
 	import { supporterWall } from "./support.remote";
+
+	pageTitle.set("Supporters");
 
 	let { data } = $props();
 
@@ -59,8 +62,6 @@
 		}
 	}
 </script>
-
-<svelte:head><title>Supporters · Nuvio</title></svelte:head>
 
 <div class="min-h-svh">
 	<header class="mx-auto flex max-w-5xl items-center justify-between px-6 py-5">

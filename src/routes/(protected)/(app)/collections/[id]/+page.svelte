@@ -13,9 +13,14 @@
 	import * as Dialog from "$lib/components/ui/dialog/index.js";
 	import { Input } from "$lib/components/ui/input/index.js";
 	import type { CollectionFolder } from "$lib/nuvio/index.js";
+	import { pageTitle } from "$lib/stores/title.svelte.js";
 	import { cn } from "$lib/utils.js";
 
 	let { data } = $props();
+
+	$effect(() => {
+		pageTitle.set(data.contents.title ?? "Collection");
+	});
 
 	let saving = $state(false);
 	let addOpen = $state(false);
