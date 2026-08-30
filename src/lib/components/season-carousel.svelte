@@ -153,22 +153,19 @@
 			<div class="no-scrollbar -mx-1 flex max-w-full gap-1.5 overflow-x-auto px-1">
 				{#each grouped as group (group.season)}
 					<ContextMenu.Root>
-						<ContextMenu.Trigger>
-							{#snippet child({ props })}
-								<button
-									{...props}
-									type="button"
-									onclick={() => (activeSeason = group.season)}
-									class={cn(
-										"shrink-0 rounded-full px-3 py-1 text-sm font-medium transition",
-										activeSeason === group.season
-											? "bg-primary text-primary-foreground"
-											: "bg-foreground/5 text-muted-foreground hover:text-foreground",
-									)}
-								>
-									Season {group.season}
-								</button>
-							{/snippet}
+						<ContextMenu.Trigger class="contents">
+							<button
+								type="button"
+								onclick={() => (activeSeason = group.season)}
+								class={cn(
+									"shrink-0 rounded-full px-3 py-1 text-sm font-medium transition",
+									activeSeason === group.season
+										? "bg-primary text-primary-foreground"
+										: "bg-foreground/5 text-muted-foreground hover:text-foreground",
+								)}
+							>
+								Season {group.season}
+							</button>
 						</ContextMenu.Trigger>
 						{#if onMarkSeason}
 							<ContextMenu.Content class="w-60">
@@ -203,10 +200,8 @@
 					{@const ep = progress[episode.id]}
 					{@const date = airDate(episode.released)}
 					<ContextMenu.Root>
-					<ContextMenu.Trigger>
-					{#snippet child({ props })}
+					<ContextMenu.Trigger class="contents">
 					<div
-						{...props}
 						class="group/ep relative flex w-72 shrink-0 snap-start flex-col overflow-hidden rounded-xl border border-border/60 bg-card/50 transition-colors hover:border-primary/40 sm:w-80"
 						onmouseenter={() => onPrefetch?.(episode.id)}
 						onfocusin={() => onPrefetch?.(episode.id)}
@@ -310,7 +305,6 @@
 							<CheckIcon class="size-3.5" />
 						</button>
 					</div>
-					{/snippet}
 					</ContextMenu.Trigger>
 					<ContextMenu.Content class="w-56">
 						<ContextMenu.Item

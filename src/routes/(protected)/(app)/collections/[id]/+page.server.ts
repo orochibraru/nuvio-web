@@ -1,14 +1,13 @@
 import { error } from "@sveltejs/kit";
 import { catalogList } from "$lib/addons/addons.remote";
-import {
-	collectionContents,
-	getCollections,
-} from "$lib/collections/collections.remote";
+import { getCollections } from "$lib/collections/collections.remote";
 import type { PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = async ({ params }) => {
-	const [contents, collections, catalogs] = await Promise.all([
-		collectionContents(params.id),
+	// The collection metadata + catalog list (user data / addon manifests) are
+	// awaited; each folder's resolved contents (addon catalog fetches) load
+	// client-side with a skeleton so a slow addon never stalls the page.
+	const [collections, catalogs] = await Promise.all([
 		getCollections(),
 		catalogList(),
 	]);
@@ -16,5 +15,5 @@ export const load: PageServerLoad = async ({ params }) => {
 	if (!collection) {
 		error(404, "Collection not found");
 	}
-	return { contents, collection, catalogs, allCollections: collections };
+	return { collection, catalogs, allCollections: collections };
 };

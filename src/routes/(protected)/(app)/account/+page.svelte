@@ -26,7 +26,7 @@
 			: null,
 	);
 
-	const stats = $derived(data.overview.profiles);
+	const stats = $derived(data.overview?.profiles ?? []);
 
 	const columns: Array<{ key: keyof (typeof stats)[number]; label: string }> = [
 		{ key: "addons", label: "Addons" },

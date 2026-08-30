@@ -8,6 +8,8 @@
 	import SparklesIcon from "@lucide/svelte/icons/sparkles";
 	import { toast } from "svelte-sonner";
 	import { browser } from "$app/env";
+	import { homeRows } from "$lib/addons/addons.remote";
+	import type { MetaPreview } from "$lib/addons/index.js";
 	import MediaHero from "$lib/components/media-hero.svelte";
 	import MediaRow from "$lib/components/media-row.svelte";
 	import { Button } from "$lib/components/ui/button/index.js";
@@ -17,7 +19,43 @@
 
 	let { data } = $props();
 
-	const spotlights = $derived(data.spotlights);
+	// `data.*` can be briefly undefined during a `forkPreloads` speculative
+	// render — read every field defensively.
+	const library = $derived(data.library ?? []);
+	const resume = $derived(data.resume ?? []);
+	const profileName = $derived(data.profile?.name ?? "");
+
+	// Catalog rows load client-side so a slow addon never stalls SSR / nav.
+	const rowsQuery = homeRows();
+	const rows = $derived(rowsQuery.current ?? []);
+	const rowsLoading = $derived(
+		rowsQuery.current === undefined && !rowsQuery.error,
+	);
+
+	// Spotlight carousel: derived from the rows once, on first arrival, so the
+	// shuffle stays stable across re-renders.
+	let spotlights = $state<MetaPreview[]>([]);
+	$effect(() => {
+		if (spotlights.length > 0 || rows.length === 0) {
+			return;
+		}
+		const seen = new Set<string>();
+		const candidates = rows
+			.slice(0, 4)
+			.flatMap((row) => row.metas)
+			.filter((meta) => {
+				if (!meta.background || seen.has(meta.id)) {
+					return false;
+				}
+				seen.add(meta.id);
+				return true;
+			});
+		for (let i = candidates.length - 1; i > 0; i--) {
+			const j = Math.floor(Math.random() * (i + 1));
+			[candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+		}
+		spotlights = candidates.slice(0, 6);
+	});
 
 	// Auto-advancing featured carousel.
 	let heroIndex = $state(0);
@@ -103,10 +141,10 @@
 	// series, so titles collide. Suffix the repeats with their type.
 	const rowTitles = $derived.by(() => {
 		const counts = new Map<string, number>();
-		for (const row of data.rows) {
+		for (const row of rows) {
 			counts.set(row.title, (counts.get(row.title) ?? 0) + 1);
 		}
-		return data.rows.map((row) => {
+		return rows.map((row) => {
 			if ((counts.get(row.title) ?? 0) > 1) {
 				const noun = row.type === "series" ? "series" : "movies";
 				return `${row.title} ${noun}`;
@@ -203,15 +241,39 @@
 				</MediaHero>
 			{/key}
 		</div>
+	{:else if rowsLoading || (rows.length > 0 && spotlights.length === 0)}
+		<!-- Same box as `media-hero.svelte` so the row below doesn't jump when
+		     the real hero paints. -->
+		<section
+			class="relative isolate mx-[calc(50%-50vw)] -mt-20 mb-2 overflow-hidden"
+			aria-hidden="true"
+		>
+			<div class="absolute inset-0 -z-10 bg-linear-to-br from-muted/60 to-background"></div>
+			<div class="mx-auto flex items-end gap-8 px-6 pt-32 pb-12 lg:min-h-[72vh] lg:pb-14">
+				<div class="hidden w-52 shrink-0 lg:block">
+					<div class="skeleton aspect-2/3 w-full rounded-2xl"></div>
+				</div>
+				<div class="flex w-full max-w-2xl flex-col gap-4">
+					<div class="skeleton h-4 w-24 rounded"></div>
+					<div class="skeleton h-12 w-2/3 rounded-lg lg:h-16"></div>
+					<div class="skeleton h-4 w-40 rounded"></div>
+					<div class="skeleton h-16 w-full max-w-xl rounded-lg"></div>
+					<div class="mt-2 flex gap-3">
+						<div class="skeleton h-11 w-32 rounded-md"></div>
+						<div class="skeleton h-11 w-36 rounded-md"></div>
+					</div>
+				</div>
+			</div>
+		</section>
 	{:else}
-		<h1 class="text-3xl font-bold tracking-tight">Welcome back, {data.profile.name}</h1>
+		<h1 class="text-3xl font-bold tracking-tight">Welcome back, {profileName}</h1>
 	{/if}
 
-	{#if data.resume.length > 0}
+	{#if resume.length > 0}
 		<section class="flex flex-col gap-3">
 			<h2 class="text-xl font-semibold tracking-tight">Continue watching</h2>
 			<div class="no-scrollbar -mx-2 flex gap-4 overflow-x-auto scroll-smooth px-2 pt-1 pb-2">
-				{#each data.resume as item (`${item.type}:${item.videoId}`)}
+				{#each resume as item (`${item.type}:${item.videoId}`)}
 					<a
 						href={`/player/${item.type}/${encodeURIComponent(item.videoId)}`}
 						class="group/cw relative aspect-video w-72 shrink-0 overflow-hidden rounded-xl bg-muted ring-1 ring-white/5 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_50px_-16px] hover:shadow-black/70 hover:ring-primary/60"
@@ -251,11 +313,26 @@
 		</section>
 	{/if}
 
-	{#if data.library.length > 0}
-		<MediaRow title="My library" items={data.library} href="/library" />
+	{#if library.length > 0}
+		<MediaRow title="My library" items={library} href="/library" />
 	{/if}
 
-	{#if data.rows.length === 0}
+	{#if rowsLoading}
+		{#each { length: 4 } as _row, index (index)}
+			<section class="flex flex-col gap-3">
+				<div class="skeleton h-6 w-40 rounded"></div>
+				<div class="no-scrollbar -mx-2 flex gap-4 overflow-hidden px-2 py-1">
+					{#each { length: 8 } as _tile, tile (tile)}
+						<div class="flex w-40 shrink-0 flex-col gap-2.5 sm:w-44">
+							<div class="skeleton aspect-2/3 rounded-xl"></div>
+							<div class="skeleton h-3.5 w-3/4 rounded"></div>
+							<div class="skeleton h-3 w-2/5 rounded"></div>
+						</div>
+					{/each}
+				</div>
+			</section>
+		{/each}
+	{:else if rows.length === 0}
 		<div class="py-6">
 			<div class="mx-auto max-w-md rounded-2xl border border-border/60 bg-linear-to-b from-muted/40 to-transparent px-6 py-14 text-center">
 				<span class="mx-auto flex size-14 items-center justify-center rounded-2xl bg-muted text-muted-foreground ring-1 ring-border">
@@ -269,7 +346,7 @@
 			</div>
 		</div>
 	{:else}
-		{#each data.rows as row, index (`${row.addonId}:${row.type}:${row.id}`)}
+		{#each rows as row, index (`${row.addonId}:${row.type}:${row.id}`)}
 			<MediaRow
 				title={rowTitles[index]}
 				items={row.metas}

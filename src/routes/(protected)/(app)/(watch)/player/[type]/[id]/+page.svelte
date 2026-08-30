@@ -18,18 +18,44 @@
 	import { describeStream, isPlayable } from "$lib/watch/stream-format.js";
 	import {
 		getSubtitles,
+		playbackContext,
 		resolveStreams,
 		titleProgress,
 	} from "$lib/watch/watch.remote";
 
-	let { data } = $props();
-
-	const context = $derived(data.context);
 	const type = $derived(page.params.type ?? "movie");
 	const id = $derived(page.params.id ?? "");
 
+	// Meta / resume / next-episode context loads client-side so the click that
+	// navigated here paints the player shell immediately (no server round-trip).
+	const contextQuery = $derived(playbackContext({ type, id }));
+	type PlaybackCtx = NonNullable<typeof contextQuery.current>;
+	const contextReady = $derived(contextQuery.current !== undefined);
+	const contextFallback = $derived({
+		metaType: type === "series" ? "series" : "movie",
+		contentId: id.split(":")[0] ?? id,
+		season: null,
+		episode: null,
+		videoId: id,
+		heading: "Loading…",
+		subheading: null,
+		background: null,
+		poster: null,
+		logo: null,
+		certification: null,
+		genres: [],
+		episodes: [],
+		next: null,
+		resume: null,
+	} satisfies PlaybackCtx);
+	const context = $derived<PlaybackCtx>(
+		contextQuery.current ?? contextFallback,
+	);
+
 	$effect(() => {
-		pageTitle.set(context.heading);
+		if (contextReady) {
+			pageTitle.set(context.heading);
+		}
 	});
 
 	// The source drawer, shared with /detail through the (watch) layout.
@@ -93,14 +119,9 @@
 	);
 	const resolving = $derived(!handed && !streamsQuery?.current);
 
-	let resumeDecision = $state<"pending" | "resume" | "restart">("restart");
-	$effect(() => {
-		resumeDecision = context.resume ? "pending" : "restart";
-	});
+	// Always pick up where the viewer left off — no "resume vs start over" prompt.
 	const startTime = $derived(
-		resumeDecision === "resume" && context.resume
-			? context.resume.position / 1000
-			: 0,
+		context.resume ? context.resume.position / 1000 : 0,
 	);
 
 	const subtitlesQuery = $derived(
@@ -116,6 +137,9 @@
 	}
 
 	function report(position: number, duration: number) {
+		if (!contextReady) {
+			return;
+		}
 		sync.saveProgress({
 			contentId: context.contentId,
 			contentType: context.metaType,
@@ -125,13 +149,6 @@
 			position: position * 1000,
 			duration: duration * 1000,
 		});
-	}
-
-	function fmt(ms: number): string {
-		const total = Math.floor(ms / 1000);
-		const m = Math.floor(total / 60);
-		const s = total % 60;
-		return `${m}:${String(s).padStart(2, "0")}`;
 	}
 
 	function playerHref(videoId: string): string {
@@ -203,7 +220,7 @@
 	{/if}
 
 	{#if playableSrc}
-		{#key `${playableSrc}:${resumeDecision}`}
+		{#key playableSrc}
 			<VideoPlayer
 				src={playableSrc}
 				fill
@@ -228,20 +245,6 @@
 				onNext={nextVideoId ? () => playVideo(nextVideoId) : undefined}
 			/>
 		{/key}
-
-		{#if resumeDecision === "pending" && context.resume}
-			<div
-				class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-black/85 text-center backdrop-blur-sm"
-			>
-				<p class="text-sm text-white/80">You left off at {fmt(context.resume.position)}</p>
-				<div class="flex gap-2">
-					<Button size="lg" onclick={() => (resumeDecision = "resume")}>Resume</Button>
-					<Button size="lg" variant="secondary" onclick={() => (resumeDecision = "restart")}>
-						Start over
-					</Button>
-				</div>
-			</div>
-		{/if}
 
 		{#if upNextCountdown != null && context.next}
 			{@const upNext = context.next}

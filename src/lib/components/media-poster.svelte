@@ -100,14 +100,12 @@
 </script>
 
 <ContextMenu.Root>
-	<ContextMenu.Trigger>
-		{#snippet child({ props })}
-			<a
-				{...props}
-				href={`/detail/${item.type}/${encodeURIComponent(item.id)}`}
-				class={cn("group/poster flex flex-col gap-2.5", className)}
-				data-sveltekit-preload-data="tap"
-			>
+	<ContextMenu.Trigger class="contents">
+		<a
+			href={`/detail/${item.type}/${encodeURIComponent(item.id)}`}
+			class={cn("group/poster flex flex-col gap-2.5", className)}
+			data-sveltekit-preload-data="hover"
+		>
 	<div
 		class={cn(
 			"relative overflow-hidden rounded-xl bg-muted ring-1 ring-white/5 transition-all duration-300 ease-out",
@@ -203,8 +201,7 @@
 			<p class="truncate text-xs text-muted-foreground">{item.releaseInfo}</p>
 		{/if}
 	</div>
-			</a>
-		{/snippet}
+		</a>
 	</ContextMenu.Trigger>
 
 	<ContextMenu.Content class="w-52">

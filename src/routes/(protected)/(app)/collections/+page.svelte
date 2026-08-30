@@ -20,6 +20,10 @@
 
 	let { data } = $props();
 
+	// `data.collections` can be briefly undefined during a `forkPreloads`
+	// speculative render.
+	const collections = $derived(data.collections ?? []);
+
 	let saving = $state(false);
 	let dialogOpen = $state(false);
 	let newTitle = $state("");
@@ -44,7 +48,7 @@
 			return;
 		}
 		await persist([
-			...data.collections,
+			...collections,
 			{ id: crypto.randomUUID(), title, viewMode: "TABBED_GRID", folders: [] },
 		]);
 		newTitle = "";
@@ -53,7 +57,7 @@
 
 	function togglePin(collection: Collection) {
 		persist(
-			data.collections.map((entry) =>
+			collections.map((entry) =>
 				entry.id === collection.id
 					? { ...entry, pinToTop: !entry.pinToTop }
 					: entry,
@@ -62,7 +66,7 @@
 	}
 
 	function remove(collection: Collection) {
-		persist(data.collections.filter((entry) => entry.id !== collection.id));
+		persist(collections.filter((entry) => entry.id !== collection.id));
 	}
 
 	async function applyRename() {
@@ -73,14 +77,14 @@
 		const target = renaming;
 		renaming = null;
 		await persist(
-			data.collections.map((entry) =>
+			collections.map((entry) =>
 				entry.id === target.id ? { ...entry, title } : entry,
 			),
 		);
 	}
 
 	const sorted = $derived(
-		[...data.collections].sort(
+		[...collections].sort(
 			(a, b) => Number(Boolean(b.pinToTop)) - Number(Boolean(a.pinToTop)),
 		),
 	);

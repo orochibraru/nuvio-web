@@ -14,27 +14,32 @@
 
 	let { data } = $props();
 
+	// `data.*` can be momentarily undefined during a `forkPreloads` speculative
+	// render, so treat every field defensively.
+	const catalogs = $derived(data.catalogs ?? []);
+	const selectedKey = $derived(data.selectedKey ?? null);
+	const genre = $derived(data.genre ?? "");
+
 	const selected = $derived(
-		data.catalogs.find(
-			(entry) =>
-				`${entry.addonId}|${entry.type}|${entry.id}` === data.selectedKey,
+		catalogs.find(
+			(entry) => `${entry.addonId}|${entry.type}|${entry.id}` === selectedKey,
 		),
 	);
 
 	// Only disambiguate catalog pills by addon when more than one addon supplies them.
 	const multipleAddons = $derived(
-		new Set(data.catalogs.map((entry) => entry.addonId)).size > 1,
+		new Set(catalogs.map((entry) => entry.addonId)).size > 1,
 	);
 
 	// Cinemeta reuses one catalog name ("Popular", "New"…) for both movie and
 	// series, so pill labels collide. Suffix the repeats with their type.
 	const catalogLabels = $derived.by(() => {
 		const counts = new Map<string, number>();
-		for (const entry of data.catalogs) {
+		for (const entry of catalogs) {
 			counts.set(entry.name, (counts.get(entry.name) ?? 0) + 1);
 		}
 		return new Map(
-			data.catalogs.map((entry) => {
+			catalogs.map((entry) => {
 				const key = `${entry.addonId}|${entry.type}|${entry.id}`;
 				if ((counts.get(entry.name) ?? 0) > 1) {
 					const noun = entry.type === "series" ? "Series" : "Movies";
@@ -45,18 +50,34 @@
 		);
 	});
 
+	// The first page of catalog contents loads client-side so a slow addon
+	// doesn't stall SSR / navigation — the grid shows a skeleton meanwhile.
+	const firstPageQuery = $derived(
+		selected
+			? browseCatalog({
+					addonId: selected.addonId,
+					type: selected.type,
+					id: selected.id,
+					genre: data.genre || undefined,
+				})
+			: undefined,
+	);
+	const firstPage = $derived(firstPageQuery?.current);
+	const loadingFirst = $derived(Boolean(selected) && firstPage === undefined);
+
 	let more = $state<MetaPreview[]>([]);
 	let loadingMore = $state(false);
 	let exhausted = $state(false);
 
-	// reset appended pages whenever the load re-runs (catalog / genre change)
+	// reset appended pages whenever the catalog / genre changes
 	$effect(() => {
-		void data.firstPage;
+		void data.selectedKey;
+		void data.genre;
 		more = [];
 		exhausted = false;
 	});
 
-	const items = $derived([...(data.firstPage?.metas ?? []), ...more]);
+	const items = $derived([...(firstPage?.metas ?? []), ...more]);
 
 	function navigate(params: URLSearchParams) {
 		goto(`?${params}`, { keepFocus: true, noScroll: true });
@@ -108,7 +129,7 @@
 		<p class="text-sm text-muted-foreground">Browse every catalog your addons provide.</p>
 	</div>
 
-	{#if data.catalogs.length === 0}
+	{#if catalogs.length === 0}
 		<EmptyState
 			icon={CompassIcon}
 			title="No catalogs available"
@@ -120,7 +141,7 @@
 		</EmptyState>
 	{:else if selected}
 		<div class="no-scrollbar -mx-2 flex gap-2 overflow-x-auto px-2 py-1">
-			{#each data.catalogs as entry (`${entry.addonId}|${entry.type}|${entry.id}`)}
+			{#each catalogs as entry (`${entry.addonId}|${entry.type}|${entry.id}`)}
 				{@const key = `${entry.addonId}|${entry.type}|${entry.id}`}
 				<button
 					type="button"
@@ -171,11 +192,17 @@
 			</div>
 		{/if}
 
-		{#if items.length === 0}
+		{#if loadingFirst}
+			<MediaGrid items={[]} loading skeletonCount={12} />
+		{:else if firstPageQuery?.error}
+			<p class="py-10 text-center text-sm text-destructive">
+				Couldn't load this catalog.
+			</p>
+		{:else if items.length === 0}
 			<p class="py-10 text-center text-sm text-muted-foreground">Nothing in this catalog.</p>
 		{:else}
 			<MediaGrid {items} loading={loadingMore} skeletonCount={6} />
-			{#if !exhausted && (data.firstPage?.metas.length ?? 0) > 0}
+			{#if !exhausted && (firstPage?.metas.length ?? 0) > 0}
 				<div class="flex justify-center pt-2">
 					<Button variant="outline" disabled={loadingMore} onclick={loadMore}>
 						{loadingMore ? "Loading…" : "Load more"}

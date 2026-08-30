@@ -323,6 +323,12 @@ The player controls are weak and the source picker requires leaving the player.
       when an addon supplies one, else `18+` for `behaviorHints.adult`; Cinemeta
       gives neither) big for ~3.2s, plus genre descriptors, with a soft fade.
       Falls back to just genres when there's no rating.
+- [ ] When a show episode is done and another is available, show a sexy overlay
+      on the player saying the episode is over with a CTA to play the next
+      episode if there's any. If the show is currently airing and the next
+      episode is set to air at a specific time display just that. If the show is
+      completely over and this is the last episode display a message saying the
+      show's over alongside suggestions of similar shows to watch next.
 
 ## Phase 5c — Alternative sync backends (Trakt / SIMKL)
 
@@ -511,7 +517,18 @@ non-remote exports there), `settings.remote.ts`
       degrades cleanly. `onerror` flips to the fallback.
 - [ ] The watch history page's a bit shit. Looks like ass, no posters, no info,
       no CTAs?
-- [ ] The continue watching feature isn't working well at all.
+- [ ] The continue watching feature isn't working well at all. Items get
+      randomly removed, new items don't get added.
+- [x] Remove the prompt "You left off at" when loading a media in the player,
+      always pick back where the user left off → the player seeks straight to
+      `context.resume.position`; the resume/start-over overlay is gone.
+- [ ] Store user theme preferences locally and then reconciliate in the
+      background. If picking an amoled theme it loads only after the data is
+      loaded which causes a bit of flickering.
+- [ ] When adding/removing a media from a right click action, invalidate the
+      data so the lists update.
+- [ ] When going to the next item on the hero carousel on the home page add an
+      animation going to the next slide.
 
 ---
 
@@ -524,30 +541,84 @@ non-remote exports there), `settings.remote.ts`
 - [ ] Create a release mechanism (release-please from Google) which screenshots
       the app to update the readme and releases the docker image.
 
-## Security
-
-- [ ] Add CSRF protection for addons. An addon CANNOT have a url pointing to the
-      same address. Additionally we should have a guard on remote functions to
-      ensure a malicious user isn't calling them.
-
 ## Performance
 
-- [ ] Remove any await that loads content (not user data, this is ok) on the
-      server (*.server.ts) and replace with an await in Svelte code with
-      Skeleton loading.
+- [x] Remove any await that loads content (not user data) on the server and
+      replace with a client-side query + skeleton — a slow addon no longer
+      stalls SSR or the click that navigated to the page: - **Home** (`homeRows`
+      → client) — catalog rows + spotlight carousel load client-side; a skeleton
+      hero (same box as `media-hero`, so no jump) + skeleton rows show
+      meanwhile. - **Discover** (`browseCatalog` → client) — catalog pills stay
+      server-side (`catalogList`, cached manifests); the grid loads with a
+      skeleton. - **Collections/[id]** (`collectionContents` → client) — folder
+      metadata server-side, resolved folder contents load with a skeleton
+      grid. - **Player** (`playbackContext` → client, `+page.server.ts` deleted)
+      — the player shell paints instantly on nav; a `contextFallback` keeps
+      every `context.X` access safe until the query resolves. Every page that
+      reads `data.*` now guards it (`data.x ?? []` / `?.`) — a `forkPreloads`
+      speculative render can instantiate a page component before its `data` prop
+      is populated, which was crashing `/discover` and others.
+
+## Legal / compliance
+
+The theory the app rests on: Nuvio web is a shell. Addons (the Stremio protocol,
+installed by the user) do all content provisioning. The app hosts nothing and is
+not accountable for what a given addon returns. The items below are where the
+current code diverges from that theory or fails to state it.
+
+- [ ] **Disclaimer + minimal ToS.** No content is hosted; addons are
+      third-party; the user chooses them and is responsible for what they
+      install and stream. Surface it in-app (first run + top of `/addons`) and
+      in the README. This is what the "not accountable" position needs in order
+      to stand on anything. Kodi / Stremio all carry equivalent language.
+- [ ] **`LICENSE` file.** None today. Public repo + published Docker image with
+      no license = nobody has rights to use it and there is no "as is" warranty
+      disclaimer. Pick one and add it.
+- [ ] **Move addon resource fetching client-side.** `getStreams` /
+      `resolveStreams` / `getCatalog` / `getMeta` run in remote functions, i.e.
+      on the host's server (done deliberately for CORS, Phase 3). That makes the
+      operator's server query scraper / torrent addons, receive infringing
+      stream URLs + magnet links, and relay them. Stremio keeps this on the
+      user's machine. Move stream resolution to the browser; where CORS forces
+      server involvement keep it a dumb non-caching pass-through. Stop caching
+      catalog/meta responses server-side (`client.ts` `RESPONSE_TTL_MS`).
+- [ ] **Subtitle proxy (`/api/subtitle`).** Server fetches addon subtitle files,
+      converts SRT→WebVTT, and re-serves them under our origin with
+      `cache-control: public, max-age=86400`. Subtitles are copyrightable and
+      this is the one place the app itself hosts + redistributes third-party
+      text. Do the SRT→WebVTT conversion in the browser so the bytes never touch
+      the server; if a proxy is unavoidable (CORS), drop the cache.
+- [ ] **Never bundle default addons** that point at infringing sources. Keep the
+      suggested-addon copy on `/addons` to metadata-only providers (Cinemeta,
+      TMDB). Currently clean; keep it that way.
+- [ ] **Keep playback client-side.** `video-player.svelte` sets `video.src` /
+      `hls.loadSource` in the browser, so media never transits our server. Do
+      not build the server-side stream proxy or general addon proxy floated in
+      "Open decisions" — a poster/`/img` proxy is fine, a stream proxy is not.
+- [~] **Nuvio affiliation.** App ships a hardcoded `api.nuvio.tv` publishable
+  key, authenticates real users against the Nuvio production backend, writes to
+  it, and uses the Nuvio name + logo. README says "unofficial". Plan: ask the
+  Nuvio team to review once the app is far enough along; if they decline to
+  sanction it, either get written permission or self-host the backend and drop
+  the marks.
 
 ## Open decisions
 
 - **Playable containers.** Browsers can't play most mkv/torrent streams. Scope =
   direct http(s) mp4 + HLS. Decide whether to offer an "open in external player"
-  handoff (e.g. `stremio://` / copy stream URL) for the rest.
+  handoff (e.g. `vlc://` / copy stream URL) for the rest ==> Yeah offer that
+  option from the player. Add error handling to catch unplayable content or
+  content that has no audio. Provide two CTAs: One to switch stream and one to
+  open in external player.
 - **Poster proxy.** Build a `/img` proxy route (CORS, resize, cache) or rely on
-  addon-provided URLs directly?
+  addon-provided URLs directly? ==> Provider URLs only to prevent handling
+  copyrightable content on the server.
 - **Addon CORS.** Some addons don't send CORS headers for browser origins.
   Optional server-side addon proxy route to work around it — decide if that's in
-  scope.
+  scope => No. Addons send copyrightable links so keep browser only.
 - **Offline.** How far does the local store go — read-only browsing offline, or
-  also queueing writes offline (already implied by the write queue)?
+  also queueing writes offline (already implied by the write queue)? ==> Meta
+  only.
 - **Legacy library push.** Stay on incremental `upsertItems`/`deleteItems`;
   never call the legacy full-replace `client.library.replaceLegacy`.
 - **Trailer playback.** YouTube embed vs skip.

@@ -15,14 +15,14 @@
 	let loading = $state(false);
 	let manuallyExhausted = $state(false);
 
-	const top = $derived(data.wall.ok ? data.wall.top.members : []);
+	const top = $derived(data.wall?.ok ? data.wall.top.members : []);
 	const recent = $derived([
-		...(data.wall.ok ? data.wall.recent.members : []),
+		...(data.wall?.ok ? data.wall.recent.members : []),
 		...extraPages.flat(),
 	]);
-	const total = $derived(data.wall.ok ? data.wall.recent.totalCount : 0);
+	const total = $derived(data.wall?.ok ? data.wall.recent.totalCount : 0);
 	const exhausted = $derived(
-		manuallyExhausted || !data.wall.ok || recent.length >= total,
+		manuallyExhausted || !data.wall?.ok || recent.length >= total,
 	);
 
 	function levelLabel(level: string): string {
@@ -103,7 +103,7 @@
 			</Button>
 		</div>
 
-		{#if !data.wall.ok}
+		{#if !data.wall?.ok}
 			<p class="mt-16 text-center text-sm text-muted-foreground">
 				The supporter wall is unavailable right now.
 			</p>

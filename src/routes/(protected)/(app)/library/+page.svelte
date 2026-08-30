@@ -41,10 +41,10 @@
 					releaseInfo: record.releaseInfo ?? undefined,
 					imdbRating: record.imdbRating ?? undefined,
 				}))
-			: data.items,
+			: (data.items ?? []),
 	);
 	const progress = $derived(
-		sync.authoritative ? sync.libraryProgress : data.progress,
+		sync.authoritative ? sync.libraryProgress : (data.progress ?? {}),
 	);
 
 	const shown = $derived.by(() => {

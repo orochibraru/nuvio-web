@@ -5,7 +5,10 @@
 	import Trash2Icon from "@lucide/svelte/icons/trash-2";
 	import { toast } from "svelte-sonner";
 	import { goto, invalidateAll } from "$app/navigation";
-	import { saveCollections } from "$lib/collections/collections.remote";
+	import {
+		collectionContents,
+		saveCollections,
+	} from "$lib/collections/collections.remote";
 	import EmptyState from "$lib/components/empty-state.svelte";
 	import MediaGrid from "$lib/components/media-grid.svelte";
 	import MediaRow from "$lib/components/media-row.svelte";
@@ -18,8 +21,14 @@
 
 	let { data } = $props();
 
+	// `data.*` can be briefly undefined during a `forkPreloads` speculative
+	// render — read every field defensively.
+	const collection = $derived(data.collection);
+	const catalogs = $derived(data.catalogs ?? []);
+	const allCollections = $derived(data.allCollections ?? []);
+
 	$effect(() => {
-		pageTitle.set(data.contents.title ?? "Collection");
+		pageTitle.set(collection?.title ?? "Collection");
 	});
 
 	let saving = $state(false);
@@ -28,15 +37,27 @@
 	let picked = $state<string[]>([]);
 	let activeTab = $state(0);
 
-	const contents = $derived(data.contents);
-	const viewMode = $derived(data.collection.viewMode ?? "TABBED_GRID");
+	// Folder contents (addon catalog fetches) load client-side with a skeleton.
+	const contentsQuery = $derived(
+		collection ? collectionContents(collection.id) : undefined,
+	);
+	const contents = $derived(contentsQuery?.current);
+	const contentsLoading = $derived(
+		Boolean(collection) && contents === undefined && !contentsQuery?.error,
+	);
+	const folders = $derived(contents?.folders ?? []);
+	const title = $derived(contents?.title ?? collection?.title ?? "");
+	const viewMode = $derived(collection?.viewMode ?? "TABBED_GRID");
 
 	async function persist(folders: CollectionFolder[]) {
+		if (!collection) {
+			return;
+		}
 		saving = true;
 		try {
 			await saveCollections(
-				data.allCollections.map((entry) =>
-					entry.id === data.collection.id ? { ...entry, folders } : entry,
+				allCollections.map((entry) =>
+					entry.id === collection.id ? { ...entry, folders } : entry,
 				),
 			);
 			await invalidateAll();
@@ -57,7 +78,7 @@
 			return { addonId, type, catalogId };
 		});
 		await persist([
-			...data.collection.folders,
+			...(collection?.folders ?? []),
 			{ id: crypto.randomUUID(), title, catalogSources: sources },
 		]);
 		folderTitle = "";
@@ -66,17 +87,18 @@
 	}
 
 	function removeFolder(id: string) {
-		persist(data.collection.folders.filter((entry) => entry.id !== id));
+		persist((collection?.folders ?? []).filter((entry) => entry.id !== id));
 	}
 
 	async function setViewMode(mode: "TABBED_GRID" | "ROWS") {
+		if (!collection) {
+			return;
+		}
 		saving = true;
 		try {
 			await saveCollections(
-				data.allCollections.map((entry) =>
-					entry.id === data.collection.id
-						? { ...entry, viewMode: mode }
-						: entry,
+				allCollections.map((entry) =>
+					entry.id === collection.id ? { ...entry, viewMode: mode } : entry,
 				),
 			);
 			await invalidateAll();
@@ -96,7 +118,7 @@
 
 <div class="flex flex-col gap-6">
 	<div class="flex flex-wrap items-center justify-between gap-3">
-		<h1 class="text-3xl font-bold tracking-tight">{contents.title}</h1>
+		<h1 class="text-3xl font-bold tracking-tight">{title}</h1>
 		<div class="flex items-center gap-2">
 			<div class="flex gap-1 rounded-full bg-foreground/5 p-1 text-sm">
 				{#each ["TABBED_GRID", "ROWS"] as const as mode (mode)}
@@ -120,7 +142,9 @@
 		</div>
 	</div>
 
-	{#if contents.folders.length === 0}
+	{#if contentsLoading}
+		<MediaGrid items={[]} loading skeletonCount={12} />
+	{:else if folders.length === 0}
 		<EmptyState
 			icon={FolderPlusIcon}
 			title="No folders yet"
@@ -134,7 +158,7 @@
 		</EmptyState>
 	{:else if viewMode === "ROWS"}
 		<div class="flex flex-col gap-10">
-			{#each contents.folders as folder (folder.id)}
+			{#each folders as folder (folder.id)}
 				<div class="group/folder relative">
 					<MediaRow title={`${folder.coverEmoji ?? ""} ${folder.title}`.trim()} items={folder.metas} />
 					<button
@@ -150,7 +174,7 @@
 		</div>
 	{:else}
 		<div class="no-scrollbar flex items-center gap-1.5 overflow-x-auto border-b border-border pb-2">
-			{#each contents.folders as folder, index (folder.id)}
+			{#each folders as folder, index (folder.id)}
 				<button
 					type="button"
 					onclick={() => (activeTab = index)}
@@ -167,15 +191,15 @@
 			<button
 				type="button"
 				aria-label="Remove folder"
-				onclick={() => removeFolder(contents.folders[activeTab]?.id ?? "")}
+				onclick={() => removeFolder(folders[activeTab]?.id ?? "")}
 				class="ml-auto shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
 			>
 				<Trash2Icon class="size-4" />
 			</button>
 		</div>
-		{#if contents.folders[activeTab]}
-			{#key contents.folders[activeTab].id}
-				<MediaGrid items={contents.folders[activeTab].metas} />
+		{#if folders[activeTab]}
+			{#key folders[activeTab].id}
+				<MediaGrid items={folders[activeTab].metas} />
 			{/key}
 		{/if}
 	{/if}
@@ -191,7 +215,7 @@
 		<Input bind:value={folderTitle} placeholder="Folder name" />
 
 		<div class="mt-2 flex max-h-64 flex-col gap-1 overflow-y-auto scrollbar-thin">
-			{#each data.catalogs as catalog (`${catalog.addonId}|${catalog.type}|${catalog.id}`)}
+			{#each catalogs as catalog (`${catalog.addonId}|${catalog.type}|${catalog.id}`)}
 				{@const key = `${catalog.addonId}|${catalog.type}|${catalog.id}`}
 				<label class="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted">
 					<input

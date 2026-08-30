@@ -32,7 +32,7 @@
 					episode: record.episode,
 					watchedAt: record.watchedAt,
 				}))
-			: data.items,
+			: (data.items ?? []),
 	);
 
 	function dayLabel(ts: number): string {
