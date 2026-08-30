@@ -3,6 +3,15 @@
 Unofficial implementation of the [Nuvio](https://nuvio.tv/) API in a web UI
 (since there is none, yet).
 
+## Disclaimer
+
+Nuvio Web hosts no media. All catalogs, metadata, streams and subtitles come
+from **addons** — the Stremio addon protocol — which **you install and are
+responsible for**. The app is a shell around whatever those addons return; it
+does not endorse, index, or verify any addon or its content. Use only addons you
+have the right to use in your jurisdiction. Not affiliated with or endorsed by
+Nuvio.
+
 ## Getting Started
 
 ### Docker run
@@ -31,3 +40,8 @@ services:
 ## Development
 
 See [contributing.md](CONTRIBUTING.md)
+
+## License
+
+[AGPL-3.0-or-later](LICENSE). If you run a modified version as a network
+service, you must offer its source to your users.

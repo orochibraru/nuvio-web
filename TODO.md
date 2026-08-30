@@ -48,9 +48,10 @@ no schema), the progress-key format, and the 90% / 60s completion rule.
   (publishable key is public, in `client.ts`). One allowed override:
   `NUVIO_API_URL` for self-hosters, read once in `hooks.server.ts`.
 
-Status legend: `[ ]` open · `[~]` partially done · shipped work is folded into
-each area's collapsed **Shipped** list (implementation detail lives in the code,
-not here).
+Status legend: `[ ]` open · `[~]` partially done · `[x]` done (kept inline only
+where an area has no **Shipped** list) · larger shipped work is folded into each
+area's collapsed **Shipped** list (implementation detail lives in the code, not
+here).
 
 ---
 
@@ -58,10 +59,7 @@ not here).
 
 - [ ] Make the UI sexier — colourful, playful, we should _want_ to use it
       (background blurs, colour accents, custom backgrounds).
-- [ ] Home hero → real slide animation between spotlights (currently a
-      crossfade).
 - [ ] Home layout editor in Settings → needs `client.homeCatalog`.
-- [ ] `command`-palette style nav search.
 
 <details><summary>Shipped</summary>
 
@@ -69,14 +67,19 @@ not here).
   (reads the local store live), continue-watching row with time-remaining.
 - Auto-advancing featured hero carousel — up to 6 backdropped titles, dot
   indicators + prev/next arrows, pause on hover/focus, off under reduced-motion,
-  fade between slides, skeleton hero (same box, no layout jump).
+  direction-aware slide (`fly`, forward/back tracked so a "prev" tap slides the
+  other way) between slides, skeleton hero (same box, no layout jump).
 - "Add to library" on the hero spotlight.
 - Discover `/discover?c=<addon|type|catalog>&g=<genre>` — catalog + genre pills,
   `MediaGrid` + "Load more" (`browseCatalog` client-side + skeleton).
+- Command palette (`command-palette.svelte`, ⌘K / Ctrl+K, bits-ui `Command` in a
+  `Dialog`) — fuzzy-jump to any shell route, or "Search titles for …" to hand
+  the query to `/search`. ⌘K hint in the header search affordance.
 - Search `/search?q=` — auto-searches on type (450ms debounce, `replaceState`),
   Enter searches immediately, results grouped Movies / Series / Other, remote
   query cached by args. No query / no results → discover catalog rows ("you
-  might like").
+  might like"). Recent-searches chips (`search-history.svelte.ts`, localStorage
+  only, deduped + capped, per-chip remove + clear).
 
 </details>
 
@@ -121,12 +124,13 @@ Nothing open.
       episode, surface the next episode + air date in continue-watching.
 - [ ] Skip intro / skip outro — no addon supplies intro/outro timestamps
       (Stremio has no chapter data; AniSkip is anime-only). Needs a data source.
-- [ ] Playback error handling — catch unplayable / no-audio content, offer
-      "switch stream" + "open in external player" CTAs inline (external-player
-      handoff already exists on the no-playable-stream state).
 
 <details><summary>Shipped</summary>
 
+- Playback error handling — a `<video>` `error` event (404 / bad codec / decode
+  failure) or an HLS fatal flips the player to a fatal-error overlay with
+  "Choose another source" (reopens the drawer) + "Back" CTAs. The
+  no-playable-stream state already offers the external-player handoff.
 - Flow: `/detail` → "Watch" / episode opens the right-hand source drawer
   (`sources-panel.svelte.ts` module state, owned by `(watch)` layout, shared
   with `/player`, no URL param) → pick → `/player/[type]/[id]`. "Sources"
@@ -167,10 +171,13 @@ Nothing open.
       enrich from the library mirror or a cached meta lookup).
 - [ ] Continue-watching is unreliable: items randomly removed, new ones not
       added.
-- [ ] Stats page — minutes watched (movies vs shows), counts (shows / episodes /
-      movies), preferred format, preferred categories.
 
 <details><summary>Shipped</summary>
+
+- `/stats` — time watched (movies vs shows), finished-movie / show / episode
+  counts, preferred format, top genres (`watchStats` remote, from the progress +
+  history snapshots; genre tally via `getMeta` on recent unique titles). Linked
+  from the profile dropdown.
 
 - `/library` — grid from the local store (falls back to the SSR payload while
   the store is authoritative-but-empty), filter (all / movie / series / watched
@@ -196,8 +203,6 @@ Nothing open.
 - [ ] `$lib/sync/store.svelte.ts` reads/writes through whichever backend each
       domain (`librarySource` / `progressSource`) is set to; Nuvio stays the
       fallback + cross-device mirror.
-- [ ] Store theme preferences locally + reconcile in the background — an AMOLED
-      theme currently only applies after settings load (flicker).
 - [ ] Right-click add/remove should invalidate any list still on a server
       snapshot (home library row now reads the store; audit the rest).
 
@@ -213,12 +218,14 @@ Nothing open.
 - Unit tests: `reconcile.test.ts` (17 cases), `runtime.test.ts`.
 - Settings scaffold for alternative sync backends — "Sync" card, `SYNC_SOURCES`
   in `uiSettingsSchema`, Trakt/SIMKL disabled until built.
+- Theme preferences cached in `localStorage` + a blocking inline script in
+  `app.html` paints the accent / AMOLED dataset before first render (no flash);
+  the cloud settings still win once they load.
 
 </details>
 
 ## Settings & appearance
 
-- [ ] Player defaults: stream quality (subtitle language / appearance done).
 - [ ] Home layout editor → needs `client.homeCatalog`.
 
 <details><summary>Shipped</summary>
@@ -226,8 +233,9 @@ Nothing open.
 - `/settings` Appearance — mode (system/light/dark), dark style (dim / AMOLED),
   7 accent presets; quick mode toggle in the profile dropdown; per-profile,
   cloud-stored, `ready`-gated so SSR uses server data.
-- Playback section — autoplay-next toggle, preferred subtitle language, subtitle
-  size / colour / background.
+- Playback section — autoplay-next toggle, preferred quality (auto-picks the
+  closest resolution from a source list via `pickPreferredStream`, unit-tested),
+  preferred subtitle language, subtitle size / colour / background.
 - Sync section (scaffold). Addons shortcut card.
 - `title` store (`pageTitle`) — `Nuvio · <segment>`, into `<svelte:head>` +
   mirrored to `document.title`, per-page segments, client-only.
@@ -277,9 +285,13 @@ Nothing open.
 - [ ] Make the app mobile-friendly (currently a small-screen gate overlay); keep
       a dismissable bottom banner pointing at the mobile app instead. Use the
       branding logos in `lib/assets` / `static`.
-- [ ] Health indicator (`client.healthCheck()` / `healthPing()`) → status page
-      or degraded-mode banner.
-- [ ] Image handling — lazy-load, decode async; provider poster URLs only.
+- [x] Degraded-mode banner (`health-banner.svelte` + `apiHealth` remote over
+      `client.healthCheck()`) — full-bleed amber strip on `degraded` / `down`,
+      Retry + Dismiss, re-probes every 60s and clears itself on recovery. A
+      dedicated status page is still open.
+- [~] Image handling — posters / episode thumbs / trailer stills carry
+  `loading="lazy"` + `decoding="async"`; provider poster URLs only. Still want
+  responsive `srcset` and a blur-up placeholder.
 - [ ] Perf — route-level code splitting, virtualised grids, prefetch on hover.
 - [ ] Accessibility pass — focus management, ARIA on rows/tiles/player (partial;
       reduced-motion honoured).
@@ -296,8 +308,9 @@ Nothing open.
 - No content-await blocks SSR (home / discover / collections / player moved to
   client queries + skeletons). `data.*` guarded everywhere.
 - Playwright smoke suite (`e2e/`, reuses the running dev server on :5173, shared
-  auth token, zero-console-errors asserted on every page); Vitest for pure
-  logic. Run `bun run test:e2e` after any UI change.
+  auth token, zero-console-errors asserted on every page); Vitest for pure logic
+  (`reconcile`, `runtime`, `stream-format`). Run `bun run test:e2e` after any UI
+  change.
 - Small-screen gate overlay.
 
 </details>
@@ -318,11 +331,11 @@ The theory: Nuvio web is a shell. Addons (Stremio protocol, user-installed) do
 all content provisioning. The app hosts nothing. Items below are where the code
 diverges from that or fails to state it.
 
-- [ ] **Disclaimer + minimal ToS** — no content hosted; addons are third-party;
-      the user chooses them and is responsible. Surface in-app (first run + top
-      of `/addons`) + README.
-- [ ] **`LICENSE` file** — none today. Public repo + published image with no
-      license = nobody has rights and there's no warranty disclaimer.
+- [~] **Disclaimer + minimal ToS** — README `## Disclaimer` + an `Alert` at the
+  top of `/addons` (no content hosted; addons are third-party; the user chooses
+  them and is responsible). Still want a first-run acknowledgement.
+- [x] **`LICENSE` file** — AGPL-3.0-or-later (`LICENSE` + `package.json` +
+      README `## License`).
 - [ ] **Move addon resource fetching client-side.** `getStreams` /
       `resolveStreams` / `getCatalog` / `getMeta` run in remote functions (on
       the host's server, done for CORS). That makes the operator's server query
@@ -346,7 +359,8 @@ diverges from that or fails to state it.
 
 - **Playable containers.** Scope = direct http(s) mp4 + HLS. External-player
   handoff (`vlc://` / copy URL) for the rest → **done** on the no-playable
-  state; still want it inline as a fallback CTA when a stream fails mid-play.
+  state; a mid-play failure now shows a "Choose another source" overlay
+  (`video-player.svelte`).
 - **Poster proxy.** Provider URLs only (no server-side handling of copyrightable
   content).
 - **Addon CORS.** No server-side addon proxy (addons return copyrightable links;

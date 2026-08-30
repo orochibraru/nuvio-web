@@ -7,6 +7,7 @@ const routes = [
 	"/discover",
 	"/library",
 	"/history",
+	"/stats",
 	"/collections",
 	"/settings",
 	"/addons",

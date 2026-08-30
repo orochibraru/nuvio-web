@@ -1,11 +1,15 @@
 <script lang="ts">
+	import ClockIcon from "@lucide/svelte/icons/clock";
 	import SearchIcon from "@lucide/svelte/icons/search";
+	import XIcon from "@lucide/svelte/icons/x";
+	import { untrack } from "svelte";
 	import { afterNavigate, goto } from "$app/navigation";
 	import { page } from "$app/state";
 	import { homeRows, searchCatalogs } from "$lib/addons/addons.remote";
 	import MediaGrid from "$lib/components/media-grid.svelte";
 	import MediaRow from "$lib/components/media-row.svelte";
 	import { Input } from "$lib/components/ui/input/index.js";
+	import { searchHistory } from "$lib/search-history.svelte.js";
 	import { pageTitle } from "$lib/stores/title.svelte.js";
 
 	const term = $derived((page.url.searchParams.get("q") ?? "").trim());
@@ -46,6 +50,13 @@
 	});
 
 	const results = $derived(term ? searchCatalogs(term) : undefined);
+
+	// Record a term once its results come back non-empty (local-only history).
+	$effect(() => {
+		if (term && (results?.current?.metas.length ?? 0) > 0) {
+			untrack(() => searchHistory.record(term));
+		}
+	});
 
 	const groups = $derived.by(() => {
 		const metas = results?.current?.metas ?? [];
@@ -100,6 +111,45 @@
 	</div>
 
 	{#if !term}
+		{#if searchHistory.entries.length > 0}
+			<div class="flex flex-col gap-2">
+				<div class="flex items-center justify-between">
+					<h2 class="flex items-center gap-1.5 text-sm font-semibold text-muted-foreground">
+						<ClockIcon class="size-3.5" /> Recent searches
+					</h2>
+					<button
+						type="button"
+						onclick={() => searchHistory.clear()}
+						class="text-xs text-muted-foreground transition hover:text-foreground"
+					>
+						Clear
+					</button>
+				</div>
+				<div class="flex flex-wrap gap-2">
+					{#each searchHistory.entries as entry (entry)}
+						<span
+							class="group/chip flex items-center gap-1 rounded-full bg-foreground/5 py-1 pr-1 pl-3 text-sm transition hover:bg-foreground/10"
+						>
+							<button
+								type="button"
+								onclick={() => runSearch(entry, false)}
+								class="text-foreground/90 transition group-hover/chip:text-foreground"
+							>
+								{entry}
+							</button>
+							<button
+								type="button"
+								aria-label={`Remove ${entry}`}
+								onclick={() => searchHistory.remove(entry)}
+								class="flex size-5 items-center justify-center rounded-full text-muted-foreground transition hover:bg-foreground/10 hover:text-foreground"
+							>
+								<XIcon class="size-3" />
+							</button>
+						</span>
+					{/each}
+				</div>
+			</div>
+		{/if}
 		{@render discoverRows()}
 	{:else if results?.error}
 		<p class="py-10 text-center text-sm text-destructive">Search failed. Try again.</p>

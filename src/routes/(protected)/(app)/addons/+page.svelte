@@ -1,6 +1,7 @@
 <script lang="ts">
 	import ArrowDownIcon from "@lucide/svelte/icons/arrow-down";
 	import ArrowUpIcon from "@lucide/svelte/icons/arrow-up";
+	import InfoIcon from "@lucide/svelte/icons/info";
 	import PlusIcon from "@lucide/svelte/icons/plus";
 	import PuzzleIcon from "@lucide/svelte/icons/puzzle";
 	import Trash2Icon from "@lucide/svelte/icons/trash-2";
@@ -121,6 +122,15 @@
 			Add addon
 		</Button>
 	</div>
+
+	<Alert.Root>
+		<InfoIcon />
+		<Alert.Description>
+			Nuvio Web hosts nothing. Everything you see comes from the addons you
+			install — you choose them and are responsible for what they return. Only
+			add addons you have the right to use.
+		</Alert.Description>
+	</Alert.Root>
 
 	{#if addonsQuery.error}
 		<Alert.Root variant="destructive">

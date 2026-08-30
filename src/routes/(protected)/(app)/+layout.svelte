@@ -1,6 +1,8 @@
 <script lang="ts">
 	import SearchIcon from "@lucide/svelte/icons/search";
 	import { page } from "$app/state";
+	import CommandPalette from "$lib/components/command-palette.svelte";
+	import HealthBanner from "$lib/components/health-banner.svelte";
 	import ProfileAvatar from "$lib/components/profile-avatar.svelte";
 	import * as DropdownMenu from "$lib/components/ui/dropdown-menu/index.js";
 	import { theme } from "$lib/settings/theme.svelte";
@@ -58,6 +60,8 @@
 
 <svelte:window onscroll={() => (scrolled = window.scrollY > 12)} />
 
+<CommandPalette />
+
 <div
   class="relative isolate flex min-h-svh flex-col overflow-x-clip"
   data-accent={accent}
@@ -113,6 +117,11 @@
         >
           <SearchIcon class="size-4" />
           <span class="hidden sm:inline">Search</span>
+          <kbd
+            class="ml-1 hidden rounded border border-border bg-muted px-1.5 font-sans text-[10px] text-muted-foreground sm:inline"
+          >
+            ⌘K
+          </kbd>
         </a>
 
         <DropdownMenu.Root>
@@ -136,6 +145,11 @@
               <DropdownMenu.Item>
                 {#snippet child({ props })}
                   <a href="/history" {...props}>Watch history</a>
+                {/snippet}
+              </DropdownMenu.Item>
+              <DropdownMenu.Item>
+                {#snippet child({ props })}
+                  <a href="/stats" {...props}>Your stats</a>
                 {/snippet}
               </DropdownMenu.Item>
               <DropdownMenu.Item>
@@ -178,6 +192,9 @@
     )}
   >
     <div class="flex-1">
+      {#if !immersive}
+        <HealthBanner />
+      {/if}
       {@render children()}
     </div>
 

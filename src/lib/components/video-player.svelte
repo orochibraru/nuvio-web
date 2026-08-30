@@ -274,6 +274,15 @@
 		loading = true;
 	}
 
+	function onMediaError() {
+		// `<video>` fires this for a 404 / unsupported codec / decode failure. The
+		// HLS path reports its own fatals via `Hls.Events.ERROR`.
+		if (!src.toLowerCase().includes(".m3u8")) {
+			fatalError = "This source failed to play in the browser.";
+			loading = false;
+		}
+	}
+
 	function onEndedInternal() {
 		ended = true;
 		onEnded?.();
@@ -515,6 +524,7 @@
 		oncanplay={onReady}
 		onplaying={onReady}
 		onwaiting={onWaiting}
+		onerror={onMediaError}
 		onclick={togglePlay}
 		onended={onEndedInternal}
 	>
@@ -540,13 +550,28 @@
 	{/if}
 
 	{#if fatalError}
-		<div class="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/80 text-center text-white">
-			<p>{fatalError}</p>
-			{#if onBack}
-				<button type="button" onclick={onBack} class="rounded-md bg-white/15 px-3 py-1.5 text-sm">
-					Back
-				</button>
-			{/if}
+		<div class="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-black/85 px-6 text-center text-white">
+			<p class="max-w-sm text-sm text-white/80">{fatalError}</p>
+			<div class="flex flex-wrap items-center justify-center gap-2">
+				{#if onSources}
+					<button
+						type="button"
+						onclick={onSources}
+						class="flex items-center gap-1.5 rounded-md bg-white px-3 py-1.5 text-sm font-medium text-black transition hover:bg-white/90"
+					>
+						<LayersIcon class="size-4" /> Choose another source
+					</button>
+				{/if}
+				{#if onBack}
+					<button
+						type="button"
+						onclick={onBack}
+						class="rounded-md bg-white/15 px-3 py-1.5 text-sm transition hover:bg-white/25"
+					>
+						Back
+					</button>
+				{/if}
+			</div>
 		</div>
 	{/if}
 

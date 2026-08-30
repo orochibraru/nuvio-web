@@ -151,6 +151,7 @@
 										src={posters.get(item.contentId)}
 										alt=""
 										loading="lazy"
+										decoding="async"
 										class="relative size-full object-cover"
 									/>
 								{/if}

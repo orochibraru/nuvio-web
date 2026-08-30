@@ -6,7 +6,8 @@
 	import PlayIcon from "@lucide/svelte/icons/play";
 	import PlusIcon from "@lucide/svelte/icons/plus";
 	import SparklesIcon from "@lucide/svelte/icons/sparkles";
-	import { fade } from "svelte/transition";
+	import { cubicOut } from "svelte/easing";
+	import { fly } from "svelte/transition";
 	import { toast } from "svelte-sonner";
 	import { browser } from "$app/env";
 	import { homeRows } from "$lib/addons/addons.remote";
@@ -74,9 +75,21 @@
 		spotlights = candidates.slice(0, 6);
 	});
 
-	// Auto-advancing featured carousel.
+	// Auto-advancing featured carousel. `heroDir` drives the slide direction of
+	// the transition (1 = new slide enters from the right, -1 = from the left).
 	let heroIndex = $state(0);
+	let heroDir = $state<1 | -1>(1);
 	let heroPaused = $state(false);
+	const HERO_SLIDE = 60;
+
+	function goToHero(index: number) {
+		const count = spotlights.length;
+		if (count === 0) {
+			return;
+		}
+		heroDir = index === heroIndex ? heroDir : index > heroIndex ? 1 : -1;
+		heroIndex = ((index % count) + count) % count;
+	}
 
 	$effect(() => {
 		if (heroIndex >= spotlights.length) {
@@ -93,12 +106,14 @@
 			return;
 		}
 		const timer = setInterval(() => {
+			heroDir = 1;
 			heroIndex = (heroIndex + 1) % count;
 		}, 8000);
 		return () => clearInterval(timer);
 	});
 
 	function stepHero(direction: 1 | -1) {
+		heroDir = direction;
 		const count = spotlights.length;
 		heroIndex = (heroIndex + direction + count) % count;
 	}
@@ -185,7 +200,18 @@
 			class="grid *:col-start-1 *:row-start-1"
 		>
 			{#key spotlight.id}
-				<div in:fade={{ duration: 450 }} out:fade={{ duration: 450 }}>
+				<div
+					in:fly={{
+						x: heroDir * HERO_SLIDE,
+						duration: 480,
+						easing: cubicOut,
+					}}
+					out:fly={{
+						x: heroDir * -HERO_SLIDE,
+						duration: 360,
+						easing: cubicOut,
+					}}
+				>
 				<MediaHero
 					title={spotlight.name}
 					logo={spotlight.logo}
@@ -226,7 +252,7 @@
 											type="button"
 											aria-label={`Show ${item.name}`}
 											aria-current={index === heroIndex ? "true" : undefined}
-											onclick={() => (heroIndex = index)}
+											onclick={() => goToHero(index)}
 											class={cn(
 												"h-1.5 rounded-full transition-all",
 												index === heroIndex
@@ -304,6 +330,7 @@
 								src={item.background}
 								alt={item.name}
 								loading="lazy"
+								decoding="async"
 								class="relative size-full object-cover transition-transform duration-500 group-hover/cw:scale-105"
 							/>
 						{/if}

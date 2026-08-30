@@ -118,6 +118,7 @@
 				src={item.poster}
 				alt={item.name}
 				loading="lazy"
+				decoding="async"
 				onerror={() => (broken = true)}
 				class="size-full object-cover transition-transform duration-500 ease-out group-hover/poster:scale-[1.06]"
 			/>

@@ -11,6 +11,7 @@ const shots: Array<[string, string]> = [
 	["collections", "/collections"],
 	["collection", "/collections/col-1"],
 	["history", "/history"],
+	["stats", "/stats"],
 	["settings", "/settings"],
 	["addons", "/addons"],
 	["account", "/account"],
