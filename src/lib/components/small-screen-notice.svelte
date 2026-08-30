@@ -1,33 +1,52 @@
 <script lang="ts">
-	import MonitorIcon from "@lucide/svelte/icons/monitor";
 	import SmartphoneIcon from "@lucide/svelte/icons/smartphone";
+	import XIcon from "@lucide/svelte/icons/x";
+	import { browser } from "$app/env";
 	import { NUVIO_WEBSITE_URL } from "$lib/nuvio/index.js";
+
+	const KEY = "nuvio:mobile-banner-dismissed";
+	let dismissed = $state(true);
+
+	$effect(() => {
+		if (!browser) {
+			return;
+		}
+		try {
+			dismissed = localStorage.getItem(KEY) === "1";
+		} catch {
+			dismissed = false;
+		}
+	});
+
+	function dismiss() {
+		dismissed = true;
+		try {
+			localStorage.setItem(KEY, "1");
+		} catch {
+			// storage unavailable — banner re-shows next load
+		}
+	}
 </script>
 
-<div
-	class="fixed inset-0 z-[100] flex flex-col items-center justify-center gap-5 bg-background px-6 text-center md:hidden"
->
-	<span
-		class="flex size-16 items-center justify-center rounded-2xl bg-primary text-2xl font-bold text-primary-foreground"
+{#if !dismissed}
+	<div
+		class="fixed inset-x-0 bottom-0 z-100 flex items-center gap-3 border-t border-border bg-background/95 px-4 py-3 text-sm shadow-[0_-8px_24px_-12px_rgba(0,0,0,0.4)] backdrop-blur md:hidden"
 	>
-		N
-	</span>
-	<div class="flex items-center gap-3 text-muted-foreground">
-		<SmartphoneIcon class="size-6" />
-		<span class="text-2xl">→</span>
-		<MonitorIcon class="size-6" />
-	</div>
-	<div class="flex flex-col gap-2">
-		<p class="text-lg font-semibold tracking-tight">Nuvio web is built for the desktop</p>
-		<p class="mx-auto max-w-xs text-sm text-muted-foreground">
-			Open this in a browser on a larger screen, or grab the Nuvio mobile app for
-			phones and tablets.
+		<SmartphoneIcon class="size-5 shrink-0 text-muted-foreground" />
+		<p class="flex-1 text-muted-foreground">
+			Nuvio web is built for the desktop. On a phone, the
+			<a href={NUVIO_WEBSITE_URL} class="font-medium text-foreground underline">
+				mobile app
+			</a>
+			works better.
 		</p>
+		<button
+			type="button"
+			aria-label="Dismiss"
+			onclick={dismiss}
+			class="shrink-0 rounded-md p-1.5 text-muted-foreground transition hover:bg-foreground/5 hover:text-foreground"
+		>
+			<XIcon class="size-4" />
+		</button>
 	</div>
-	<a
-		href={NUVIO_WEBSITE_URL}
-		class="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
-	>
-		Get the mobile app
-	</a>
-</div>
+{/if}

@@ -27,6 +27,11 @@
 		subtitleFontSize,
 	} from "$lib/settings/ui-settings.js";
 	import { cn } from "$lib/utils.js";
+	import {
+		type AudioByteSample,
+		classifyAudioSamples,
+		reportedAudioTrack,
+	} from "$lib/watch/silent-audio.js";
 
 	type SubtitleTrack = {
 		id?: string;
@@ -58,8 +63,13 @@
 		subtitleBackground = true,
 		preferredLanguage = "",
 		audioRisky = false,
+		introStart = null,
+		introEnd = null,
+		outroStart = null,
+		minimized = false,
 		onProgress,
 		onEnded,
+		onOutro,
 		onBack,
 		onSources,
 		onSubtitleAppearance,
@@ -83,8 +93,17 @@
 		preferredLanguage?: string;
 		/** The stream label hints at an audio codec the browser can't decode. */
 		audioRisky?: boolean;
+		/** Intro window in seconds (from TheIntroDB) — drives "Skip intro". */
+		introStart?: number | null;
+		introEnd?: number | null;
+		/** Seconds at which the end credits start — drives the outro handoff. */
+		outroStart?: number | null;
+		/** Shrink to a corner PiP (the page's end-of-show takeover). */
+		minimized?: boolean;
 		onProgress?: (position: number, duration: number) => void;
 		onEnded?: () => void;
+		/** Fired once when playback first reaches `outroStart`. */
+		onOutro?: () => void;
 		onBack?: () => void;
 		onSources?: () => void;
 		onSubtitleAppearance?: (patch: SubtitleAppearance) => void;
@@ -120,6 +139,8 @@
 	// `currentTime` reset (e.g. right after a recovery `video.load()`) pushing
 	// `position: 0` over real progress. Reset when the source changes.
 	let furthestPosition = 0;
+	// `onOutro` fires once per source.
+	let outroFired = false;
 
 	// Subtitle timing nudge (seconds), applied as a delta to the showing track's
 	// cues. Resets when the track changes.
@@ -148,6 +169,36 @@
 	const bufferedEnd = $derived(buffered.at(-1)?.end ?? 0);
 	const progressRatio = $derived(duration ? currentTime / duration : 0);
 	const bufferedRatio = $derived(duration ? bufferedEnd / duration : 0);
+
+	// "Skip intro" — visible while playback sits inside the intro window.
+	const showSkipIntro = $derived(
+		introEnd != null &&
+			!minimized &&
+			!fatalError &&
+			currentTime >= (introStart ?? 0) &&
+			currentTime < introEnd - 1,
+	);
+
+	function skipIntro() {
+		if (video && introEnd != null) {
+			video.currentTime = introEnd;
+			void video.play();
+		}
+	}
+
+	// Fire `onOutro` once as playback crosses into the credits.
+	$effect(() => {
+		if (
+			!outroFired &&
+			outroStart != null &&
+			duration > 0 &&
+			currentTime >= outroStart &&
+			currentTime < duration - 0.5
+		) {
+			outroFired = true;
+			onOutro?.();
+		}
+	});
 
 	const cueFontSize = $derived(subtitleFontSize(subtitleSize));
 	const cueBackground = $derived(
@@ -198,6 +249,7 @@
 		fatalError = null;
 		recoveryAttempted = false;
 		furthestPosition = 0;
+		outroFired = false;
 		seeded = false;
 		loading = true;
 		ended = false;
@@ -347,50 +399,77 @@
 		loading = false;
 	}
 
-	// Best-effort detection of a source that plays video but no audio (an
-	// undecodable audio codec — Dolby Digital / DTS / Atmos). Chrome exposes
-	// decoded-byte counters; if video is advancing and audio isn't after a few
-	// seconds of playback, flag it. Non-fatal: the video keeps playing.
-	let audioUnavailable = $state(false);
+	// Runtime detection of a source that plays video but no sound — an undecodable
+	// audio codec (Dolby Digital / DTS / Atmos …) or a file with no audio track.
+	// Non-fatal: the video keeps playing, the banner is dismissible.
+	let audioIssue = $state<null | "no-track" | "codec">(null);
+	let audioTrackTried = false;
+
 	$effect(() => {
-		// Re-arm whenever the source changes.
 		void src;
-		audioUnavailable = false;
+		audioIssue = null;
+		audioTrackTried = false;
 		if (!video) {
 			return;
 		}
 		const el = video as HTMLVideoElement & {
 			webkitAudioDecodedByteCount?: number;
 			webkitVideoDecodedByteCount?: number;
+			mozHasAudio?: boolean;
 		};
 		const haveCounters = el.webkitVideoDecodedByteCount !== undefined;
-		if (!haveCounters && !audioRisky) {
-			return; // no counters (not Chromium) and no label hint — can't tell
+		if (!haveCounters && !audioRisky && typeof el.mozHasAudio !== "boolean") {
+			return; // nothing to go on
 		}
-		const needed = audioRisky ? 2 : 3;
-		let silentTicks = 0;
+
+		const needed = audioRisky ? 2 : 4;
+		const samples: AudioByteSample[] = [];
 		let playedSeconds = 0;
+
 		const timer = setInterval(() => {
-			if (fatalError || el.paused || el.currentTime < 3) {
+			if (fatalError || el.paused || el.currentTime < 3 || audioIssue) {
 				return;
 			}
 			playedSeconds += 1;
+
+			// Firefox exposes a definitive "has an audio track" boolean.
+			if (el.mozHasAudio === false) {
+				audioIssue = "no-track";
+				clearInterval(timer);
+				return;
+			}
+			const reported = reportedAudioTrack(el);
+
 			if (haveCounters) {
-				const videoMoving = (el.webkitVideoDecodedByteCount ?? 0) > 0;
-				const audioMoving = (el.webkitAudioDecodedByteCount ?? 0) > 0;
-				if (videoMoving && !audioMoving) {
-					silentTicks += 1;
-				} else {
-					silentTicks = 0;
+				samples.push({
+					video: el.webkitVideoDecodedByteCount ?? 0,
+					audio: el.webkitAudioDecodedByteCount ?? 0,
+				});
+				if (samples.length > 14) {
+					samples.shift();
 				}
-				if (silentTicks >= needed) {
-					audioUnavailable = true;
+				const verdict = classifyAudioSamples(samples, needed);
+				if (verdict === "codec" || verdict === "no-track") {
+					// Try switching to a stereo/AAC alt track once (HLS) before we
+					// bother the viewer.
+					if (
+						verdict === "codec" &&
+						hls &&
+						hls.audioTracks.length > 1 &&
+						!audioTrackTried
+					) {
+						audioTrackTried = true;
+						const next = (hls.audioTrack + 1) % hls.audioTracks.length;
+						hls.audioTrack = next;
+						activeAudioTrack = next;
+						samples.length = 0;
+						return;
+					}
+					audioIssue = reported === true ? "codec" : verdict;
 					clearInterval(timer);
 				}
-			} else if (audioRisky && playedSeconds >= 6) {
-				// No counters, but the label warned us and it has been playing a
-				// while — surface the (dismissible) hint.
-				audioUnavailable = true;
+			} else if (audioRisky && playedSeconds >= 8) {
+				audioIssue = "codec";
 				clearInterval(timer);
 			}
 		}, 1000);
@@ -611,10 +690,14 @@
 	role="region"
 	aria-label="Video player"
 	class={cn(
-		"nuvio-player group/player relative w-full overflow-hidden bg-black select-none",
-		fill ? "h-full" : "aspect-video rounded-lg",
+		"nuvio-player group/player overflow-hidden bg-black select-none transition-all duration-500 ease-out",
+		minimized
+			? "fixed right-4 bottom-4 z-40 aspect-video w-56 rounded-xl shadow-2xl ring-1 ring-white/15 sm:w-72"
+			: fill
+				? "relative h-full w-full"
+				: "relative aspect-video w-full rounded-lg",
 	)}
-	class:cursor-none={!controlsVisible}
+	class:cursor-none={!controlsVisible && !minimized}
 	style:--cue-size={cueFontSize}
 	style:--cue-color={subtitleColor}
 	style:--cue-bg={cueBackground}
@@ -664,14 +747,18 @@
 		/>
 	{/if}
 
-	{#if audioUnavailable && !fatalError}
+	{#if audioIssue && !fatalError && !minimized}
 		<div
 			class="absolute inset-x-0 top-0 z-20 flex items-start gap-3 bg-amber-500/95 px-4 py-2.5 text-sm text-black"
 		>
-			<Volume2Icon class="mt-0.5 size-4 shrink-0" />
+			<VolumeXIcon class="mt-0.5 size-4 shrink-0" />
 			<p class="flex-1">
-				This source is playing without sound. Its audio codec (Dolby Digital,
-				DTS or Atmos) isn't supported by the browser.
+				{#if audioIssue === "no-track"}
+					This source has no audio.
+				{:else}
+					This source is playing without sound — its audio codec (Dolby Digital,
+					DTS or Atmos) isn't supported by the browser.
+				{/if}
 			</p>
 			{#if onSources}
 				<button
@@ -685,7 +772,7 @@
 			<button
 				type="button"
 				aria-label="Dismiss"
-				onclick={() => (audioUnavailable = false)}
+				onclick={() => (audioIssue = null)}
 				class="shrink-0 rounded-md p-1 transition hover:bg-black/10"
 			>
 				<XIcon class="size-4" />
@@ -719,10 +806,24 @@
 		</div>
 	{/if}
 
+	{#if showSkipIntro}
+		<button
+			type="button"
+			onclick={skipIntro}
+			class="absolute right-4 bottom-20 z-20 rounded-md bg-white/95 px-4 py-2 text-sm font-semibold text-black shadow-lg transition hover:bg-white sm:right-6 sm:bottom-24"
+		>
+			Skip intro
+		</button>
+	{/if}
+
 	<div
 		class={cn(
 			"absolute inset-0 flex flex-col justify-between bg-linear-to-t from-black/80 via-black/10 to-black/60 transition-opacity duration-200",
-			controlsVisible ? "opacity-100" : "pointer-events-none opacity-0",
+			minimized
+				? "pointer-events-none opacity-0"
+				: controlsVisible
+					? "opacity-100"
+					: "pointer-events-none opacity-0",
 		)}
 	>
 		<!-- Top row -->

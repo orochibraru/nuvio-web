@@ -12,6 +12,7 @@
 	import EmptyState from "$lib/components/empty-state.svelte";
 	import MediaGrid from "$lib/components/media-grid.svelte";
 	import MediaRow from "$lib/components/media-row.svelte";
+	import QueryError from "$lib/components/query-error.svelte";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import * as Dialog from "$lib/components/ui/dialog/index.js";
 	import { Input } from "$lib/components/ui/input/index.js";
@@ -167,7 +168,12 @@
 		</div>
 	</div>
 
-	{#if contentsLoading}
+	{#if contentsQuery?.error}
+		<QueryError
+			message="Couldn't load this collection's folders."
+			onRetry={() => contentsQuery?.refresh()}
+		/>
+	{:else if contentsLoading}
 		<MediaGrid items={[]} loading skeletonCount={12} />
 	{:else if folders.length === 0}
 		<EmptyState

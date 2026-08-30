@@ -6,6 +6,7 @@
 	import type { MetaPreview } from "$lib/addons/index.js";
 	import EmptyState from "$lib/components/empty-state.svelte";
 	import MediaGrid from "$lib/components/media-grid.svelte";
+	import QueryError from "$lib/components/query-error.svelte";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { pageTitle } from "$lib/stores/title.svelte.js";
 	import { cn } from "$lib/utils.js";
@@ -195,9 +196,10 @@
 		{#if loadingFirst}
 			<MediaGrid items={[]} loading skeletonCount={12} />
 		{:else if firstPageQuery?.error}
-			<p class="py-10 text-center text-sm text-destructive">
-				Couldn't load this catalog.
-			</p>
+			<QueryError
+				message="Couldn't load this catalog."
+				onRetry={() => firstPageQuery?.refresh()}
+			/>
 		{:else if items.length === 0}
 			<p class="py-10 text-center text-sm text-muted-foreground">Nothing in this catalog.</p>
 		{:else}

@@ -13,6 +13,7 @@
 	import { goto } from "$app/navigation";
 	import type { MetaPreview } from "$lib/addons/index.js";
 	import * as ContextMenu from "$lib/components/ui/context-menu/index.js";
+	import { posterSrcset } from "$lib/images.js";
 	import { sync } from "$lib/sync/store.svelte.js";
 	import { cn } from "$lib/utils.js";
 	import { parseRuntimeMs } from "$lib/watch/runtime.js";
@@ -114,8 +115,11 @@
 		)}
 	>
 		{#if item.poster && !broken}
+			{@const responsive = posterSrcset(item.poster)}
 			<img
 				src={item.poster}
+				srcset={responsive?.srcset}
+				sizes={responsive?.sizes}
 				alt={item.name}
 				loading="lazy"
 				decoding="async"

@@ -80,6 +80,9 @@ export const previewAddon = command(
 						typeof r === "string" ? r : r.name,
 					),
 					catalogCount: manifest.catalogs.length,
+					catalogs: manifest.catalogs
+						.slice(0, 40)
+						.map((c) => ({ type: c.type, name: c.name ?? c.id })),
 				},
 			};
 		} catch (cause) {

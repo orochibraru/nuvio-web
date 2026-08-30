@@ -14,6 +14,7 @@
 	import type { MetaPreview } from "$lib/addons/index.js";
 	import MediaHero from "$lib/components/media-hero.svelte";
 	import MediaRow from "$lib/components/media-row.svelte";
+	import QueryError from "$lib/components/query-error.svelte";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { sync } from "$lib/sync/store.svelte.js";
 	import { cn } from "$lib/utils.js";
@@ -456,7 +457,12 @@
 		<MediaRow title="My library" items={library} href="/library" />
 	{/if}
 
-	{#if rowsLoading}
+	{#if rowsQuery.error}
+		<QueryError
+			message="Couldn't load your catalog rows."
+			onRetry={() => rowsQuery.refresh()}
+		/>
+	{:else if rowsLoading}
 		{#each { length: 4 } as _row, index (index)}
 			<section class="flex flex-col gap-3">
 				<div class="skeleton h-6 w-40 rounded"></div>

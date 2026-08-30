@@ -133,6 +133,38 @@
 		addUrl = "";
 		preview = null;
 	}
+
+	// Metadata-only providers — safe to suggest (no scraper / torrent sources).
+	const SUGGESTED = [
+		{
+			name: "Cinemeta",
+			url: "https://v3-cinemeta.strem.io/manifest.json",
+			blurb: "Catalogs, posters and metadata for films and TV (IMDb ids).",
+		},
+		{
+			name: "TMDB",
+			url: "https://94c8cb9f702d-tmdb-addon.baby-beamup.club/manifest.json",
+			blurb: "The Movie Database catalogs and artwork, many languages.",
+		},
+	];
+
+	async function addSuggested(entry: (typeof SUGGESTED)[number]) {
+		const rows = toRows();
+		if (rows.some((row) => `${row.url}/manifest.json` === entry.url)) {
+			toast.info("That addon is already installed.");
+			return;
+		}
+		const result = await previewAddon(entry.url).catch(() => null);
+		if (!result?.ok) {
+			toast.error(`Couldn't reach ${entry.name}.`);
+			return;
+		}
+		await persist([
+			...rows,
+			{ url: result.baseUrl, name: result.manifest.name, enabled: true },
+		]);
+		toast.success(`Added ${result.manifest.name}.`);
+	}
 </script>
 
 <div class="flex flex-col gap-6">
@@ -185,10 +217,30 @@
 				<Card.Header>
 					<Card.Title>No addons yet</Card.Title>
 					<Card.Description>
-						Add a Stremio-compatible addon to start browsing. Cinemeta
-						(<code>https://v3-cinemeta.strem.io</code>) is a good first catalog.
+						Start with a metadata provider — catalogs, posters and details. Add
+						a stream provider yourself once you're set up.
 					</Card.Description>
 				</Card.Header>
+				<Card.Content class="flex flex-col gap-2">
+					{#each SUGGESTED as entry (entry.url)}
+						<div
+							class="flex items-center gap-3 rounded-lg border border-border/60 p-3"
+						>
+							<div class="min-w-0 flex-1">
+								<p class="text-sm font-medium">{entry.name}</p>
+								<p class="truncate text-xs text-muted-foreground">{entry.blurb}</p>
+							</div>
+							<Button
+								size="sm"
+								variant="outline"
+								disabled={saving}
+								onclick={() => addSuggested(entry)}
+							>
+								<PlusIcon data-icon="inline-start" /> Add
+							</Button>
+						</div>
+					{/each}
+				</Card.Content>
 			</Card.Root>
 		{:else}
 			<div class="flex flex-col gap-3">
@@ -351,6 +403,24 @@
 							</div>
 						</div>
 					</Card.Content>
+					{#if preview.manifest.catalogs.length > 0}
+						<Card.Footer class="flex-col items-start gap-1.5 border-t border-border/60 pt-3">
+							<p class="text-xs font-medium text-muted-foreground">
+								{preview.manifest.catalogCount} catalog{preview.manifest
+									.catalogCount === 1
+									? ""
+									: "s"}
+							</p>
+							<div class="flex max-h-24 flex-wrap gap-1 overflow-y-auto">
+								{#each preview.manifest.catalogs as catalog (catalog.type + catalog.name)}
+									<Badge variant="outline" class="text-[10px]">
+										{catalog.name}
+										<span class="ml-1 text-muted-foreground">{catalog.type}</span>
+									</Badge>
+								{/each}
+							</div>
+						</Card.Footer>
+					{/if}
 				</Card.Root>
 			{/if}
 		</Field.FieldGroup>

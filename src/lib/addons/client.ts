@@ -1,5 +1,11 @@
+import { pooledMap } from "$lib/pool.js";
 import { safeFetch } from "$lib/server/safe-fetch.js";
 import { TtlCache } from "./cache.ts";
+
+// Cap on simultaneous upstream addon requests during a fan-out — keeps a
+// many-addon profile from bursting well past a sane per-user request rate.
+const FANOUT_CONCURRENCY = 6;
+
 import type { AddonRegistry, CatalogRef, InstalledAddon } from "./registry.ts";
 import type {
 	AddonError,
@@ -256,8 +262,10 @@ export class AddonClient {
 		const providers = this.registry.providersFor(resource, type, id);
 		const errors: AddonError[] = [];
 
-		const batches = await Promise.all(
-			providers.map(async (addon) => {
+		const batches = await pooledMap(
+			providers,
+			FANOUT_CONCURRENCY,
+			async (addon) => {
 				try {
 					const data = await this.request(
 						addon,
@@ -275,9 +283,9 @@ export class AddonClient {
 						resource,
 						message: errorMessage(error),
 					});
-					return [];
+					return [] as T[];
 				}
-			}),
+			},
 		);
 
 		return { items: batches.flat(), errors };

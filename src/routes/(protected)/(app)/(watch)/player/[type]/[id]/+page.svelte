@@ -19,6 +19,7 @@
 	import { sync } from "$lib/sync/store.svelte.js";
 	import { playbackHandoff } from "$lib/watch/playback.svelte.js";
 	import PlayerEpisodesPanel from "$lib/watch/player-episodes-panel.svelte";
+	import { mediaSegments } from "$lib/watch/segments.remote";
 	import { sourcesPanel } from "$lib/watch/sources-panel.svelte.js";
 	import {
 		audioSupport,
@@ -179,25 +180,30 @@
 		return `/player/series/${encodeURIComponent(videoId)}`;
 	}
 
-	// "Up next" autoplay after an episode ends.
-	let ended = $state(false);
-	let upNextCountdown = $state<number | null>(null);
-	let countdownTimer: ReturnType<typeof setInterval> | undefined;
-
 	const detailHref = $derived(`/detail/${type}/${encodeURIComponent(id)}`);
 
-	// End card once the video finishes: autoplay the next episode when enabled,
-	// otherwise show a "what next" panel (next-episode CTA, replay, back to
-	// details) plus a few suggestions when this was the last episode.
-	function onVideoEnded() {
-		ended = true;
-		if (context.next && theme.current.autoPlayNext) {
-			startUpNext();
-		}
-	}
+	// Intro / outro timestamps (TheIntroDB) — power "Skip intro" and the
+	// outro handoff (next-episode card / end-of-show panel).
+	const segmentsQuery = $derived(
+		playableSrc && contextReady
+			? mediaSegments({
+					contentId: context.contentId,
+					season: context.season,
+					episode: context.episode,
+				})
+			: undefined,
+	);
+	const segments = $derived(segmentsQuery?.current ?? null);
+
+	// Two end states: "up next" (there is a next episode) and "end of show"
+	// (there isn't — shrink the player, show suggestions).
+	let upNextVisible = $state(false);
+	let upNextCountdown = $state<number | null>(null);
+	let countdownTimer: ReturnType<typeof setInterval> | undefined;
+	let endOfShow = $state(false);
 
 	const suggestionsQuery = $derived(
-		ended && !context.next
+		endOfShow
 			? similarTitles({
 					type: context.metaType,
 					id: context.contentId,
@@ -212,31 +218,52 @@
 	function cancelUpNext() {
 		clearInterval(countdownTimer);
 		upNextCountdown = null;
+		upNextVisible = false;
 	}
 
-	function startUpNext() {
-		if (!context.next || !theme.current.autoPlayNext) {
+	function goToNext() {
+		const target = context.next;
+		cancelUpNext();
+		if (target) {
+			void goto(playerHref(target.videoId));
+		}
+	}
+
+	function openUpNext() {
+		if (!context.next || upNextVisible) {
 			return;
 		}
-		upNextCountdown = 10;
-		countdownTimer = setInterval(() => {
-			if (upNextCountdown == null) {
-				return;
-			}
-			upNextCountdown -= 1;
-			if (upNextCountdown <= 0) {
-				const target = context.next;
-				cancelUpNext();
-				if (target) {
-					void goto(playerHref(target.videoId));
+		upNextVisible = true;
+		if (theme.current.autoPlayNext) {
+			upNextCountdown = 10;
+			countdownTimer = setInterval(() => {
+				upNextCountdown = (upNextCountdown ?? 1) - 1;
+				if (upNextCountdown <= 0) {
+					goToNext();
 				}
-			}
-		}, 1000);
+			}, 1000);
+		}
+	}
+
+	// Fired once when playback reaches the credits, and again on the real `ended`
+	// event as a fallback (when there's no outro timestamp).
+	function reachedEnd() {
+		if (context.next) {
+			openUpNext();
+		} else {
+			endOfShow = true;
+		}
+	}
+
+	function watchAgain() {
+		endOfShow = false;
+		cancelUpNext();
+		replayNonce += 1;
 	}
 
 	$effect(() => {
 		void page.params.id;
-		ended = false;
+		endOfShow = false;
 		replayNonce = 0;
 		return cancelUpNext;
 	});
@@ -292,6 +319,62 @@
 	{/if}
 
 	{#if playableSrc}
+		{#if endOfShow}
+			<!-- Netflix-style: the player shrinks to a corner while "more like this"
+			     takes over the screen. -->
+			<div
+				class="absolute inset-0 z-20 flex flex-col gap-6 overflow-y-auto bg-linear-to-b from-black via-black/95 to-black p-6 sm:p-10"
+			>
+				<div class="flex flex-col gap-1">
+					<p class="text-xs font-semibold tracking-[0.2em] text-white/50 uppercase">
+						You finished
+					</p>
+					<h2 class="text-2xl font-bold sm:text-3xl">{context.heading}</h2>
+				</div>
+
+				<div class="flex flex-wrap items-center gap-2">
+					<Button size="lg" variant="secondary" onclick={watchAgain}>
+						<RotateCcwIcon data-icon="inline-start" /> Watch again
+					</Button>
+					<Button size="lg" variant="ghost" href={detailHref}>
+						<InfoIcon data-icon="inline-start" /> Back to details
+					</Button>
+				</div>
+
+				{#if suggestions.length > 0}
+					<div class="flex flex-col gap-3">
+						<p class="text-sm font-semibold text-white/70">More like this</p>
+						<div
+							class="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8"
+						>
+							{#each suggestions as meta (meta.id)}
+								<a
+									href={`/detail/${meta.type}/${encodeURIComponent(meta.id)}`}
+									class="group/sug"
+								>
+									<div
+										class="aspect-2/3 overflow-hidden rounded-lg bg-white/10 ring-1 ring-white/10 transition group-hover/sug:ring-primary/60"
+									>
+										{#if meta.poster}
+											<img
+												src={meta.poster}
+												alt={meta.name}
+												loading="lazy"
+												class="size-full object-cover"
+											/>
+										{/if}
+									</div>
+									<p class="mt-1.5 line-clamp-2 text-xs text-white/80">
+										{meta.name}
+									</p>
+								</a>
+							{/each}
+						</div>
+					</div>
+				{/if}
+			</div>
+		{/if}
+
 		{#key `${playableSrc}:${replayNonce}`}
 			<VideoPlayer
 				src={playableSrc}
@@ -309,8 +392,13 @@
 				subtitleBackground={theme.current.subtitleBackground}
 				preferredLanguage={theme.current.subtitleLanguage}
 				{audioRisky}
+				introStart={segments?.intro?.start ?? null}
+				introEnd={segments?.intro?.end ?? null}
+				outroStart={segments?.credits?.start ?? null}
+				minimized={endOfShow}
 				onProgress={report}
-				onEnded={onVideoEnded}
+				onEnded={reachedEnd}
+				onOutro={reachedEnd}
 				onBack={() => history.back()}
 				onSources={openSources}
 				onSubtitleAppearance={saveSubtitleAppearance}
@@ -319,12 +407,14 @@
 			/>
 		{/key}
 
-		{#if upNextCountdown != null && context.next}
+		{#if upNextVisible && context.next}
 			{@const upNext = context.next}
 			<div
-				class="absolute inset-0 z-20 flex flex-col items-center justify-center gap-4 bg-black/85 p-6 text-center backdrop-blur-sm"
+				class="absolute inset-0 z-30 flex flex-col items-center justify-center gap-4 bg-black/85 p-6 text-center backdrop-blur-sm"
 			>
-				<p class="text-xs font-semibold tracking-[0.2em] text-white/60 uppercase">Up next</p>
+				<p class="text-xs font-semibold tracking-[0.2em] text-white/60 uppercase">
+					Up next
+				</p>
 				{#if upNext.thumbnail}
 					<img
 						src={upNext.thumbnail}
@@ -334,76 +424,16 @@
 				{/if}
 				<p class="max-w-md text-sm font-medium">{upNext.label}</p>
 				<div class="flex items-center gap-2">
-					<Button size="lg" onclick={() => goto(playerHref(upNext.videoId))}>
+					<Button size="lg" onclick={goToNext}>
 						<PlayIcon data-icon="inline-start" class="fill-current" />
-						Play now ({upNextCountdown})
+						{upNextCountdown != null && upNextCountdown > 0
+							? `Play now (${upNextCountdown})`
+							: "Play next episode"}
 					</Button>
-					<Button size="lg" variant="secondary" onclick={cancelUpNext}>Cancel</Button>
-				</div>
-			</div>
-		{:else if ended}
-			<div
-				class="absolute inset-0 z-20 flex flex-col items-center justify-center gap-5 overflow-y-auto bg-black/88 p-6 text-center backdrop-blur-sm"
-			>
-				<p class="text-xs font-semibold tracking-[0.2em] text-white/60 uppercase">
-					{context.next ? "Episode finished" : "You're all caught up"}
-				</p>
-				<p class="max-w-md text-lg font-semibold">{context.heading}</p>
-
-				<div class="flex flex-wrap items-center justify-center gap-2">
-					{#if context.next}
-						{@const upNext = context.next}
-						<Button size="lg" onclick={() => goto(playerHref(upNext.videoId))}>
-							<PlayIcon data-icon="inline-start" class="fill-current" />
-							Next episode
-						</Button>
-					{/if}
-					<Button
-						size="lg"
-						variant={context.next ? "secondary" : "default"}
-						onclick={() => {
-							ended = false;
-							replayNonce += 1;
-						}}
-					>
-						<RotateCcwIcon data-icon="inline-start" /> Watch again
-					</Button>
-					<Button size="lg" variant="ghost" href={detailHref}>
-						<InfoIcon data-icon="inline-start" /> Back to details
+					<Button size="lg" variant="secondary" onclick={cancelUpNext}>
+						Not now
 					</Button>
 				</div>
-
-				{#if !context.next && suggestions.length > 0}
-					<div class="mt-2 w-full max-w-3xl">
-						<p class="mb-2 text-left text-sm font-medium text-white/70">
-							More like this
-						</p>
-						<div class="no-scrollbar flex gap-3 overflow-x-auto pb-2">
-							{#each suggestions as meta (meta.id)}
-								<a
-									href={`/detail/${meta.type}/${encodeURIComponent(meta.id)}`}
-									class="w-28 shrink-0"
-								>
-									<div
-										class="aspect-2/3 overflow-hidden rounded-lg bg-white/10 ring-1 ring-white/10"
-									>
-										{#if meta.poster}
-											<img
-												src={meta.poster}
-												alt={meta.name}
-												loading="lazy"
-												class="size-full object-cover"
-											/>
-										{/if}
-									</div>
-									<p class="mt-1.5 line-clamp-2 text-left text-xs text-white/80">
-										{meta.name}
-									</p>
-								</a>
-							{/each}
-						</div>
-					</div>
-				{/if}
 			</div>
 		{/if}
 	{:else if resolving}

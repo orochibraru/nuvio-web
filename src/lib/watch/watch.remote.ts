@@ -3,6 +3,7 @@ import { query } from "$app/server";
 import { getAddonClient } from "$lib/addons/server.js";
 import { requireProfile } from "$lib/server/guards.js";
 import { httpUrlOrNull } from "$lib/utils.js";
+import { nextEpisode } from "./episodes.js";
 
 function parseVideoId(type: string, id: string) {
 	if (type !== "series") {
@@ -173,14 +174,12 @@ export const continueWatching = query(async () => {
 	const rows = await nuvio.watchProgress
 		.pull({ p_profile_id: profileId, p_limit: 30 })
 		.catch(() => [] as Awaited<ReturnType<typeof nuvio.watchProgress.pull>>);
+	// Most-recent row per title (completed or not — a finished episode of a
+	// running show still points at the next one to watch).
 	const seen = new Set<string>();
-	const inProgress = rows
-		// "Continue watching" = has a real runtime and isn't ~finished. The app
-		// writes rows at `position: 0` when a title is queued / just opened, so
-		// there is no lower position bound.
-		.filter((row) => row.duration > 60_000 && row.position < row.duration * 0.9)
+	const latestPerTitle = rows
+		.filter((row) => row.duration > 60_000)
 		.sort((a, b) => b.last_watched - a.last_watched)
-		// One entry per title — the most recently watched episode wins.
 		.filter((row) => {
 			if (seen.has(row.content_id)) {
 				return false;
@@ -188,30 +187,59 @@ export const continueWatching = query(async () => {
 			seen.add(row.content_id);
 			return true;
 		})
-		.slice(0, 12);
+		.slice(0, 16);
 
-	const items = await Promise.all(
-		inProgress.map(async (row) => {
-			const meta = await client
-				.getMeta(row.content_type, row.content_id)
-				.catch(() => null);
-			return {
-				id: row.content_id,
-				type: row.content_type,
-				name: meta?.meta.name ?? row.content_id,
-				poster: meta?.meta.poster ?? null,
-				background: meta?.meta.background ?? meta?.meta.poster ?? null,
-				logo: meta?.meta.logo ?? null,
-				videoId: row.video_id,
-				season: row.season,
-				episode: row.episode,
-				progress: row.position / row.duration,
-				remainingMs: Math.max(0, row.duration - row.position),
-			};
-		}),
-	);
+	const items = (
+		await Promise.all(
+			latestPerTitle.map(async (row) => {
+				const meta = await client
+					.getMeta(row.content_type, row.content_id)
+					.catch(() => null);
+				const base = {
+					id: row.content_id,
+					type: row.content_type,
+					name: meta?.meta.name ?? row.content_id,
+					poster: meta?.meta.poster ?? null,
+					background: meta?.meta.background ?? meta?.meta.poster ?? null,
+					logo: meta?.meta.logo ?? null,
+				};
 
-	return items;
+				const complete = row.position >= row.duration * 0.9;
+
+				// Still mid-episode → resume it.
+				if (!complete) {
+					return {
+						...base,
+						videoId: row.video_id,
+						season: row.season,
+						episode: row.episode,
+						progress: row.position / row.duration,
+						remainingMs: Math.max(0, row.duration - row.position),
+					};
+				}
+
+				// Finished. For a series, roll forward to the next episode.
+				if (row.content_type === "series" && meta?.meta.videos) {
+					const next = nextEpisode(meta.meta.videos, row.season, row.episode);
+					if (next) {
+						return {
+							...base,
+							videoId: `${row.content_id}:${next.season}:${next.episode}`,
+							season: next.season,
+							episode: next.episode,
+							progress: 0,
+							remainingMs: 0,
+						};
+					}
+				}
+
+				// Finished movie, or last episode of the show — drop it.
+				return null;
+			}),
+		)
+	).filter((item): item is NonNullable<typeof item> => item !== null);
+
+	return items.slice(0, 12);
 });
 
 /** Progress for every video of one title, keyed by `video_id`. Powers resume bars. */

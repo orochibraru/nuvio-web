@@ -1,6 +1,7 @@
 <script lang="ts">
 	import StarIcon from "@lucide/svelte/icons/star";
 	import type { Snippet } from "svelte";
+	import { backdropSrcset } from "$lib/images.js";
 
 	let {
 		title,
@@ -48,8 +49,11 @@
 >
   <div class="absolute inset-0 -z-10">
     {#if background}
+      {@const bd = backdropSrcset(background)}
       <img
         src={background}
+        srcset={bd?.srcset}
+        sizes={bd?.sizes}
         alt=""
         class="animate-hero-zoom size-full object-cover object-center"
       />

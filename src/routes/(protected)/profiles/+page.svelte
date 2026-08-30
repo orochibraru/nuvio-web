@@ -1,7 +1,9 @@
 <script lang="ts">
+	import LockIcon from "@lucide/svelte/icons/lock";
 	import PencilIcon from "@lucide/svelte/icons/pencil";
 	import PlusIcon from "@lucide/svelte/icons/plus";
 	import Trash2Icon from "@lucide/svelte/icons/trash-2";
+	import { toast } from "svelte-sonner";
 	import ProfileAvatar from "$lib/components/profile-avatar.svelte";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import * as Dialog from "$lib/components/ui/dialog/index.js";
@@ -100,6 +102,29 @@
 						{profile.name}
 					</span>
 				</div>
+			{:else if profile.pin_enabled}
+				<button
+					type="button"
+					onclick={() =>
+						toast.info(
+							`${profile.name} is PIN-protected. Switch to it in the Nuvio app.`,
+						)}
+					class="group flex w-28 flex-col items-center gap-3 rounded-2xl p-2 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+				>
+					<div
+						class="relative size-24 overflow-hidden rounded-2xl ring-1 ring-white/10 ring-offset-2 ring-offset-background transition-all duration-200 group-hover:scale-105"
+					>
+						<div class="opacity-40"><ProfileAvatar {profile} /></div>
+						<span
+							class="absolute inset-0 flex items-center justify-center bg-black/30 text-white"
+						>
+							<LockIcon class="size-6" />
+						</span>
+					</div>
+					<span class="max-w-full truncate text-sm font-medium text-muted-foreground">
+						{profile.name}
+					</span>
+				</button>
 			{:else}
 				{@const pick = selectProfile.for(profile.profile_index)}
 				<form {...pick} class="contents">

@@ -44,9 +44,10 @@ no schema), the progress-key format, and the 90% / 60s completion rule.
 - **IDs.** `content_id` e.g. `tmdb:550`; `content_type` `movie` | `series`.
   Episodes: `video_id` `tmdb:1396:1:1` + `season`/`episode`. Server computes
   `progress_key`.
-- **Zero config.** No env vars. Ships pointed at the hosted Nuvio API
-  (publishable key is public, in `client.ts`). One allowed override:
-  `NUVIO_API_URL` for self-hosters, read once in `hooks.server.ts`.
+- **Zero config.** No required env vars. Ships pointed at the hosted Nuvio API
+  (publishable key is public, in `client.ts`). Optional: `NUVIO_API_URL` for
+  self-hosters (read once in `hooks.server.ts`); `INTRODB_API_KEY` to lift
+  TheIntroDB rate limits for skip-intro (the endpoint works keyless too).
 
 Status legend: `[ ]` open · `[~]` partially done · `[x]` done (kept inline only
 where an area has no **Shipped** list) · larger shipped work is folded into each
@@ -117,15 +118,17 @@ Nothing open.
 
 ## Playback
 
-- [~] End-of-episode overlay — "Episode finished" (next-episode CTA) or "You're
-  all caught up" (last episode) with Watch again + Back to details, and a "More
-  like this" poster row on the last episode (`similarTitles`). Autoplay still
-  runs first when enabled. Next-air-time for a still-airing show is open (needs
-  a schedule source).
-- [ ] When an episode is marked watched on a running show with a known next
-      episode, surface the next episode + air date in continue-watching.
-- [ ] Skip intro / skip outro ==> Use https://theintrodb.org/ for shows, AniSkip
-      for anime.
+- [~] When an episode of a running show is finished, `continueWatching` rolls
+  forward to the next episode (`nextEpisode` in `episodes.ts`, unit-tested) —
+  shows as "Not started". The next-air-date for an unaired next episode is still
+  open (needs a schedule source).
+- [~] Skip intro / skip outro — done for shows/movies via TheIntroDB
+  (`segments.remote.ts` / `segments.ts`, optional `INTRODB_API_KEY`, tmdb: /
+  imdb id mapping, unit-tested; `mediaSegments` remote). "Skip intro" button in
+  the intro window; crossing into the credits fires the outro handoff: an "Up
+  next" card when there's a next episode, or the end-of-show shrink (player
+  minimises to a corner PiP) + "more like this" grid. AniSkip for anime + a
+  still-airing-show next-air-time are still open.
 
 <details><summary>Shipped</summary>
 
@@ -134,12 +137,19 @@ Nothing open.
   network/decode error (debrid + torrent links stall and hiccup) gets one silent
   reload-from-position before the overlay. HLS fatals still route here. The
   no-playable-stream state offers the external-player handoff.
-- No-audio handling — streams whose label names a codec the browser can't decode
-  (Dolby Digital / DTS / Atmos, no AAC fallback) are flagged "may be silent" in
-  the source drawer and de-prioritised by `pickPreferredStream`. At runtime the
-  player watches Chrome's decoded-byte counters; if video advances and audio
-  doesn't, it shows a dismissible "playing without sound — try another source"
-  banner (`audioSupport` in `stream-format.ts`, unit-tested).
+- No-audio handling —
+  - **label**: streams naming a codec the browser can't decode (Dolby Digital /
+    DTS / Atmos, no AAC fallback) are flagged "may be silent" in the source
+    drawer and de-prioritised by `pickPreferredStream` (`audioSupport`).
+  - **runtime** (`silent-audio.ts`, unit-tested): a rolling window of Chrome's
+    `webkit{Video,Audio}DecodedByteCount` is classified by _delta_ — audio that
+    decodes then stalls → "codec"; audio that never produced a byte → "no
+    track"; brief buffer gaps and stalls are ignored. Firefox's `mozHasAudio`
+    gives a definitive "no track"; `audioTracks` a positive confirmation.
+    Label-flagged streams lower the confirmation threshold. On HLS it first
+    tries switching to a stereo/AAC alt track. The banner distinguishes "no
+    audio" from "codec not supported"; both dismissible, both offer other
+    sources.
 - Flow: `/detail` → "Watch" / episode opens the right-hand source drawer
   (`sources-panel.svelte.ts` module state, owned by `(watch)` layout, shared
   with `/player`, no URL param) → pick → `/player/[type]/[id]`. "Sources"
@@ -162,9 +172,12 @@ Nothing open.
   (size / colour / plate) persist; subtitle timing nudge (±0.5s).
 - Audio-track selection — HLS only (hls.js), in the settings menu.
 - Content-warning card on stream load — cert + genre descriptors, soft fade.
-- Next-episode autoplay + "up next" card (10s countdown, gated on
-  `autoPlayNext`); when autoplay is off or it was the last episode, an end card
-  (next-episode / Watch again / Back to details + "More like this" suggestions).
+- Outro handoff (fires on the TheIntroDB credits timestamp, or the real `ended`
+  event as fallback): an "Up next" card (10s countdown when `autoPlayNext`,
+  otherwise a plain Play button) when there's a next episode; a Netflix-style
+  end-of-show takeover otherwise — the player shrinks to a corner PiP and a
+  full-screen "You finished … / More like this" grid (`similarTitles`) with
+  Watch again + Back to details slides in.
 - In-player episode drawer + season switcher (`player-episodes-panel.svelte`);
   next-episode button.
 - Progress → `sync.saveProgress` every 15s, on pause, on `visibilitychange` /
@@ -228,8 +241,10 @@ Nothing open.
 - [ ] `$lib/sync/store.svelte.ts` reads/writes through whichever backend each
       domain (`librarySource` / `progressSource`) is set to; Nuvio stays the
       fallback + cross-device mirror.
-- [ ] Right-click add/remove should invalidate any list still on a server
-      snapshot (home library row now reads the store; audit the rest).
+- [x] Right-click add/remove list invalidation — audited: every mutation goes
+      through `sync.*` and every consumer (library / history / detail / poster
+      badges / home rows) reads the reactive `$state` views, so a right-click
+      action propagates without an explicit invalidate.
 
 <details><summary>Shipped</summary>
 
@@ -269,8 +284,7 @@ Nothing open.
 
 ## Profiles & account
 
-- [ ] Show PIN-locked profiles as locked (read-only; no PIN flow in the public
-      API).
+Nothing open.
 
 <details><summary>Shipped</summary>
 
@@ -281,6 +295,9 @@ Nothing open.
   delete (`updateProfile` / `deleteProfile` forms; delete runs
   `deleteProfileData` then a full-replace, clears the cookie if it was active,
   primary profile protected).
+- PIN-protected profiles (`pin_enabled`) show a lock overlay in the picker and
+  aren't selectable from the web (no PIN flow in the public API) — a toast
+  points to the mobile app.
 - App shell — top nav + profile dropdown (switch / settings / account / sign
   out).
 - `/account` — email + member-since, change-password link-out, sign out,
@@ -292,11 +309,14 @@ Nothing open.
 
 ## Addons
 
-- [ ] Addon catalog discovery (`addon_catalog` resource) — browse an addon's
-      advertised catalogs before adding.
+- [ ] Full `addon_catalog` resource browse (an addon that advertises _other_
+      addons) — the manifest-`catalogs` list is now shown in the add preview.
 
 <details><summary>Shipped</summary>
 
+- Add-addon preview lists the manifest's catalogs (type + name) so you see what
+  a provider brings before installing. Empty-state suggests metadata-only
+  providers (Cinemeta, TMDB) with one-click add.
 - `/addons` drag-to-reorder — grip handle per row (HTML5 DnD, drop-target ring),
   up/down buttons kept for keyboard.
 
@@ -312,25 +332,31 @@ Nothing open.
 
 ## Polish & hardening
 
-- [ ] Make the app mobile-friendly (currently a small-screen gate overlay); keep
-      a dismissable bottom banner pointing at the mobile app instead. Use the
-      branding logos in `lib/assets` / `static`.
+- [~] Mobile-friendly — the small-screen gate is now a dismissable bottom banner
+  (`small-screen-notice.svelte`, `localStorage`), so the app is usable on a
+  phone. Touch-target / layout polish for small screens is still open.
 - [x] Degraded-mode / offline banner (`health-banner.svelte` + `apiHealth`
       remote over `client.healthCheck()`) — full-bleed amber strip on `degraded`
       / `down` (Retry + Dismiss, re-probes every 60s) or when `navigator.onLine`
       is false (auto-clears on reconnect). A dedicated status page is still
       open.
 - [~] Image handling — posters / episode thumbs / trailer stills carry
-  `loading="lazy"` + `decoding="async"`; provider poster URLs only. Still want
-  responsive `srcset` and a blur-up placeholder.
-- [ ] Perf — route-level code splitting, virtualised grids, prefetch on hover.
+  `loading="lazy"` + `decoding="async"`; responsive `srcset` + `sizes` on poster
+  tiles and hero backdrops for TMDB image URLs (`images.ts`, unit-tested;
+  Cinemeta/metahub URLs pass through unchanged). A blur-up placeholder is still
+  open.
+- [ ] Perf — route-level code splitting (SvelteKit does this per route),
+      virtualised grids. Prefetch-on-hover is on
+      (`data-sveltekit-preload-data`).
 - [ ] Accessibility pass — focus management, ARIA on rows/tiles/player (partial;
       reduced-motion honoured).
-- [~] Offline states + retry affordances — `health-banner.svelte` also handles
-  `navigator.onLine` (offline strip, auto-clears + re-probes on `online`);
-  empty-state component + restyled `+error.svelte` done. Per-query retry buttons
-  on content loads still open.
-- [ ] Rate-limit safety — keep per-user request rate well under 100 req/s.
+- [~] Offline states + retry affordances — `health-banner.svelte` handles
+  `navigator.onLine`; `query-error.svelte` (message + "Try again" →
+  `.refresh()`) on the home rows / discover catalog / collection folders;
+  empty-state component + restyled `+error.svelte` done.
+- [~] Rate-limit safety — addon fan-out (`AddonClient.fanOut`) is capped at 6
+  concurrent upstream requests (`pooledMap`, unit-tested); sync writes already
+  batch behind a 1.5s debounce. A global client request budget is still open.
 
 <details><summary>Shipped</summary>
 
@@ -340,10 +366,13 @@ Nothing open.
 - No content-await blocks SSR (home / discover / collections / player moved to
   client queries + skeletons). `data.*` guarded everywhere.
 - Playwright smoke suite (`e2e/`, reuses the running dev server on :5173, shared
-  auth token, zero-console-errors asserted on every page); Vitest for pure logic
-  (`reconcile`, `runtime`, `stream-format`, addon `registry` — manifest
-  validation, `providersFor` type/idPrefix filtering, `buildRegistry` sort +
-  error isolation). Run `bun run test:e2e` after any UI change.
+  auth token, zero-console-errors asserted on every page). Vitest (~106 cases:
+  `reconcile`, `runtime`, `stream-format`, addon `registry`, `segments`,
+  `episodes`, `pool`, `images`, `session`, `guards`, `safe-fetch`,
+  `health.remote`, `segments.remote`) with **istanbul** coverage scoped to the
+  server / remote-function layer + a ratcheting threshold
+  (`bun run test:unit:coverage`, in CI). Run `bun run test:e2e` after any UI
+  change.
 - Dedicated showcase-screenshot sequence (`e2e/showcase.spec.ts`,
   `bun run screenshots`) — a numbered walkthrough (sign-in → home → discover →
   detail → sources drawer → library → collections → history → stats → settings →
@@ -357,6 +386,15 @@ Nothing open.
 
 ## CI/CD
 
+- [~] **100% unit-test coverage of the server / data layer** — every
+  `*.remote.ts`, `src/lib/server/**`, `src/lib/sync/**`, `src/lib/addons/*`,
+  `src/lib/watch/*`, `hooks.server.ts`. `vitest.config.ts` scopes coverage to
+  these + enforces a ratcheting threshold (`test:unit:coverage`, in CI). Now
+  ~27% lines (was ~19). Still 0%: `sync.remote` / `sync/store` / `watch.remote`
+  / `stats.remote` / `auth.remote` / `addons.remote` / `library.remote` /
+  `history.remote` / `collections.remote` / `profiles.remote` / `hooks.server`.
+  Pattern: `vi.mock("$app/server")` so `query`/`command` return the handler,
+  fake `getRequestEvent().locals`.
 - [ ] Release mechanism (release-please) — screenshot the app for the README,
       publish the Docker image.
 
@@ -392,8 +430,9 @@ diverges from that or fails to state it.
       re-serves subtitle files under our origin with a 1-day cache. Do the
       SRT→WebVTT conversion in the browser; if a proxy is unavoidable, drop the
       cache.
-- [ ] **Never bundle default addons** pointing at infringing sources. Keep
-      `/addons` suggestions to metadata-only providers (Cinemeta, TMDB).
+- [x] **Never bundle default addons** pointing at infringing sources — the
+      `/addons` empty-state suggests only Cinemeta + the TMDB addon
+      (metadata-only, `configurationRequired: false`).
 - [ ] **Keep playback client-side** — `video.src` / `hls.loadSource` in the
       browser, media never transits our server. No server-side stream proxy.
 - [~] **Nuvio affiliation** — app ships a hardcoded `api.nuvio.tv` key, auths
