@@ -13,7 +13,13 @@
 	let { data } = $props();
 
 	let filter = $state<"all" | "movie" | "series">("all");
-	let sort = $state<"added" | "name">("added");
+
+	const sorts = [
+		{ value: "added", label: "Recently added" },
+		{ value: "name", label: "A–Z" },
+		{ value: "rating", label: "Top rated" },
+	] as const;
+	let sort = $state<(typeof sorts)[number]["value"]>("added");
 
 	type GridItem = {
 		id: string;
@@ -48,6 +54,10 @@
 		}
 		if (sort === "name") {
 			list = [...list].sort((a, b) => a.name.localeCompare(b.name));
+		} else if (sort === "rating") {
+			list = [...list].sort(
+				(a, b) => (b.imdbRating ?? 0) - (a.imdbRating ?? 0),
+			);
 		}
 		return list;
 	});
@@ -94,10 +104,13 @@
 			</div>
 			<button
 				type="button"
-				onclick={() => (sort = sort === "added" ? "name" : "added")}
+				onclick={() => {
+					const next = (sorts.findIndex((s) => s.value === sort) + 1) % sorts.length;
+					sort = sorts[next].value;
+				}}
 				class="rounded-full bg-foreground/5 px-3 py-1.5 text-sm font-medium text-muted-foreground transition hover:text-foreground"
 			>
-				{sort === "added" ? "Recently added" : "A–Z"}
+				{sorts.find((s) => s.value === sort)?.label}
 			</button>
 		</div>
 	</div>

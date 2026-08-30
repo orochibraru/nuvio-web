@@ -50,6 +50,31 @@ test("detail source sidebar: opens, resolves async, refreshes, closes", async ({
 	expect(errors).toEqual([]);
 });
 
+test("detail page warms the stream fan-out before the drawer opens", async ({
+	page,
+	context,
+}) => {
+	await signIn(context);
+	const errors = collectRuntimeErrors(page);
+
+	let resolvedStreamsRequested = false;
+	page.on("request", (request) => {
+		if (request.url().includes("resolveStreams")) {
+			resolvedStreamsRequested = true;
+		}
+	});
+
+	await page.goto("/detail/movie/tt1375666");
+	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
+
+	// The preload kicks off ~700ms after meta loads — never touching the drawer.
+	await expect
+		.poll(() => resolvedStreamsRequested, { timeout: 6000 })
+		.toBe(true);
+
+	expect(errors).toEqual([]);
+});
+
 test("detail: mark a movie watched, then unwatch", async ({
 	page,
 	context,
@@ -79,14 +104,16 @@ test("player page with no resolvable stream renders cleanly", async ({
 }) => {
 	await signIn(context);
 	const errors = collectRuntimeErrors(page);
-	await page.goto("/player/movie/tt0137523");
-	await page.waitForLoadState("networkidle");
-	await expect(page.getByText("No playable stream")).toBeVisible({
-		timeout: 15_000,
-	});
+	// tt0000001 — an 1894 short; addons have at most a non-web-playable source.
+	await page.goto("/player/movie/tt0000001");
+	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
+	// Either "No playable stream" or "This source can't play in the browser".
 	await expect(
 		page.getByRole("button", { name: "Choose a source" }),
-	).toBeVisible();
+	).toBeVisible({ timeout: 20_000 });
+	// A back button must always be reachable while no stream is loaded.
+	await expect(page.getByRole("button", { name: "Back" })).toBeVisible();
+	await page.waitForTimeout(1000);
 	expect(errors).toEqual([]);
 });
 
@@ -140,4 +167,35 @@ test("player seeks to startTime and leaves cleanly", async ({ page }) => {
 	await page.goto("/dev/player");
 	await page.waitForLoadState("networkidle");
 	expect(errors, "runtime errors leaving the player").toEqual([]);
+});
+
+test("player episode drawer: season switcher + jump to another episode", async ({
+	page,
+	context,
+}) => {
+	await signIn(context);
+	const errors = collectRuntimeErrors(page);
+
+	await page.goto("/player/series/tt0903747:1:1");
+	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
+
+	const episodesButton = page.getByRole("button", { name: "Episodes" });
+	// Needs a browser-playable stream from the test account's addons — skip if none.
+	if (!(await episodesButton.isVisible().catch(() => false))) {
+		test.skip(true, "no web-playable stream resolved for the drawer test");
+	}
+
+	await episodesButton.click();
+	const drawer = page.getByRole("complementary", { name: "Episodes" });
+	await expect(drawer).toBeVisible();
+	await expect(drawer.getByText("Now")).toBeVisible();
+
+	// Switch season, then open an episode from it.
+	await drawer.getByRole("button", { name: "Season 2" }).click();
+	await drawer.getByRole("button", { name: /^1\./ }).click();
+	await expect(page).toHaveURL(/tt0903747(%3A|:)2(%3A|:)1/);
+	await expect(drawer).toBeHidden();
+
+	await page.waitForTimeout(1000);
+	expect(errors, "runtime errors").toEqual([]);
 });

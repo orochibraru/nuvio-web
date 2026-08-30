@@ -16,6 +16,7 @@ const routes = [
 	"/detail/movie/tt0137523",
 	"/detail/series/tt0903747",
 	"/player/movie/tt0137523",
+	"/player/series/tt0903747:1:1",
 ];
 
 test.beforeEach(async ({ context }) => {
@@ -67,6 +68,44 @@ test("client-side navigation through the whole shell", async ({ page }) => {
 	await expect(page).toHaveTitle("Nuvio · Watch history");
 
 	expect(errors, "runtime errors during client navigation").toEqual([]);
+});
+
+test("search auto-runs while typing (debounced)", async ({ page }) => {
+	const errors = collectRuntimeErrors(page);
+
+	await page.goto("/search");
+	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
+
+	await page.getByPlaceholder("Search movies and series").fill("breaking bad");
+	// No Enter — the debounced effect pushes the query into the URL itself.
+	await expect(page).toHaveURL(/\/search\?q=breaking(%20|\+)bad/, {
+		timeout: 5000,
+	});
+	await expect(
+		page.getByRole("heading", { name: "Series", exact: true }),
+	).toBeVisible({ timeout: 20_000 });
+
+	expect(errors, "runtime errors").toEqual([]);
+});
+
+test("home hero carousel: manual step changes the featured title", async ({
+	page,
+}) => {
+	const errors = collectRuntimeErrors(page);
+
+	await page.goto("/");
+	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
+
+	const next = page.getByRole("button", { name: "Next featured title" });
+	// Only present when the load found >1 backdropped title — skip otherwise.
+	if (await next.isVisible().catch(() => false)) {
+		const heading = page.getByRole("group", { name: "Featured titles" });
+		const before = await heading.textContent();
+		await next.click();
+		await expect.poll(() => heading.textContent()).not.toBe(before);
+	}
+
+	expect(errors, "runtime errors").toEqual([]);
 });
 
 test("detail page: add to library then remove", async ({ page }) => {

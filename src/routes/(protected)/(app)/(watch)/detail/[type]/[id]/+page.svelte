@@ -7,11 +7,12 @@
 	import PlayIcon from "@lucide/svelte/icons/play";
 	import PlayCircleIcon from "@lucide/svelte/icons/play-circle";
 	import PlusIcon from "@lucide/svelte/icons/plus";
+	import { browser } from "$app/env";
 	import { page } from "$app/state";
 	import { getMeta, similarTitles } from "$lib/addons/addons.remote";
-	import EpisodeAccordion from "$lib/components/episode-accordion.svelte";
 	import MediaHero from "$lib/components/media-hero.svelte";
 	import MediaRow from "$lib/components/media-row.svelte";
+	import SeasonCarousel from "$lib/components/season-carousel.svelte";
 	import TrailerModal from "$lib/components/trailer-modal.svelte";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { libraryIds } from "$lib/library/library.remote";
@@ -20,7 +21,11 @@
 	import { cn } from "$lib/utils.js";
 	import { parseRuntimeMs } from "$lib/watch/runtime.js";
 	import { sourcesPanel } from "$lib/watch/sources-panel.svelte.js";
-	import { titleProgress } from "$lib/watch/watch.remote";
+	import {
+		playbackContext,
+		resolveStreams,
+		titleProgress,
+	} from "$lib/watch/watch.remote";
 
 	const type = $derived(page.params.type ?? "movie");
 	const id = $derived(page.params.id ?? "");
@@ -115,6 +120,35 @@
 		openSources(videoId);
 	}
 
+	// Warm the stream fan-out (and playback context) in the background so opening
+	// the source drawer — or landing on the player — feels instant. Remote
+	// queries are client-cached by args, so the drawer/player reuse this result.
+	// One id at a time on purpose: a full episode-by-episode sweep would hammer
+	// the addons. `prefetch()` skips already-warmed and in-flight ids.
+	const warmed = new Set<string>();
+	function prefetch(videoId: string | null | undefined) {
+		if (!browser || !videoId || warmed.has(videoId)) {
+			return;
+		}
+		warmed.add(videoId);
+		// `.catch` subscribes the resource, which kicks off the request; the
+		// result lands in the shared client cache for the drawer / player.
+		void resolveStreams({ type, id: videoId }).catch(() => {});
+		void playbackContext({ type, id: videoId }).catch(() => {});
+	}
+
+	const ctaVideoId = $derived(
+		contentType === "movie" ? id : (resumeEpisode?.id ?? firstEpisodeId),
+	);
+	$effect(() => {
+		if (!meta || !ctaVideoId) {
+			return;
+		}
+		const target = ctaVideoId;
+		const timer = setTimeout(() => prefetch(target), 700);
+		return () => clearTimeout(timer);
+	});
+
 	const runtimeMs = $derived(parseRuntimeMs(meta?.runtime));
 
 	function toggleWatched(
@@ -200,7 +234,9 @@
 			showPoster
 			description={meta.description}
 			{rating}
-			year={meta.releaseInfo}
+			year={contentType === "series" && meta.status
+				? `${meta.releaseInfo ?? ""} · ${meta.status}`.replace(/^ · /, "")
+				: meta.releaseInfo}
 			runtime={meta.runtime}
 			genres={meta.genres ?? []}
 		>
@@ -250,6 +286,20 @@
 		</MediaHero>
 
 		<div class="flex flex-col gap-10 pt-2">
+			{#if contentType === "series" && seasons.length > 0}
+				<SeasonCarousel
+					videos={meta.videos ?? []}
+					seriesRuntime={meta.runtime ?? null}
+					{progress}
+					initialSeason={resumeEpisode
+						? (meta.videos?.find((v) => v.id === resumeEpisode.id)?.season ?? null)
+						: null}
+					onPlay={watch}
+					onToggleWatched={toggleWatched}
+					onPrefetch={prefetch}
+				/>
+			{/if}
+
 			{#if trailers.length > 0}
 				<div class="flex flex-col gap-3">
 					<h2 class="text-xl font-semibold tracking-tight">Trailers</h2>
@@ -330,23 +380,6 @@
 							<p class="mt-1 text-foreground/90">{meta.awards}</p>
 						</div>
 					{/if}
-				</div>
-			{/if}
-
-			{#if contentType === "series" && seasons.length > 0}
-				<div class="flex flex-col gap-4">
-					<h2 class="text-xl font-semibold tracking-tight">Episodes</h2>
-					<EpisodeAccordion
-						videos={meta.videos ?? []}
-						seriesRuntime={meta.runtime ?? null}
-						{progress}
-						initialSeason={resumeEpisode
-							? (meta.videos?.find((v) => v.id === resumeEpisode.id)?.season ??
-								null)
-							: null}
-						onPlay={watch}
-						onToggleWatched={toggleWatched}
-					/>
 				</div>
 			{/if}
 

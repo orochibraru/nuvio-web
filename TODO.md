@@ -203,24 +203,37 @@ Primitives in `src/lib/components/` (`media-poster`, `media-grid`, `media-row`,
   - [x] **"More like this"** row — no true "similar" endpoint anywhere
         (Cinemeta/Nuvio-API). MVP: `similarTitles` remote query = browse the
         primary catalog filtered by the title's top genre, drop the current id.
-  - [x] **Series episodes → accordion per season.** `episode-accordion.svelte`:
-        one collapsible section per season; inside, episode cards laid out 16:9
-        with number, title, synopsis, rating (`MetaVideo.rating`, normalised
-        from Cinemeta's `rating`/`imdbRating`), release date
-        (`released`/`firstAired`), length (per-episode runtime rarely in data →
-        falls back to series `runtime`). Keeps the resume bar / watched tick /
-        mark-watched toggle.
+  - [x] **Series episodes → season carousel.** `season-carousel.svelte`
+        (replaced the accordion — hard to navigate): scrollable season pills + a
+        horizontal, snap-scrolling row of 16:9 episode cards (number, title,
+        synopsis, per-episode IMDb rating, air date, runtime fallback to the
+        series runtime) with hover arrows. Resume bar / watched tick /
+        mark-watched toggle kept; hover warms that episode's streams.
+  - [x] **Fuller show detail** — episodes carousel sits directly under the hero
+        (primary content for a series); the hero meta line carries `meta.status`
+        ("Ended" / "Continuing") for series; the carousel header shows
+        `N seasons · M episodes`.
 - [ ] Make the UI sexier, colorfoul, playful. We need to WANT to use it not just
       have to (background blurs, color accents, custom backgrounds)
 - [ ] Home layout editor (in Settings) → Phase 7
 - [ ] Hero banner on home; continue-watching row; watched/resume indicators →
       after Phase 2
+- [x] Search page: auto-search on type with a debounce → 450ms debounce pushes
+      the query into `?q=` (`replaceState`, so back isn't polluted per
+      keystroke); Enter still searches immediately; `afterNavigate` re-syncs the
+      box on back/forward. Results are the `searchCatalogs` remote query, which
+      is client-cached by args — retyping a prior term is a cache hit, no
+      refetch.
 - [x] The streams drawer shouldn't be url based it has a big impact on UX when
       trying to navigate to the previous page. → now `sources-panel.svelte.ts`
       module state, owned by the `(watch)` layout. Opening / closing it never
       touches history; back leaves the page.
-- [ ] The home hero should be a carousel that's auto-scrolling and allows the
-      user to see next featured media
+- [x] The home hero should be a carousel that's auto-scrolling and allows the
+      user to see next featured media → `+page.server.ts` returns `spotlights`
+      (up to 6 backdropped titles, deduped + shuffled); the home hero cycles
+      them every 8s (pauses on hover/focus, off under `prefers-reduced-motion`)
+      with dot indicators + prev/next arrows in a new `MediaHero` `overlay`
+      snippet. `{#key spotlight.id}` replays the Ken-Burns zoom on each change.
 - [x] Continue watching cards should show how much time is remaining →
       `continueWatching` returns `remainingMs`; the home card shows
       `formatRemaining()` ("23 min left" / "1 h 12 min left" / "Almost done",
@@ -240,6 +253,18 @@ Primitives in `src/lib/components/` (`media-poster`, `media-grid`, `media-row`,
       collection = folder title, search = the query). Client-only so the module
       singleton can't leak one request's title into another during SSR;
       `beforeNavigate` clears it between pages.
+- [x] Preload streams on the detail page so the source drawer / player feel
+      instant. `resolveStreams` + `playbackContext` are warmed ~700ms after
+      `getMeta` lands for the CTA target (movie id, or resume / first episode);
+      remote queries are client-cached by args so the drawer and player reuse
+      the result. Hovering an episode in the accordion warms that episode too
+      (`onPrefetch`). One id at a time — no episode-by-episode sweep, to stay
+      clear of the addon rate limits.
+- [ ] Add a right click action on media such as episode or movie cards with
+      quick actions such as "add to watchlist" or "mark as watched" or "mark all
+      previous episodes as watched". On season cards (season 1, 2 etc... on the
+      episode carousel) also add a right click dropdown that allows to mark the
+      whole season as watched or this season and all the previous ones.
 
 ## Phase 6b — Player UX overhaul
 
@@ -309,8 +334,10 @@ API writes for now; Phase 2 wraps them in the queue.
       `catalogList`); delete folder
 - [ ] Folder reorder, tile shape / hide-title / cover image, `FOLLOW_LAYOUT`
       mode, "All" tab — later
-- [ ] Sort by rating; library from the local store instead of a live pull — with
-      Phase 2
+- [x] Sort by rating; library from the local store instead of a live pull →
+      `/library` sort cycles Recently added → A–Z → Top rated (`imdbRating`
+      desc); the grid already reads `sync.library` once the store is
+      authoritative, `data.items` only for first paint.
 
 ## Phase 6 — Playback
 
@@ -341,7 +368,10 @@ straight to `/player/*`.
       handoff + `/player`
 - [x] `/player/[type]/[id]` — reads the handoff (or cold-resolves + auto-picks
       the first playable), `playback-loading` while resolving, resume prompt,
-      up-next autoplay, `onSources` reopens the drawer in place
+      up-next autoplay, `onSources` reopens the drawer in place. A floating
+      **Back** button shows whenever no stream is loaded (resolving / no-stream
+      / can't-play states, where `VideoPlayer` isn't mounted) —
+      `history.back()`, or `/detail` as a fallback on a cold entry.
 - [x] Custom controls: play/pause, seek bar with buffered range, time, volume,
       playback rate, PiP, fullscreen, captions toggle + menu; auto-hide;
       keyboard (space/k, ←→/jl, ↑↓, f, m, c)
@@ -356,12 +386,26 @@ straight to `/player/*`.
       parsed `runtime`, `$lib/watch/runtime.ts`) + `sync.clearProgress` (new
       `progress.delete` queue kind → `watchProgress.deleteMany`). Toggle on each
       detail episode row and a movie CTA button
-- [ ] Subtitle offset control; audio-track selection
-- [ ] Episode control. From the player we need a button to show all episodes in
-      the season as well as a season switcher so we can switch episodes without
-      leaving the player. We also need a next episode button as well as "skip
-      intro" and "skip outro" buttons which are a big hit in the nuvio
-      community.
+- [x] Subtitle offset control; audio-track selection → - **Subtitle timing** — a
+      −0.5s / +0.5s nudge in the subtitle overlay (only when a track is active);
+      shifts the showing track's cue times by the delta, resets to 0 on track
+      change. - **Audio tracks** — HLS only (hls.js `audioTracks` /
+      `audioTrack`, driven by `AUDIO_TRACKS_UPDATED` / `AUDIO_TRACK_SWITCHED`);
+      shown as an "Audio" section in the settings menu when there's more than
+      one. Plain mp4/mkv `<video>` has no reliable audio-track API, so it's
+      hidden there.
+- [~] Episode control from the player:
+  - [x] **Episode drawer + season switcher** — `player-episodes-panel.svelte`
+        (right drawer, scrim + Esc), season tabs, per-episode thumb / number /
+        title / rating / air date / synopsis, current episode marked "Now",
+        resume bars + watched ticks from `titleProgress`. `playbackContext` now
+        returns the full `episodes` list. Opened by the player's list button
+        (`e` key), picking one navigates without leaving `/player`.
+  - [x] **Next episode button** — `VideoPlayer` `onNext` (skip-forward icon, `n`
+        key), wired to `playbackContext.next`.
+  - [ ] **Skip intro / skip outro** — no addon gives intro/outro timestamps
+        (Stremio protocol has no chapter data; AniSkip is anime-only). Needs a
+        data source before it's more than a guess. Deferred.
 
 ## Phase 7 — Settings
 
@@ -427,10 +471,16 @@ non-remote exports there), `settings.remote.ts`
       a dismissable banner on the bottom to tell the users the nuvio app is
       better. Use the branding logos as well in either lib/assets or the static
       directory.
-- [ ] Brand the auth pages with logo, theming, dark mode by default etc..
-- [ ] Add fallback images for posters and/or backgrounds if they don't exist
-      (catch 404 behaviour on assets). They need to be pretty to be coherent
-      with the rest of the app
+- [x] Brand the auth pages with logo, theming, dark mode by default etc.. →
+      `auth/+layout.svelte`: `/logo-text.webp` wordmark + tagline, twin radial
+      primary glows, and a scoped `.dark` wrapper so the sign-in / sign-up
+      screens are always dark without touching the global mode-watcher state.
+- [x] Add fallback images for posters and/or backgrounds if they don't exist
+      (catch 404 behaviour on assets). They need to be pretty → `media-poster`
+      fallback gets a film/TV glyph over a gradient + wrapped title; episode
+      thumbnails (accordion + in-player drawer) and the continue-watching cards
+      render a glyph/gradient behind the `<img>` so a missing or 404'd image
+      degrades cleanly. `onerror` flips to the fallback.
 
 ---
 
@@ -442,6 +492,18 @@ non-remote exports there), `settings.remote.ts`
       app, alert on sync errors / breaking changes
 - [ ] Create a release mechanism (release-please from Google) which screenshots
       the app to update the readme and releases the docker image.
+
+## Security
+
+- [ ] Add CSRF protection for addons. An addon CANNOT have a url pointing to the
+      same address. Additionally we should have a guard on remote functions to
+      ensure a malicious user isn't calling them.
+
+## Performance
+
+- [ ] Remove any await that loads content (not user data, this is ok) on the
+      server (*.server.ts) and replace with an await in Svelte code with
+      Skeleton loading.
 
 ## Open decisions
 

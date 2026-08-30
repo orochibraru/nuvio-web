@@ -66,25 +66,35 @@ export const playbackContext = query(
 		const progress =
 			progressRows.find((row) => row.progress_key === key) ?? null;
 
-		// Next episode in play order, for autoplay / "up next".
+		// Every episode in play order — powers the in-player episode drawer and the
+		// "next" / "up next" affordances.
+		const ordered =
+			type === "series" && meta?.videos
+				? [...meta.videos]
+						.filter((entry) => (entry.season ?? 0) > 0)
+						.sort(
+							(a, b) =>
+								(a.season ?? 0) - (b.season ?? 0) ||
+								(a.episode ?? 0) - (b.episode ?? 0),
+						)
+				: [];
+		const episodes = ordered.map((entry) => ({
+			videoId: entry.id,
+			season: entry.season ?? 0,
+			episode: entry.episode ?? 0,
+			title: entry.title,
+			overview: entry.overview ?? null,
+			thumbnail: entry.thumbnail ?? null,
+			released: entry.released ?? null,
+			rating: entry.rating ?? null,
+		}));
+
 		let next: {
 			videoId: string;
 			label: string;
 			thumbnail: string | null;
 		} | null = null;
-		if (
-			type === "series" &&
-			season != null &&
-			episode != null &&
-			meta?.videos
-		) {
-			const ordered = [...meta.videos]
-				.filter((entry) => (entry.season ?? 0) > 0)
-				.sort(
-					(a, b) =>
-						(a.season ?? 0) - (b.season ?? 0) ||
-						(a.episode ?? 0) - (b.episode ?? 0),
-				);
+		if (type === "series" && season != null && episode != null) {
 			const index = ordered.findIndex(
 				(entry) => entry.season === season && entry.episode === episode,
 			);
@@ -114,6 +124,7 @@ export const playbackContext = query(
 				(meta?.behaviorHints?.adult ? "18+" : null) ??
 				null,
 			genres: meta?.genres ?? [],
+			episodes,
 			next,
 			resume:
 				progress && progress.duration > 0 && progress.position > 5000

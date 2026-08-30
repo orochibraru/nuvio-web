@@ -35,6 +35,22 @@ for (const [name, path] of shots) {
 	});
 }
 
+for (const [name, path] of [
+	["sign-in", "/auth/sign-in"],
+	["sign-up", "/auth/sign-up"],
+] as const) {
+	test(`shot ${name}`, async ({ page }) => {
+		const errors = collectRuntimeErrors(page);
+		await page.goto(path);
+		await page
+			.waitForLoadState("networkidle", { timeout: 8000 })
+			.catch(() => {});
+		await page.waitForTimeout(600);
+		await page.screenshot({ path: `screens/${name}.png`, fullPage: true });
+		expect(errors, `runtime errors on ${path}`).toEqual([]);
+	});
+}
+
 test("shot streams-panel", async ({ page, context }) => {
 	await signIn(context);
 	const errors = collectRuntimeErrors(page);

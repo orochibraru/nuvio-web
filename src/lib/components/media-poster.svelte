@@ -1,6 +1,8 @@
 <script lang="ts">
+	import FilmIcon from "@lucide/svelte/icons/film";
 	import PlayIcon from "@lucide/svelte/icons/play";
 	import StarIcon from "@lucide/svelte/icons/star";
+	import TvIcon from "@lucide/svelte/icons/tv";
 	import type { MetaPreview } from "$lib/addons/index.js";
 	import { cn } from "$lib/utils.js";
 
@@ -61,9 +63,16 @@
 			/>
 		{:else}
 			<div
-				class="flex size-full items-center justify-center bg-linear-to-br from-muted to-background p-3 text-center text-sm font-medium text-muted-foreground"
+				class="flex size-full flex-col items-center justify-center gap-2 bg-linear-to-br from-muted via-muted to-background p-3 text-center"
 			>
-				{item.name}
+				{#if item.type === "series"}
+					<TvIcon class="size-7 text-muted-foreground/50" />
+				{:else}
+					<FilmIcon class="size-7 text-muted-foreground/50" />
+				{/if}
+				<span class="line-clamp-3 text-sm font-medium text-muted-foreground">
+					{item.name}
+				</span>
 			</div>
 		{/if}
 

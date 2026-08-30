@@ -4,6 +4,7 @@
 	import CaptionsOffIcon from "@lucide/svelte/icons/captions-off";
 	import CheckIcon from "@lucide/svelte/icons/check";
 	import LayersIcon from "@lucide/svelte/icons/layers";
+	import ListVideoIcon from "@lucide/svelte/icons/list-video";
 	import MaximizeIcon from "@lucide/svelte/icons/maximize";
 	import MinimizeIcon from "@lucide/svelte/icons/minimize";
 	import PauseIcon from "@lucide/svelte/icons/pause";
@@ -12,6 +13,7 @@
 	import RotateCcwIcon from "@lucide/svelte/icons/rotate-ccw";
 	import RotateCwIcon from "@lucide/svelte/icons/rotate-cw";
 	import SettingsIcon from "@lucide/svelte/icons/settings";
+	import SkipForwardIcon from "@lucide/svelte/icons/skip-forward";
 	import Volume1Icon from "@lucide/svelte/icons/volume-1";
 	import Volume2Icon from "@lucide/svelte/icons/volume-2";
 	import VolumeXIcon from "@lucide/svelte/icons/volume-x";
@@ -60,6 +62,8 @@
 		onBack,
 		onSources,
 		onSubtitleAppearance,
+		onEpisodes,
+		onNext,
 	}: {
 		src: string;
 		poster?: string | null;
@@ -81,6 +85,10 @@
 		onBack?: () => void;
 		onSources?: () => void;
 		onSubtitleAppearance?: (patch: SubtitleAppearance) => void;
+		/** Series only: open the episode drawer. */
+		onEpisodes?: () => void;
+		/** Series only: jump to the next episode. */
+		onNext?: () => void;
 	} = $props();
 
 	let container = $state<HTMLDivElement | null>(null);
@@ -102,6 +110,15 @@
 	let subtitlesOpen = $state(false);
 	let activeCaption = $state<string | null>(null);
 	let seeded = false;
+
+	// Subtitle timing nudge (seconds), applied as a delta to the showing track's
+	// cues. Resets when the track changes.
+	let subtitleOffset = $state(0);
+
+	// Audio tracks — only exposed for HLS streams (hls.js drives the switch).
+	let hls: Hls | null = $state(null);
+	let audioTracks = $state<Array<{ id: number; label: string }>>([]);
+	let activeAudioTrack = $state(-1);
 
 	// Hover-scrub preview.
 	let scrubTrack = $state<HTMLDivElement | null>(null);
@@ -174,16 +191,33 @@
 		ended = false;
 		autoSubDone = false;
 
+		subtitleOffset = 0;
+		audioTracks = [];
+		activeAudioTrack = -1;
+
 		if (src.toLowerCase().includes(".m3u8") && Hls.isSupported()) {
-			const hls = new Hls({ maxBufferLength: 30 });
-			hls.loadSource(src);
-			hls.attachMedia(el);
-			hls.on(Hls.Events.ERROR, (_event, data) => {
+			const instance = new Hls({ maxBufferLength: 30 });
+			hls = instance;
+			instance.loadSource(src);
+			instance.attachMedia(el);
+			instance.on(Hls.Events.ERROR, (_event, data) => {
 				if (data.fatal) {
 					fatalError = "This stream could not be played.";
 				}
 			});
-			return () => hls.destroy();
+			const syncAudio = () => {
+				audioTracks = instance.audioTracks.map((track, index) => ({
+					id: index,
+					label: track.name || track.lang || `Track ${index + 1}`,
+				}));
+				activeAudioTrack = instance.audioTrack;
+			};
+			instance.on(Hls.Events.AUDIO_TRACKS_UPDATED, syncAudio);
+			instance.on(Hls.Events.AUDIO_TRACK_SWITCHED, syncAudio);
+			return () => {
+				instance.destroy();
+				hls = null;
+			};
 		}
 
 		el.src = src;
@@ -328,6 +362,32 @@
 			track.mode = track.label === key ? "showing" : "disabled";
 		}
 		activeCaption = key;
+		// A fresh track starts at its natural timing.
+		subtitleOffset = 0;
+	}
+
+	function nudgeSubtitleOffset(delta: number) {
+		if (!video) {
+			return;
+		}
+		subtitleOffset = Math.round((subtitleOffset + delta) * 10) / 10;
+		for (const track of Array.from(video.textTracks)) {
+			if (track.mode !== "showing" || !track.cues) {
+				continue;
+			}
+			for (const cue of Array.from(track.cues)) {
+				cue.startTime = Math.max(0, cue.startTime + delta);
+				cue.endTime = Math.max(0, cue.endTime + delta);
+			}
+		}
+	}
+
+	function setAudioTrack(id: number) {
+		if (hls) {
+			hls.audioTrack = id;
+			activeAudioTrack = id;
+		}
+		settingsOpen = false;
 	}
 
 	function cycleCaption() {
@@ -385,6 +445,12 @@
 				break;
 			case "c":
 				cycleCaption();
+				break;
+			case "n":
+				onNext?.();
+				break;
+			case "e":
+				onEpisodes?.();
 				break;
 			case "Escape":
 				if (menuOpen) {
@@ -649,6 +715,26 @@
 				</span>
 
 				<div class="ml-auto flex items-center gap-1 sm:gap-2">
+					{#if onNext}
+						<button
+							type="button"
+							aria-label="Next episode"
+							onclick={onNext}
+							class="flex size-9 items-center justify-center rounded-full transition hover:bg-white/15"
+						>
+							<SkipForwardIcon class="size-5" />
+						</button>
+					{/if}
+					{#if onEpisodes}
+						<button
+							type="button"
+							aria-label="Episodes"
+							onclick={onEpisodes}
+							class="flex size-9 items-center justify-center rounded-full transition hover:bg-white/15"
+						>
+							<ListVideoIcon class="size-5" />
+						</button>
+					{/if}
 					{#if options.length > 0}
 						<button
 							type="button"
@@ -686,7 +772,7 @@
 						</button>
 						{#if settingsOpen}
 							<div
-								class="absolute right-0 bottom-11 w-44 rounded-lg border border-white/15 bg-black/90 p-1.5 text-sm backdrop-blur-md"
+								class="absolute right-0 bottom-11 max-h-[70vh] w-44 overflow-y-auto rounded-lg border border-white/15 bg-black/90 p-1.5 text-sm backdrop-blur-md scrollbar-thin"
 							>
 								<p class="px-2 py-1 text-xs font-medium text-white/50">Playback speed</p>
 								{#each rates as option (option)}
@@ -705,6 +791,22 @@
 										{#if rate === option}<CheckIcon class="size-3.5" />{/if}
 									</button>
 								{/each}
+								{#if audioTracks.length > 1}
+									<p class="mt-1 px-2 py-1 text-xs font-medium text-white/50">Audio</p>
+									{#each audioTracks as track (track.id)}
+										<button
+											type="button"
+											onclick={() => setAudioTrack(track.id)}
+											class={cn(
+												"flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left transition hover:bg-white/10",
+												activeAudioTrack === track.id && "text-primary",
+											)}
+										>
+											<span class="truncate">{track.label}</span>
+											{#if activeAudioTrack === track.id}<CheckIcon class="size-3.5 shrink-0" />{/if}
+										</button>
+									{/each}
+								{/if}
 							</div>
 						{/if}
 					</div>
@@ -841,6 +943,33 @@
 							{subtitleBackground ? "On" : "Off"}
 						</span>
 					</button>
+
+					{#if activeCaption}
+						<div class="flex items-center justify-between gap-2 rounded-md border border-white/15 px-3 py-2 text-xs font-medium text-white/80">
+							<span>Timing</span>
+							<div class="flex items-center gap-2">
+								<button
+									type="button"
+									aria-label="Subtitles earlier"
+									onclick={() => nudgeSubtitleOffset(-0.5)}
+									class="flex size-6 items-center justify-center rounded bg-white/10 transition hover:bg-white/20"
+								>
+									−
+								</button>
+								<span class="w-12 text-center tabular-nums">
+									{subtitleOffset > 0 ? "+" : ""}{subtitleOffset.toFixed(1)}s
+								</span>
+								<button
+									type="button"
+									aria-label="Subtitles later"
+									onclick={() => nudgeSubtitleOffset(0.5)}
+									class="flex size-6 items-center justify-center rounded bg-white/10 transition hover:bg-white/20"
+								>
+									+
+								</button>
+							</div>
+						</div>
+					{/if}
 				</div>
 			</div>
 		{/if}

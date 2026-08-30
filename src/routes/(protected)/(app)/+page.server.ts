@@ -11,15 +11,24 @@ export const load: PageServerLoad = async () => {
 		continueWatching(),
 	]);
 
-	// Pull a spotlight from the first rows: needs a backdrop to carry the hero.
+	// Featured carousel: titles from the first rows that have a backdrop to carry
+	// the hero. Dedupe by id, shuffle, cap at 6.
+	const seen = new Set<string>();
 	const candidates: MetaPreview[] = rows
-		.slice(0, 3)
+		.slice(0, 4)
 		.flatMap((row) => row.metas)
-		.filter((meta) => Boolean(meta.background));
-	const spotlight =
-		candidates.length > 0
-			? candidates[Math.floor(Math.random() * Math.min(candidates.length, 12))]
-			: null;
+		.filter((meta) => {
+			if (!meta.background || seen.has(meta.id)) {
+				return false;
+			}
+			seen.add(meta.id);
+			return true;
+		});
+	for (let i = candidates.length - 1; i > 0; i--) {
+		const j = Math.floor(Math.random() * (i + 1));
+		[candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+	}
+	const spotlights = candidates.slice(0, 6);
 
-	return { rows, library, resume, spotlight };
+	return { rows, library, resume, spotlights };
 };

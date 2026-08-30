@@ -1,15 +1,50 @@
 <script lang="ts">
+	import ChevronLeftIcon from "@lucide/svelte/icons/chevron-left";
+	import ChevronRightIcon from "@lucide/svelte/icons/chevron-right";
 	import InfoIcon from "@lucide/svelte/icons/info";
 	import PlayIcon from "@lucide/svelte/icons/play";
 	import SparklesIcon from "@lucide/svelte/icons/sparkles";
+	import { browser } from "$app/env";
 	import MediaHero from "$lib/components/media-hero.svelte";
 	import MediaRow from "$lib/components/media-row.svelte";
 	import { Button } from "$lib/components/ui/button/index.js";
+	import { cn } from "$lib/utils.js";
 	import { formatRemaining } from "$lib/watch/runtime.js";
 
 	let { data } = $props();
 
-	const spotlight = $derived(data.spotlight);
+	const spotlights = $derived(data.spotlights);
+
+	// Auto-advancing featured carousel.
+	let heroIndex = $state(0);
+	let heroPaused = $state(false);
+
+	$effect(() => {
+		if (heroIndex >= spotlights.length) {
+			heroIndex = 0;
+		}
+	});
+
+	$effect(() => {
+		const count = spotlights.length;
+		if (!browser || count < 2 || heroPaused) {
+			return;
+		}
+		if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+			return;
+		}
+		const timer = setInterval(() => {
+			heroIndex = (heroIndex + 1) % count;
+		}, 8000);
+		return () => clearInterval(timer);
+	});
+
+	function stepHero(direction: 1 | -1) {
+		const count = spotlights.length;
+		heroIndex = (heroIndex + direction + count) % count;
+	}
+
+	const spotlight = $derived(spotlights[heroIndex] ?? null);
 	const spotlightHref = $derived(
 		spotlight
 			? `/detail/${spotlight.type}/${encodeURIComponent(spotlight.id)}`
@@ -42,26 +77,80 @@
 
 <div class="flex flex-col gap-12">
 	{#if spotlight}
-		<MediaHero
-			title={spotlight.name}
-			logo={spotlight.logo}
-			background={spotlight.background}
-			poster={spotlight.poster}
-			eyebrow="Featured"
-			description={spotlight.description}
-			rating={spotlightRating}
-			year={spotlight.releaseInfo}
-			genres={spotlight.genres ?? []}
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
+		<div
+			role="group"
+			aria-roledescription="carousel"
+			aria-label="Featured titles"
+			onmouseenter={() => (heroPaused = true)}
+			onmouseleave={() => (heroPaused = false)}
+			onfocusin={() => (heroPaused = true)}
+			onfocusout={() => (heroPaused = false)}
 		>
-			{#snippet actions()}
-				<Button size="lg" href={spotlightHref}>
-					<PlayIcon data-icon="inline-start" class="fill-current" /> Watch now
-				</Button>
-				<Button size="lg" variant="secondary" href={spotlightHref}>
-					<InfoIcon data-icon="inline-start" /> More info
-				</Button>
-			{/snippet}
-		</MediaHero>
+			{#key spotlight.id}
+				<MediaHero
+					title={spotlight.name}
+					logo={spotlight.logo}
+					background={spotlight.background}
+					poster={spotlight.poster}
+					eyebrow="Featured"
+					description={spotlight.description}
+					rating={spotlightRating}
+					year={spotlight.releaseInfo}
+					genres={spotlight.genres ?? []}
+				>
+					{#snippet actions()}
+						<Button size="lg" href={spotlightHref}>
+							<PlayIcon data-icon="inline-start" class="fill-current" /> Watch now
+						</Button>
+						<Button size="lg" variant="secondary" href={spotlightHref}>
+							<InfoIcon data-icon="inline-start" /> More info
+						</Button>
+					{/snippet}
+
+					{#snippet overlay()}
+						{#if spotlights.length > 1}
+							<div class="absolute right-6 bottom-6 flex items-center gap-3">
+								<div class="flex gap-1.5">
+									{#each spotlights as item, index (item.id)}
+										<button
+											type="button"
+											aria-label={`Show ${item.name}`}
+											aria-current={index === heroIndex ? "true" : undefined}
+											onclick={() => (heroIndex = index)}
+											class={cn(
+												"h-1.5 rounded-full transition-all",
+												index === heroIndex
+													? "w-6 bg-primary"
+													: "w-1.5 bg-foreground/30 hover:bg-foreground/50",
+											)}
+										></button>
+									{/each}
+								</div>
+								<div class="hidden gap-1 sm:flex">
+									<button
+										type="button"
+										aria-label="Previous featured title"
+										onclick={() => stepHero(-1)}
+										class="flex size-8 items-center justify-center rounded-full bg-background/60 ring-1 ring-border backdrop-blur-md transition hover:bg-background"
+									>
+										<ChevronLeftIcon class="size-4" />
+									</button>
+									<button
+										type="button"
+										aria-label="Next featured title"
+										onclick={() => stepHero(1)}
+										class="flex size-8 items-center justify-center rounded-full bg-background/60 ring-1 ring-border backdrop-blur-md transition hover:bg-background"
+									>
+										<ChevronRightIcon class="size-4" />
+									</button>
+								</div>
+							</div>
+						{/if}
+					{/snippet}
+				</MediaHero>
+			{/key}
+		</div>
 	{:else}
 		<h1 class="text-3xl font-bold tracking-tight">Welcome back, {data.profile.name}</h1>
 	{/if}
@@ -75,12 +164,13 @@
 						href={`/player/${item.type}/${encodeURIComponent(item.videoId)}`}
 						class="group/cw relative aspect-video w-72 shrink-0 overflow-hidden rounded-xl bg-muted ring-1 ring-white/5 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_50px_-16px] hover:shadow-black/70 hover:ring-primary/60"
 					>
+						<div class="absolute inset-0 bg-linear-to-br from-muted via-muted to-background"></div>
 						{#if item.background}
 							<img
 								src={item.background}
 								alt={item.name}
 								loading="lazy"
-								class="size-full object-cover transition-transform duration-500 group-hover/cw:scale-105"
+								class="relative size-full object-cover transition-transform duration-500 group-hover/cw:scale-105"
 							/>
 						{/if}
 						<div class="absolute inset-0 bg-linear-to-t from-black/85 via-black/25 to-transparent"></div>

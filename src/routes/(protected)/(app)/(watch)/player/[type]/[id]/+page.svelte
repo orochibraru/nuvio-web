@@ -1,4 +1,5 @@
 <script lang="ts">
+	import ArrowLeftIcon from "@lucide/svelte/icons/arrow-left";
 	import ExternalLinkIcon from "@lucide/svelte/icons/external-link";
 	import PlayIcon from "@lucide/svelte/icons/play";
 	import { goto } from "$app/navigation";
@@ -12,9 +13,14 @@
 	import { pageTitle } from "$lib/stores/title.svelte.js";
 	import { sync } from "$lib/sync/store.svelte.js";
 	import { playbackHandoff } from "$lib/watch/playback.svelte.js";
+	import PlayerEpisodesPanel from "$lib/watch/player-episodes-panel.svelte";
 	import { sourcesPanel } from "$lib/watch/sources-panel.svelte.js";
 	import { describeStream, isPlayable } from "$lib/watch/stream-format.js";
-	import { getSubtitles, resolveStreams } from "$lib/watch/watch.remote";
+	import {
+		getSubtitles,
+		resolveStreams,
+		titleProgress,
+	} from "$lib/watch/watch.remote";
 
 	let { data } = $props();
 
@@ -29,6 +35,30 @@
 	// The source drawer, shared with /detail through the (watch) layout.
 	function openSources() {
 		sourcesPanel.open(type, id);
+	}
+
+	// In-player episode drawer (series only).
+	let episodesOpen = $state(false);
+	const isSeries = $derived(context.metaType === "series");
+	const hasEpisodes = $derived(isSeries && context.episodes.length > 0);
+	const nextVideoId = $derived(context.next?.videoId ?? null);
+	$effect(() => {
+		void page.params.id;
+		episodesOpen = false;
+	});
+
+	const episodeProgressQuery = $derived(
+		hasEpisodes ? titleProgress({ contentId: context.contentId }) : undefined,
+	);
+	const episodeProgress = $derived(
+		sync.authoritative
+			? sync.titleProgress(context.contentId)
+			: (episodeProgressQuery?.current ?? {}),
+	);
+
+	function playVideo(videoId: string) {
+		episodesOpen = false;
+		void goto(playerHref(videoId));
 	}
 
 	// The stream picked on /streams; on a cold load, resolve one here.
@@ -141,10 +171,28 @@
 		void page.params.id;
 		return cancelUpNext;
 	});
+
+	function goBack() {
+		if (history.length > 1) {
+			history.back();
+		} else {
+			void goto(`/detail/${type}/${encodeURIComponent(id)}`);
+		}
+	}
 </script>
 
 <div class="fixed inset-0 z-40 flex items-center justify-center bg-black text-white">
 	<h1 class="sr-only">{context.heading}</h1>
+
+	{#if !playableSrc}
+		<button
+			type="button"
+			onclick={goBack}
+			class="absolute top-4 left-4 z-20 flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-sm font-medium ring-1 ring-white/15 backdrop-blur-md transition hover:bg-white/20"
+		>
+			<ArrowLeftIcon class="size-4" /> Back
+		</button>
+	{/if}
 
 	{#if !playableSrc && (context.background ?? context.poster)}
 		<img
@@ -176,6 +224,8 @@
 				onBack={() => history.back()}
 				onSources={openSources}
 				onSubtitleAppearance={saveSubtitleAppearance}
+				onEpisodes={hasEpisodes ? () => (episodesOpen = true) : undefined}
+				onNext={nextVideoId ? () => playVideo(nextVideoId) : undefined}
 			/>
 		{/key}
 
@@ -249,5 +299,15 @@
 				{/if}
 			</div>
 		</div>
+	{/if}
+
+	{#if episodesOpen && hasEpisodes}
+		<PlayerEpisodesPanel
+			episodes={context.episodes}
+			currentVideoId={context.videoId}
+			progress={episodeProgress}
+			onClose={() => (episodesOpen = false)}
+			onSelect={playVideo}
+		/>
 	{/if}
 </div>

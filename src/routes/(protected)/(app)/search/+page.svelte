@@ -1,6 +1,6 @@
 <script lang="ts">
 	import SearchIcon from "@lucide/svelte/icons/search";
-	import { goto } from "$app/navigation";
+	import { afterNavigate, goto } from "$app/navigation";
 	import { page } from "$app/state";
 	import { searchCatalogs } from "$lib/addons/addons.remote";
 	import MediaGrid from "$lib/components/media-grid.svelte";
@@ -9,12 +9,39 @@
 
 	const term = $derived((page.url.searchParams.get("q") ?? "").trim());
 
-	let input = $state("");
-	$effect(() => {
-		input = term;
-	});
+	let input = $state((page.url.searchParams.get("q") ?? "").trim());
 	$effect(() => {
 		pageTitle.set(term ? `Search: ${term}` : "Search");
+	});
+
+	function runSearch(value: string, replace: boolean) {
+		const query = value.trim();
+		if (query === term) {
+			return;
+		}
+		void goto(query ? `/search?q=${encodeURIComponent(query)}` : "/search", {
+			keepFocus: true,
+			noScroll: true,
+			replaceState: replace,
+		});
+	}
+
+	// Auto-search while typing (debounced); Enter still searches immediately.
+	$effect(() => {
+		const value = input;
+		if (value.trim() === term) {
+			return;
+		}
+		const timer = setTimeout(() => runSearch(value, true), 450);
+		return () => clearTimeout(timer);
+	});
+
+	// Keep the box in sync with back / forward navigation.
+	afterNavigate(() => {
+		const q = (page.url.searchParams.get("q") ?? "").trim();
+		if (q !== input.trim()) {
+			input = q;
+		}
 	});
 
 	const results = $derived(term ? searchCatalogs(term) : undefined);
@@ -31,17 +58,14 @@
 
 	function submit(event: SubmitEvent) {
 		event.preventDefault();
-		const next = input.trim();
-		goto(next ? `/search?q=${encodeURIComponent(next)}` : "/search", {
-			keepFocus: true,
-		});
+		runSearch(input, false);
 	}
 </script>
 
 <div class="flex flex-col gap-8">
 	<div class="flex flex-col gap-4">
 		<h1 class="text-3xl font-bold tracking-tight">Search</h1>
-		<form onsubmit={submit} class="relative max-w-2xl">
+		<form onsubmit={submit} class="relative">
 			<SearchIcon
 				class="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-muted-foreground"
 			/>

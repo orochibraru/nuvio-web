@@ -2,20 +2,26 @@
 	let { children } = $props();
 </script>
 
-<div class="relative flex min-h-svh w-full items-center justify-center overflow-hidden p-6">
+<!--
+	The auth screens sit outside the profile-gated app, so there's no stored theme
+	to seed from — pin them to the dark palette (scoped `.dark`, no global toggle).
+-->
+<div
+	class="dark relative flex min-h-svh w-full items-center justify-center overflow-hidden bg-background p-6 text-foreground"
+>
 	<div
-		class="pointer-events-none absolute inset-x-0 top-0 hidden h-[55vh] dark:block"
-		style="background: radial-gradient(55% 45% at 50% 0%, color-mix(in oklch, var(--primary) 14%, transparent), transparent 70%)"
+		class="pointer-events-none absolute inset-x-0 top-0 h-[60vh]"
+		style="background: radial-gradient(60% 50% at 50% 0%, color-mix(in oklch, var(--primary) 20%, transparent), transparent 72%)"
+	></div>
+	<div
+		class="pointer-events-none absolute -bottom-40 left-1/2 size-144 -translate-x-1/2 rounded-full opacity-30 blur-3xl"
+		style="background: radial-gradient(circle, color-mix(in oklch, var(--primary) 35%, transparent), transparent 70%)"
 	></div>
 
 	<div class="relative flex w-full max-w-sm flex-col gap-6">
-		<div class="flex flex-col items-center gap-3 text-center">
-			<span
-				class="flex size-10 items-center justify-center rounded-xl bg-primary text-lg font-bold text-primary-foreground shadow-sm"
-			>
-				N
-			</span>
-			<span class="text-xl font-bold tracking-tight">Nuvio</span>
+		<div class="flex flex-col items-center gap-2 text-center">
+			<img src="/logo-text.webp" alt="Nuvio" width={132} class="drop-shadow" />
+			<p class="text-sm text-muted-foreground">Your library, everywhere.</p>
 		</div>
 		{@render children()}
 	</div>

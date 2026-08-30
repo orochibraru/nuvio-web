@@ -97,6 +97,8 @@ export interface Meta extends MetaPreview {
 	awards?: string;
 	/** Age rating / content certification when an addon provides one (e.g. "PG-13"). */
 	certification?: string;
+	/** Series production status when an addon provides one (e.g. "Ended", "Continuing"). */
+	status?: string;
 	videos?: MetaVideo[];
 	trailerStreams?: Array<{ title?: string; ytId: string }>;
 	behaviorHints?: {

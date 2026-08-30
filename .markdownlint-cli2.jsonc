@@ -16,6 +16,7 @@
 		"CHANGELOG.md",
 		"test-results",
 		"src/lib/nuvio/nuvio-public-api.snapshot.md",
-		"TODO.md"
+		"TODO.md",
+		".claude/**/*.md"
 	]
 }

@@ -15,6 +15,7 @@
 		genres = [],
 		showPoster = false,
 		actions,
+		overlay,
 	}: {
 		title: string;
 		logo?: string | null;
@@ -28,6 +29,8 @@
 		genres?: string[];
 		showPoster?: boolean;
 		actions?: Snippet;
+		/** Rendered inside the hero `<section>` — e.g. carousel dots. */
+		overlay?: Snippet;
 	} = $props();
 
 	let logoBroken = $state(false);
@@ -141,4 +144,8 @@
       {/if}
     </div>
   </div>
+
+  {#if overlay}
+    {@render overlay()}
+  {/if}
 </section>
