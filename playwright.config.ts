@@ -23,8 +23,19 @@ export default defineConfig({
 		navigationTimeout: 45_000,
 	},
 	projects: [
-		{ name: "chromium", use: { ...devices["Desktop Chrome"] } },
-		{ name: "firefox", use: { ...devices["Desktop Firefox"] } },
+		{
+			name: "chromium",
+			testIgnore: /showcase\.spec\.ts/,
+			use: { ...devices["Desktop Chrome"] },
+		},
+		// Dedicated showcase-screenshot sequence — deliberately excluded from the
+		// default `chromium` project (and so from `bun run test:e2e`). Run it on
+		// its own with `bun run screenshots`.
+		{
+			name: "showcase",
+			testMatch: /showcase\.spec\.ts/,
+			use: { ...devices["Desktop Chrome"] },
+		},
 	],
 	webServer: {
 		command: "bun run dev",

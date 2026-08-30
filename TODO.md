@@ -335,6 +335,11 @@ Nothing open.
   (`reconcile`, `runtime`, `stream-format`, addon `registry` — manifest
   validation, `providersFor` type/idPrefix filtering, `buildRegistry` sort +
   error isolation). Run `bun run test:e2e` after any UI change.
+- Dedicated showcase-screenshot sequence (`e2e/showcase.spec.ts`,
+  `bun run screenshots`) — a numbered walkthrough (sign-in → home → discover →
+  detail → sources drawer → library → collections → history → stats → settings →
+  addons → account → player) for README/release screenshots. Its own Playwright
+  project, excluded from `bun run test:e2e`.
 - Small-screen gate overlay.
 
 </details>

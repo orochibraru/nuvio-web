@@ -17,8 +17,9 @@
 		"nuvio:check:accept": "bun run scripts/check-nuvio-spec.ts --update",
 		"test:unit": "vitest run",
 		"test:unit:watch": "vitest",
-		"test:e2e": "playwright test",
-		"test:e2e:ui": "playwright test --ui"
+		"test:e2e": "playwright test --project=chromium",
+		"test:e2e:ui": "playwright test --ui",
+		"screenshots": "playwright test --project=showcase"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.5.11",
