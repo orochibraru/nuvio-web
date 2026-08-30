@@ -311,6 +311,11 @@ Nothing open.
   auth token, zero-console-errors asserted on every page); Vitest for pure logic
   (`reconcile`, `runtime`, `stream-format`). Run `bun run test:e2e` after any UI
   change.
+- Dedicated showcase-screenshot sequence (`e2e/showcase.spec.ts`,
+  `bun run screenshots`) — a numbered walkthrough (sign-in → home → discover →
+  detail → sources drawer → library → collections → history → stats → settings →
+  addons → account → player) for README/release screenshots. Its own Playwright
+  project, excluded from `bun run test:e2e`.
 - Small-screen gate overlay.
 
 </details>
