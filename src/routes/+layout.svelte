@@ -46,7 +46,7 @@
 
 <TopLoadingBar />
 <ModeWatcher />
-<Toaster />
+<Toaster richColors closeButton />
 <SmallScreenNotice />
 
 {@render children()}

@@ -1,3 +1,4 @@
+import { safeFetch } from "$lib/server/safe-fetch.js";
 import { TtlCache } from "./cache.ts";
 import type { AddonRegistry, CatalogRef, InstalledAddon } from "./registry.ts";
 import type {
@@ -281,10 +282,15 @@ export class AddonClient {
 			}
 		}
 
-		const response = await this.fetchImpl(url, {
-			headers: { accept: "application/json" },
-			signal: AbortSignal.timeout(this.timeoutMs),
-		});
+		const response = await safeFetch(
+			url,
+			this.fetchImpl,
+			{
+				headers: { accept: "application/json" },
+				signal: AbortSignal.timeout(this.timeoutMs),
+			},
+			{ allowHttp: true },
+		);
 		if (!response.ok) {
 			throw new Error(`${resource} request failed with ${response.status}`);
 		}

@@ -1,10 +1,21 @@
 <script lang="ts">
+	import BookmarkIcon from "@lucide/svelte/icons/bookmark";
+	import CheckIcon from "@lucide/svelte/icons/check";
+	import EyeIcon from "@lucide/svelte/icons/eye";
+	import EyeOffIcon from "@lucide/svelte/icons/eye-off";
 	import FilmIcon from "@lucide/svelte/icons/film";
+	import InfoIcon from "@lucide/svelte/icons/info";
 	import PlayIcon from "@lucide/svelte/icons/play";
+	import PlusIcon from "@lucide/svelte/icons/plus";
 	import StarIcon from "@lucide/svelte/icons/star";
 	import TvIcon from "@lucide/svelte/icons/tv";
+	import { toast } from "svelte-sonner";
+	import { goto } from "$app/navigation";
 	import type { MetaPreview } from "$lib/addons/index.js";
+	import * as ContextMenu from "$lib/components/ui/context-menu/index.js";
+	import { sync } from "$lib/sync/store.svelte.js";
 	import { cn } from "$lib/utils.js";
+	import { parseRuntimeMs } from "$lib/watch/runtime.js";
 
 	let {
 		item,
@@ -39,13 +50,64 @@
 			? item.imdbRating.toFixed(1)
 			: item.imdbRating || null,
 	);
+
+	const contentType = $derived(item.type === "series" ? "series" : "movie");
+	const inLibrary = $derived(
+		sync.authoritative && sync.isInLibrary(contentType, item.id),
+	);
+	const watched = $derived(
+		contentType === "movie" &&
+			Boolean(sync.titleProgress(item.id)[item.id]?.completed),
+	);
+
+	function toggleLibrary() {
+		const removing = inLibrary;
+		sync.toggleLibrary({
+			contentId: item.id,
+			contentType,
+			remove: removing,
+			name: item.name,
+			poster: item.poster ?? null,
+			releaseInfo: item.releaseInfo ?? null,
+			imdbRating:
+				typeof item.imdbRating === "number"
+					? item.imdbRating
+					: Number(item.imdbRating) || null,
+		});
+		toast.success(
+			removing
+				? `Removed ${item.name} from library`
+				: `Added ${item.name} to library`,
+		);
+	}
+
+	function toggleWatched() {
+		if (watched) {
+			sync.clearProgress({ contentId: item.id, season: null, episode: null });
+			toast.success(`Marked ${item.name} unwatched`);
+		} else {
+			sync.markWatched({
+				contentId: item.id,
+				contentType: "movie",
+				videoId: item.id,
+				season: null,
+				episode: null,
+				durationMs: parseRuntimeMs(null),
+			});
+			toast.success(`Marked ${item.name} watched`);
+		}
+	}
 </script>
 
-<a
-	href={`/detail/${item.type}/${encodeURIComponent(item.id)}`}
-	class={cn("group/poster flex flex-col gap-2.5", className)}
-	data-sveltekit-preload-data="tap"
->
+<ContextMenu.Root>
+	<ContextMenu.Trigger>
+		{#snippet child({ props })}
+			<a
+				{...props}
+				href={`/detail/${item.type}/${encodeURIComponent(item.id)}`}
+				class={cn("group/poster flex flex-col gap-2.5", className)}
+				data-sveltekit-preload-data="tap"
+			>
 	<div
 		class={cn(
 			"relative overflow-hidden rounded-xl bg-muted ring-1 ring-white/5 transition-all duration-300 ease-out",
@@ -100,6 +162,27 @@
 			</div>
 		{/if}
 
+		{#if watched || inLibrary}
+			<div class="absolute top-2 right-2 flex gap-1">
+				{#if watched}
+					<span
+						title="Watched"
+						class="flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground ring-1 ring-black/10"
+					>
+						<CheckIcon class="size-3" />
+					</span>
+				{/if}
+				{#if inLibrary}
+					<span
+						title="In your library"
+						class="flex size-5 items-center justify-center rounded-full bg-black/55 text-white ring-1 ring-white/15 backdrop-blur-md"
+					>
+						<BookmarkIcon class="size-3 fill-current" />
+					</span>
+				{/if}
+			</div>
+		{/if}
+
 		{#if progress != null && progress > 0}
 			<div class="absolute inset-x-0 bottom-0 h-1 bg-black/50">
 				<div
@@ -120,4 +203,33 @@
 			<p class="truncate text-xs text-muted-foreground">{item.releaseInfo}</p>
 		{/if}
 	</div>
-</a>
+			</a>
+		{/snippet}
+	</ContextMenu.Trigger>
+
+	<ContextMenu.Content class="w-52">
+		<ContextMenu.Item onSelect={toggleLibrary}>
+			{#if inLibrary}
+				<CheckIcon /> In library
+			{:else}
+				<PlusIcon /> Add to library
+			{/if}
+		</ContextMenu.Item>
+		{#if contentType === "movie"}
+			<ContextMenu.Item onSelect={toggleWatched}>
+				{#if watched}
+					<EyeOffIcon /> Mark as unwatched
+				{:else}
+					<EyeIcon /> Mark as watched
+				{/if}
+			</ContextMenu.Item>
+		{/if}
+		<ContextMenu.Separator />
+		<ContextMenu.Item
+			onSelect={() =>
+				goto(`/detail/${item.type}/${encodeURIComponent(item.id)}`)}
+		>
+			<InfoIcon /> View details
+		</ContextMenu.Item>
+	</ContextMenu.Content>
+</ContextMenu.Root>

@@ -3,7 +3,6 @@
 	import { page } from "$app/state";
 	import ProfileAvatar from "$lib/components/profile-avatar.svelte";
 	import * as DropdownMenu from "$lib/components/ui/dropdown-menu/index.js";
-	import { saveUiSettings } from "$lib/settings/settings.remote";
 	import { theme } from "$lib/settings/theme.svelte";
 	import { sync } from "$lib/sync/store.svelte.js";
 	import { cn } from "$lib/utils.js";
@@ -55,12 +54,6 @@
 			delete root.dataset.amoled;
 		};
 	});
-
-	function quickMode(mode: "light" | "dark" | "system") {
-		const next = { ...theme.current, mode };
-		theme.preview(next);
-		void saveUiSettings(next);
-	}
 </script>
 
 <svelte:window onscroll={() => (scrolled = window.scrollY > 12)} />
@@ -162,22 +155,6 @@
               </DropdownMenu.Item>
             </DropdownMenu.Group>
             <DropdownMenu.Separator />
-            <DropdownMenu.Label class="text-xs text-muted-foreground"
-              >Appearance</DropdownMenu.Label
-            >
-            <DropdownMenu.RadioGroup
-              value={theme.current.mode}
-              onValueChange={(value) =>
-                quickMode(value as "light" | "dark" | "system")}
-            >
-              <DropdownMenu.RadioItem value="light"
-                >Light</DropdownMenu.RadioItem
-              >
-              <DropdownMenu.RadioItem value="dark">Dark</DropdownMenu.RadioItem>
-              <DropdownMenu.RadioItem value="system"
-                >System</DropdownMenu.RadioItem
-              >
-            </DropdownMenu.RadioGroup>
             <DropdownMenu.Separator />
             <form {...signOut}>
               <DropdownMenu.Item variant="destructive">

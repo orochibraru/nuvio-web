@@ -88,6 +88,32 @@ test("search auto-runs while typing (debounced)", async ({ page }) => {
 	expect(errors, "runtime errors").toEqual([]);
 });
 
+test("poster right-click menu: mark a movie watched, then unwatch", async ({
+	page,
+}) => {
+	const errors = collectRuntimeErrors(page);
+
+	await page.goto("/library");
+	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
+
+	// Fight Club is in the test account's baseline library.
+	const poster = page.getByRole("link", { name: /Fight Club/i }).first();
+	await expect(poster).toBeVisible({ timeout: 15_000 });
+
+	await poster.click({ button: "right" });
+	const markWatched = page.getByRole("menuitem", { name: "Mark as watched" });
+	await expect(markWatched).toBeVisible();
+	await markWatched.click();
+
+	await poster.click({ button: "right" });
+	await expect(
+		page.getByRole("menuitem", { name: "Mark as unwatched" }),
+	).toBeVisible();
+	await page.getByRole("menuitem", { name: "Mark as unwatched" }).click();
+
+	expect(errors, "runtime errors").toEqual([]);
+});
+
 test("home hero carousel: manual step changes the featured title", async ({
 	page,
 }) => {

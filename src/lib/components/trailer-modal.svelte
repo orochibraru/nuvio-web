@@ -11,6 +11,8 @@
 		onClose: () => void;
 	} = $props();
 
+	const safeId = $derived(ytId && /^[\w-]{11}$/.test(ytId) ? ytId : null);
+
 	function onKeydown(event: KeyboardEvent) {
 		if (event.key === "Escape") {
 			onClose();
@@ -20,7 +22,7 @@
 
 <svelte:window onkeydown={onKeydown} />
 
-{#if ytId}
+{#if safeId}
 	<div
 		class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
 	>
@@ -32,7 +34,7 @@
 		></button>
 		<div class="relative aspect-video w-full max-w-4xl overflow-hidden rounded-xl bg-black shadow-2xl ring-1 ring-white/10">
 			<iframe
-				src={`https://www.youtube-nocookie.com/embed/${ytId}?autoplay=1&rel=0`}
+				src={`https://www.youtube-nocookie.com/embed/${safeId}?autoplay=1&rel=0`}
 				title={`${title} trailer`}
 				allow="autoplay; encrypted-media; picture-in-picture"
 				allowfullscreen

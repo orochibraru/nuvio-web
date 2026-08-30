@@ -7,6 +7,7 @@
 	import PlayIcon from "@lucide/svelte/icons/play";
 	import PlayCircleIcon from "@lucide/svelte/icons/play-circle";
 	import PlusIcon from "@lucide/svelte/icons/plus";
+	import { toast } from "svelte-sonner";
 	import { browser } from "$app/env";
 	import { page } from "$app/state";
 	import { getMeta, similarTitles } from "$lib/addons/addons.remote";
@@ -44,6 +45,20 @@
 	);
 
 	const meta = $derived(metaQuery.current?.meta);
+
+	// A non-reactive-in-template mirror of `meta`: only ever set to a real object,
+	// cleared only when the query has no result. A `forkPreloads` speculative
+	// render can invalidate `meta` mid-branch, and reading `stableMeta.X` from
+	// the template must never see a half-torn-down value.
+	let stableMeta = $state<typeof meta>(undefined);
+	$effect(() => {
+		if (meta) {
+			stableMeta = meta;
+		} else if (!metaQuery.current) {
+			stableMeta = undefined;
+		}
+	});
+
 	$effect(() => {
 		pageTitle.set(meta?.name);
 	});
@@ -171,14 +186,62 @@
 		}
 	}
 
+	function markEpisode(video: (typeof orderedEpisodes)[number]) {
+		if (progress[video.id]?.completed) {
+			return;
+		}
+		sync.markWatched({
+			contentId: id,
+			contentType: "series",
+			videoId: video.id,
+			season: video.season ?? null,
+			episode: video.episode ?? null,
+			durationMs: runtimeMs,
+		});
+	}
+
+	function markUpTo(videoId: string) {
+		const index = orderedEpisodes.findIndex((v) => v.id === videoId);
+		if (index < 0) {
+			return;
+		}
+		const targets = orderedEpisodes.slice(0, index + 1);
+		const added = targets.filter((v) => !progress[v.id]?.completed).length;
+		for (const video of targets) {
+			markEpisode(video);
+		}
+		toast.success(
+			added > 0
+				? `Marked ${added} episode${added === 1 ? "" : "s"} watched`
+				: "Those episodes are already watched",
+		);
+	}
+
+	function markSeason(season: number, includeEarlier: boolean) {
+		const targets = orderedEpisodes.filter((v) => {
+			const s = v.season ?? 0;
+			return includeEarlier ? s <= season : s === season;
+		});
+		const added = targets.filter((v) => !progress[v.id]?.completed).length;
+		for (const video of targets) {
+			markEpisode(video);
+		}
+		toast.success(
+			added > 0
+				? `Marked ${added} episode${added === 1 ? "" : "s"} watched`
+				: "Already watched",
+		);
+	}
+
 	function toggle() {
 		if (!meta) {
 			return;
 		}
+		const removing = inLibrary;
 		sync.toggleLibrary({
 			contentId: id,
 			contentType,
-			remove: inLibrary,
+			remove: removing,
 			name: meta.name,
 			poster: meta.poster ?? null,
 			background: meta.background ?? null,
@@ -190,6 +253,11 @@
 					: Number(meta.imdbRating) || null,
 			genres: meta.genres,
 		});
+		toast.success(
+			removing
+				? `Removed ${meta.name} from library`
+				: `Added ${meta.name} to library`,
+		);
 	}
 </script>
 
@@ -213,9 +281,9 @@
 				<Button href="/addons" variant="outline" class="mt-4">Manage addons</Button>
 			</div>
 		</div>
-	{:else if !meta}
+	{:else if !stableMeta}
 		<div class="mx-[calc(50%-50vw)] -mt-20 min-h-[70vh] px-6 pt-44">
-			<div class="mx-auto flex max-w-(--breakpoint-2xl) items-end gap-8">
+			<div class="mx-auto flex items-end gap-8 mt-80">
 				<div class="skeleton hidden aspect-2/3 w-52 shrink-0 rounded-2xl lg:block"></div>
 				<div class="flex w-full max-w-2xl flex-col gap-4">
 					<div class="skeleton h-12 w-2/3 rounded-lg"></div>
@@ -225,20 +293,21 @@
 				</div>
 			</div>
 		</div>
-	{:else}
+	{:else if stableMeta}
+		{@const m = stableMeta}
 		<MediaHero
-			title={meta.name}
-			logo={meta.logo}
-			background={meta.background}
-			poster={meta.poster}
+			title={m.name}
+			logo={m.logo}
+			background={m.background}
+			poster={m.poster}
 			showPoster
-			description={meta.description}
+			description={m.description}
 			{rating}
-			year={contentType === "series" && meta.status
-				? `${meta.releaseInfo ?? ""} · ${meta.status}`.replace(/^ · /, "")
-				: meta.releaseInfo}
-			runtime={meta.runtime}
-			genres={meta.genres ?? []}
+			year={contentType === "series" && m.status
+				? `${m.releaseInfo ?? ""} · ${m.status}`.replace(/^ · /, "")
+				: m.releaseInfo}
+			runtime={m.runtime}
+			genres={m.genres ?? []}
 		>
 			{#snippet actions()}
 				{#if contentType === "movie"}
@@ -288,15 +357,17 @@
 		<div class="flex flex-col gap-10 pt-2">
 			{#if contentType === "series" && seasons.length > 0}
 				<SeasonCarousel
-					videos={meta.videos ?? []}
-					seriesRuntime={meta.runtime ?? null}
+					videos={m.videos ?? []}
+					seriesRuntime={m.runtime ?? null}
 					{progress}
 					initialSeason={resumeEpisode
-						? (meta.videos?.find((v) => v.id === resumeEpisode.id)?.season ?? null)
+						? (m.videos?.find((v) => v.id === resumeEpisode.id)?.season ?? null)
 						: null}
 					onPlay={watch}
 					onToggleWatched={toggleWatched}
 					onPrefetch={prefetch}
+					onMarkUpTo={markUpTo}
+					onMarkSeason={markSeason}
 				/>
 			{/if}
 
@@ -329,11 +400,11 @@
 				</div>
 			{/if}
 
-			{#if meta.cast?.length}
+			{#if m.cast?.length}
 				<div class="flex flex-col gap-3">
 					<h2 class="text-xl font-semibold tracking-tight">Cast</h2>
 					<div class="flex flex-wrap gap-2">
-						{#each meta.cast.slice(0, 18) as person (person)}
+						{#each m.cast.slice(0, 18) as person (person)}
 							<span class="rounded-full bg-foreground/5 px-3 py-1.5 text-sm text-foreground/90">
 								{person}
 							</span>
@@ -342,31 +413,31 @@
 				</div>
 			{/if}
 
-			{#if meta.director?.length || meta.writer?.length || meta.country || meta.awards || meta.released}
+			{#if m.director?.length || m.writer?.length || m.country || m.awards || m.released}
 				<div class="grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
-					{#if meta.director?.length}
+					{#if m.director?.length}
 						<div>
 							<p class="text-xs font-medium tracking-wide text-muted-foreground uppercase">Director</p>
-							<p class="mt-1 text-foreground/90">{meta.director.join(", ")}</p>
+							<p class="mt-1 text-foreground/90">{m.director.join(", ")}</p>
 						</div>
 					{/if}
-					{#if meta.writer?.length}
+					{#if m.writer?.length}
 						<div>
 							<p class="text-xs font-medium tracking-wide text-muted-foreground uppercase">Writer</p>
-							<p class="mt-1 text-foreground/90">{meta.writer.slice(0, 3).join(", ")}</p>
+							<p class="mt-1 text-foreground/90">{m.writer.slice(0, 3).join(", ")}</p>
 						</div>
 					{/if}
-					{#if meta.country}
+					{#if m.country}
 						<div>
 							<p class="text-xs font-medium tracking-wide text-muted-foreground uppercase">Country</p>
-							<p class="mt-1 text-foreground/90">{meta.country}</p>
+							<p class="mt-1 text-foreground/90">{m.country}</p>
 						</div>
 					{/if}
-					{#if meta.released}
+					{#if m.released}
 						<div>
 							<p class="text-xs font-medium tracking-wide text-muted-foreground uppercase">Released</p>
 							<p class="mt-1 text-foreground/90">
-								{new Date(meta.released).toLocaleDateString(undefined, {
+								{new Date(m.released).toLocaleDateString(undefined, {
 									day: "numeric",
 									month: "long",
 									year: "numeric",
@@ -374,16 +445,16 @@
 							</p>
 						</div>
 					{/if}
-					{#if meta.awards}
+					{#if m.awards}
 						<div class="sm:col-span-2 lg:col-span-4">
 							<p class="text-xs font-medium tracking-wide text-muted-foreground uppercase">Awards</p>
-							<p class="mt-1 text-foreground/90">{meta.awards}</p>
+							<p class="mt-1 text-foreground/90">{m.awards}</p>
 						</div>
 					{/if}
 				</div>
 			{/if}
 
-			{#if contentType === "movie" && !meta.description}
+			{#if contentType === "movie" && !m.description}
 				<div class="flex items-center gap-2 text-sm text-muted-foreground">
 					<FilmIcon class="size-4" /> No synopsis available for this title.
 				</div>

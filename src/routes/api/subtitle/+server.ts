@@ -1,4 +1,5 @@
 import { error } from "@sveltejs/kit";
+import { safeFetch } from "$lib/server/safe-fetch.js";
 import type { RequestHandler } from "./$types";
 
 function srtToVtt(input: string): string {
@@ -15,13 +16,15 @@ export const GET: RequestHandler = async ({ url, fetch, locals }) => {
 		error(401, "Not signed in");
 	}
 	const target = url.searchParams.get("url");
-	if (!target || !/^https:\/\//i.test(target)) {
-		error(400, "Missing or invalid subtitle url");
+	if (!target) {
+		error(400, "Missing subtitle url");
 	}
 
 	let response: Response;
 	try {
-		response = await fetch(target, { signal: AbortSignal.timeout(10_000) });
+		response = await safeFetch(target, fetch, {
+			signal: AbortSignal.timeout(10_000),
+		});
 	} catch {
 		error(502, "Subtitle source unreachable");
 	}

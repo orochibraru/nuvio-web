@@ -71,6 +71,7 @@
 			/>
 			<Input
 				bind:value={input}
+				autofocus
 				placeholder="Search movies and series"
 				autocomplete="off"
 				class="h-12 rounded-full pl-12 text-base"

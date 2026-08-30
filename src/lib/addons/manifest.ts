@@ -1,8 +1,11 @@
+import { safeFetch } from "$lib/server/safe-fetch.js";
 import { TtlCache } from "./cache.ts";
 import type {
 	AddonManifest,
 	AddonResourceName,
 	AddonResourceObject,
+	CatalogDef,
+	CatalogExtraDef,
 } from "./types.ts";
 
 const MANIFEST_TTL_MS = 30 * 60 * 1000;
@@ -38,6 +41,74 @@ function asStringArray(value: unknown): string[] {
 	return Array.isArray(value)
 		? value.filter((entry): entry is string => typeof entry === "string")
 		: [];
+}
+
+function normalizeCatalogs(value: unknown): CatalogDef[] {
+	if (!Array.isArray(value)) {
+		return [];
+	}
+	const out: CatalogDef[] = [];
+	for (const entry of value) {
+		if (!entry || typeof entry !== "object") {
+			continue;
+		}
+		const record = entry as Record<string, unknown>;
+		const type = asString(record.type);
+		const id = asString(record.id);
+		if (!type || !id) {
+			continue;
+		}
+		const extra = Array.isArray(record.extra)
+			? record.extra
+					.filter(
+						(item): item is Record<string, unknown> =>
+							Boolean(item) && typeof item === "object",
+					)
+					.map(
+						(item): CatalogExtraDef => ({
+							name: asString(item.name) ?? "",
+							isRequired: item.isRequired === true,
+							options: asStringArray(item.options),
+							optionsLimit:
+								typeof item.optionsLimit === "number"
+									? item.optionsLimit
+									: undefined,
+						}),
+					)
+					.filter((item) => item.name.length > 0)
+			: undefined;
+		out.push({
+			type,
+			id,
+			name: asString(record.name),
+			extra,
+			extraSupported: Array.isArray(record.extraSupported)
+				? asStringArray(record.extraSupported)
+				: undefined,
+			extraRequired: Array.isArray(record.extraRequired)
+				? asStringArray(record.extraRequired)
+				: undefined,
+			genres: Array.isArray(record.genres)
+				? asStringArray(record.genres)
+				: undefined,
+		});
+	}
+	return out;
+}
+
+function normalizeBehaviorHints(
+	value: unknown,
+): AddonManifest["behaviorHints"] {
+	if (!value || typeof value !== "object") {
+		return undefined;
+	}
+	const record = value as Record<string, unknown>;
+	return {
+		adult: record.adult === true,
+		p2p: record.p2p === true,
+		configurable: record.configurable === true,
+		configurationRequired: record.configurationRequired === true,
+	};
 }
 
 function normalizeResources(
@@ -101,16 +172,11 @@ export function validateManifest(data: unknown): AddonManifest {
 			? asStringArray(record.idPrefixes)
 			: undefined,
 		resources,
-		catalogs: Array.isArray(record.catalogs)
-			? (record.catalogs as AddonManifest["catalogs"])
-			: [],
+		catalogs: normalizeCatalogs(record.catalogs),
 		addonCatalogs: Array.isArray(record.addonCatalogs)
-			? (record.addonCatalogs as AddonManifest["catalogs"])
+			? normalizeCatalogs(record.addonCatalogs)
 			: undefined,
-		behaviorHints:
-			record.behaviorHints && typeof record.behaviorHints === "object"
-				? (record.behaviorHints as AddonManifest["behaviorHints"])
-				: undefined,
+		behaviorHints: normalizeBehaviorHints(record.behaviorHints),
 	};
 }
 
@@ -136,10 +202,15 @@ export async function fetchManifest(
 		}
 	}
 
-	const response = await fetchImpl(manifestUrl, {
-		headers: { accept: "application/json" },
-		signal: AbortSignal.timeout(timeoutMs),
-	});
+	const response = await safeFetch(
+		manifestUrl,
+		fetchImpl,
+		{
+			headers: { accept: "application/json" },
+			signal: AbortSignal.timeout(timeoutMs),
+		},
+		{ allowHttp: true },
+	);
 	if (!response.ok) {
 		throw new Error(`Manifest request failed with ${response.status}`);
 	}

@@ -2,6 +2,7 @@ import * as v from "valibot";
 import { query } from "$app/server";
 import { getAddonClient } from "$lib/addons/server.js";
 import { requireProfile } from "$lib/server/guards.js";
+import { httpUrlOrNull } from "$lib/utils.js";
 
 function parseVideoId(type: string, id: string) {
 	if (type !== "series") {
@@ -146,8 +147,8 @@ export const resolveStreams = query(
 		return {
 			streams: streams.map((stream, index) => ({
 				index,
-				url: stream.url ?? null,
-				externalUrl: stream.externalUrl ?? null,
+				url: httpUrlOrNull(stream.url),
+				externalUrl: httpUrlOrNull(stream.externalUrl),
 				notWebReady: Boolean(stream.behaviorHints?.notWebReady),
 				name: stream.name ?? null,
 				title: stream.title ?? null,

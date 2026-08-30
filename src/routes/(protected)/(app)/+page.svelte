@@ -1,13 +1,17 @@
 <script lang="ts">
+	import CheckIcon from "@lucide/svelte/icons/check";
 	import ChevronLeftIcon from "@lucide/svelte/icons/chevron-left";
 	import ChevronRightIcon from "@lucide/svelte/icons/chevron-right";
 	import InfoIcon from "@lucide/svelte/icons/info";
 	import PlayIcon from "@lucide/svelte/icons/play";
+	import PlusIcon from "@lucide/svelte/icons/plus";
 	import SparklesIcon from "@lucide/svelte/icons/sparkles";
+	import { toast } from "svelte-sonner";
 	import { browser } from "$app/env";
 	import MediaHero from "$lib/components/media-hero.svelte";
 	import MediaRow from "$lib/components/media-row.svelte";
 	import { Button } from "$lib/components/ui/button/index.js";
+	import { sync } from "$lib/sync/store.svelte.js";
 	import { cn } from "$lib/utils.js";
 	import { formatRemaining } from "$lib/watch/runtime.js";
 
@@ -57,6 +61,43 @@
 				: spotlight.imdbRating || null
 			: null,
 	);
+	const spotlightType = $derived(
+		spotlight?.type === "series" ? "series" : "movie",
+	);
+	const spotlightInLibrary = $derived(
+		Boolean(
+			spotlight &&
+				sync.authoritative &&
+				sync.isInLibrary(spotlightType, spotlight.id),
+		),
+	);
+
+	function toggleSpotlightLibrary() {
+		if (!spotlight) {
+			return;
+		}
+		const removing = spotlightInLibrary;
+		sync.toggleLibrary({
+			contentId: spotlight.id,
+			contentType: spotlightType,
+			remove: removing,
+			name: spotlight.name,
+			poster: spotlight.poster ?? null,
+			background: spotlight.background ?? null,
+			description: spotlight.description ?? null,
+			releaseInfo: spotlight.releaseInfo ?? null,
+			imdbRating:
+				typeof spotlight.imdbRating === "number"
+					? spotlight.imdbRating
+					: Number(spotlight.imdbRating) || null,
+			genres: spotlight.genres,
+		});
+		toast.success(
+			removing
+				? `Removed ${spotlight.name} from library`
+				: `Added ${spotlight.name} to library`,
+		);
+	}
 
 	// Cinemeta exposes the same catalog id ("top" → "Popular") for both movie and
 	// series, so titles collide. Suffix the repeats with their type.
@@ -103,7 +144,18 @@
 						<Button size="lg" href={spotlightHref}>
 							<PlayIcon data-icon="inline-start" class="fill-current" /> Watch now
 						</Button>
-						<Button size="lg" variant="secondary" href={spotlightHref}>
+						<Button
+							size="lg"
+							variant="secondary"
+							onclick={toggleSpotlightLibrary}
+						>
+							{#if spotlightInLibrary}
+								<CheckIcon data-icon="inline-start" /> In library
+							{:else}
+								<PlusIcon data-icon="inline-start" /> Add to library
+							{/if}
+						</Button>
+						<Button size="lg" variant="ghost" href={spotlightHref}>
 							<InfoIcon data-icon="inline-start" /> More info
 						</Button>
 					{/snippet}

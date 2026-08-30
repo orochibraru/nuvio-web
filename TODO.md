@@ -260,11 +260,39 @@ Primitives in `src/lib/components/` (`media-poster`, `media-grid`, `media-row`,
       the result. Hovering an episode in the accordion warms that episode too
       (`onPrefetch`). One id at a time — no episode-by-episode sweep, to stay
       clear of the addon rate limits.
-- [ ] Add a right click action on media such as episode or movie cards with
-      quick actions such as "add to watchlist" or "mark as watched" or "mark all
-      previous episodes as watched". On season cards (season 1, 2 etc... on the
-      episode carousel) also add a right click dropdown that allows to mark the
-      whole season as watched or this season and all the previous ones.
+- [x] Right-click actions on media / episode / season cards (`ContextMenu`): -
+      **Poster** (`media-poster.svelte`): Add to / In library, Mark watched /
+      unwatched (movies), View details. - **Episode card**
+      (`season-carousel.svelte`): Mark watched / unwatched, "Mark up to here
+      watched" (`onMarkUpTo` → detail loops `sync.markWatched` over
+      `orderedEpisodes` up to that index; queue collapses + batches). - **Season
+      pill**: "Mark season N watched", "Mark through season N"
+      (`onMarkSeason(season, includeEarlier)`). Fixed a latent crash this
+      surfaced: a `forkPreloads` speculative render of `/detail` could enter the
+      loaded branch while `getMeta` was mid-flight — the page now renders from a
+      `stableMeta` mirror that's only ever set to a real object.
+- [ ] Add the cast list to a show/movie page details with pictures and links
+      that redirect to the search page if you click on them with the actor's
+      name as a prefilled search query.
+- [x] On hero items add an "Add to library" button → home spotlight actions now
+      have Watch now / Add to library (or "In library") / More info.
+- [~] Watched / in-library markers:
+  - [x] Poster cards (`media-poster.svelte`) get a top-right check badge when a
+        movie is watched and a bookmark badge when it's in the library (any
+        page, once the sync store is authoritative).
+  - [ ] Details-page "watched" badge; library page filter by watched/unwatched.
+- [ ] When sorting on the library page add the sort order or the filters to url
+      search params to trigger a page transition
+- [ ] Replace the supporters page with an external link to
+      https://nuvio.tv/support
+- [x] Right-click actions fire a sonner toast (`media-poster` add/remove/mark,
+      detail-page library toggle + "mark up to here" / "mark season" with a
+      count) so the invisible mutation is confirmed.
+- [ ] When a show's episode is marked as watched AND it does not exist in the
+      watch history AND it has an available next episode either in the next
+      season if there's one or in the current season add it to continue watching
+      system. If it's a running show do show the next episode and a marker
+      saying when it's going to air.
 
 ## Phase 6b — Player UX overhaul
 
@@ -481,6 +509,9 @@ non-remote exports there), `settings.remote.ts`
       thumbnails (accordion + in-player drawer) and the continue-watching cards
       render a glyph/gradient behind the `<img>` so a missing or 404'd image
       degrades cleanly. `onerror` flips to the fallback.
+- [ ] The watch history page's a bit shit. Looks like ass, no posters, no info,
+      no CTAs?
+- [ ] The continue watching feature isn't working well at all.
 
 ---
 

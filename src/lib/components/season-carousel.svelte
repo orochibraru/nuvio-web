@@ -2,10 +2,14 @@
 	import CheckIcon from "@lucide/svelte/icons/check";
 	import ChevronLeftIcon from "@lucide/svelte/icons/chevron-left";
 	import ChevronRightIcon from "@lucide/svelte/icons/chevron-right";
+	import EyeIcon from "@lucide/svelte/icons/eye";
+	import EyeOffIcon from "@lucide/svelte/icons/eye-off";
+	import ListChecksIcon from "@lucide/svelte/icons/list-checks";
 	import PlayIcon from "@lucide/svelte/icons/play";
 	import StarIcon from "@lucide/svelte/icons/star";
 	import TvIcon from "@lucide/svelte/icons/tv";
 	import type { MetaVideo } from "$lib/addons/index.js";
+	import * as ContextMenu from "$lib/components/ui/context-menu/index.js";
 	import { cn } from "$lib/utils.js";
 
 	let {
@@ -16,6 +20,8 @@
 		onPlay,
 		onToggleWatched,
 		onPrefetch,
+		onMarkUpTo,
+		onMarkSeason,
 	}: {
 		videos: MetaVideo[];
 		seriesRuntime?: string | null;
@@ -30,6 +36,10 @@
 		) => void;
 		/** Hover/focus intent on an episode — warm its streams in the background. */
 		onPrefetch?: (videoId: string) => void;
+		/** Mark every episode up to and including this one as watched. */
+		onMarkUpTo?: (videoId: string) => void;
+		/** Mark a whole season (optionally plus every earlier season) watched. */
+		onMarkSeason?: (season: number, includeEarlier: boolean) => void;
 	} = $props();
 
 	const grouped = $derived.by(() => {
@@ -142,18 +152,41 @@
 		{#if grouped.length > 1}
 			<div class="no-scrollbar -mx-1 flex max-w-full gap-1.5 overflow-x-auto px-1">
 				{#each grouped as group (group.season)}
-					<button
-						type="button"
-						onclick={() => (activeSeason = group.season)}
-						class={cn(
-							"shrink-0 rounded-full px-3 py-1 text-sm font-medium transition",
-							activeSeason === group.season
-								? "bg-primary text-primary-foreground"
-								: "bg-foreground/5 text-muted-foreground hover:text-foreground",
-						)}
-					>
-						Season {group.season}
-					</button>
+					<ContextMenu.Root>
+						<ContextMenu.Trigger>
+							{#snippet child({ props })}
+								<button
+									{...props}
+									type="button"
+									onclick={() => (activeSeason = group.season)}
+									class={cn(
+										"shrink-0 rounded-full px-3 py-1 text-sm font-medium transition",
+										activeSeason === group.season
+											? "bg-primary text-primary-foreground"
+											: "bg-foreground/5 text-muted-foreground hover:text-foreground",
+									)}
+								>
+									Season {group.season}
+								</button>
+							{/snippet}
+						</ContextMenu.Trigger>
+						{#if onMarkSeason}
+							<ContextMenu.Content class="w-60">
+								<ContextMenu.Item
+									onSelect={() => onMarkSeason(group.season, false)}
+								>
+									<CheckIcon /> Mark season {group.season} watched
+								</ContextMenu.Item>
+								{#if group.season > grouped[0].season}
+									<ContextMenu.Item
+										onSelect={() => onMarkSeason(group.season, true)}
+									>
+										<ListChecksIcon /> Mark through season {group.season}
+									</ContextMenu.Item>
+								{/if}
+							</ContextMenu.Content>
+						{/if}
+					</ContextMenu.Root>
 				{/each}
 			</div>
 		{/if}
@@ -169,7 +202,11 @@
 				{#each current.episodes as episode (episode.id)}
 					{@const ep = progress[episode.id]}
 					{@const date = airDate(episode.released)}
+					<ContextMenu.Root>
+					<ContextMenu.Trigger>
+					{#snippet child({ props })}
 					<div
+						{...props}
 						class="group/ep relative flex w-72 shrink-0 snap-start flex-col overflow-hidden rounded-xl border border-border/60 bg-card/50 transition-colors hover:border-primary/40 sm:w-80"
 						onmouseenter={() => onPrefetch?.(episode.id)}
 						onfocusin={() => onPrefetch?.(episode.id)}
@@ -273,6 +310,31 @@
 							<CheckIcon class="size-3.5" />
 						</button>
 					</div>
+					{/snippet}
+					</ContextMenu.Trigger>
+					<ContextMenu.Content class="w-56">
+						<ContextMenu.Item
+							onSelect={() =>
+								onToggleWatched(
+									episode.id,
+									episode.season ?? null,
+									episode.episode ?? null,
+									Boolean(ep?.completed),
+								)}
+						>
+							{#if ep?.completed}
+								<EyeOffIcon /> Mark as unwatched
+							{:else}
+								<EyeIcon /> Mark as watched
+							{/if}
+						</ContextMenu.Item>
+						{#if onMarkUpTo}
+							<ContextMenu.Item onSelect={() => onMarkUpTo(episode.id)}>
+								<ListChecksIcon /> Mark up to here watched
+							</ContextMenu.Item>
+						{/if}
+					</ContextMenu.Content>
+					</ContextMenu.Root>
 				{/each}
 			</div>
 
