@@ -80,3 +80,67 @@ export function formatFileSize(bytes: number | null): string | null {
 export function isPlayable(stream: ResolvedStream): boolean {
 	return Boolean(stream.url) && !stream.notWebReady;
 }
+
+/** Ordered best-to-worst; also the values the player-quality setting offers. */
+export const QUALITY_RANK: Record<string, number> = {
+	"4K": 5,
+	"1440p": 4,
+	"1080p": 3,
+	"720p": 2,
+	"480p": 1,
+	"360p": 0,
+};
+
+/** The resolution tag carried by a stream's label, or null when it has none. */
+export function streamQuality(stream: ResolvedStream): string | null {
+	const raw = [stream.name, stream.title, stream.description]
+		.filter((part): part is string => Boolean(part))
+		.join(" ");
+	for (const [pattern, label] of QUALITY_TOKENS) {
+		if (pattern.test(raw)) {
+			return label;
+		}
+	}
+	return null;
+}
+
+/**
+ * Pick the best playable stream for a preferred quality. `"auto"` (or an
+ * unknown value) keeps the addon's own ordering. Otherwise: an exact match, else
+ * the highest quality at or below the target, else the lowest above it, else the
+ * first playable stream. Never returns a non-playable stream unless nothing is
+ * playable at all.
+ */
+export function pickPreferredStream(
+	streams: ResolvedStream[],
+	preferred: string,
+): ResolvedStream | null {
+	const playable = streams.filter(isPlayable);
+	if (playable.length === 0) {
+		return streams[0] ?? null;
+	}
+	const target = QUALITY_RANK[preferred];
+	if (target === undefined) {
+		return playable[0];
+	}
+
+	let atOrBelow: { stream: ResolvedStream; rank: number } | null = null;
+	let above: { stream: ResolvedStream; rank: number } | null = null;
+	for (const stream of playable) {
+		const quality = streamQuality(stream);
+		const rank = quality !== null ? QUALITY_RANK[quality] : -1;
+		if (rank === target) {
+			return stream;
+		}
+		if (rank >= 0 && rank < target) {
+			if (atOrBelow === null || rank > atOrBelow.rank) {
+				atOrBelow = { stream, rank };
+			}
+		} else if (rank > target) {
+			if (above === null || rank < above.rank) {
+				above = { stream, rank };
+			}
+		}
+	}
+	return (atOrBelow ?? above)?.stream ?? playable[0];
+}

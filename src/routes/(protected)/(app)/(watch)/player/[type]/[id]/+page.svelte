@@ -17,7 +17,10 @@
 	import { playbackHandoff } from "$lib/watch/playback.svelte.js";
 	import PlayerEpisodesPanel from "$lib/watch/player-episodes-panel.svelte";
 	import { sourcesPanel } from "$lib/watch/sources-panel.svelte.js";
-	import { describeStream, isPlayable } from "$lib/watch/stream-format.js";
+	import {
+		describeStream,
+		pickPreferredStream,
+	} from "$lib/watch/stream-format.js";
 	import {
 		getSubtitles,
 		playbackContext,
@@ -95,9 +98,10 @@
 		handed ? undefined : resolveStreams({ type, id }),
 	);
 	const autoStream = $derived(
-		streamsQuery?.current?.streams.find(isPlayable) ??
-			streamsQuery?.current?.streams[0] ??
-			null,
+		pickPreferredStream(
+			streamsQuery?.current?.streams ?? [],
+			theme.current.preferredQuality,
+		),
 	);
 
 	const active = $derived.by(() => {

@@ -221,6 +221,7 @@
 										src={episode.thumbnail}
 										alt=""
 										loading="lazy"
+										decoding="async"
 										onerror={() =>
 											(brokenThumbs = {
 												...brokenThumbs,

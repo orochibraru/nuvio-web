@@ -7,7 +7,11 @@
 	import { Switch } from "$lib/components/ui/switch/index.js";
 	import { saveUiSettings } from "$lib/settings/settings.remote";
 	import { theme } from "$lib/settings/theme.svelte";
-	import type { Accent, UiSettings } from "$lib/settings/ui-settings.js";
+	import {
+		type Accent,
+		STREAM_QUALITIES,
+		type UiSettings,
+	} from "$lib/settings/ui-settings.js";
 	import { pageTitle } from "$lib/stores/title.svelte.js";
 	import { cn } from "$lib/utils.js";
 
@@ -185,6 +189,29 @@
 					onCheckedChange={(value) => update({ autoPlayNext: value })}
 				/>
 			</label>
+
+			<div class="flex flex-col gap-2.5">
+				<span class="text-sm font-medium">Preferred quality</span>
+				<select
+					value={theme.current.preferredQuality}
+					onchange={(event) =>
+						update({
+							preferredQuality: event.currentTarget
+								.value as UiSettings["preferredQuality"],
+						})}
+					class="w-fit rounded-md border border-border bg-background px-3 py-1.5 text-sm"
+				>
+					{#each STREAM_QUALITIES as option (option)}
+						<option value={option}>
+							{option === "auto" ? "Auto (addon order)" : option}
+						</option>
+					{/each}
+				</select>
+				<span class="text-xs text-muted-foreground">
+					The player auto-picks the closest match from a source list. You can
+					still choose any source manually.
+				</span>
+			</div>
 
 			<div class="flex flex-col gap-2.5">
 				<span class="text-sm font-medium">Preferred subtitle language</span>

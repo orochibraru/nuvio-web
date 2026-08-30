@@ -407,6 +407,7 @@
 									src={`https://i.ytimg.com/vi/${trailer.ytId}/hqdefault.jpg`}
 									alt=""
 									loading="lazy"
+									decoding="async"
 									class="size-full object-cover transition-transform duration-500 group-hover/tr:scale-105"
 								/>
 								<div class="absolute inset-0 bg-black/30 transition-colors group-hover/tr:bg-black/10"></div>

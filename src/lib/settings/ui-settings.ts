@@ -17,6 +17,16 @@ export type Accent = (typeof ACCENTS)[number];
 export const SUBTITLE_SIZES = ["small", "medium", "large"] as const;
 export type SubtitleSize = (typeof SUBTITLE_SIZES)[number];
 
+/** Preferred stream resolution for auto-pick on the player. `auto` = addon order. */
+export const STREAM_QUALITIES = [
+	"auto",
+	"4K",
+	"1080p",
+	"720p",
+	"480p",
+] as const;
+export type StreamQuality = (typeof STREAM_QUALITIES)[number];
+
 /**
  * Where library / watch-progress data is read from and written to. Nuvio mobile
  * lets these be set independently. Only `nuvio` works today — `trakt` / `simkl`
@@ -30,6 +40,8 @@ export const uiSettingsSchema = v.object({
 	darkStyle: v.fallback(v.picklist(["dim", "amoled"]), "dim"),
 	accent: v.fallback(v.picklist(ACCENTS), "blue"),
 	autoPlayNext: v.fallback(v.boolean(), true),
+	/** Resolution the player auto-picks from a source list; "auto" = addon order. */
+	preferredQuality: v.fallback(v.picklist(STREAM_QUALITIES), "auto"),
 	subtitleSize: v.fallback(v.picklist(SUBTITLE_SIZES), "medium"),
 	/** CSS colour for subtitle text. */
 	subtitleColor: v.fallback(v.string(), "#ffffff"),
@@ -50,6 +62,7 @@ export const DEFAULT_UI_SETTINGS: UiSettings = {
 	darkStyle: "dim",
 	accent: "blue",
 	autoPlayNext: true,
+	preferredQuality: "auto",
 	subtitleSize: "medium",
 	subtitleColor: "#ffffff",
 	subtitleBackground: true,
