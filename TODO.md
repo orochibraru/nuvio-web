@@ -179,7 +179,8 @@ Nothing open.
   play/pause, replay when ended), thick hover-scrub scrubber with time preview +
   buffered range, always-visible volume, size-9 hit targets, rate / PiP /
   fullscreen / captions cluster, auto-hide, keyboard (space/k, ←→/jl, ↑↓, f, m,
-  c, n=next, e=episodes).
+  c, i=details, n=next, e=episodes). Top bar has "Details" (back to `/detail`) +
+  "Sources" buttons.
 - Subtitle overlay — "Off" + every source with language name, addon, SDH badge;
   `getSubtitles` returns `{id, lang, url, addonName, sdh}`; appearance controls
   (size / colour / plate) persist; subtitle timing nudge (±0.5s).

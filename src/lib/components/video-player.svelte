@@ -3,6 +3,7 @@
 	import CaptionsIcon from "@lucide/svelte/icons/captions";
 	import CaptionsOffIcon from "@lucide/svelte/icons/captions-off";
 	import CheckIcon from "@lucide/svelte/icons/check";
+	import InfoIcon from "@lucide/svelte/icons/info";
 	import LayersIcon from "@lucide/svelte/icons/layers";
 	import ListVideoIcon from "@lucide/svelte/icons/list-video";
 	import MaximizeIcon from "@lucide/svelte/icons/maximize";
@@ -72,6 +73,7 @@
 		onOutro,
 		onBack,
 		onSources,
+		onDetails,
 		onSubtitleAppearance,
 		onEpisodes,
 		onNext,
@@ -106,6 +108,8 @@
 		onOutro?: () => void;
 		onBack?: () => void;
 		onSources?: () => void;
+		/** Return to the title's detail page. */
+		onDetails?: () => void;
 		onSubtitleAppearance?: (patch: SubtitleAppearance) => void;
 		/** Series only: open the episode drawer. */
 		onEpisodes?: () => void;
@@ -648,6 +652,9 @@
 			case "c":
 				cycleCaption();
 				break;
+			case "i":
+				onDetails?.();
+				break;
 			case "n":
 				onNext?.();
 				break;
@@ -844,6 +851,15 @@
 					<p class="truncate text-sm text-white/70">{subheading}</p>
 				{/if}
 			</div>
+			{#if onDetails}
+				<button
+					type="button"
+					onclick={onDetails}
+					class="flex shrink-0 items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-xs font-medium backdrop-blur-sm transition hover:bg-white/20"
+				>
+					<InfoIcon class="size-4" /> Details
+				</button>
+			{/if}
 			{#if onSources}
 				<button
 					type="button"

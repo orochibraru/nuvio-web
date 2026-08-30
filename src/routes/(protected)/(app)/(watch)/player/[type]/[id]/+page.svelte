@@ -180,7 +180,10 @@
 		return `/player/series/${encodeURIComponent(videoId)}`;
 	}
 
-	const detailHref = $derived(`/detail/${type}/${encodeURIComponent(id)}`);
+	// Detail page keys on the base content id, not an episode's `video_id`.
+	const detailHref = $derived(
+		`/detail/${type}/${encodeURIComponent(context.contentId)}`,
+	);
 
 	// Intro / outro timestamps (TheIntroDB) — power "Skip intro" and the
 	// outro handoff (next-episode card / end-of-show panel).
@@ -401,6 +404,7 @@
 				onOutro={reachedEnd}
 				onBack={() => history.back()}
 				onSources={openSources}
+				onDetails={() => goto(detailHref)}
 				onSubtitleAppearance={saveSubtitleAppearance}
 				onEpisodes={hasEpisodes ? () => (episodesOpen = true) : undefined}
 				onNext={nextVideoId ? () => playVideo(nextVideoId) : undefined}
