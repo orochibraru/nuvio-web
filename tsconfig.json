@@ -12,28 +12,12 @@
 		"strict": true,
 		"moduleResolution": "bundler",
 		"types": ["node", "bun"]
-	},
-	"include": [
-		"scripts/",
-		"ambient.d.ts",
-		"env.d.ts",
-		"non-ambient.d.ts",
-		"./types/**/$types.d.ts",
-		"../vite.config.js",
-		"../vite.config.ts",
-		"../src/**/*.js",
-		"../src/**/*.ts",
-		"../src/**/*.svelte",
-		"../test/**/*.js",
-		"../test/**/*.ts",
-		"../test/**/*.svelte",
-		"../tests/**/*.js",
-		"../tests/**/*.ts",
-		"../tests/**/*.svelte"
-	]
+	}
+	// `include` / `exclude` come from the generated ./.svelte-kit/tsconfig.json.
+	// Do not redefine them here — the generated globs are relative to .svelte-kit/,
+	// so copying them up to the project root makes them resolve to nothing and
+	// svelte-check stops seeing every .svelte file.
+	//
 	// Path aliases are handled by https://svelte.dev/docs/kit/configuration#alias
 	// except $lib which is handled by https://svelte.dev/docs/kit/configuration#files
-	//
-	// To make changes to top-level options such as include and exclude, we recommend extending
-	// the generated config; see https://svelte.dev/docs/kit/configuration#typescript
 }

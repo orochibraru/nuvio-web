@@ -15,27 +15,32 @@ function currentTime(page: Page): Promise<number> {
 	return page.evaluate(() => document.querySelector("video")?.currentTime ?? 0);
 }
 
-test("streams page: instant shell, async list, refresh", async ({
+test("detail source sidebar: opens, resolves async, refreshes, closes", async ({
 	page,
 	context,
 }) => {
 	await signIn(context);
 	const errors = collectRuntimeErrors(page);
-	await page.goto("/streams/movie/tt0137523");
 
-	// The heading paints from SSR before streams resolve.
-	await expect(
-		page.getByRole("heading", { name: "Fight Club", level: 1 }),
-	).toBeVisible();
-	await expect(page.getByRole("button", { name: "Refresh" })).toBeVisible();
-
+	// tt1375666 (Inception) — no watch progress, so the play button is "Watch".
+	await page.goto("/detail/movie/tt1375666");
 	await page.waitForLoadState("networkidle");
+	await page.getByRole("button", { name: "Watch", exact: true }).click();
+
+	const panel = page.getByRole("complementary");
+	await expect(panel.getByText("Sources")).toBeVisible();
+	await expect(panel.getByRole("button", { name: "Refresh" })).toBeVisible();
+
 	// Test account has only Cinemeta (no stream addon) → resolves to empty.
-	await expect(page.getByText("No streams yet")).toBeVisible({
+	await expect(panel.getByText("No streams yet")).toBeVisible({
 		timeout: 15_000,
 	});
-	await page.getByRole("button", { name: "Refresh" }).click();
-	await expect(page.getByText("No streams yet")).toBeVisible();
+	await panel.getByRole("button", { name: "Refresh" }).click();
+	await expect(panel.getByText("No streams yet")).toBeVisible();
+
+	await page.keyboard.press("Escape");
+	await expect(panel).toBeHidden();
+	expect(new URL(page.url()).searchParams.has("v")).toBe(false);
 
 	expect(errors).toEqual([]);
 });
@@ -57,7 +62,7 @@ test("player page with no resolvable stream renders cleanly", async ({
 	expect(errors).toEqual([]);
 });
 
-test("video player: play, keyboard seek, speed menu", async ({ page }) => {
+test("video player: autoplay, keyboard seek, speed menu", async ({ page }) => {
 	const errors = collectRuntimeErrors(page);
 
 	await page.goto(harness());
@@ -65,11 +70,8 @@ test("video player: play, keyboard seek, speed menu", async ({ page }) => {
 
 	const player = page.getByRole("region", { name: "Video player" });
 	await expect(player).toBeVisible();
-	await player
-		.getByRole("button", { name: "Play", exact: true })
-		.first()
-		.click();
 
+	// The player autoplays; the loading treatment clears once it's running.
 	await expect
 		.poll(() => currentTime(page), { timeout: 15_000 })
 		.toBeGreaterThan(0.4);

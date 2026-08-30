@@ -13,9 +13,9 @@ export interface SelectedStream {
 }
 
 /**
- * Hands the stream chosen on `/streams/*` to `/player/*` without putting a long
- * URL in the address bar. Kept in memory for the nav, mirrored to sessionStorage
- * so a player-page reload still resolves.
+ * Hands the stream chosen in the detail-page source sidebar to `/player/*` without
+ * putting a long URL in the address bar. Kept in memory for the nav, mirrored to
+ * sessionStorage so a player-page reload still resolves.
  */
 class PlaybackHandoff {
 	#current: SelectedStream | null = null;

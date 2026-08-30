@@ -192,6 +192,9 @@ Primitives in `src/lib/components/` (`media-poster`, `media-grid`, `media-row`,
 - [x] `StreamList` — lazy `getStreams`, per-stream Play/Open link (opens
       `url`/`externalUrl` in a tab until Phase 6 player), `not web-ready`
       flagged, addon badge. Grouping/sort/remember-choice deferred
+- [ ] A fuller details page for every media.
+- [ ] Make the UI sexier, colorfoul, playful. We need to WANT to use it not just
+      have to (background blurs, color accents, custom backgrounds)
 - [ ] Home layout editor (in Settings) → Phase 7
 - [ ] Hero banner on home; continue-watching row; watched/resume indicators →
       after Phase 2
@@ -220,28 +223,32 @@ API writes for now; Phase 2 wraps them in the queue.
 
 ## Phase 6 — Playback
 
-`$lib/watch/`: `watch.remote.ts` (`playbackContext` — meta/resume/next, no
-streams; `resolveStreams` — the slow fan-out, client-side; `getSubtitles`,
-`titleProgress`, `continueWatching`), `stream-format.ts` (pure `describeStream`
-/ `formatFileSize` / `isPlayable`, Vitest'd), `playback.ts` (`playbackHandoff` —
-sessionStorage-backed stream handoff, streams→player).
+`$lib/watch/`: `watch.remote.ts` (`playbackContext` — meta/logo/resume/next, no
+streams, both awaits `.catch`-guarded; `resolveStreams` — the slow fan-out,
+client-side; `getSubtitles`, `titleProgress`, `continueWatching` — deduped to
+one row per title), `stream-format.ts` (pure `describeStream` / `formatFileSize`
+/ `isPlayable`, Vitest'd), `playback.ts` (`playbackHandoff` —
+sessionStorage-backed stream handoff, sidebar→player), `stream-panel.svelte`
+(the source sidebar).
 
-**Flow (mirrors the Nuvio apps):** `/detail` → `/streams/[type]/[id]` (SSR
-heading paints instantly, stream list fans out client-side via
-`resolveStreams.current` with a skeleton + a "Refresh" button) → pick →
-`/player/[type]/[id]` (whole-page surface: `(app)/+layout` drops all chrome when
-the path starts `/player/`). Continue-watching tiles jump straight to
-`/player/*`.
+**Flow (mirrors the Nuvio apps):** `/detail` → **"Watch" / episode opens a
+right-hand source sidebar** (`?v=<videoId>`, `stream-panel.svelte`): SSR page
+stays put, the list fans out client-side (`resolveStreams.current`, skeleton +
+"Refresh"), filterable by addon and by quality → pick → `/player/[type]/[id]`
+(whole-page surface: `(app)/+layout` drops all chrome when the path starts
+`/player/`; "Sources" jumps back to `/detail?v=`). Continue-watching tiles jump
+straight to `/player/*`.
 
-- [x] `VideoPlayer` — `hls.js` for `.m3u8`, native `<video>` otherwise; `fill`
-      prop for the full-page player; `onSources` button; `object-contain` so odd
-      aspect ratios letterbox
-- [x] `/streams/[type]/[id]` — instant SSR shell + async source list,
-      quality/feature chips + size + addon badge from `describeStream`,
-      "Refresh" re-runs the query, next-episode card
+- [x] `VideoPlayer` — `hls.js` for `.m3u8`, native `<video>` (autoplay)
+      otherwise; `fill` prop for the full-page player; `onSources` button;
+      `object-contain`; a `loading` state (`waiting` / `canplay` / `playing`)
+      shows `playback-loading.svelte` — 16:9 backdrop + softly-pulsing logo
+- [x] Source sidebar (`stream-panel.svelte`) — opens on `?v=`, scrim + Esc to
+      close, async list with skeleton + "Refresh", addon + quality filter chips,
+      per-row addon attribution / quality / size, pick → handoff + `/player`
 - [x] `/player/[type]/[id]` — reads the handoff (or cold-resolves + auto-picks
-      the first playable), resume prompt, up-next autoplay, `onSources` → back
-      to `/streams`
+      the first playable), `playback-loading` while resolving, resume prompt,
+      up-next autoplay, `onSources` → `/detail?v=`
 - [x] Custom controls: play/pause, seek bar with buffered range, time, volume,
       playback rate, PiP, fullscreen, captions toggle + menu; auto-hide;
       keyboard (space/k, ←→/jl, ↑↓, f, m, c)

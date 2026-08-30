@@ -104,7 +104,8 @@
 ></button>
 
 <aside
-	class="fixed inset-y-0 right-0 z-50 flex w-full max-w-[420px] flex-col border-l border-border bg-background shadow-2xl"
+	aria-label="Sources"
+	class="fixed inset-y-0 right-0 z-50 flex w-full max-w-105 flex-col border-l border-border bg-background shadow-2xl"
 >
 	<header class="flex items-start gap-3 border-b border-border p-4">
 		<div class="min-w-0 flex-1">
@@ -227,7 +228,7 @@
 		{:else if rows.length === 0}
 			<div class="flex flex-col items-center gap-2 py-12 text-center">
 				<p class="text-sm font-medium">No streams yet</p>
-				<p class="max-w-[240px] text-xs text-muted-foreground">
+				<p class="max-w-60 text-xs text-muted-foreground">
 					No installed addon returned a playable stream.
 					{#if result.errors.length > 0}
 						{result.errors.length} addon(s) errored.
