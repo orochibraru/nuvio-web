@@ -168,18 +168,17 @@ export const continueWatching = query(async () => {
 	const { nuvio, profileId } = requireProfile();
 	const { client } = await getAddonClient();
 
-	const rows = await nuvio.watchProgress.pull({
-		p_profile_id: profileId,
-		p_limit: 30,
-	});
+	// A hiccup on the progress pull must not blank the whole home page — the
+	// local store still fills the row on the client.
+	const rows = await nuvio.watchProgress
+		.pull({ p_profile_id: profileId, p_limit: 30 })
+		.catch(() => [] as Awaited<ReturnType<typeof nuvio.watchProgress.pull>>);
 	const seen = new Set<string>();
 	const inProgress = rows
-		.filter(
-			(row) =>
-				row.duration > 60_000 &&
-				row.position < row.duration * 0.9 &&
-				row.position > 30_000,
-		)
+		// "Continue watching" = has a real runtime and isn't ~finished. The app
+		// writes rows at `position: 0` when a title is queued / just opened, so
+		// there is no lower position bound.
+		.filter((row) => row.duration > 60_000 && row.position < row.duration * 0.9)
 		.sort((a, b) => b.last_watched - a.last_watched)
 		// One entry per title — the most recently watched episode wins.
 		.filter((row) => {

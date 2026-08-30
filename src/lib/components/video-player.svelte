@@ -116,6 +116,10 @@
 	// One silent reload is attempted on a recoverable media error before we
 	// surface a fatal screen; reset whenever the source changes.
 	let recoveryAttempted = false;
+	// Furthest position reported this source — guards against a transient
+	// `currentTime` reset (e.g. right after a recovery `video.load()`) pushing
+	// `position: 0` over real progress. Reset when the source changes.
+	let furthestPosition = 0;
 
 	// Subtitle timing nudge (seconds), applied as a delta to the showing track's
 	// cues. Resets when the track changes.
@@ -193,6 +197,7 @@
 		}
 		fatalError = null;
 		recoveryAttempted = false;
+		furthestPosition = 0;
 		seeded = false;
 		loading = true;
 		ended = false;
@@ -241,6 +246,18 @@
 		}
 	});
 
+	function flushProgress() {
+		if (!video || !(duration > 0) || !Number.isFinite(video.currentTime)) {
+			return;
+		}
+		const position = video.currentTime;
+		if (position < 5 && furthestPosition > 30) {
+			return;
+		}
+		furthestPosition = Math.max(furthestPosition, position);
+		onProgress?.(position, duration);
+	}
+
 	$effect(() => {
 		progressTimer = setInterval(() => {
 			if (video && !video.paused && duration > 0) {
@@ -250,11 +267,27 @@
 		return () => clearInterval(progressTimer);
 	});
 
-	onDestroy(() => {
-		if (video && duration > 0) {
-			onProgress?.(video.currentTime, duration);
+	// Also persist on pause and whenever the tab is hidden / the page is being
+	// unloaded — closing the tab mid-episode otherwise loses up to 15s and the
+	// unmount save never runs.
+	$effect(() => {
+		if (typeof document === "undefined") {
+			return;
 		}
+		const onHide = () => {
+			if (document.visibilityState === "hidden") {
+				flushProgress();
+			}
+		};
+		document.addEventListener("visibilitychange", onHide);
+		window.addEventListener("pagehide", flushProgress);
+		return () => {
+			document.removeEventListener("visibilitychange", onHide);
+			window.removeEventListener("pagehide", flushProgress);
+		};
 	});
+
+	onDestroy(flushProgress);
 
 	function onLoadedMetadata() {
 		if (!seeded && startTime > 0 && video) {
@@ -606,6 +639,7 @@
 		onplaying={onReady}
 		onwaiting={onWaiting}
 		onerror={onMediaError}
+		onpause={flushProgress}
 		onclick={togglePlay}
 		onended={onEndedInternal}
 	>

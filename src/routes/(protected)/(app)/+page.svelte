@@ -25,18 +25,20 @@
 	// render — read every field defensively.
 	const profileName = $derived(data.profile?.name ?? "");
 
-	// Continue-watching. The SSR `continueWatching` payload carries full meta;
-	// once the local store is authoritative its progress rows override the SSR
-	// position for titles it already knows (so a just-watched episode / a
-	// just-finished title reflects without waiting for a server refresh). Titles
-	// the store has but the SSR payload doesn't are only added when they're in
-	// the library mirror (so we have a poster + name).
-	const resume = $derived.by(() => {
-		const ssr = data.resume ?? [];
+	type ResumeItem = NonNullable<typeof data.resume>[number];
+
+	// Continue-watching = a union of the SSR `continueWatching` payload (full
+	// meta) and the local progress store. The store makes the row resilient to a
+	// slow / empty SSR pull and reflects a just-watched episode immediately;
+	// local-only titles get their poster + name from the library mirror, else a
+	// minimal card (the fallback art covers a missing poster).
+	const resume = $derived.by<ResumeItem[]>(() => {
+		const ssr = (data.resume ?? []) as ResumeItem[];
 		if (!sync.authoritative) {
 			return ssr;
 		}
 
+		// Newest in-progress local row per title.
 		const localByContent = new Map<
 			string,
 			{
@@ -44,10 +46,13 @@
 				duration: number;
 				lastWatched: number;
 				videoId: string;
+				season: number | null;
+				episode: number | null;
+				contentType: "movie" | "series";
 			}
 		>();
 		for (const row of sync.progress) {
-			if (row.duration <= 0) {
+			if (row.duration <= 60_000 || row.position >= row.duration * 0.9) {
 				continue;
 			}
 			const existing = localByContent.get(row.contentId);
@@ -57,26 +62,58 @@
 					duration: row.duration,
 					lastWatched: row.lastWatched,
 					videoId: row.videoId,
+					season: row.season,
+					episode: row.episode,
+					contentType: row.contentType,
 				});
 			}
 		}
 
-		const merged = ssr
-			.map((item) => {
-				const local = localByContent.get(item.id);
-				if (!local) {
-					return item;
-				}
-				return {
-					...item,
-					progress: local.position / local.duration,
-					remainingMs: Math.max(0, local.duration - local.position),
-				};
-			})
-			// Drop anything the store now considers finished.
-			.filter((item) => item.progress < 0.9);
+		const byId = new Map<string, ResumeItem>();
 
-		return merged;
+		for (const item of ssr) {
+			const local = localByContent.get(item.id);
+			byId.set(item.id, {
+				...item,
+				...(local
+					? {
+							videoId: local.videoId,
+							season: local.season,
+							episode: local.episode,
+							progress: local.position / local.duration,
+							remainingMs: Math.max(0, local.duration - local.position),
+						}
+					: {}),
+			});
+		}
+
+		// Local-only in-progress titles the SSR pull missed.
+		for (const [contentId, local] of localByContent) {
+			if (byId.has(contentId)) {
+				continue;
+			}
+			const libEntry = sync.library.find(
+				(entry) => entry.contentId === contentId,
+			);
+			byId.set(contentId, {
+				id: contentId,
+				type: local.contentType,
+				name: libEntry?.name ?? contentId,
+				poster: libEntry?.poster ?? null,
+				background: libEntry?.background ?? libEntry?.poster ?? null,
+				logo: null,
+				videoId: local.videoId,
+				season: local.season,
+				episode: local.episode,
+				progress: local.position / local.duration,
+				remainingMs: Math.max(0, local.duration - local.position),
+			} as ResumeItem);
+		}
+
+		// Insertion order: SSR items (already `last_watched DESC`) then local-only.
+		return [...byId.values()]
+			.filter((item) => item.progress < 0.9)
+			.slice(0, 20);
 	});
 
 	// The "My library" row reads the local store once it's authoritative so an
@@ -400,7 +437,9 @@
 									{#if item.season != null && item.episode != null}
 										S{item.season} · E{item.episode} ·
 									{/if}
-									{formatRemaining(item.remainingMs)}
+									{item.progress < 0.01
+										? "Not started"
+										: formatRemaining(item.remainingMs)}
 								</p>
 							</div>
 							<div class="h-1 overflow-hidden rounded-full bg-white/25">

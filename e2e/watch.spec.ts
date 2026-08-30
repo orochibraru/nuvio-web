@@ -22,12 +22,16 @@ test("detail source sidebar: opens, resolves async, refreshes, closes", async ({
 	await signIn(context);
 	const errors = collectRuntimeErrors(page);
 
-	// tt1375666 (Inception) — no watch progress, so the play button is "Watch".
+	// tt1375666 (Inception). The play CTA is "Watch" with no progress, "Resume"
+	// once a prior run has left some — accept either.
 	await page.goto("/detail/movie/tt1375666");
 	await page.waitForLoadState("networkidle");
 
 	const url = page.url();
-	await page.getByRole("button", { name: "Watch", exact: true }).click();
+	await page
+		.getByRole("button", { name: /^(Watch|Resume)$/ })
+		.first()
+		.click();
 
 	const panel = page.getByRole("complementary");
 	await expect(panel.getByText("Sources").first()).toBeVisible();

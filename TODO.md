@@ -124,8 +124,8 @@ Nothing open.
   a schedule source).
 - [ ] When an episode is marked watched on a running show with a known next
       episode, surface the next episode + air date in continue-watching.
-- [ ] Skip intro / skip outro — no addon supplies intro/outro timestamps
-      (Stremio has no chapter data; AniSkip is anime-only). Needs a data source.
+- [ ] Skip intro / skip outro ==> Use https://theintrodb.org/ for shows, AniSkip
+      for anime.
 
 <details><summary>Shipped</summary>
 
@@ -167,14 +167,20 @@ Nothing open.
   (next-episode / Watch again / Back to details + "More like this" suggestions).
 - In-player episode drawer + season switcher (`player-episodes-panel.svelte`);
   next-episode button.
-- Progress → `sync.saveProgress` every 15s + on unmount. Mark-watched via
-  `sync.markWatched` (synthetic 100% row) / `sync.clearProgress`. The `(app)`
+- Progress → `sync.saveProgress` every 15s, on pause, on `visibilitychange` /
+  `pagehide`, and on unmount (a `furthestPosition` guard stops a transient
+  `currentTime` reset from pushing `position: 0` over real progress).
+  Mark-watched via `sync.markWatched` / `sync.clearProgress`. The `(app)`
   layout's sync-store `$effect` detaches only on shell unmount (a separate
   no-dep effect), never as the attach effect's cleanup. `watch.spec.ts` asserts
   an optimistic write still flushes across an immediate navigation.
-- Continue-watching on `/` merges the local progress store over the SSR
-  `continueWatching` payload (SSR supplies meta; the store supplies live
-  position + drops anything now finished).
+- Continue-watching (`/`) = a union of the SSR `continueWatching` pull and the
+  local progress store — resilient to a slow / failed pull, reflects a
+  just-watched episode immediately, local-only titles get meta from the library
+  mirror. "In progress" = `duration > 60s` and `position < 90%` — **no lower
+  position bound** (the API stores queued titles at `position: 0`; a prior
+  `position > 30s` filter dropped every one). Position-0 items show "Not
+  started".
 - Subtitles served via `/api/subtitle` (SRT→WebVTT, auth-gated).
 
 </details>
@@ -184,9 +190,12 @@ Nothing open.
 - [ ] Collection folder reorder, tile shape / hide-title / cover image,
       `FOLLOW_LAYOUT` mode. ([x] "All" tab — aggregated, de-duped view across a
       collection's folders, default when there's more than one.)
-- [ ] Continue-watching is unreliable: items randomly removed, new ones not
-      added (partly mitigated — `/` now overlays the local progress store on the
-      SSR list, see Playback).
+- [x] Continue-watching was empty / "reset" — the filter required
+      `position > 30s` but the API stores queued titles at `position: 0`, so
+      everything was dropped; and short watches weren't flushed before a tab
+      close. Fixed: no lower position bound, SSR+local-store union, progress
+      flushed on pause / hide / unload (see Playback). Verified end-to-end
+      (watch → pause → reload resumes, not resets).
 
 <details><summary>Shipped</summary>
 
