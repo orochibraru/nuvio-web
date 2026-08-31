@@ -162,8 +162,12 @@
 						<div
 							class="group/row relative flex gap-3 overflow-hidden rounded-xl border border-border/60 bg-card/40 p-2.5 transition-colors hover:border-primary/40 hover:bg-card"
 						>
+							<!-- Decorative twin of the title link below — hidden from AT so
+							     the row exposes one link to the detail page, not two. -->
 							<a
 								href={resolve(`detail/${item.type}/${encodeURIComponent(item.contentId)}`)}
+								aria-hidden="true"
+								tabindex="-1"
 								class="relative aspect-2/3 w-16 shrink-0 overflow-hidden rounded-lg bg-muted"
 							>
 								<span class="absolute inset-0 flex items-center justify-center bg-linear-to-br from-muted to-background">
@@ -207,9 +211,9 @@
 								</div>
 								<a
 									href={watchHref(item)}
-									class="mt-1 inline-flex w-fit items-center gap-1 text-xs font-medium text-primary transition hover:underline"
+									class="mt-1 inline-flex w-fit items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-xs font-medium text-foreground/80 transition hover:border-primary/40 hover:text-foreground"
 								>
-									<PlayIcon class="size-3 fill-current" />
+									<PlayIcon class="size-3 fill-primary" />
 									{item.type === "series" ? "Rewatch episode" : "Rewatch"}
 								</a>
 							</div>

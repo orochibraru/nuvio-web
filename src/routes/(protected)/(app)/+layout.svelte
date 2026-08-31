@@ -9,6 +9,7 @@
 	import { theme } from "#lib/settings/theme.svelte.js";
 	import { sync } from "#lib/sync/store.svelte.js";
 	import { cn } from "#lib/utils.js";
+	import { afterNavigate } from "$app/navigation";
 	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
 	import { signOut } from "../../auth/auth.remote.ts";
@@ -32,6 +33,21 @@
 	const immersive = $derived(page.url.pathname.startsWith("/player/"));
 
 	let scrolled = $state(false);
+	let mainEl = $state<HTMLElement | null>(null);
+
+	// On a client navigation SvelteKit resets focus to <body> (or an `autofocus`
+	// element) and announces the new page title. Upgrade the <body> case to
+	// <main> so keyboard tab order resumes at the page content rather than back
+	// at the skip link. `type === "enter"` is the initial SSR load — leave it be.
+	afterNavigate(({ type }) => {
+		if (type === "enter") {
+			return;
+		}
+		const focused = document.activeElement;
+		if (!focused || focused === document.body) {
+			mainEl?.focus({ preventScroll: true });
+		}
+	});
 
 	$effect(() => {
 		theme.seed(data.ui);
@@ -108,7 +124,7 @@
         href={resolve("/(protected)/(app)")}
         class="flex items-center gap-2 text-lg font-bold tracking-tight"
       >
-      <img  alt="Nuvio logo" src="/logo-text.webp" width={100}/>
+      <img alt="Nuvio — home" src="/logo-text.webp" width={100} />
       </a>
 
       <nav class="hidden items-center gap-1 text-sm md:flex">
@@ -231,6 +247,7 @@
   </header>
 
   <main
+    bind:this={mainEl}
     id="main-content"
     tabindex="-1"
     class={cn(

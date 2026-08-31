@@ -37,7 +37,7 @@
 				"useSingleVarDeclarator": "off",
 				"noExcessiveLinesPerFile": {
 					"level": "error",
-					"options": { "maxLines": 760 }
+					"options": { "maxLines": 680 }
 				},
 				"noExportedImports": "off",
 				"useExportsLast": "off",

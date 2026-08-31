@@ -19,8 +19,6 @@
 	import Volume2Icon from "@lucide/svelte/icons/volume-2";
 	import VolumeXIcon from "@lucide/svelte/icons/volume-x";
 	import XIcon from "@lucide/svelte/icons/x";
-	import Hls from "hls.js";
-	import { onDestroy } from "svelte";
 	import PlaybackLoading from "#lib/components/playback-loading.svelte";
 	import {
 		SUBTITLE_SIZES,
@@ -28,13 +26,17 @@
 		subtitleFontSize,
 	} from "#lib/settings/ui-settings.js";
 	import { cn } from "#lib/utils.js";
+	import {
+		formatTime,
+		languageMatches,
+		languageName,
+	} from "#lib/watch/player-format.js";
 	import type { PlayerInfo } from "#lib/watch/player-info.js";
 	import PlayerInfoOverlay from "#lib/watch/player-info-overlay.svelte";
-	import {
-		type AudioByteSample,
-		evaluateAudioTick,
-		reportedAudioTrack,
-	} from "#lib/watch/silent-audio.js";
+	import { handlePlayerKey } from "#lib/watch/player-keymap.js";
+	import { createPlayerMedia } from "#lib/watch/player-media.svelte.js";
+	import { createProgressReporter } from "#lib/watch/player-progress.svelte.js";
+	import { createSilentAudioWatch } from "#lib/watch/silent-audio.svelte.js";
 
 	interface SubtitleTrack {
 		id?: string;
@@ -152,10 +154,6 @@
 	// One silent reload is attempted on a recoverable media error before we
 	// surface a fatal screen; reset whenever the source changes.
 	let recoveryAttempted = false;
-	// Furthest position reported this source — guards against a transient
-	// `currentTime` reset (e.g. right after a recovery `video.load()`) pushing
-	// `position: 0` over real progress. Reset when the source changes.
-	let furthestPosition = 0;
 	// `onOutro` fires once per source.
 	let outroFired = false;
 
@@ -163,17 +161,51 @@
 	// cues. Resets when the track changes.
 	let subtitleOffset = $state(0);
 
-	// Audio tracks — only exposed for HLS streams (hls.js drives the switch).
-	let hls: Hls | null = $state(null);
-	let audioTracks = $state<Array<{ id: number; label: string }>>([]);
-	let activeAudioTrack = $state(-1);
-
 	// Hover-scrub preview.
 	let scrubTrack = $state<HTMLDivElement | null>(null);
 	let hoverRatio = $state<number | null>(null);
 
 	let hideTimer: ReturnType<typeof setTimeout> | undefined;
-	let progressTimer: ReturnType<typeof setInterval> | undefined;
+
+	// New source: clear everything scoped to the previous stream.
+	function resetForNewSource() {
+		fatalError = null;
+		recoveryAttempted = false;
+		outroFired = false;
+		seeded = false;
+		loading = true;
+		ended = false;
+		autoSubDone = false;
+		subtitleOffset = 0;
+		progress.reset();
+	}
+
+	const media = createPlayerMedia({
+		src: () => src,
+		video: () => video,
+		onLoad: resetForNewSource,
+		onFatal: (message) => {
+			fatalError = message;
+		},
+	});
+
+	const progress = createProgressReporter({
+		video: () => video,
+		duration: () => duration,
+		currentTime: () => currentTime,
+		onProgress: (position, total) => onProgress?.(position, total),
+	});
+
+	const silentAudio = createSilentAudioWatch({
+		src: () => src,
+		video: () => video,
+		hls: () => media.hls,
+		audioRisky: () => audioRisky,
+		blocked: () => Boolean(fatalError),
+		onTrackSwitch: (index) => {
+			media.activeAudioTrack = index;
+		},
+	});
 
 	const rates = [0.5, 0.75, 1, 1.25, 1.5, 2];
 	const sizeLabels: Record<SubtitleSize, string> = {
@@ -262,134 +294,18 @@
 		subtitles.map((track, index) => ({
 			...track,
 			key: trackKey(track, index),
-			name: langName(track.lang),
+			name: languageName(track.lang),
 		})),
 	);
 	const menuOpen = $derived(settingsOpen || subtitlesOpen);
 
 	let autoSubDone = false;
 
-	function langName(code: string): string {
-		const raw = code.trim();
-		const short = raw.toLowerCase().slice(0, 2);
-		try {
-			const resolved = new Intl.DisplayNames(["en"], { type: "language" }).of(
-				short,
-			);
-			if (resolved && resolved.toLowerCase() !== short) {
-				return resolved;
-			}
-		} catch {
-			// Intl.DisplayNames unsupported — fall through.
-		}
-		return raw.toUpperCase();
-	}
-
-	function langMatches(a: string, b: string): boolean {
-		const x = a.trim().toLowerCase().slice(0, 3);
-		const y = b.trim().toLowerCase().slice(0, 3);
-		return x.length > 0 && (x.startsWith(y) || y.startsWith(x));
-	}
-
-	$effect(() => {
-		const el = video;
-		if (!(el && src)) {
-			return;
-		}
-		fatalError = null;
-		recoveryAttempted = false;
-		furthestPosition = 0;
-		outroFired = false;
-		seeded = false;
-		loading = true;
-		ended = false;
-		autoSubDone = false;
-
-		subtitleOffset = 0;
-		audioTracks = [];
-		activeAudioTrack = -1;
-
-		if (src.toLowerCase().includes(".m3u8") && Hls.isSupported()) {
-			const instance = new Hls({ maxBufferLength: 30 });
-			hls = instance;
-			instance.loadSource(src);
-			instance.attachMedia(el);
-			instance.on(Hls.Events.ERROR, (_event, data) => {
-				if (data.fatal) {
-					fatalError = "This stream could not be played.";
-				}
-			});
-			const syncAudio = () => {
-				audioTracks = instance.audioTracks.map((track, index) => ({
-					id: index,
-					label: track.name || track.lang || `Track ${index + 1}`,
-				}));
-				activeAudioTrack = instance.audioTrack;
-			};
-			instance.on(Hls.Events.AUDIO_TRACKS_UPDATED, syncAudio);
-			instance.on(Hls.Events.AUDIO_TRACK_SWITCHED, syncAudio);
-			return () => {
-				instance.destroy();
-				hls = null;
-			};
-		}
-
-		el.src = src;
-		el.load();
-		return () => {
-			el.removeAttribute("src");
-			el.load();
-		};
-	});
-
 	$effect(() => {
 		if (video) {
 			video.playbackRate = rate;
 		}
 	});
-
-	function flushProgress() {
-		if (!(video && duration > 0 && Number.isFinite(video.currentTime))) {
-			return;
-		}
-		const position = video.currentTime;
-		if (position < 5 && furthestPosition > 30) {
-			return;
-		}
-		furthestPosition = Math.max(furthestPosition, position);
-		onProgress?.(position, duration);
-	}
-
-	$effect(() => {
-		progressTimer = setInterval(() => {
-			if (video && !video.paused && duration > 0) {
-				onProgress?.(currentTime, duration);
-			}
-		}, 15_000);
-		return () => clearInterval(progressTimer);
-	});
-
-	// Also persist on pause and whenever the tab is hidden / the page is being
-	// unloaded — closing the tab mid-episode otherwise loses up to 15s and the
-	// unmount save never runs.
-	$effect(() => {
-		if (typeof document === "undefined") {
-			return;
-		}
-		const onHide = () => {
-			if (document.visibilityState === "hidden") {
-				flushProgress();
-			}
-		};
-		document.addEventListener("visibilitychange", onHide);
-		window.addEventListener("pagehide", flushProgress);
-		return () => {
-			document.removeEventListener("visibilitychange", onHide);
-			window.removeEventListener("pagehide", flushProgress);
-		};
-	});
-
-	onDestroy(flushProgress);
 
 	function onLoadedMetadata() {
 		if (!seeded && startTime > 0 && video) {
@@ -404,7 +320,7 @@
 		if (!autoSubDone && preferredLanguage && !activeCaption) {
 			autoSubDone = true;
 			const match = options.find((entry) =>
-				langMatches(entry.lang, preferredLanguage),
+				languageMatches(entry.lang, preferredLanguage),
 			);
 			if (match) {
 				setCaption(match.key);
@@ -448,85 +364,6 @@
 		fatalError = "This source stopped playing and couldn't be recovered.";
 		loading = false;
 	}
-
-	// Runtime detection of a source that plays video but no sound — an undecodable
-	// audio codec (Dolby Digital / DTS / Atmos …) or a file with no audio track.
-	// Non-fatal: the video keeps playing, the banner is dismissible.
-	let audioIssue = $state<null | "no-track" | "codec">(null);
-	let audioTrackTried = false;
-
-	$effect(() => {
-		void src;
-		audioIssue = null;
-		audioTrackTried = false;
-		if (!video) {
-			return;
-		}
-		const el = video as HTMLVideoElement & {
-			webkitAudioDecodedByteCount?: number;
-			webkitVideoDecodedByteCount?: number;
-			mozHasAudio?: boolean;
-		};
-		const haveCounters = el.webkitVideoDecodedByteCount !== undefined;
-		if (!(haveCounters || audioRisky) && typeof el.mozHasAudio !== "boolean") {
-			return; // nothing to go on
-		}
-
-		const needed = audioRisky ? 2 : 4;
-		const samples: AudioByteSample[] = [];
-		let playedSeconds = 0;
-
-		function recordSample() {
-			if (!haveCounters) {
-				return;
-			}
-			samples.push({
-				video: el.webkitVideoDecodedByteCount ?? 0,
-				audio: el.webkitAudioDecodedByteCount ?? 0,
-			});
-			if (samples.length > 14) {
-				samples.shift();
-			}
-		}
-
-		function tick() {
-			if (fatalError || el.paused || el.currentTime < 3 || audioIssue) {
-				return;
-			}
-			playedSeconds += 1;
-			recordSample();
-
-			const action = evaluateAudioTick({
-				mozHasAudio: el.mozHasAudio,
-				haveCounters,
-				samples,
-				needed,
-				reported: reportedAudioTrack(el),
-				canSwitchTrack: Boolean(
-					hls && hls.audioTracks.length > 1 && !audioTrackTried,
-				),
-				audioRisky,
-				playedSeconds,
-			});
-
-			// Try a stereo/AAC alt track once (HLS) before bothering the viewer.
-			if (action.kind === "switch-track" && hls) {
-				audioTrackTried = true;
-				const next = (hls.audioTrack + 1) % hls.audioTracks.length;
-				hls.audioTrack = next;
-				activeAudioTrack = next;
-				samples.length = 0;
-				return;
-			}
-			if (action.kind === "flag") {
-				audioIssue = action.issue;
-				clearInterval(timer);
-			}
-		}
-
-		const timer = setInterval(tick, 1000);
-		return () => clearInterval(timer);
-	});
 
 	function onEndedInternal() {
 		ended = true;
@@ -637,10 +474,7 @@
 	}
 
 	function setAudioTrack(id: number) {
-		if (hls) {
-			hls.audioTrack = id;
-			activeAudioTrack = id;
-		}
+		media.selectAudioTrack(id);
 		settingsOpen = false;
 	}
 
@@ -668,74 +502,30 @@
 	}
 
 	function onKeydown(event: KeyboardEvent) {
-		if (event.target instanceof HTMLInputElement) {
-			return;
-		}
-		switch (event.key) {
-			case " ":
-			case "k":
-				event.preventDefault();
-				togglePlay();
-				break;
-			case "ArrowLeft":
-			case "j":
-				seek(-10);
-				break;
-			case "ArrowRight":
-			case "l":
-				seek(10);
-				break;
-			case "ArrowUp":
-				adjustVolume(0.1);
-				break;
-			case "ArrowDown":
-				adjustVolume(-0.1);
-				break;
-			case "f":
-				void toggleFullscreen();
-				break;
-			case "m":
-				muted = !muted;
-				break;
-			case "c":
-				cycleCaption();
-				break;
-			case "i":
+		const handled = handlePlayerKey(event, {
+			togglePlay,
+			seek,
+			adjustVolume,
+			toggleFullscreen: () => void toggleFullscreen(),
+			toggleMute: () => (muted = !muted),
+			cycleCaption,
+			toggleInfo: () => {
 				if (info && infoOpen) {
 					closeInfo();
 				} else if (info) {
 					openInfo();
 				}
-				break;
-			case "n":
-				onNext?.();
-				break;
-			case "e":
-				onEpisodes?.();
-				break;
-			case "Escape":
-				if (menuOpen) {
-					settingsOpen = false;
-					subtitlesOpen = false;
-				}
-				break;
-			default:
-				return;
+			},
+			next: () => onNext?.(),
+			episodes: () => onEpisodes?.(),
+			closeMenus: () => {
+				settingsOpen = false;
+				subtitlesOpen = false;
+			},
+		});
+		if (handled) {
+			nudgeControls();
 		}
-		nudgeControls();
-	}
-
-	function fmt(seconds: number): string {
-		if (!Number.isFinite(seconds)) {
-			return "0:00";
-		}
-		const total = Math.floor(seconds);
-		const h = Math.floor(total / 3600);
-		const m = Math.floor((total % 3600) / 60);
-		const s = total % 60;
-		return h > 0
-			? `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`
-			: `${m}:${String(s).padStart(2, "0")}`;
 	}
 </script>
 
@@ -781,7 +571,7 @@
 		onplaying={onReady}
 		onwaiting={onWaiting}
 		onerror={onMediaError}
-		onpause={flushProgress}
+		onpause={progress.flush}
 		onclick={togglePlay}
 		onended={onEndedInternal}
 	>
@@ -806,13 +596,13 @@
 		/>
 	{/if}
 
-	{#if audioIssue && !fatalError && !minimized}
+	{#if silentAudio.issue && !fatalError && !minimized}
 		<div
 			class="absolute inset-x-0 top-0 z-20 flex items-start gap-3 bg-amber-500/95 px-4 py-2.5 text-sm text-black"
 		>
 			<VolumeXIcon class="mt-0.5 size-4 shrink-0" />
 			<p class="flex-1">
-				{#if audioIssue === "no-track"}
+				{#if silentAudio.issue === "no-track"}
 					This source has no audio.
 				{:else}
 					This source is playing without sound — its audio codec (Dolby Digital,
@@ -831,7 +621,7 @@
 			<button
 				type="button"
 				aria-label="Dismiss"
-				onclick={() => (audioIssue = null)}
+				onclick={() => silentAudio.dismiss()}
 				class="shrink-0 rounded-md p-1 transition hover:bg-black/10"
 			>
 				<XIcon class="size-4" />
@@ -983,7 +773,7 @@
 						class="pointer-events-none absolute -top-7 -translate-x-1/2 rounded bg-black/85 px-1.5 py-0.5 text-[11px] tabular-nums"
 						style={`left: ${hoverRatio * 100}%`}
 					>
-						{fmt(hoverRatio * duration)}
+						{formatTime(hoverRatio * duration)}
 					</div>
 				{/if}
 				<div
@@ -1049,7 +839,7 @@
 				</div>
 
 				<span class="ml-1 text-xs tabular-nums text-white/80">
-					{fmt(currentTime)} <span class="text-white/40">/ {fmt(duration)}</span>
+					{formatTime(currentTime)} <span class="text-white/40">/ {formatTime(duration)}</span>
 				</span>
 
 				<div class="ml-auto flex items-center gap-1 sm:gap-2">
@@ -1129,19 +919,19 @@
 										{#if rate === option}<CheckIcon class="size-3.5" />{/if}
 									</button>
 								{/each}
-								{#if audioTracks.length > 1}
+								{#if media.audioTracks.length > 1}
 									<p class="mt-1 px-2 py-1 text-xs font-medium text-white/50">Audio</p>
-									{#each audioTracks as track (track.id)}
+									{#each media.audioTracks as track (track.id)}
 										<button
 											type="button"
 											onclick={() => setAudioTrack(track.id)}
 											class={cn(
 												"flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left transition hover:bg-white/10",
-												activeAudioTrack === track.id && "text-primary",
+												media.activeAudioTrack === track.id && "text-primary",
 											)}
 										>
 											<span class="truncate">{track.label}</span>
-											{#if activeAudioTrack === track.id}<CheckIcon class="size-3.5 shrink-0" />{/if}
+											{#if media.activeAudioTrack === track.id}<CheckIcon class="size-3.5 shrink-0" />{/if}
 										</button>
 									{/each}
 								{/if}

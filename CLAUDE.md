@@ -70,6 +70,11 @@ The e2e run shares **one** auth token across all specs (`e2e/auth.ts` memoises
 the password grant) — the real `api.nuvio.tv` rate-limits (429). Don't re-run
 the full suite gratuitously; run the specific spec you touched.
 
+`e2e/a11y.spec.ts` runs **axe** (`@axe-core/playwright`) over every main route
+and a couple of open-overlay states, asserting zero WCAG 2 A/AA violations, plus
+skip-link + focus-on-nav checks. New screens go in its `pages` list; fix what it
+flags rather than filtering rules.
+
 `bun run test:unit` (Vitest, node env, `src/**/*.test.ts`) covers
 framework-agnostic logic — currently `src/lib/sync/reconcile.ts`. Keep the sync
 reconcile pure and tested.

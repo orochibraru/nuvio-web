@@ -79,6 +79,20 @@
 			Boolean(sync.titleProgress(item.id)[item.id]?.completed),
 	);
 
+	// The link's visible content (poster, title, badges) is all decorative once
+	// the link itself is labelled — fold the useful bits into one clean name.
+	const linkLabel = $derived(
+		[
+			`${item.name} (${item.type})`,
+			item.releaseInfo,
+			rating ? `rated ${rating}` : null,
+			watched ? "watched" : null,
+			inLibrary ? "in your library" : null,
+		]
+			.filter(Boolean)
+			.join(", "),
+	);
+
 	function toggleLibrary() {
 		const removing = inLibrary;
 		sync.toggleLibrary({
@@ -122,6 +136,7 @@
 	<ContextMenu.Trigger class="contents">
 		<a
 			href={resolve(`detail/${item.type}/${encodeURIComponent(item.id)}`)}
+			aria-label={linkLabel}
 			class={cn("group/poster flex flex-col gap-2.5", className)}
 			data-sveltekit-preload-data="hover"
 		>
@@ -142,7 +157,7 @@
 						src={item.poster}
 						srcset={responsive?.srcset}
 						sizes={responsive?.sizes}
-						alt={item.name}
+						alt=""
 						loading="lazy"
 						decoding="async"
 						onload={() => (loaded = true)}
@@ -180,7 +195,7 @@
 
 				{#if rating}
 					<div
-						title="IMDb rating"
+						aria-hidden="true"
 						class="absolute top-2 left-2 flex items-center gap-1 rounded-md bg-black/55 px-1.5 py-0.5 text-xs font-semibold text-white ring-1 ring-white/10 backdrop-blur-md"
 					>
 						<StarIcon class="size-3 fill-amber-400 text-amber-400" />
@@ -189,7 +204,7 @@
 				{/if}
 
 				{#if watched || inLibrary}
-					<div class="absolute top-2 right-2 flex gap-1">
+					<div aria-hidden="true" class="absolute top-2 right-2 flex gap-1">
 						{#if watched}
 							<span
 								title="Watched"

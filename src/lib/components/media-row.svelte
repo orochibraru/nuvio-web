@@ -57,6 +57,8 @@
 		<div class="relative -mx-2">
 			<div
 				bind:this={track}
+				role="group"
+				aria-label={title}
 				onscroll={sync}
 				class="no-scrollbar flex snap-x scroll-px-2 gap-4 overflow-x-auto scroll-smooth px-2 pt-1 pb-2"
 			>
@@ -80,23 +82,19 @@
 
 			<button
 				type="button"
-				aria-label="Scroll left"
+				aria-label={`Scroll ${title} left`}
+				disabled={atStart}
 				onclick={() => nudge(-1)}
-				class={cn(
-					"absolute top-1/2 left-1 hidden size-9 -translate-y-1/2 items-center justify-center rounded-full bg-background/80 text-foreground opacity-0 ring-1 ring-border backdrop-blur-md transition-opacity duration-200 hover:bg-background sm:flex group-hover/row:opacity-100",
-					atStart && "opacity-0!",
-				)}
+				class="absolute top-1/2 left-1 hidden size-9 -translate-y-1/2 items-center justify-center rounded-full bg-background/80 text-foreground opacity-0 ring-1 ring-border backdrop-blur-md transition-opacity duration-200 group-hover/row:opacity-100 hover:bg-background focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none disabled:opacity-0! sm:flex"
 			>
 				<ChevronLeftIcon class="size-5" />
 			</button>
 			<button
 				type="button"
-				aria-label="Scroll right"
+				aria-label={`Scroll ${title} right`}
+				disabled={atEnd}
 				onclick={() => nudge(1)}
-				class={cn(
-					"absolute top-1/2 right-1 hidden size-9 -translate-y-1/2 items-center justify-center rounded-full bg-background/80 text-foreground opacity-0 ring-1 ring-border backdrop-blur-md transition-opacity duration-200 hover:bg-background sm:flex group-hover/row:opacity-100",
-					atEnd && "opacity-0!",
-				)}
+				class="absolute top-1/2 right-1 hidden size-9 -translate-y-1/2 items-center justify-center rounded-full bg-background/80 text-foreground opacity-0 ring-1 ring-border backdrop-blur-md transition-opacity duration-200 group-hover/row:opacity-100 hover:bg-background focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none disabled:opacity-0! sm:flex"
 			>
 				<ChevronRightIcon class="size-5" />
 			</button>

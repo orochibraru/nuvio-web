@@ -138,11 +138,16 @@
 					<Command.Input
 						bind:value={query}
 						placeholder="Jump to a page or search titles…"
+						aria-controls="command-palette-results"
 						class="h-12 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
 					/>
 				</div>
 
-				<Command.List class="max-h-80 overflow-y-auto p-2">
+				<Command.List
+					id="command-palette-results"
+					tabindex={0}
+					class="max-h-80 overflow-y-auto p-2 outline-none"
+				>
 					<Command.Group>
 						<Command.GroupHeading
 							class="px-3 py-1.5 text-xs font-medium text-muted-foreground"

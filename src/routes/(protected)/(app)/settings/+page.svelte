@@ -196,6 +196,7 @@
 				<span class="text-sm font-medium">Preferred quality</span>
 				<select
 					value={theme.current.preferredQuality}
+					aria-label="Preferred quality"
 					onchange={(event) =>
 						update({
 							preferredQuality: event.currentTarget
@@ -219,6 +220,7 @@
 				<span class="text-sm font-medium">Where to watch region</span>
 				<select
 					value={theme.current.watchRegion}
+					aria-label="Where to watch region"
 					onchange={(event) =>
 						update({
 							watchRegion: event.currentTarget
@@ -240,6 +242,7 @@
 				<span class="text-sm font-medium">Preferred subtitle language</span>
 				<select
 					value={theme.current.subtitleLanguage}
+					aria-label="Preferred subtitle language"
 					onchange={(event) =>
 						update({ subtitleLanguage: event.currentTarget.value })}
 					class="w-fit rounded-md border border-border bg-background px-3 py-1.5 text-sm"
