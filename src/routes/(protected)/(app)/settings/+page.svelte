@@ -12,6 +12,7 @@
 		type Accent,
 		STREAM_QUALITIES,
 		type UiSettings,
+		WATCH_REGIONS,
 	} from "$lib/settings/ui-settings.js";
 	import { pageTitle } from "$lib/stores/title.svelte.js";
 	import { cn } from "$lib/utils.js";
@@ -211,6 +212,27 @@
 				<span class="text-xs text-muted-foreground">
 					The player auto-picks the closest match from a source list. You can
 					still choose any source manually.
+				</span>
+			</div>
+
+			<div class="flex flex-col gap-2.5">
+				<span class="text-sm font-medium">Where to watch region</span>
+				<select
+					value={theme.current.watchRegion}
+					onchange={(event) =>
+						update({
+							watchRegion: event.currentTarget
+								.value as UiSettings["watchRegion"],
+						})}
+					class="w-fit rounded-md border border-border bg-background px-3 py-1.5 text-sm"
+				>
+					{#each WATCH_REGIONS as [code, label] (code)}
+						<option value={code}>{label}</option>
+					{/each}
+				</select>
+				<span class="text-xs text-muted-foreground">
+					Which country's streaming services the "Available on" list and the
+					official-source Watch button use.
 				</span>
 			</div>
 

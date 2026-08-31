@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { NuvioApiError, NuvioClient } from "./client.js";
+import { NuvioApiError, NuvioClient } from "./client.ts";
 
 const fakeSession = {
 	access_token: "t",

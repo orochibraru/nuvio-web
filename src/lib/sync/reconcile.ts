@@ -3,13 +3,13 @@ import type {
 	WatchedItemDeltaEvent,
 	WatchProgressDeltaEvent,
 } from "$lib/nuvio/index.js";
-import type { HistoryRecord, LibraryRecord, ProgressRecord } from "./types.js";
+import type { HistoryRecord, LibraryRecord, ProgressRecord } from "./types.ts";
 import {
 	historyRecordFromDelta,
 	libraryKey,
 	libraryRecordFromDelta,
 	progressRecordFromDelta,
-} from "./types.js";
+} from "./types.ts";
 
 interface DeltaLike {
 	event_id: number;
@@ -29,10 +29,13 @@ export interface ReconcileResult<T> {
 export function reconcileDeltas<E extends DeltaLike, T>(
 	current: Map<string, T>,
 	events: E[],
-	identityOf: (event: E) => string,
-	toRecord: (event: E) => T,
-	baseCursor = 0,
+	fold: {
+		identityOf: (event: E) => string;
+		toRecord: (event: E) => T;
+		baseCursor?: number;
+	},
 ): ReconcileResult<T> {
+	const { identityOf, toRecord, baseCursor = 0 } = fold;
 	const records = new Map(current);
 	let cursor = baseCursor;
 	const ordered = [...events].sort((a, b) => a.event_id - b.event_id);
@@ -55,13 +58,12 @@ export function reconcileLibrary(
 	events: LibraryDeltaEvent[],
 	baseCursor = 0,
 ): ReconcileResult<LibraryRecord> {
-	return reconcileDeltas(
-		current,
-		events,
-		(event) => libraryKey(normalizeType(event.content_type), event.content_id),
-		libraryRecordFromDelta,
+	return reconcileDeltas(current, events, {
+		identityOf: (event) =>
+			libraryKey(normalizeType(event.content_type), event.content_id),
+		toRecord: libraryRecordFromDelta,
 		baseCursor,
-	);
+	});
 }
 
 export function reconcileProgress(
@@ -69,13 +71,11 @@ export function reconcileProgress(
 	events: WatchProgressDeltaEvent[],
 	baseCursor = 0,
 ): ReconcileResult<ProgressRecord> {
-	return reconcileDeltas(
-		current,
-		events,
-		(event) => event.progress_key,
-		progressRecordFromDelta,
+	return reconcileDeltas(current, events, {
+		identityOf: (event) => event.progress_key,
+		toRecord: progressRecordFromDelta,
 		baseCursor,
-	);
+	});
 }
 
 export function reconcileHistory(
@@ -83,13 +83,11 @@ export function reconcileHistory(
 	events: WatchedItemDeltaEvent[],
 	baseCursor = 0,
 ): ReconcileResult<HistoryRecord> {
-	return reconcileDeltas(
-		current,
-		events,
-		(event) => historyRecordFromDelta(event).id,
-		historyRecordFromDelta,
+	return reconcileDeltas(current, events, {
+		identityOf: (event) => historyRecordFromDelta(event).id,
+		toRecord: historyRecordFromDelta,
 		baseCursor,
-	);
+	});
 }
 
 function normalizeType(value: string): "movie" | "series" {

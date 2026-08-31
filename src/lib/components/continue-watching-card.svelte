@@ -35,6 +35,12 @@
 	);
 	const started = $derived(item.progress >= 0.01);
 
+	let bgLoaded = $state(false);
+	$effect(() => {
+		void item.background;
+		bgLoaded = false;
+	});
+
 	function clearProgress() {
 		sync.clearProgress({
 			contentId: item.id,
@@ -52,13 +58,17 @@
 			class="group/cw relative aspect-video w-72 shrink-0 overflow-hidden rounded-xl bg-muted ring-1 ring-white/5 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_50px_-16px] hover:shadow-black/70 hover:ring-primary/60"
 		>
 			<div class="absolute inset-0 bg-linear-to-br from-muted via-muted to-background"></div>
+			{#if item.background && !bgLoaded}
+				<div class="skeleton absolute inset-0"></div>
+			{/if}
 			{#if item.background}
 				<img
 					src={item.background}
 					alt=""
 					loading="lazy"
 					decoding="async"
-					class="relative size-full object-cover transition-transform duration-500 group-hover/cw:scale-105"
+					onload={() => (bgLoaded = true)}
+					class={`relative size-full object-cover transition-[transform,opacity] duration-500 group-hover/cw:scale-105 ${bgLoaded ? "opacity-100" : "opacity-0"}`}
 				/>
 			{/if}
 			<div class="absolute inset-0 bg-linear-to-t from-black/85 via-black/25 to-transparent"></div>

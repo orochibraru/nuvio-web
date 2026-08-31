@@ -1,6 +1,6 @@
 import type { PageServerLoad } from "./$types";
-import { pullSyncOverview } from "./account-data";
+import { pullSyncOverview } from "./account-data.ts";
 
-export const load: PageServerLoad = ({ locals, fetch }) => {
-	return { overview: pullSyncOverview(locals.nuvio.withFetch(fetch)) };
-};
+export const load: PageServerLoad = ({ locals, fetch }) => ({
+	overview: pullSyncOverview(locals.nuvio.withFetch(fetch)),
+});

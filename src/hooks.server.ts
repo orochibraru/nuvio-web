@@ -56,6 +56,7 @@ export function handleError({ event, error, status }) {
 		return;
 	}
 	const errorId = makeErrorId();
+	// biome-ignore lint/suspicious/noConsole: server-side error log, correlated to the client by errorId
 	console.error(
 		`Error on ${event.request.method} ${event.url.pathname} (errorId=${errorId})`,
 		error instanceof Error ? (error.stack ?? error.message) : "Unknown error",

@@ -52,14 +52,14 @@
 		void goto(query ? `?${query}` : "?", { keepFocus: true, noScroll: true });
 	}
 
-	type GridItem = {
+	interface GridItem {
 		id: string;
 		type: "movie" | "series";
 		name: string;
 		poster?: string;
 		releaseInfo?: string;
 		imdbRating?: number;
-	};
+	}
 
 	// The load streams these in (unawaited) so navigation isn't blocked; the
 	// local store takes over once it has hydrated. Keep showing the streamed

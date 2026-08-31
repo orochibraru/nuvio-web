@@ -5,7 +5,7 @@
 	import XIcon from "@lucide/svelte/icons/x";
 	import { cn } from "$lib/utils.js";
 
-	type Episode = {
+	interface Episode {
 		videoId: string;
 		season: number;
 		episode: number;
@@ -14,7 +14,7 @@
 		thumbnail: string | null;
 		released: string | null;
 		rating: string | null;
-	};
+	}
 
 	let {
 		episodes,

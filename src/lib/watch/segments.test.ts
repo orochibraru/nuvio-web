@@ -4,7 +4,7 @@ import {
 	normalizeSegments,
 	segmentLookup,
 	segmentQuery,
-} from "./segments.js";
+} from "./segments.ts";
 
 describe("segmentLookup", () => {
 	it("maps a tmdb-prefixed id to tmdb_id", () => {
@@ -56,7 +56,7 @@ describe("normalizeSegments", () => {
 
 	it("converts the first intro + credits segment to seconds", () => {
 		const media: IntroDbMedia = {
-			intro: [{ start_ms: 30000, end_ms: 90000 }],
+			intro: [{ start_ms: 30_000, end_ms: 90_000 }],
 			credits: [{ start_ms: 2_580_000, end_ms: null }],
 		};
 		expect(normalizeSegments(media)).toEqual({
@@ -67,7 +67,7 @@ describe("normalizeSegments", () => {
 
 	it("treats a null intro start as 0", () => {
 		expect(
-			normalizeSegments({ intro: [{ start_ms: null, end_ms: 85200 }] }).intro,
+			normalizeSegments({ intro: [{ start_ms: null, end_ms: 85_200 }] }).intro,
 		).toEqual({ start: 0, end: 85.2 });
 	});
 

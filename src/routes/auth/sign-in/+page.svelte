@@ -8,7 +8,7 @@
 	import { Input } from "$lib/components/ui/input/index.js";
 	import { Spinner } from "$lib/components/ui/spinner/index.js";
 	import { pageTitle } from "$lib/stores/title.svelte.js";
-	import { signIn } from "../auth.remote";
+	import { signIn } from "../auth.remote.ts";
 
 	pageTitle.set("Sign in");
 

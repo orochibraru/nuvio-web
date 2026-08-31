@@ -10,6 +10,9 @@ import {
 export { requireProfile };
 
 const REGISTRY_TTL_MS = 60_000;
+// When the last build couldn't reach an addon, re-check far sooner so a
+// transient outage recovers in seconds rather than up to a minute.
+const REGISTRY_RETRY_TTL_MS = 5000;
 
 let cache: {
 	profileId: number;
@@ -23,11 +26,9 @@ export async function getRegistry(): Promise<{
 	errors: AddonLoadError[];
 }> {
 	const { event, profileId } = requireProfile();
-	if (
-		cache &&
-		cache.profileId === profileId &&
-		Date.now() - cache.at < REGISTRY_TTL_MS
-	) {
+	const ttl =
+		cache && cache.errors.length > 0 ? REGISTRY_RETRY_TTL_MS : REGISTRY_TTL_MS;
+	if (cache && cache.profileId === profileId && Date.now() - cache.at < ttl) {
 		return { registry: cache.registry, errors: cache.errors };
 	}
 	const rows = await event.locals.nuvio.addons.list(profileId);

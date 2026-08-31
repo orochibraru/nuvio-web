@@ -11,6 +11,7 @@
 	import { fly } from "svelte/transition";
 	import { goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
+	import { theme } from "$lib/settings/theme.svelte";
 	import { cn } from "$lib/utils.js";
 	import { playbackHandoff } from "./playback.svelte.js";
 	import {
@@ -19,10 +20,10 @@
 		type StreamKind,
 		streamKind,
 		streamMeta,
-	} from "./stream-format.js";
-	import { playbackContext, resolveStreams } from "./watch.remote";
-	import { EMPTY_PROVIDERS } from "./watch-providers.js";
-	import { watchProviders } from "./watch-providers.remote";
+	} from "./stream-format.ts";
+	import { playbackContext, resolveStreams } from "./watch.remote.ts";
+	import { watchProviders } from "./watch-providers.remote.ts";
+	import { EMPTY_PROVIDERS } from "./watch-providers.ts";
 	import WatchProvidersList from "./watch-providers-list.svelte";
 
 	let {
@@ -44,12 +45,13 @@
 	const providersQuery = $derived.by(() => {
 		const ctx = contextQuery.current;
 		if (!ctx) {
-			return undefined;
+			return;
 		}
 		return watchProviders({
 			title: ctx.heading,
 			year: Number((ctx.info?.releaseInfo ?? "").slice(0, 4)) || null,
 			imdbId: /^tt\d+$/.test(ctx.contentId) ? ctx.contentId : null,
+			region: theme.current.watchRegion,
 		});
 	});
 	const providers = $derived(providersQuery?.current ?? EMPTY_PROVIDERS);

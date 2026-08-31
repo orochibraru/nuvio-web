@@ -199,27 +199,34 @@ export const similarTitles = query(
 			.filter(
 				({ catalog }) =>
 					catalog.type === type && !catalog.extraRequired?.length,
-			);
+			)
+			.slice(0, 6);
 		if (candidates.length === 0) {
 			return { metas: [] };
 		}
 		const wanted = genres.slice(0, 2);
-		for (const genre of wanted.length > 0 ? wanted : [undefined]) {
-			for (const { addon, catalog } of candidates) {
-				try {
-					const result = await client.getCatalog(
-						{ type: catalog.type, id: catalog.id, genre },
-						addon.manifest.id,
-					);
-					const metas = (result?.metas ?? [])
-						.filter((meta) => meta.id !== id)
-						.slice(0, 20);
-					if (metas.length >= 6) {
-						return { metas };
-					}
-				} catch {
-					// try the next catalog / genre
-				}
+		// Fan every (genre × catalog) probe out at once, then take the first —
+		// genre-major, then catalog order — that yields enough titles.
+		const probes = (wanted.length > 0 ? wanted : [undefined]).flatMap((genre) =>
+			candidates.map(({ addon, catalog }) => ({ genre, addon, catalog })),
+		);
+		const results = await Promise.allSettled(
+			probes.map(({ genre, addon, catalog }) =>
+				client.getCatalog(
+					{ type: catalog.type, id: catalog.id, genre },
+					addon.manifest.id,
+				),
+			),
+		);
+		for (const result of results) {
+			if (result.status !== "fulfilled") {
+				continue;
+			}
+			const metas = (result.value?.metas ?? [])
+				.filter((meta) => meta.id !== id)
+				.slice(0, 20);
+			if (metas.length >= 6) {
+				return { metas };
 			}
 		}
 		return { metas: [] };

@@ -15,7 +15,7 @@ import { waitForImages } from "./util.ts";
  * net, not a substitute for `test:e2e`.
  */
 
-type Shot = {
+interface Shot {
 	name: string;
 	path: string;
 	/** Defaults to true. Set false for an above-the-fold "hero" crop instead of the whole scrollable page. */
@@ -26,7 +26,7 @@ type Shot = {
 	prepare?: (page: Page) => Promise<void>;
 	/** Extra settle time (ms) before the shot, on top of the shared beat. */
 	settleMs?: number;
-};
+}
 
 async function openSourcesPanel(page: Page): Promise<void> {
 	await page

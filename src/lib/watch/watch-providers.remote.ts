@@ -10,7 +10,7 @@ import {
 	searchBody,
 	shapeProviders,
 	type WatchProviders,
-} from "./watch-providers.js";
+} from "./watch-providers.ts";
 
 /**
  * Official streaming / rent / buy availability for a title, from JustWatch.
@@ -22,13 +22,16 @@ export const watchProviders = query(
 		title: v.pipe(v.string(), v.trim(), v.minLength(1)),
 		year: v.nullish(v.number()),
 		imdbId: v.nullish(v.string()),
+		/** ISO country from the profile's setting; "auto" / unset → Accept-Language. */
+		region: v.nullish(v.string()),
 	}),
-	async ({ title, year, imdbId }): Promise<WatchProviders> => {
+	async ({ title, year, imdbId, region }): Promise<WatchProviders> => {
 		requireProfile();
 		const { request, fetch } = getRequestEvent();
-		const country = regionFromAcceptLanguage(
-			request.headers.get("accept-language"),
-		);
+		const country =
+			region && region !== "auto"
+				? region.toUpperCase()
+				: regionFromAcceptLanguage(request.headers.get("accept-language"));
 
 		try {
 			const response = await fetch(JUSTWATCH_GRAPHQL, {

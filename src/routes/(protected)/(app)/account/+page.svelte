@@ -10,8 +10,8 @@
 	import { pageTitle } from "$lib/stores/title.svelte.js";
 	import { streamed } from "$lib/stream.svelte.js";
 	import { sync } from "$lib/sync/store.svelte.js";
-	import { signOut } from "../../../auth/auth.remote";
-	import { deleteProfileData } from "./account.remote";
+	import { signOut } from "../../../auth/auth.remote.ts";
+	import { deleteProfileData } from "./account.remote.ts";
 
 	pageTitle.set("Account");
 

@@ -184,7 +184,7 @@ export function shapeProviders(node: JwNode | null): WatchProviders {
 		const kind = KIND_BY_MONETIZATION[offer.monetizationType ?? ""];
 		const name = offer.package?.clearName;
 		const url = offer.standardWebURL;
-		if (!kind || !name || !url) {
+		if (!(kind && name && url)) {
 			continue;
 		}
 		const shaped: WatchOffer = {

@@ -15,12 +15,12 @@
 	import { goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
 
-	type Destination = {
+	interface Destination {
 		label: string;
 		href: string;
 		icon: Component;
 		keywords?: string[];
-	};
+	}
 
 	const destinations: Destination[] = [
 		{

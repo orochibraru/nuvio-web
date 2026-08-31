@@ -57,7 +57,7 @@
 		new Map((enrichQuery.current ?? []).map((item) => [item.id, item])),
 	);
 
-	type ResumeBase = {
+	interface ResumeBase {
 		id: string;
 		type: "movie" | "series";
 		videoId: string;
@@ -66,11 +66,12 @@
 		progress: number;
 		remainingMs: number;
 		lastWatched: number;
-	};
+	}
 
-	const resume = $derived.by<ResumeRow[]>(() => {
+	// The in-progress rows before enrichment: the local store when it's
+	// authoritative, otherwise the SSR payload (ordered, so `-index` keeps order).
+	function baseResumeRows(): Map<string, ResumeBase> {
 		const base = new Map<string, ResumeBase>();
-
 		if (sync.authoritative) {
 			for (const row of sync.progress) {
 				if (row.duration <= 60_000 || row.position >= row.duration * 0.9) {
@@ -91,56 +92,61 @@
 					lastWatched: row.lastWatched,
 				});
 			}
-		} else {
-			for (const [index, row] of (ssrResume ?? []).entries()) {
-				base.set(row.id, {
-					id: row.id,
-					type: row.type,
-					videoId: row.videoId,
-					season: row.season,
-					episode: row.episode,
-					progress: row.progress,
-					remainingMs: row.remainingMs,
-					lastWatched: -index,
-				});
-			}
+			return base;
 		}
+		for (const [index, row] of (ssrResume ?? []).entries()) {
+			base.set(row.id, {
+				id: row.id,
+				type: row.type,
+				videoId: row.videoId,
+				season: row.season,
+				episode: row.episode,
+				progress: row.progress,
+				remainingMs: row.remainingMs,
+				lastWatched: -index,
+			});
+		}
+		return base;
+	}
 
+	// Merge a base row with the enriched-query hit and the library mirror, in that
+	// order of preference, down to the card's own fallback art.
+	function resumeCard(entry: ResumeBase): ResumeRow {
+		const rich = enrichedById.get(entry.id);
+		const lib = sync.library.find((record) => record.contentId === entry.id);
+		return {
+			id: entry.id,
+			type: entry.type,
+			name: rich?.name ?? lib?.name ?? entry.id,
+			poster: rich?.poster ?? lib?.poster ?? null,
+			background: rich?.background ?? lib?.background ?? lib?.poster ?? null,
+			logo: rich?.logo ?? null,
+			videoId: rich?.videoId ?? entry.videoId,
+			season: rich?.season ?? entry.season,
+			episode: rich?.episode ?? entry.episode,
+			progress: rich?.progress ?? entry.progress,
+			remainingMs: rich?.remainingMs ?? entry.remainingMs,
+		};
+	}
+
+	const resume = $derived.by<ResumeRow[]>(() => {
 		const cards = new Map<string, ResumeRow>();
-		const meta = (id: string) =>
-			sync.library.find((entry) => entry.contentId === id);
 
-		for (const entry of [...base.values()].sort(
+		for (const entry of [...baseResumeRows().values()].sort(
 			(a, b) => b.lastWatched - a.lastWatched,
 		)) {
-			if (dismissed.has(entry.id)) {
-				continue;
+			if (!dismissed.has(entry.id)) {
+				cards.set(entry.id, resumeCard(entry));
 			}
-			const rich = enrichedById.get(entry.id);
-			const lib = meta(entry.id);
-			cards.set(entry.id, {
-				id: entry.id,
-				type: entry.type,
-				name: rich?.name ?? lib?.name ?? entry.id,
-				poster: rich?.poster ?? lib?.poster ?? null,
-				background: rich?.background ?? lib?.background ?? lib?.poster ?? null,
-				logo: rich?.logo ?? null,
-				videoId: rich?.videoId ?? entry.videoId,
-				season: rich?.season ?? entry.season,
-				episode: rich?.episode ?? entry.episode,
-				progress: rich?.progress ?? entry.progress,
-				remainingMs: rich?.remainingMs ?? entry.remainingMs,
-			});
 		}
 
 		// A finished series that rolled forward to its next episode: `progress` is
 		// now 0 so it isn't "in progress" locally — the enriched query is its only
 		// source.
 		for (const item of enrichQuery.current ?? []) {
-			if (cards.has(item.id) || dismissed.has(item.id)) {
-				continue;
+			if (!(cards.has(item.id) || dismissed.has(item.id))) {
+				cards.set(item.id, item);
 			}
-			cards.set(item.id, item);
 		}
 
 		return [...cards.values()]

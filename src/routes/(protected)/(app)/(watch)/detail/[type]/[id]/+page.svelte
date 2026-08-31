@@ -21,6 +21,7 @@
 	import TrailerModal from "$lib/components/trailer-modal.svelte";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { libraryIds } from "$lib/library/library.remote";
+	import { theme } from "$lib/settings/theme.svelte";
 	import { pageTitle } from "$lib/stores/title.svelte.js";
 	import { sync } from "$lib/sync/store.svelte.js";
 	import { cn } from "$lib/utils.js";
@@ -172,14 +173,14 @@
 	// the addons. `prefetch()` skips already-warmed and in-flight ids.
 	const warmed = new Set<string>();
 	function prefetch(videoId: string | null | undefined) {
-		if (!browser || !videoId || warmed.has(videoId)) {
+		if (!(browser && videoId) || warmed.has(videoId)) {
 			return;
 		}
 		warmed.add(videoId);
 		// `.catch` subscribes the resource, which kicks off the request; the
 		// result lands in the shared client cache for the drawer / player.
-		void resolveStreams({ type, id: videoId }).catch(() => {});
-		void playbackContext({ type, id: videoId }).catch(() => {});
+		void resolveStreams({ type, id: videoId }).catch(() => undefined);
+		void playbackContext({ type, id: videoId }).catch(() => undefined);
 	}
 
 	const ctaVideoId = $derived(
@@ -193,7 +194,7 @@
 		ctaWarmed = false;
 	});
 	$effect(() => {
-		if (!meta || !ctaVideoId) {
+		if (!(meta && ctaVideoId)) {
 			return;
 		}
 		const target = ctaVideoId;
@@ -215,7 +216,12 @@
 	const imdbId = $derived(/^tt\d+$/.test(id) ? id : null);
 	const providersQuery = $derived(
 		meta
-			? watchProviders({ title: meta.name, year: releaseYear, imdbId })
+			? watchProviders({
+					title: meta.name,
+					year: releaseYear,
+					imdbId,
+					region: theme.current.watchRegion,
+				})
 			: undefined,
 	);
 	const providers = $derived(providersQuery?.current ?? EMPTY_PROVIDERS);

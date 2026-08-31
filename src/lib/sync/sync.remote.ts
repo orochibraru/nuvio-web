@@ -1,10 +1,20 @@
 import * as v from "valibot";
 import { command, query } from "$app/server";
 import type { LibraryItemInput, WatchProgressInput } from "$lib/nuvio/index.js";
+import { settleAll } from "$lib/pool.js";
 import { requireProfile } from "$lib/server/guards.js";
 
 const ORIGIN_CLIENT_ID = "nuvio-web";
 const DELTA_LIMIT = 500;
+const WRITE_CHUNK = 500;
+
+function chunked<T>(list: readonly T[], size: number): T[][] {
+	const out: T[][] = [];
+	for (let i = 0; i < list.length; i += size) {
+		out.push(list.slice(i, i + size));
+	}
+	return out;
+}
 
 /**
  * Bootstrap snapshot: the delta cursors are read *before* the snapshot pulls so
@@ -145,23 +155,27 @@ export const flushWrites = command(writeBatchSchema, async (batch) => {
 			genres: entry.genres,
 			added_at: entry.added_at,
 		}));
-		for (let i = 0; i < items.length; i += 500) {
-			await nuvio.library.upsertItems({
-				p_profile_id: profileId,
-				p_origin_client_id: ORIGIN_CLIENT_ID,
-				p_items: items.slice(i, i + 500),
-			});
-		}
+		await settleAll(
+			chunked(items, WRITE_CHUNK).map((slice) =>
+				nuvio.library.upsertItems({
+					p_profile_id: profileId,
+					p_origin_client_id: ORIGIN_CLIENT_ID,
+					p_items: slice,
+				}),
+			),
+		);
 	}
 
 	if (batch.libraryDeletes.length > 0) {
-		for (let i = 0; i < batch.libraryDeletes.length; i += 500) {
-			await nuvio.library.deleteItems({
-				p_profile_id: profileId,
-				p_origin_client_id: ORIGIN_CLIENT_ID,
-				p_keys: batch.libraryDeletes.slice(i, i + 500),
-			});
-		}
+		await settleAll(
+			chunked(batch.libraryDeletes, WRITE_CHUNK).map((slice) =>
+				nuvio.library.deleteItems({
+					p_profile_id: profileId,
+					p_origin_client_id: ORIGIN_CLIENT_ID,
+					p_keys: slice,
+				}),
+			),
+		);
 	}
 
 	if (batch.progressPushes.length > 0) {
@@ -175,30 +189,34 @@ export const flushWrites = command(writeBatchSchema, async (batch) => {
 			duration: Math.round(entry.duration),
 			last_watched: entry.last_watched,
 		}));
-		for (let i = 0; i < entries.length; i += 500) {
-			await nuvio.watchProgress.push({
-				p_profile_id: profileId,
-				p_entries: entries.slice(i, i + 500),
-			});
-		}
+		await settleAll(
+			chunked(entries, WRITE_CHUNK).map((slice) =>
+				nuvio.watchProgress.push({
+					p_profile_id: profileId,
+					p_entries: slice,
+				}),
+			),
+		);
 	}
 
 	if (batch.progressDeletes.length > 0) {
 		await nuvio.watchProgress.deleteMany(batch.progressDeletes, profileId);
 	}
 
-	for (const entry of batch.historyDeletes) {
-		await nuvio.watchHistory.delete(
-			[
-				{
-					content_id: entry.content_id,
-					season: entry.season,
-					episode: entry.episode,
-				},
-			],
-			profileId,
-		);
-	}
+	await settleAll(
+		batch.historyDeletes.map((entry) =>
+			nuvio.watchHistory.delete(
+				[
+					{
+						content_id: entry.content_id,
+						season: entry.season,
+						episode: entry.episode,
+					},
+				],
+				profileId,
+			),
+		),
+	);
 
 	return { ok: true };
 });

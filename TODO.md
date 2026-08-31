@@ -72,15 +72,16 @@ This file tracks **open work only** — shipped features live in the code. Key:
   Still open: AniSkip for anime; a still-airing-show next-air-time. Also: the
   keyless TheIntroDB endpoint may be going away — look at whether an OAuth
   client id (no secret) is enough to keep it working.
-- [ ] When an addon is deemed unreachable, reduce the check interval from 60s to
-      5s to ensure the best recovery scenario
-- [~] Official "where to watch" (JustWatch, keyless,
-  `watch-providers.remote.ts`) — network badge on the detail hero, an "Available
-  on" list on the detail page
-  - source drawer + no-stream player state, and the Watch CTA falls back to the
-    official source when no addon returns a stream. Still open: a per-profile
-    region setting (currently derived from `Accept-Language`, default `US`);
-    provider deep-linking on mobile.
+- [x] Unreachable addon → the server registry re-checks every 5s (not 60s) after
+      a build with errors, and `/addons` re-polls `installedAddons` on the same
+      cadence so a recovery shows without a reload.
+- [x] Official "where to watch" (JustWatch, keyless,
+      `watch-providers.remote.ts`) — network badge on the detail hero,
+      "Available on" list on detail + source drawer + no-stream player state,
+      Watch CTA falls back to the official source when no addon returns a
+      stream, per-profile region setting (`watchRegion` in `uiSettings`,
+      `/settings` → Playback; "auto" = `Accept-Language`). Still open: provider
+      deep-linking on mobile.
 
 ## Library, collections & history
 
@@ -135,9 +136,9 @@ This file tracks **open work only** — shipped features live in the code. Key:
     raw rows and the client-side `continueWatching` / `watchHistory` queries
     enrich (poster / name / next-episode roll-forward).
   - Root `onNavigate` view-transition has a 250ms failsafe.
-- [~] Every internal link goes through `resolve` from `$app/paths` (route
-  existence is now type-checked). Done across routes + components; sweep any new
-  code the same way (see CLAUDE.md).
+- [x] Every internal link goes through `resolve` from `$app/paths` (route
+      existence is type-checked) — routes, components, `redirect()` targets.
+      Sweep any new code the same way (CLAUDE.md).
 
 ## CI/CD
 
@@ -173,6 +174,54 @@ diverges from that.
   real users against the Nuvio backend, uses the Nuvio name + logo. README says
   "unofficial". Plan: ask the Nuvio team to review; if they decline, get written
   permission or self-host the backend and drop the marks.
+
+## Misc / Framework
+
+- [x] Biome `preset: "all"` + `nursery: { recommended }`, with a curated config
+      in `biome.json`. `lint` / `check` / `test` all clean. The re-enabled
+      substantive tier (`noFloatingPromises`, `noMisusedPromises`,
+      `useConsistentTypeDefinitions` → interface, `useMaxParams`,
+      `noExcessiveCognitiveComplexity`, `noConsole`, `noEmptyBlockStatements`,
+      `useAwait`, `noUnnecessaryConditions`, `noAwaitInLoops`) drove real
+      refactors: `settleAll` / `settleSome` / `partitionSettled` in `pool.ts`
+      (concurrent work + "count the results, count the errors" check — sync
+      writes fan out through `Promise.allSettled` now), `reconcileDeltas` takes
+      an options object, `AddonClient` requests take a `ResourceRef`,
+      `playbackContext` / home `resume` / `video-player` audio-detection
+      decomposed. Thresholds relaxed to fit: `noExcessiveLinesPerFile` 760,
+      `noExcessiveLinesPerFunction` 80. Test/e2e/`scripts` override drops the
+      test-quality rules (`noConsole`, `noEmptyBlockStatements`, `useAwait`,
+      `noExcessiveLines*`, `noExcessiveCognitiveComplexity`, `noAwaitInLoops`).
+      Still off: the "style churn" tier (`noMagicNumbers`, `noTernary`,
+      `noDefaultExport`, `useNamingConvention`, `useConsistent*`,
+      `noHexColors`…), buggy-autofix rules (`useExplicitLengthCheck`,
+      `useStaticResponseMethods`, `useAtIndex`), framework-mismatch
+      (`useQwikValidLexicalScope`, `useComponentExportOnlyModules`), and
+      **`noUnresolvedImports`** — it can't resolve SvelteKit's Vite virtuals
+      (`$app/*`, `$env/*`), generated `./$types`, `.svelte` imports or
+      `@sveltejs/kit` type exports, so it was ~300 pure false positives with
+      zero real hits. `noSecrets` also stays off (too noisy on this repo).
+      `useSortedClasses` **is on** and already clean on this codebase.
+- [ ] `video-player.svelte` still ~740 script lines (sets the
+      `noExcessiveLinesPerFile` ceiling). Decompose: lift the HLS + audio-issue
+      detection `$effect` into a `silent-audio.svelte.ts` rune, drop the file
+      threshold back toward 550.
+- [ ] Upgrade to SvelteKit next (SvelteKit 3 RC). **Attempted 2026-08-31, backed
+      out** — `@sveltejs/kit@3.0.0-next.25` has no migration guide yet and it's
+      a real migration, not a bump: - `resolve()` from `$app/paths` now types on
+      route _ids_ (incl. `(group)` segments), not URL pathnames — every
+      `resolve("/…")` call in the app fails to type-check. - the generated
+      tsconfig changed: root must `"extends": "$app/tsconfig"` and put
+      `"$app/types"` in `compilerOptions.types`; with those applied, `$lib/*`
+      stopped resolving in `svelte-check` (~600 phantom "cannot find module") —
+      needs investigation (rootDirs / paths interaction). - `svelte-check`
+      started type-checking the adapter's `build/` output (`checkJs` + new
+      include globs) — stale `build/` now poisons the check. - custom adapter
+      `@orochibraru/svelte-smol` peers `@sveltejs/kit ^2` only; needs an adapter
+      release or a compat check against kit 3's builder API. - also
+      de-experimentalises remote functions + `forkPreloads` (drop the
+      `experimental` flags in `vite.config.ts`) and changes
+      `onNavigate`/transition semantics. Needs a dedicated pass.
 
 ## Standing constraints
 

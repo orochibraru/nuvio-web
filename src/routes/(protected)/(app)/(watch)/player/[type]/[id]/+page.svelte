@@ -146,7 +146,7 @@
 	const playableSrc = $derived(
 		active && !active.notWebReady ? (active.url ?? null) : null,
 	);
-	const resolving = $derived(!handed && !streamsQuery?.current);
+	const resolving = $derived(!(handed || streamsQuery?.current));
 
 	// Official "where to watch" — the fallback when no addon stream plays here.
 	const providersQuery = $derived(
@@ -155,6 +155,7 @@
 					title: context.heading,
 					year: Number((context.info.releaseInfo ?? "").slice(0, 4)) || null,
 					imdbId: /^tt\d+$/.test(context.contentId) ? context.contentId : null,
+					region: theme.current.watchRegion,
 				})
 			: undefined,
 	);

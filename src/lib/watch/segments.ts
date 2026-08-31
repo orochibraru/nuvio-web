@@ -65,10 +65,10 @@ export function segmentQuery(
 		return null;
 	}
 	const params = new URLSearchParams();
-	if (lookup.tmdbId !== undefined) {
-		params.set("tmdb_id", String(lookup.tmdbId));
-	} else {
+	if (lookup.tmdbId === undefined) {
 		params.set("imdb_id", lookup.imdbId);
+	} else {
+		params.set("tmdb_id", String(lookup.tmdbId));
 	}
 	if (season != null && episode != null) {
 		params.set("season", String(season));

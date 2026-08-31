@@ -32,23 +32,23 @@
 	import PlayerInfoOverlay from "$lib/watch/player-info-overlay.svelte";
 	import {
 		type AudioByteSample,
-		classifyAudioSamples,
+		evaluateAudioTick,
 		reportedAudioTrack,
 	} from "$lib/watch/silent-audio.js";
 
-	type SubtitleTrack = {
+	interface SubtitleTrack {
 		id?: string;
 		lang: string;
 		url: string;
 		addonName?: string;
 		sdh?: boolean;
-	};
+	}
 
-	type SubtitleAppearance = {
+	interface SubtitleAppearance {
 		subtitleSize?: SubtitleSize;
 		subtitleColor?: string;
 		subtitleBackground?: boolean;
-	};
+	}
 
 	let {
 		src,
@@ -293,7 +293,7 @@
 
 	$effect(() => {
 		const el = video;
-		if (!el || !src) {
+		if (!(el && src)) {
 			return;
 		}
 		fatalError = null;
@@ -349,7 +349,7 @@
 	});
 
 	function flushProgress() {
-		if (!video || !(duration > 0) || !Number.isFinite(video.currentTime)) {
+		if (!(video && duration > 0 && Number.isFinite(video.currentTime))) {
 			return;
 		}
 		const position = video.currentTime;
@@ -441,7 +441,7 @@
 			loading = true;
 			video.load();
 			video.currentTime = resumeAt;
-			void video.play().catch(() => {});
+			void video.play().catch(() => undefined);
 			return;
 		}
 
@@ -468,7 +468,7 @@
 			mozHasAudio?: boolean;
 		};
 		const haveCounters = el.webkitVideoDecodedByteCount !== undefined;
-		if (!haveCounters && !audioRisky && typeof el.mozHasAudio !== "boolean") {
+		if (!(haveCounters || audioRisky) && typeof el.mozHasAudio !== "boolean") {
 			return; // nothing to go on
 		}
 
@@ -476,53 +476,55 @@
 		const samples: AudioByteSample[] = [];
 		let playedSeconds = 0;
 
-		const timer = setInterval(() => {
+		function recordSample() {
+			if (!haveCounters) {
+				return;
+			}
+			samples.push({
+				video: el.webkitVideoDecodedByteCount ?? 0,
+				audio: el.webkitAudioDecodedByteCount ?? 0,
+			});
+			if (samples.length > 14) {
+				samples.shift();
+			}
+		}
+
+		function tick() {
 			if (fatalError || el.paused || el.currentTime < 3 || audioIssue) {
 				return;
 			}
 			playedSeconds += 1;
+			recordSample();
 
-			// Firefox exposes a definitive "has an audio track" boolean.
-			if (el.mozHasAudio === false) {
-				audioIssue = "no-track";
-				clearInterval(timer);
+			const action = evaluateAudioTick({
+				mozHasAudio: el.mozHasAudio,
+				haveCounters,
+				samples,
+				needed,
+				reported: reportedAudioTrack(el),
+				canSwitchTrack: Boolean(
+					hls && hls.audioTracks.length > 1 && !audioTrackTried,
+				),
+				audioRisky,
+				playedSeconds,
+			});
+
+			// Try a stereo/AAC alt track once (HLS) before bothering the viewer.
+			if (action.kind === "switch-track" && hls) {
+				audioTrackTried = true;
+				const next = (hls.audioTrack + 1) % hls.audioTracks.length;
+				hls.audioTrack = next;
+				activeAudioTrack = next;
+				samples.length = 0;
 				return;
 			}
-			const reported = reportedAudioTrack(el);
-
-			if (haveCounters) {
-				samples.push({
-					video: el.webkitVideoDecodedByteCount ?? 0,
-					audio: el.webkitAudioDecodedByteCount ?? 0,
-				});
-				if (samples.length > 14) {
-					samples.shift();
-				}
-				const verdict = classifyAudioSamples(samples, needed);
-				if (verdict === "codec" || verdict === "no-track") {
-					// Try switching to a stereo/AAC alt track once (HLS) before we
-					// bother the viewer.
-					if (
-						verdict === "codec" &&
-						hls &&
-						hls.audioTracks.length > 1 &&
-						!audioTrackTried
-					) {
-						audioTrackTried = true;
-						const next = (hls.audioTrack + 1) % hls.audioTracks.length;
-						hls.audioTrack = next;
-						activeAudioTrack = next;
-						samples.length = 0;
-						return;
-					}
-					audioIssue = reported === true ? "codec" : verdict;
-					clearInterval(timer);
-				}
-			} else if (audioRisky && playedSeconds >= 8) {
-				audioIssue = "codec";
+			if (action.kind === "flag") {
+				audioIssue = action.issue;
 				clearInterval(timer);
 			}
-		}, 1000);
+		}
+
+		const timer = setInterval(tick, 1000);
 		return () => clearInterval(timer);
 	});
 
@@ -659,7 +661,7 @@
 		controlsVisible = true;
 		clearTimeout(hideTimer);
 		hideTimer = setTimeout(() => {
-			if (!paused && !menuOpen) {
+			if (!(paused || menuOpen)) {
 				controlsVisible = false;
 			}
 		}, 3000);

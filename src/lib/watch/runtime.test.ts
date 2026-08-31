@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatRemaining, parseRuntimeMs } from "./runtime.js";
+import { formatRemaining, parseRuntimeMs } from "./runtime.ts";
 
 describe("parseRuntimeMs", () => {
 	const min = (n: number) => n * 60_000;

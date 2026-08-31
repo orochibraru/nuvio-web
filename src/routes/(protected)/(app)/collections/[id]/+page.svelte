@@ -129,7 +129,9 @@
 	}
 
 	function removeFolder(id: string) {
-		persist((collection?.folders ?? []).filter((entry) => entry.id !== id));
+		void persist(
+			(collection?.folders ?? []).filter((entry) => entry.id !== id),
+		);
 	}
 
 	async function setViewMode(mode: "TABBED_GRID" | "ROWS") {

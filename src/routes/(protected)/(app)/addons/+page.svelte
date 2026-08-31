@@ -29,7 +29,11 @@
 
 	pageTitle.set("Addons");
 
-	type Row = { url: string; name: string; enabled: boolean };
+	interface Row {
+		url: string;
+		name: string;
+		enabled: boolean;
+	}
 
 	const addonsQuery = installedAddons();
 
@@ -38,6 +42,22 @@
 	let addUrl = $state("");
 	let previewing = $state(false);
 	let preview = $state<Awaited<ReturnType<typeof previewAddon>> | null>(null);
+
+	// While any addon can't be reached, re-poll every 5s so the list reflects a
+	// recovery without a manual reload (the server registry retries on the same
+	// cadence).
+	const anyUnreachable = $derived(
+		Boolean(addonsQuery.current) &&
+			((addonsQuery.current?.errors.length ?? 0) > 0 ||
+				(addonsQuery.current?.addons ?? []).some((addon) => !addon.reachable)),
+	);
+	$effect(() => {
+		if (!anyUnreachable || saving) {
+			return;
+		}
+		const timer = setInterval(() => void addonsQuery.refresh(), 5000);
+		return () => clearInterval(timer);
+	});
 
 	function toRows(): Row[] {
 		return (addonsQuery.current?.addons ?? []).map((addon) => ({
@@ -60,13 +80,13 @@
 	}
 
 	function setEnabled(url: string, enabled: boolean) {
-		persist(
+		void persist(
 			toRows().map((row) => (row.url === url ? { ...row, enabled } : row)),
 		);
 	}
 
 	function removeAddon(url: string) {
-		persist(toRows().filter((row) => row.url !== url));
+		void persist(toRows().filter((row) => row.url !== url));
 	}
 
 	function move(url: string, delta: number) {
@@ -77,7 +97,7 @@
 			return;
 		}
 		[rows[index], rows[target]] = [rows[target], rows[index]];
-		persist(rows);
+		void persist(rows);
 	}
 
 	// Drag reorder. `dragUrl` is the row being dragged, `dropUrl` the row it is
@@ -90,7 +110,7 @@
 		const to = dropUrl;
 		dragUrl = null;
 		dropUrl = null;
-		if (!from || !to || from === to) {
+		if (!(from && to) || from === to) {
 			return;
 		}
 		const rows = toRows();
@@ -101,7 +121,7 @@
 		}
 		const [moved] = rows.splice(fromIndex, 1);
 		rows.splice(toIndex, 0, moved);
-		persist(rows);
+		void persist(rows);
 	}
 
 	async function runPreview() {

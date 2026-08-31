@@ -43,7 +43,7 @@
 		]),
 	);
 
-	type Row = {
+	interface Row {
 		id: string;
 		contentId: string;
 		type: "movie" | "series";
@@ -51,7 +51,7 @@
 		season: number | null;
 		episode: number | null;
 		watchedAt: number;
-	};
+	}
 
 	const items = $derived<Row[]>(
 		sync.authoritative

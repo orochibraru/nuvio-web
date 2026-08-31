@@ -13,6 +13,7 @@
  */
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import process from "node:process";
 import { fileURLToPath } from "node:url";
 
 const SPEC_URL = "https://nuvio.tv/docs/nuvio-public-api.md";

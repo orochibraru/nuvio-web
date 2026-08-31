@@ -182,23 +182,29 @@ export class NuvioClient {
 		...args: RpcArgs<Name>
 	): Promise<RpcResult<Name>> {
 		const params = args[0] ?? {};
-		return this.http<RpcResult<Name>>(`${this.baseUrl}/rest/v1/rpc/${fn}`, {
-			method: "POST",
-			body: JSON.stringify(params),
-			skipAuth: UNAUTHENTICATED_RPC.has(fn as UnauthenticatedRpcName),
-		});
+		return await this.http<RpcResult<Name>>(
+			`${this.baseUrl}/rest/v1/rpc/${fn}`,
+			{
+				method: "POST",
+				body: JSON.stringify(params),
+				skipAuth: UNAUTHENTICATED_RPC.has(fn as UnauthenticatedRpcName),
+			},
+		);
 	}
 
 	// Authentication
 
 	async signUp(credentials: EmailPasswordCredentials): Promise<AuthSession> {
-		return this.authenticate(`${this.baseUrl}/auth/v1/signup`, credentials);
+		return await this.authenticate(
+			`${this.baseUrl}/auth/v1/signup`,
+			credentials,
+		);
 	}
 
 	async signInWithPassword(
 		credentials: EmailPasswordCredentials,
 	): Promise<AuthSession> {
-		return this.authenticate(
+		return await this.authenticate(
 			`${this.baseUrl}/auth/v1/token?grant_type=password`,
 			credentials,
 		);
@@ -213,7 +219,7 @@ export class NuvioClient {
 				"No refresh token available",
 			);
 		}
-		return this.authenticate(
+		return await this.authenticate(
 			`${this.baseUrl}/auth/v1/token?grant_type=refresh_token`,
 			{
 				refresh_token: token,
@@ -231,7 +237,7 @@ export class NuvioClient {
 	}
 
 	async getUser(): Promise<NuvioUser> {
-		return this.http<NuvioUser>(`${this.baseUrl}/auth/v1/user`, {
+		return await this.http<NuvioUser>(`${this.baseUrl}/auth/v1/user`, {
 			method: "GET",
 		});
 	}

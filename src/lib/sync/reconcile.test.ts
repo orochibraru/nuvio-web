@@ -10,8 +10,8 @@ import {
 	reconcileHistory,
 	reconcileLibrary,
 	reconcileProgress,
-} from "./reconcile.js";
-import type { ProgressRecord } from "./types.js";
+} from "./reconcile.ts";
+import type { ProgressRecord } from "./types.ts";
 
 function libEvent(
 	over: Partial<LibraryDeltaEvent> & Pick<LibraryDeltaEvent, "event_id">,

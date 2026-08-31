@@ -62,7 +62,7 @@
 	}
 
 	function togglePin(collection: Collection) {
-		persist(
+		void persist(
 			collections.map((entry) =>
 				entry.id === collection.id
 					? { ...entry, pinToTop: !entry.pinToTop }
@@ -72,12 +72,12 @@
 	}
 
 	function remove(collection: Collection) {
-		persist(collections.filter((entry) => entry.id !== collection.id));
+		void persist(collections.filter((entry) => entry.id !== collection.id));
 	}
 
 	async function applyRename() {
 		const title = renameTitle.trim();
-		if (!renaming || !title) {
+		if (!(renaming && title)) {
 			return;
 		}
 		const target = renaming;

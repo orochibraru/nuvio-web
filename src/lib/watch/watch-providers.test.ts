@@ -4,7 +4,7 @@ import {
 	pickNode,
 	regionFromAcceptLanguage,
 	shapeProviders,
-} from "./watch-providers.js";
+} from "./watch-providers.ts";
 
 const reacher: JwNode = {
 	content: {

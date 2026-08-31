@@ -45,6 +45,14 @@
 		void logo;
 		logoBroken = false;
 	});
+
+	// Blur-up: the poster (small, usually already cached) shows blurred until the
+	// full backdrop paints, then the backdrop fades in over it.
+	let backdropLoaded = $state(false);
+	$effect(() => {
+		void background;
+		backdropLoaded = false;
+	});
 </script>
 
 <section
@@ -53,12 +61,20 @@
   <div class="absolute inset-0 -z-10">
     {#if background}
       {@const bd = backdropSrcset(background)}
+      {#if poster && !backdropLoaded}
+        <img
+          src={poster}
+          alt=""
+          class="absolute inset-0 size-full scale-110 object-cover blur-2xl saturate-150"
+        />
+      {/if}
       <img
         src={background}
         srcset={bd?.srcset}
         sizes={bd?.sizes}
         alt=""
-        class="animate-hero-zoom size-full object-cover object-center"
+        onload={() => (backdropLoaded = true)}
+        class={`animate-hero-zoom size-full object-cover object-center transition-opacity duration-700 ${backdropLoaded ? "opacity-100" : "opacity-0"}`}
       />
     {:else if poster}
       <img

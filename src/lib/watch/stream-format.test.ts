@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
 	audioSupport,
+	// biome-ignore lint/suspicious/noDeprecatedImports: this suite covers the back-compat alias
 	describeStream,
 	formatFileSize,
 	isPlayable,
@@ -9,7 +10,7 @@ import {
 	streamKind,
 	streamMeta,
 	streamQuality,
-} from "./stream-format.js";
+} from "./stream-format.ts";
 
 function stream(over: Partial<ResolvedStream>): ResolvedStream {
 	return {

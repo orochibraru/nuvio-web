@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 const event = { locals: {} as Record<string, unknown> };
 vi.mock("$app/server", () => ({ getRequestEvent: () => event }));
 
-import { requireProfile } from "./guards.js";
+import { requireProfile } from "./guards.ts";
 
 function setLocals(locals: Record<string, unknown>) {
 	event.locals = locals;

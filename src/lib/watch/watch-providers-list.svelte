@@ -1,6 +1,6 @@
 <script lang="ts">
 	import ExternalLinkIcon from "@lucide/svelte/icons/external-link";
-	import type { WatchOffer, WatchProviders } from "./watch-providers.js";
+	import type { WatchOffer, WatchProviders } from "./watch-providers.ts";
 
 	let {
 		providers,

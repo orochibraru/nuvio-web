@@ -4,12 +4,12 @@
  * third-party biography text ever transits our server; results are memoised per
  * name for the session.
  */
-export type Person = {
+export interface Person {
 	name: string;
 	photo: string | null;
 	bio: string | null;
 	born: number | null;
-};
+}
 
 const cache = new Map<string, Promise<Person>>();
 

@@ -27,7 +27,6 @@ describe("handle", () => {
 		const event = fakeEvent();
 		const resolve = vi.fn(async () => new Response("body", { headers: {} }));
 
-		// biome-ignore lint/suspicious/noExplicitAny: minimal fake for the hook
 		const response = await handle({ event, resolve } as any);
 
 		expect(event.locals.session).toBeNull();
@@ -46,7 +45,6 @@ describe("handle", () => {
 describe("handleError", () => {
 	it("ignores 404s", () => {
 		expect(
-			// biome-ignore lint/suspicious/noExplicitAny: minimal fake
 			handleError({ status: 404, event: {}, error: new Error("x") } as any),
 		).toBeUndefined();
 	});
@@ -56,7 +54,6 @@ describe("handleError", () => {
 			status: 500,
 			event: { request: { method: "GET" }, url: { pathname: "/x" } },
 			error: new Error("boom"),
-			// biome-ignore lint/suspicious/noExplicitAny: minimal fake
 		} as any) as { errorId: string; message: string };
 		expect(result.errorId).toMatch(/^[a-f0-9]{24}$/);
 		expect(result.message).toBe("boom");

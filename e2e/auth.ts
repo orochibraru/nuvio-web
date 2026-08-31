@@ -1,3 +1,4 @@
+import process from "node:process";
 import type { BrowserContext } from "@playwright/test";
 
 const API = "https://api.nuvio.tv";
@@ -6,12 +7,12 @@ const PUBLISHABLE_KEY = "sb_publishable_1Clq8rlTVACkdcZuqr6_AD__xUUC_EN";
 const EMAIL = process.env.NUVIO_TEST_EMAIL;
 const PASSWORD = process.env.NUVIO_TEST_PASSWORD;
 
-type TokenResponse = {
+interface TokenResponse {
 	access_token: string;
 	refresh_token: string;
 	expires_in: number;
 	user: unknown;
-};
+}
 
 // One password grant per test run, shared by every test — the real auth endpoint
 // rate-limits (429) and a full suite is dozens of `signIn` calls otherwise.
@@ -44,7 +45,7 @@ export async function signIn(
 	profileId = 1,
 	{ seedDisclaimerAck = true }: { seedDisclaimerAck?: boolean } = {},
 ): Promise<void> {
-	if (!EMAIL || !PASSWORD) {
+	if (!(EMAIL && PASSWORD)) {
 		throw new Error(
 			"Set NUVIO_TEST_EMAIL and NUVIO_TEST_PASSWORD (see .env.example)",
 		);

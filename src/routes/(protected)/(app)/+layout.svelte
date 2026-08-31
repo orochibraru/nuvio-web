@@ -11,7 +11,7 @@
 	import { theme } from "$lib/settings/theme.svelte";
 	import { sync } from "$lib/sync/store.svelte.js";
 	import { cn } from "$lib/utils.js";
-	import { signOut } from "../../auth/auth.remote";
+	import { signOut } from "../../auth/auth.remote.ts";
 
 	let { data, children } = $props();
 
@@ -73,6 +73,13 @@
 <CommandPalette />
 <FirstRunNotice />
 
+<a
+  href="#main-content"
+  class="sr-only z-100 rounded-md bg-background px-4 py-2 text-sm font-medium ring-2 ring-primary focus:not-sr-only focus:fixed focus:top-3 focus:left-3"
+>
+  Skip to content
+</a>
+
 <div
   class="relative isolate flex min-h-svh flex-col overflow-x-clip"
   data-accent={accent}
@@ -106,11 +113,13 @@
 
       <nav class="hidden items-center gap-1 text-sm md:flex">
         {#each nav as item (item.href)}
+          {@const active = isActive(item.href, item.exact)}
           <a
             href={item.href}
+            aria-current={active ? "page" : undefined}
             class={cn(
               "rounded-full px-3 py-1.5 font-medium transition-colors",
-              isActive(item.href, item.exact)
+              active
                 ? "bg-foreground/10 text-foreground"
                 : "text-muted-foreground hover:text-foreground",
             )}
@@ -143,6 +152,7 @@
       <div class="ml-auto flex items-center gap-3">
         <a
           href={resolve("/search")}
+          aria-current={isActive("/search") ? "page" : undefined}
           class={cn(
             "flex items-center gap-2 rounded-full border border-border bg-background/40 px-3 py-1.5 text-sm transition-colors",
             isActive("/search")
@@ -221,8 +231,10 @@
   </header>
 
   <main
+    id="main-content"
+    tabindex="-1"
     class={cn(
-      "mx-auto flex w-full flex-1 flex-col",
+      "mx-auto flex w-full flex-1 flex-col outline-none",
       immersive ? "p-0" : "px-6 pt-20 pb-16",
     )}
   >

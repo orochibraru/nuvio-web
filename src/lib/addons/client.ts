@@ -32,16 +32,18 @@ export interface SubtitleWithSource extends Subtitle {
 	addonName: string;
 }
 
-function buildResourceUrl(
-	baseUrl: string,
-	resource: AddonResourceName,
-	type: string,
-	id: string,
-	extra?: ResourceExtra,
-): string {
-	const base = `${baseUrl}/${resource}/${encodeURIComponent(type)}/${encodeURIComponent(id)}`;
-	const segment = extra
-		? Object.entries(extra)
+/** Addon resource request coordinates — everything but which addon serves it. */
+interface ResourceRef {
+	resource: AddonResourceName;
+	type: string;
+	id: string;
+	extra?: ResourceExtra;
+}
+
+function buildResourceUrl(baseUrl: string, ref: ResourceRef): string {
+	const base = `${baseUrl}/${ref.resource}/${encodeURIComponent(ref.type)}/${encodeURIComponent(ref.id)}`;
+	const segment = ref.extra
+		? Object.entries(ref.extra)
 				.filter(([, value]) => value !== undefined && value !== "")
 				.map(([key, value]) => `${key}=${encodeURIComponent(String(value))}`)
 				.join("&")
@@ -171,16 +173,13 @@ export class AddonClient {
 
 		const data = await this.request(
 			ref.addon,
-			"catalog",
-			query.type,
-			query.id,
-			extra,
+			{ resource: "catalog", type: query.type, id: query.id, extra },
 			true,
 		);
 		return {
-			metas: asArray<MetaPreview>((data as { metas?: unknown })?.metas).map(
-				normalizePreview,
-			),
+			metas: asArray<MetaPreview>(
+				(data as { metas?: unknown } | null)?.metas,
+			).map(normalizePreview),
 			from: ref,
 		};
 	}
@@ -189,22 +188,21 @@ export class AddonClient {
 		type: string,
 		id: string,
 	): Promise<{ meta: Meta; addon: InstalledAddon } | null> {
-		for (const addon of this.registry.providersFor("meta", type, id)) {
-			try {
-				const data = await this.request(
-					addon,
-					"meta",
-					type,
-					id,
-					undefined,
-					true,
-				);
-				const meta = (data as { meta?: Meta })?.meta;
-				if (meta) {
-					return { meta: normalizeMeta(meta), addon };
-				}
-			} catch {
-				// fall through to the next meta provider
+		// Query every meta provider at once; keep the first (registry order) that
+		// actually returns a meta object.
+		const providers = [...this.registry.providersFor("meta", type, id)];
+		const responses = await Promise.allSettled(
+			providers.map((addon) =>
+				this.request(addon, { resource: "meta", type, id }, true),
+			),
+		);
+		for (const [index, response] of responses.entries()) {
+			if (response.status !== "fulfilled") {
+				continue;
+			}
+			const meta = (response.value as { meta?: Meta } | null)?.meta;
+			if (meta) {
+				return { meta: normalizeMeta(meta), addon: providers[index] };
 			}
 		}
 		return null;
@@ -215,11 +213,9 @@ export class AddonClient {
 		id: string,
 	): Promise<{ streams: StreamWithSource[]; errors: AddonError[] }> {
 		const { items, errors } = await this.fanOut(
-			"stream",
-			type,
-			id,
+			{ resource: "stream", type, id },
 			(addon, data) =>
-				asArray<Stream>((data as { streams?: unknown })?.streams).map(
+				asArray<Stream>((data as { streams?: unknown } | null)?.streams).map(
 					(stream) => ({
 						...stream,
 						addonId: addon.manifest.id,
@@ -236,30 +232,28 @@ export class AddonClient {
 		extra?: ResourceExtra,
 	): Promise<{ subtitles: SubtitleWithSource[]; errors: AddonError[] }> {
 		const { items, errors } = await this.fanOut(
-			"subtitles",
-			type,
-			id,
+			{ resource: "subtitles", type, id, extra },
 			(addon, data) =>
-				asArray<Subtitle>((data as { subtitles?: unknown })?.subtitles).map(
-					(subtitle) => ({
-						...subtitle,
-						addonId: addon.manifest.id,
-						addonName: addon.manifest.name,
-					}),
-				),
-			extra,
+				asArray<Subtitle>(
+					(data as { subtitles?: unknown } | null)?.subtitles,
+				).map((subtitle) => ({
+					...subtitle,
+					addonId: addon.manifest.id,
+					addonName: addon.manifest.name,
+				})),
 		);
 		return { subtitles: items, errors };
 	}
 
 	private async fanOut<T>(
-		resource: AddonResourceName,
-		type: string,
-		id: string,
+		ref: ResourceRef,
 		map: (addon: InstalledAddon, data: unknown) => T[],
-		extra?: ResourceExtra,
 	): Promise<{ items: T[]; errors: AddonError[] }> {
-		const providers = this.registry.providersFor(resource, type, id);
+		const providers = this.registry.providersFor(
+			ref.resource,
+			ref.type,
+			ref.id,
+		);
 		const errors: AddonError[] = [];
 
 		const batches = await pooledMap(
@@ -267,20 +261,13 @@ export class AddonClient {
 			FANOUT_CONCURRENCY,
 			async (addon) => {
 				try {
-					const data = await this.request(
-						addon,
-						resource,
-						type,
-						id,
-						extra,
-						false,
-					);
+					const data = await this.request(addon, ref, false);
 					return map(addon, data);
 				} catch (error) {
 					errors.push({
 						addonUrl: addon.url,
 						addonName: addon.manifest.name,
-						resource,
+						resource: ref.resource,
 						message: errorMessage(error),
 					});
 					return [] as T[];
@@ -293,13 +280,10 @@ export class AddonClient {
 
 	private async request(
 		addon: InstalledAddon,
-		resource: AddonResourceName,
-		type: string,
-		id: string,
-		extra: ResourceExtra | undefined,
+		ref: ResourceRef,
 		cache: boolean,
 	): Promise<unknown> {
-		const url = buildResourceUrl(addon.baseUrl, resource, type, id, extra);
+		const url = buildResourceUrl(addon.baseUrl, ref);
 		if (cache) {
 			const hit = responseCache.get(url);
 			if (hit !== undefined) {
@@ -317,7 +301,7 @@ export class AddonClient {
 			{ allowHttp: true },
 		);
 		if (!response.ok) {
-			throw new Error(`${resource} request failed with ${response.status}`);
+			throw new Error(`${ref.resource} request failed with ${response.status}`);
 		}
 		const data = await response.json();
 		if (cache) {

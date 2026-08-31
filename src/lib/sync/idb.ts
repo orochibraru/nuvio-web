@@ -11,7 +11,7 @@ function openDb(): Promise<IDBDatabase | null> {
 	if (!browser || typeof indexedDB === "undefined") {
 		return Promise.resolve(null);
 	}
-	if (dbPromise) {
+	if (dbPromise !== null) {
 		return dbPromise;
 	}
 	dbPromise = new Promise((resolve) => {

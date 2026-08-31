@@ -57,7 +57,7 @@
 				// `navigation.complete` rejects when the navigation is superseded or
 				// aborted — swallow it so the update callback still settles and the
 				// transition pseudo-elements are torn down cleanly.
-				await navigation.complete.catch(() => {});
+				await navigation.complete.catch(() => undefined);
 			});
 			activeTransition = transition;
 			void transition.finished.finally(() => {

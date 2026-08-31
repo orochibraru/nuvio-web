@@ -39,6 +39,12 @@
 	} = $props();
 
 	let broken = $state(false);
+	let loaded = $state(false);
+	$effect(() => {
+		void item.poster;
+		broken = false;
+		loaded = false;
+	});
 
 	const aspect = $derived(
 		item.posterShape === "landscape"
@@ -117,6 +123,9 @@
 	>
 		{#if item.poster && !broken}
 			{@const responsive = posterSrcset(item.poster)}
+			{#if !loaded}
+				<div class="skeleton absolute inset-0"></div>
+			{/if}
 			<img
 				src={item.poster}
 				srcset={responsive?.srcset}
@@ -124,8 +133,12 @@
 				alt={item.name}
 				loading="lazy"
 				decoding="async"
+				onload={() => (loaded = true)}
 				onerror={() => (broken = true)}
-				class="size-full object-cover transition-transform duration-500 ease-out group-hover/poster:scale-[1.06]"
+				class={cn(
+					"size-full object-cover transition-[transform,opacity] duration-500 ease-out group-hover/poster:scale-[1.06]",
+					loaded ? "opacity-100" : "opacity-0",
+				)}
 			/>
 		{:else}
 			<div

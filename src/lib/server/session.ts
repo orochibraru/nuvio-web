@@ -24,7 +24,7 @@ export function readStoredSession(cookies: Cookies): StoredSession | null {
 	}
 	try {
 		const parsed = JSON.parse(raw) as StoredSession;
-		if (!parsed.access_token || !parsed.refresh_token || !parsed.user) {
+		if (!(parsed.access_token && parsed.refresh_token && parsed.user)) {
 			return null;
 		}
 		return parsed;

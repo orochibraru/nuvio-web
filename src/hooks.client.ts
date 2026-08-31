@@ -15,6 +15,7 @@ function makeid(length: number) {
 export const handleError: HandleClientError = ({ error, event, message }) => {
 	const errorId = makeid(24);
 
+	// biome-ignore lint/suspicious/noConsole: client-side error log, correlated to the server by errorId
 	console.error("An error occurred on the client side:", error, event, message);
 
 	if (dev) {

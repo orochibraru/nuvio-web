@@ -4,7 +4,7 @@
 	import StarIcon from "@lucide/svelte/icons/star";
 	import XIcon from "@lucide/svelte/icons/x";
 	import { fade, fly } from "svelte/transition";
-	import type { PlayerInfo } from "./player-info.js";
+	import type { PlayerInfo } from "./player-info.ts";
 
 	let {
 		title,

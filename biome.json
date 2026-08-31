@@ -15,9 +15,86 @@
 	"linter": {
 		"enabled": true,
 		"rules": {
-			"preset": "recommended",
+			"preset": "all",
+			"nursery": {
+				"recommended": true,
+				"useSortedClasses": "error",
+				"noFloatingPromises": "error",
+				"noMisusedPromises": "error",
+				"useExplicitType": "off"
+			},
 			"style": {
-				"useBlockStatements": "error"
+				"useBlockStatements": "error",
+				"noDefaultExport": "off",
+				"noMagicNumbers": "off",
+				"noTernary": "off",
+				"noNestedTernary": "off",
+				"useNamingConvention": "off",
+				"useComponentExportOnlyModules": "off",
+				"useConsistentMemberAccessibility": "off",
+				"noParameterProperties": "off",
+				"noImplicitBoolean": "off",
+				"useSingleVarDeclarator": "off",
+				"noExcessiveLinesPerFile": {
+					"level": "error",
+					"options": { "maxLines": 760 }
+				},
+				"noExportedImports": "off",
+				"useExportsLast": "off",
+				"noContinue": "off",
+				"useConsistentArrayType": "off",
+				"useConsistentTypeDefinitions": "error",
+				"noProcessEnv": "off",
+				"noNamespace": "off",
+				"useGlobalThis": "off",
+				"noHexColors": "off",
+				"useExplicitLengthCheck": "off",
+				"useDestructuring": "off",
+				"useErrorCause": "off",
+				"noExcessiveClassesPerFile": "off",
+				"noIncrementDecrement": "off",
+				"useAtIndex": "off",
+				"noNegationElse": "off"
+			},
+			"complexity": {
+				"noExcessiveCognitiveComplexity": "error",
+				"noExcessiveLinesPerFunction": {
+					"level": "error",
+					"options": { "maxLines": 80 }
+				},
+				"noVoid": "off",
+				"noRedundantDefaultExport": "off",
+				"useMaxParams": "error",
+				"noImplicitCoercions": "off"
+			},
+			"correctness": {
+				"noNodejsModules": "off",
+				"noUnresolvedImports": "off",
+				"useImportExtensions": "off",
+				"useQwikValidLexicalScope": "off"
+			},
+			"suspicious": {
+				"noConsole": "error",
+				"noReactSpecificProps": "off",
+				"noShadow": "off",
+				"noEqualsToNull": "off",
+				"noEmptyBlockStatements": "error",
+				"useAwait": "error",
+				"noBitwiseOperators": "off",
+				"noImportCycles": "off",
+				"noUnnecessaryConditions": "error",
+				"useStaticResponseMethods": "off",
+				"noReturnAssign": "off"
+			},
+			"performance": {
+				"useTopLevelRegex": "off",
+				"noBarrelFile": "off",
+				"noNamespaceImport": "off",
+				"noAwaitInLoops": "error",
+				"noReExportAll": "off"
+			},
+			"security": {
+				"noSecrets": "off"
 			}
 		}
 	},
@@ -56,6 +133,38 @@
 					"correctness": {
 						"noUnusedVariables": "off",
 						"noUnusedImports": "off"
+					}
+				}
+			}
+		},
+		{
+			"includes": [
+				"**/*.test.ts",
+				"e2e/**",
+				"scripts/**",
+				"**/*.config.ts",
+				"**/*.config.js"
+			],
+			"linter": {
+				"rules": {
+					"style": {
+						"noNonNullAssertion": "off",
+						"noIncrementDecrement": "off",
+						"noExcessiveLinesPerFile": "off"
+					},
+					"suspicious": {
+						"noExplicitAny": "off",
+						"noSkippedTests": "off",
+						"noConsole": "off",
+						"noEmptyBlockStatements": "off",
+						"useAwait": "off"
+					},
+					"complexity": {
+						"noExcessiveLinesPerFunction": "off",
+						"noExcessiveCognitiveComplexity": "off"
+					},
+					"performance": {
+						"noAwaitInLoops": "off"
 					}
 				}
 			}

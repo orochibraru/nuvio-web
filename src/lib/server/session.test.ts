@@ -12,7 +12,7 @@ import {
 	type StoredSession,
 	writeProfileId,
 	writeStoredSession,
-} from "./session.js";
+} from "./session.ts";
 
 function fakeCookies(initial: Record<string, string> = {}) {
 	const jar = new Map(Object.entries(initial));

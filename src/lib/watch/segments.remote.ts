@@ -8,7 +8,7 @@ import {
 	type MediaSegments,
 	normalizeSegments,
 	segmentQuery,
-} from "./segments.js";
+} from "./segments.ts";
 
 /**
  * Intro / credits timestamps for a movie or episode, from TheIntroDB. Optional:

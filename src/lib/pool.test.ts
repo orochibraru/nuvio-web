@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pooledMap } from "./pool.js";
+import { partitionSettled, pooledMap, settleAll, settleSome } from "./pool.ts";
 
 describe("pooledMap", () => {
 	it("keeps input order regardless of completion order", async () => {
@@ -37,5 +37,46 @@ describe("pooledMap", () => {
 				return n;
 			}),
 		).rejects.toThrow("boom");
+	});
+});
+
+describe("partitionSettled", () => {
+	it("splits fulfilled values from rejection reasons", () => {
+		const { results, errors } = partitionSettled<number>([
+			{ status: "fulfilled", value: 1 },
+			{ status: "rejected", reason: new Error("x") },
+			{ status: "fulfilled", value: 3 },
+		]);
+		expect(results).toEqual([1, 3]);
+		expect(errors).toHaveLength(1);
+	});
+});
+
+describe("settleAll", () => {
+	it("returns every value when all tasks fulfil", async () => {
+		expect(await settleAll([Promise.resolve(1), Promise.resolve(2)])).toEqual([
+			1, 2,
+		]);
+	});
+
+	it("throws an AggregateError carrying every rejection", async () => {
+		const err = await settleAll([
+			Promise.resolve(1),
+			Promise.reject(new Error("a")),
+			Promise.reject(new Error("b")),
+		]).catch((e) => e as AggregateError);
+		expect(err).toBeInstanceOf(AggregateError);
+		expect((err as AggregateError).errors).toHaveLength(2);
+	});
+});
+
+describe("settleSome", () => {
+	it("tolerates partial failure and reports both sides", async () => {
+		const { results, errors } = await settleSome([
+			Promise.resolve("ok"),
+			Promise.reject(new Error("nope")),
+		]);
+		expect(results).toEqual(["ok"]);
+		expect(errors).toHaveLength(1);
 	});
 });

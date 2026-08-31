@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { backdropSrcset, posterSrcset } from "./images.js";
+import { backdropSrcset, posterSrcset } from "./images.ts";
 
 describe("posterSrcset", () => {
 	it("rewrites a TMDB poster url into width variants", () => {

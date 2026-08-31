@@ -24,6 +24,7 @@
 		[] as Awaited<typeof data.catalogs>,
 	);
 	const catalogs = $derived(catalogsStream.current);
+	const catalogsReady = $derived(catalogsStream.ready);
 	const selectedKey = $derived(data.selectedKey ?? null);
 	const genre = $derived(data.genre ?? "");
 
@@ -140,7 +141,14 @@
 		<p class="text-sm text-muted-foreground">Browse every catalog your addons provide.</p>
 	</div>
 
-	{#if catalogs.length === 0}
+	{#if !catalogsReady && catalogs.length === 0}
+		<div class="no-scrollbar -mx-2 flex gap-2 overflow-x-auto px-2 py-1">
+			{#each { length: 6 } as _skeleton, i (i)}
+				<div class="skeleton h-8 w-24 shrink-0 rounded-full"></div>
+			{/each}
+		</div>
+		<MediaGrid items={[]} loading skeletonCount={12} />
+	{:else if catalogs.length === 0}
 		<EmptyState
 			icon={CompassIcon}
 			title="No catalogs available"

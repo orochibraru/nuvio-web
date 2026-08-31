@@ -1,5 +1,5 @@
 import { browser } from "$app/env";
-import { audioSupport, type ResolvedStream } from "./stream-format.js";
+import { audioSupport, type ResolvedStream } from "./stream-format.ts";
 
 const STORAGE_KEY = "nuvio:selected-stream";
 

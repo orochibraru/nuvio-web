@@ -1,10 +1,10 @@
 import { getRequestEvent, query } from "$app/server";
 import type { HealthStatus } from "$lib/nuvio/types.js";
 
-export type HealthReport = {
+export interface HealthReport {
 	status: HealthStatus;
 	latencyMs: number | null;
-};
+}
 
 /**
  * Nuvio API health, for the degraded-mode banner. Never throws: a failed or

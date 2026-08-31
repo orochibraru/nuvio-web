@@ -34,7 +34,7 @@ describe("mediaSegments", () => {
 
 	it("normalises a successful response", async () => {
 		mockFetch(200, {
-			intro: [{ start_ms: 77000, end_ms: 123000 }],
+			intro: [{ start_ms: 77_000, end_ms: 123_000 }],
 			credits: [{ start_ms: 2_785_000, end_ms: null }],
 		});
 		expect(

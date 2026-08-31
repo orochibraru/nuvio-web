@@ -1,12 +1,12 @@
 import { browser } from "$app/env";
-import { clearProfile, readAll, readOne, replaceAll, writeOne } from "./idb.js";
+import { clearProfile, readAll, readOne, replaceAll, writeOne } from "./idb.ts";
 import {
 	overlayPendingLibrary,
 	overlayPendingProgress,
 	reconcileHistory,
 	reconcileLibrary,
 	reconcileProgress,
-} from "./reconcile.js";
+} from "./reconcile.ts";
 import { flushWrites, syncDeltas, syncSnapshot } from "./sync.remote.js";
 import type {
 	ContentType,
@@ -15,7 +15,7 @@ import type {
 	PendingWrite,
 	ProgressRecord,
 	SyncCursors,
-} from "./types.js";
+} from "./types.ts";
 import {
 	EMPTY_CURSORS,
 	historyKey,
@@ -23,12 +23,12 @@ import {
 	libraryKey,
 	libraryRecordFromItem,
 	progressRecordFromRow,
-} from "./types.js";
+} from "./types.ts";
 
 const SYNC_INTERVAL_MS = 90_000;
-const FLUSH_DEBOUNCE_MS = 1_500;
+const FLUSH_DEBOUNCE_MS = 1500;
 // Let first paint + the page's own SSR calls settle before the background pull.
-const INITIAL_SYNC_DELAY_MS = 4_000;
+const INITIAL_SYNC_DELAY_MS = 4000;
 
 function online(): boolean {
 	return !browser || navigator.onLine !== false;
@@ -186,6 +186,7 @@ class SyncStore {
 		}
 		this.#syncing = true;
 		try {
+			// biome-ignore lint/suspicious/noUnnecessaryConditions: #bootstrapped flips to true inside #bootstrap() / on hydrate — Biome's flow analysis doesn't cross those boundaries
 			if (!this.#bootstrapped) {
 				await this.#bootstrap();
 			}

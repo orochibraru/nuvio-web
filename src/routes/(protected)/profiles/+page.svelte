@@ -19,7 +19,7 @@
 		deleteProfile,
 		selectProfile,
 		updateProfile,
-	} from "../profiles.remote";
+	} from "../profiles.remote.ts";
 
 	pageTitle.set("Profiles");
 

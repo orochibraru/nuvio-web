@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Meta } from "$lib/addons/index.js";
-import { nextEpisode } from "./episodes.js";
+import { nextEpisode } from "./episodes.ts";
 
 const videos = [
 	{ id: "x:1:1", title: "a", season: 1, episode: 1 },

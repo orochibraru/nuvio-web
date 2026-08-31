@@ -1,3 +1,4 @@
+import process from "node:process";
 import { defineConfig, devices } from "@playwright/test";
 
 // Reuse the dev server you already have running (`bun run dev` → :5173); only

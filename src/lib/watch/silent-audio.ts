@@ -65,6 +65,46 @@ export function classifyAudioSamples(
 	return everAudio ? "ok" : "unknown";
 }
 
+export type AudioTickAction =
+	| { kind: "continue" }
+	| { kind: "flag"; issue: "no-track" | "codec" }
+	/** Caller should switch to an alternate HLS audio track and keep sampling. */
+	| { kind: "switch-track" };
+
+/**
+ * Decide what one ~1s detection tick implies, given the browser signals the
+ * player has collected. Pure — the player owns the timer, the sample buffer and
+ * the HLS handle; this just says continue / flag / try-another-track.
+ */
+export function evaluateAudioTick(input: {
+	mozHasAudio: boolean | undefined;
+	haveCounters: boolean;
+	samples: readonly AudioByteSample[];
+	needed: number;
+	reported: boolean | null;
+	canSwitchTrack: boolean;
+	audioRisky: boolean;
+	playedSeconds: number;
+}): AudioTickAction {
+	if (input.mozHasAudio === false) {
+		return { kind: "flag", issue: "no-track" };
+	}
+	if (input.haveCounters) {
+		const verdict = classifyAudioSamples(input.samples, input.needed);
+		if (verdict !== "codec" && verdict !== "no-track") {
+			return { kind: "continue" };
+		}
+		if (verdict === "codec" && input.canSwitchTrack) {
+			return { kind: "switch-track" };
+		}
+		return { kind: "flag", issue: input.reported === true ? "codec" : verdict };
+	}
+	if (input.audioRisky && input.playedSeconds >= 8) {
+		return { kind: "flag", issue: "codec" };
+	}
+	return { kind: "continue" };
+}
+
 /**
  * A definitive "no audio track" from a per-browser API, or `null` when the
  * browser doesn't expose one (fall back to the byte-counter heuristic).

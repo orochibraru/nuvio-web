@@ -43,6 +43,27 @@ function asStringArray(value: unknown): string[] {
 		: [];
 }
 
+function normalizeCatalogExtra(value: unknown): CatalogExtraDef[] | undefined {
+	if (!Array.isArray(value)) {
+		return undefined;
+	}
+	return value
+		.filter(
+			(item): item is Record<string, unknown> =>
+				Boolean(item) && typeof item === "object",
+		)
+		.map(
+			(item): CatalogExtraDef => ({
+				name: asString(item.name) ?? "",
+				isRequired: item.isRequired === true,
+				options: asStringArray(item.options),
+				optionsLimit:
+					typeof item.optionsLimit === "number" ? item.optionsLimit : undefined,
+			}),
+		)
+		.filter((item) => item.name.length > 0);
+}
+
 function normalizeCatalogs(value: unknown): CatalogDef[] {
 	if (!Array.isArray(value)) {
 		return [];
@@ -55,28 +76,10 @@ function normalizeCatalogs(value: unknown): CatalogDef[] {
 		const record = entry as Record<string, unknown>;
 		const type = asString(record.type);
 		const id = asString(record.id);
-		if (!type || !id) {
+		if (!(type && id)) {
 			continue;
 		}
-		const extra = Array.isArray(record.extra)
-			? record.extra
-					.filter(
-						(item): item is Record<string, unknown> =>
-							Boolean(item) && typeof item === "object",
-					)
-					.map(
-						(item): CatalogExtraDef => ({
-							name: asString(item.name) ?? "",
-							isRequired: item.isRequired === true,
-							options: asStringArray(item.options),
-							optionsLimit:
-								typeof item.optionsLimit === "number"
-									? item.optionsLimit
-									: undefined,
-						}),
-					)
-					.filter((item) => item.name.length > 0)
-			: undefined;
+		const extra = normalizeCatalogExtra(record.extra);
 		out.push({
 			type,
 			id,

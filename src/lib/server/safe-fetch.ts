@@ -10,7 +10,7 @@ function ipv4ToInt(ip: string): number {
 }
 
 function inRange(value: number, base: string, bits: number): boolean {
-	const mask = bits === 0 ? 0 : (0xffffffff << (32 - bits)) >>> 0;
+	const mask = bits === 0 ? 0 : (0xff_ff_ff_ff << (32 - bits)) >>> 0;
 	return (value & mask) >>> 0 === (ipv4ToInt(base) & mask) >>> 0;
 }
 
@@ -107,6 +107,7 @@ export async function safeFetch(
 ): Promise<Response> {
 	let target = rawUrl;
 	for (let hop = 0; hop <= maxRedirects; hop += 1) {
+		// biome-ignore lint/performance/noAwaitInLoops: a redirect chain is inherently sequential — each hop's URL comes from the previous response's Location header
 		await assertPublicHost(target, allowHttp);
 		const response = await fetchImpl(target, { ...init, redirect: "manual" });
 		const location = response.headers.get("location");

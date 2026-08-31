@@ -1,5 +1,5 @@
 import type { LayoutServerLoad } from "./$types";
 
-export const load: LayoutServerLoad = ({ locals }) => {
-	return { user: locals.session?.user ?? null };
-};
+export const load: LayoutServerLoad = ({ locals }) => ({
+	user: locals.session?.user ?? null,
+});
