@@ -14,6 +14,9 @@ Open work only. Shipped features live in the code + `CLAUDE.md`.
 - [ ] Next-air-date for an unaired next episode (needs a schedule source)
 - [ ] AniSkip for anime intro/outro
 - [ ] TheIntroDB: check if an OAuth client id keeps the keyless endpoint alive
+- [ ] Detect movie end, then shrink the player with an animation to the top left
+      and display a message saying "It's over but these titles could interest
+      you" and show related titles alongside a go back button.
 
 ## Library, collections & history
 
@@ -43,6 +46,9 @@ Open work only. Shipped features live in the code + `CLAUDE.md`.
 - [ ] `nuvio/types.ts` (600) + `sync/store.svelte.ts` (651) now set the
       `noExcessiveLinesPerFile` ceiling (680). Split `types.ts` by domain to
       drop it further.
+- [ ] Detect browser unplayable codecs, just like "likely silent" media. Harden
+      detection on likely silent.
+-
 
 ## CI/CD
 

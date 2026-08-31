@@ -194,22 +194,41 @@ test("player info overlay: Info button + auto-on-pause", async ({ page }) => {
 		.toBeGreaterThan(1);
 
 	const synopsis = page.getByText("A dev-harness synopsis", { exact: false });
+	const infoButton = player.getByRole("button", { name: "Info" });
 
-	// Info button opens it; it stays up while playing.
-	await player.getByRole("button", { name: "Info" }).click();
+	// The Info button toggles it; it stays up while playing.
+	await infoButton.click();
 	await expect(synopsis).toBeVisible();
 	await page.waitForTimeout(400);
 	await expect(synopsis).toBeVisible();
+	// Transport controls stay live behind the overlay, not trapped behind it.
+	await expect(player.getByRole("button", { name: "Mute" })).toBeVisible();
 
-	// Close it.
-	await page.getByRole("button", { name: "Close", exact: true }).click();
+	// The Info button toggles it closed again.
+	await infoButton.click();
+	await expect(synopsis).toBeHidden();
+
+	// So does the overlay's own close button.
+	await infoButton.click();
+	await expect(synopsis).toBeVisible();
+	await player.getByRole("button", { name: "Close", exact: true }).click();
 	await expect(synopsis).toBeHidden();
 
 	// A deliberate pause surfaces it automatically...
 	await page.evaluate(() => document.querySelector("video")?.pause());
 	await expect(synopsis).toBeVisible({ timeout: 4000 });
 
-	// ...and resuming pulls it back down.
+	// ...dismissing it during the pause keeps it dismissed (no auto-reopen)...
+	await page.keyboard.press("Escape");
+	await expect(synopsis).toBeHidden();
+	await page.waitForTimeout(1200);
+	await expect(synopsis).toBeHidden();
+
+	// ...and resuming then re-pausing surfaces it again.
+	await page.evaluate(() => document.querySelector("video")?.play());
+	await page.waitForTimeout(300);
+	await page.evaluate(() => document.querySelector("video")?.pause());
+	await expect(synopsis).toBeVisible({ timeout: 4000 });
 	await page.evaluate(() => document.querySelector("video")?.play());
 	await expect(synopsis).toBeHidden({ timeout: 4000 });
 

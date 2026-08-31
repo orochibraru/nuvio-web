@@ -21,6 +21,7 @@
 	import { pageTitle } from "#lib/stores/title.svelte.js";
 	import { sync } from "#lib/sync/store.svelte.js";
 	import { cn } from "#lib/utils.js";
+	import { playOrder } from "#lib/watch/playback-context.js";
 	import { parseRuntimeMs } from "#lib/watch/runtime.js";
 	import { sourcesPanel } from "#lib/watch/sources-panel.svelte.js";
 	import {
@@ -100,16 +101,8 @@
 		return [...set].sort((a, b) => a - b);
 	});
 
-	const orderedEpisodes = $derived(
-		[...(meta?.videos ?? [])]
-			.filter((video) => (video.season ?? 0) > 0)
-			.sort(
-				(a, b) =>
-					(a.season ?? 0) - (b.season ?? 0) ||
-					(a.episode ?? 0) - (b.episode ?? 0),
-			),
-	);
-	const firstEpisodeId = $derived(orderedEpisodes[0]?.id ?? null);
+	const orderedEpisodes = $derived(playOrder(meta?.videos));
+	const firstEpisode = $derived(orderedEpisodes[0] ?? null);
 
 	const watchedEpisodes = $derived(
 		orderedEpisodes.filter((episode) => progress[episode.id]?.completed).length,
@@ -127,29 +120,34 @@
 		return `${watchedEpisodes}/${orderedEpisodes.length} watched`;
 	});
 
-	// Series CTA target: an in-progress episode, else the first unwatched one.
+	// Series CTA target. Priority: an episode actually mid-watch → the episode
+	// after the furthest one finished (in play order) → nothing (falls to the
+	// "start from episode 1" CTA).
 	const resumeEpisode = $derived.by(() => {
 		if (contentType !== "series" || orderedEpisodes.length === 0) {
 			return null;
 		}
+
+		const tag = (episode: { season?: number; episode?: number }) =>
+			`S${episode.season ?? 1}E${episode.episode ?? 1}`;
+
 		const inProgress = orderedEpisodes.find((episode) => {
 			const p = progress[episode.id];
 			return p && !p.completed && p.fraction > 0.02;
 		});
 		if (inProgress) {
-			return {
-				id: inProgress.id,
-				label: `Resume S${inProgress.season}E${inProgress.episode}`,
-			};
+			return { id: inProgress.id, label: `Resume ${tag(inProgress)}` };
 		}
-		const nextUp = orderedEpisodes.find(
-			(episode) => !progress[episode.id]?.completed,
-		);
-		if (nextUp && progress[orderedEpisodes[0].id]?.completed) {
-			return {
-				id: nextUp.id,
-				label: `Play S${nextUp.season}E${nextUp.episode}`,
-			};
+
+		let lastFinished = -1;
+		orderedEpisodes.forEach((episode, index) => {
+			if (progress[episode.id]?.completed) {
+				lastFinished = index;
+			}
+		});
+		const upNext = orderedEpisodes[lastFinished + 1];
+		if (lastFinished >= 0 && upNext) {
+			return { id: upNext.id, label: `Continue ${tag(upNext)}` };
 		}
 		return null;
 	});
@@ -183,7 +181,9 @@
 	}
 
 	const ctaVideoId = $derived(
-		contentType === "movie" ? id : (resumeEpisode?.id ?? firstEpisodeId),
+		contentType === "movie"
+			? id
+			: (resumeEpisode?.id ?? firstEpisode?.id ?? null),
 	);
 
 	// Flips once the CTA target's streams have been warmed — gates the reactive
@@ -423,9 +423,10 @@
 						<PlayIcon data-icon="inline-start" class="fill-current" />
 						{resumeEpisode.label}
 					</Button>
-				{:else if firstEpisodeId}
-					<Button size="lg" onclick={() => watch(firstEpisodeId)}>
-						<PlayIcon data-icon="inline-start" class="fill-current" /> Play S1E1
+				{:else if firstEpisode}
+					<Button size="lg" onclick={() => watch(firstEpisode.id)}>
+						<PlayIcon data-icon="inline-start" class="fill-current" />
+						Play S{firstEpisode.season ?? 1}E{firstEpisode.episode ?? 1}
 					</Button>
 				{/if}
 				{#if ctaVideoId}

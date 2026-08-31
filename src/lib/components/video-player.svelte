@@ -20,6 +20,8 @@
 	import VolumeXIcon from "@lucide/svelte/icons/volume-x";
 	import XIcon from "@lucide/svelte/icons/x";
 	import PlaybackLoading from "#lib/components/playback-loading.svelte";
+	import { Button } from "#lib/components/ui/button/index.js";
+	import { theme } from "#lib/settings/theme.svelte.js";
 	import {
 		SUBTITLE_SIZES,
 		type SubtitleSize,
@@ -177,6 +179,9 @@
 		ended = false;
 		autoSubDone = false;
 		subtitleOffset = 0;
+		infoOpen = false;
+		infoAutoOpened = false;
+		infoDismissed = false;
 		progress.reset();
 	}
 
@@ -249,14 +254,32 @@
 		}
 	});
 
+	// Set once the viewer dismisses the info overlay during a pause — stops the
+	// auto-open effect from immediately surfacing it again. Cleared on resume.
+	let infoDismissed = false;
+
 	function openInfo() {
 		infoAutoOpened = false;
 		infoOpen = true;
+		settingsOpen = false;
+		subtitlesOpen = false;
+		controlsVisible = true;
 	}
 
 	function closeInfo() {
 		infoOpen = false;
 		infoAutoOpened = false;
+		if (paused) {
+			infoDismissed = true;
+		}
+	}
+
+	function toggleInfo() {
+		if (infoOpen) {
+			closeInfo();
+		} else {
+			openInfo();
+		}
 	}
 
 	// Surface the info overlay on a deliberate pause (not a buffering stall, not
@@ -266,18 +289,20 @@
 			return;
 		}
 		if (!paused) {
+			infoDismissed = false;
 			if (infoAutoOpened) {
 				infoOpen = false;
 				infoAutoOpened = false;
 			}
 			return;
 		}
-		if (infoOpen || currentTime < 1) {
+		if (infoOpen || infoDismissed || currentTime < 1) {
 			return;
 		}
 		const timer = setTimeout(() => {
 			infoAutoOpened = true;
 			infoOpen = true;
+			controlsVisible = true;
 		}, 700);
 		return () => clearTimeout(timer);
 	});
@@ -298,6 +323,9 @@
 		})),
 	);
 	const menuOpen = $derived(settingsOpen || subtitlesOpen);
+	// Any open side panel keeps the transport controls (and the Back button) up,
+	// so a panel is never a dead end.
+	const panelOpen = $derived(menuOpen || infoOpen);
 
 	let autoSubDone = false;
 
@@ -495,7 +523,7 @@
 		controlsVisible = true;
 		clearTimeout(hideTimer);
 		hideTimer = setTimeout(() => {
-			if (!(paused || menuOpen)) {
+			if (!(paused || panelOpen)) {
 				controlsVisible = false;
 			}
 		}, 3000);
@@ -510,10 +538,8 @@
 			toggleMute: () => (muted = !muted),
 			cycleCaption,
 			toggleInfo: () => {
-				if (info && infoOpen) {
-					closeInfo();
-				} else if (info) {
-					openInfo();
+				if (info) {
+					toggleInfo();
 				}
 			},
 			next: () => onNext?.(),
@@ -538,8 +564,10 @@
 	bind:this={container}
 	role="region"
 	aria-label="Video player"
+	data-accent={theme.current.accent}
+	data-amoled={theme.current.darkStyle === "amoled"}
 	class={cn(
-		"nuvio-player group/player overflow-hidden bg-black select-none transition-all duration-500 ease-out",
+		"nuvio-player dark group/player overflow-hidden bg-black text-foreground select-none transition-all duration-500 ease-out",
 		minimized
 			? "fixed right-4 bottom-4 z-40 aspect-video w-56 rounded-xl shadow-2xl ring-1 ring-white/15 sm:w-72"
 			: fill
@@ -551,7 +579,7 @@
 	style:--cue-color={subtitleColor}
 	style:--cue-bg={cueBackground}
 	onmousemove={nudgeControls}
-	onmouseleave={() => !paused && !menuOpen && (controlsVisible = false)}
+	onmouseleave={() => !paused && !panelOpen && (controlsVisible = false)}
 >
 	<!-- svelte-ignore a11y_media_has_caption -->
 	<video
@@ -598,159 +626,178 @@
 
 	{#if silentAudio.issue && !fatalError && !minimized}
 		<div
-			class="absolute inset-x-0 top-0 z-20 flex items-start gap-3 bg-amber-500/95 px-4 py-2.5 text-sm text-black"
+			class="absolute inset-x-0 bottom-30 z-90 flex  gap-3 bg-black/75 mx-10 rounded-xl items-center justify-between px-4 py-2.5 text-sm text-white border-primary border-2"
 		>
-			<VolumeXIcon class="mt-0.5 size-4 shrink-0" />
-			<p class="flex-1">
-				{#if silentAudio.issue === "no-track"}
-					This source has no audio.
-				{:else}
-					This source is playing without sound — its audio codec (Dolby Digital,
-					DTS or Atmos) isn't supported by the browser.
+			<div class="flex items-center gap-2">
+				<VolumeXIcon class="mt-0.5 size-5 shrink-0" />
+				<div>
+					<p class="text-md font-medium">
+					Uh oh...
+				</p>
+				<p class="flex-1">
+					{#if silentAudio.issue === "no-track"}
+						This source has no audio.
+					{:else}
+						This source is playing without sound. Its audio codec (Dolby Digital,
+						DTS or Atmos) isn't supported by the browser.
+					{/if}
+				</p>
+			</div>
+			</div>
+			<div class="flex items-center gap-2">
+				{#if onSources}
+					<Button
+						size="xs"
+						onclick={onSources}
+					>
+						Other sources
+					</Button>
 				{/if}
-			</p>
-			{#if onSources}
-				<button
-					type="button"
-					onclick={onSources}
-					class="shrink-0 rounded-md bg-black/85 px-2.5 py-1 text-xs font-medium text-white transition hover:bg-black"
+				<Button
+					variant="ghost"
+					size="icon-xs"
+					aria-label="Dismiss"
+					onclick={() => silentAudio.dismiss()}
+					class="shrink-0 text-white hover:bg-black/10"
 				>
-					Other sources
-				</button>
-			{/if}
-			<button
-				type="button"
-				aria-label="Dismiss"
-				onclick={() => silentAudio.dismiss()}
-				class="shrink-0 rounded-md p-1 transition hover:bg-black/10"
-			>
-				<XIcon class="size-4" />
-			</button>
+					<XIcon class="size-4" />
+				</Button>
+			</div>
 		</div>
 	{/if}
 
 	{#if fatalError}
-		<div class="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-black/85 px-6 text-center text-white">
-			<p class="max-w-sm text-sm text-white/80">{fatalError}</p>
+		<div class="absolute inset-0 z-40 flex flex-col items-center justify-center gap-4 bg-black/85 px-6 text-center">
+			<p class="max-w-sm text-sm text-muted-foreground">{fatalError}</p>
 			<div class="flex flex-wrap items-center justify-center gap-2">
 				{#if onSources}
-					<button
-						type="button"
-						onclick={onSources}
-						class="flex items-center gap-1.5 rounded-md bg-white px-3 py-1.5 text-sm font-medium text-black transition hover:bg-white/90"
-					>
-						<LayersIcon class="size-4" /> Choose another source
-					</button>
+					<Button onclick={onSources}>
+						<LayersIcon data-icon="inline-start" /> Choose another source
+					</Button>
 				{/if}
 				{#if onBack}
-					<button
-						type="button"
-						onclick={onBack}
-						class="rounded-md bg-white/15 px-3 py-1.5 text-sm transition hover:bg-white/25"
-					>
-						Back
-					</button>
+					<Button variant="secondary" onclick={onBack}>Back</Button>
 				{/if}
 			</div>
 		</div>
 	{/if}
 
 	{#if showSkipIntro}
-		<button
-			type="button"
+		<Button
 			onclick={skipIntro}
-			class="absolute right-4 bottom-20 z-20 rounded-md bg-white/95 px-4 py-2 text-sm font-semibold text-black shadow-lg transition hover:bg-white sm:right-6 sm:bottom-24"
+			class="absolute right-4 bottom-20 z-20 shadow-lg sm:right-6 sm:bottom-24"
 		>
 			Skip intro
-		</button>
+		</Button>
 	{/if}
 
+	{#if infoOpen && info && !minimized}
+		<PlayerInfoOverlay
+			{title}
+			{subheading}
+			{logo}
+			background={poster}
+			poster={posterImage}
+			{certification}
+			{genres}
+			{info}
+			{detailHref}
+			autoOpened={infoAutoOpened}
+			onResume={() => {
+				closeInfo();
+				void video?.play();
+			}}
+			onClose={closeInfo}
+		/>
+	{/if}
+
+	<!-- Transport controls. The container is click-transparent so the info
+	     overlay behind it stays interactive; each bar re-enables pointer events. -->
 	<div
 		class={cn(
-			"absolute inset-0 flex flex-col justify-between bg-linear-to-t from-black/80 via-black/10 to-black/60 transition-opacity duration-200",
-			minimized
-				? "pointer-events-none opacity-0"
-				: controlsVisible
-					? "opacity-100"
-					: "pointer-events-none opacity-0",
+			"pointer-events-none absolute inset-0 z-30 flex flex-col justify-between bg-linear-to-t from-black/80 via-black/10 to-black/60 transition-opacity duration-200",
+			minimized || !controlsVisible ? "opacity-0" : "opacity-100",
 		)}
 	>
 		<!-- Top row -->
-		<div class="flex items-start gap-3 p-3 text-white sm:p-4">
+		<div class="pointer-events-auto flex items-start gap-3 p-3 sm:p-4">
 			{#if onBack}
-				<button
-					type="button"
+				<Button
+					variant="ghost"
+					size="icon"
 					aria-label="Back"
 					onclick={onBack}
-					class="flex size-9 shrink-0 items-center justify-center rounded-full transition hover:bg-white/15"
+					class="shrink-0 rounded-full"
 				>
 					<ArrowLeftIcon class="size-5" />
-				</button>
+				</Button>
 			{/if}
 			<div class="min-w-0 flex-1 pt-1">
 				<p class="truncate font-semibold">{title}</p>
 				{#if subheading}
-					<p class="truncate text-sm text-white/70">{subheading}</p>
+					<p class="truncate text-sm text-muted-foreground">{subheading}</p>
 				{/if}
 			</div>
 			{#if info}
-				<button
-					type="button"
-					onclick={openInfo}
-					class="flex shrink-0 items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-xs font-medium backdrop-blur-sm transition hover:bg-white/20"
+				<Button
+					variant={infoOpen ? "default" : "secondary"}
+					size="sm"
+					aria-pressed={infoOpen}
+					onclick={toggleInfo}
+					class="shrink-0 gap-1.5 rounded-full font-medium [&_svg]:size-3.5"
 				>
-					<InfoIcon class="size-4" /> Info
-				</button>
+					<InfoIcon data-icon="inline-start" />Info
+				</Button>
 			{/if}
 			{#if onSources}
-				<button
-					type="button"
+				<Button
+					variant="secondary"
+					size="sm"
 					onclick={onSources}
-					class="flex shrink-0 items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-xs font-medium backdrop-blur-sm transition hover:bg-white/20"
+					class="shrink-0 gap-1.5 rounded-full font-medium [&_svg]:size-3.5"
 				>
-					<LayersIcon class="size-4" /> Sources
-				</button>
+					<LayersIcon data-icon="inline-start" />Sources
+				</Button>
 			{/if}
 		</div>
 
-		<!-- Centre transport cluster -->
-		{#if !loading && !fatalError}
-			<div class="pointer-events-none absolute inset-0 flex items-center justify-center gap-6 sm:gap-10">
-				<button
-					type="button"
+		<!-- Centre transport cluster — hidden while the info overlay owns the frame. -->
+		{#if !loading && !fatalError && !infoOpen}
+			<div class="pointer-events-none absolute inset-0 flex items-center justify-center gap-8 sm:gap-12">
+				<Button
+					variant="ghost"
 					aria-label="Back 10 seconds"
 					onclick={() => seek(-10)}
-					class="pointer-events-auto flex size-11 items-center justify-center rounded-full text-white/90 transition hover:bg-white/15 hover:text-white"
+					class="pointer-events-auto size-14 rounded-full [&_svg]:size-8"
 				>
-					<RotateCcwIcon class="size-6" />
-				</button>
-				<button
-					type="button"
+					<RotateCcwIcon />
+				</Button>
+				<Button
 					aria-label={ended ? "Replay" : paused ? "Play" : "Pause"}
 					onclick={togglePlay}
-					class="pointer-events-auto flex size-16 items-center justify-center rounded-full bg-white/15 text-white backdrop-blur-sm transition hover:scale-105 hover:bg-white/25 sm:size-20"
+					class="pointer-events-auto size-20 rounded-full shadow-lg backdrop-blur-sm transition hover:scale-105 sm:size-24 [&_svg]:size-12 sm:[&_svg]:size-14"
 				>
 					{#if ended}
-						<RotateCwIcon class="size-8 sm:size-9" />
+						<RotateCwIcon />
 					{:else if paused}
-						<PlayIcon class="size-8 fill-current sm:size-9" />
+						<PlayIcon class="fill-current" />
 					{:else}
-						<PauseIcon class="size-8 fill-current sm:size-9" />
+						<PauseIcon class="fill-current" />
 					{/if}
-				</button>
-				<button
-					type="button"
+				</Button>
+				<Button
+					variant="ghost"
 					aria-label="Forward 10 seconds"
 					onclick={() => seek(10)}
-					class="pointer-events-auto flex size-11 items-center justify-center rounded-full text-white/90 transition hover:bg-white/15 hover:text-white"
+					class="pointer-events-auto size-14 rounded-full [&_svg]:size-8"
 				>
-					<RotateCwIcon class="size-6" />
-				</button>
+					<RotateCwIcon />
+				</Button>
 			</div>
 		{/if}
 
 		<!-- Bottom bar -->
-		<div class="flex flex-col gap-2 px-3 pb-3 text-white sm:px-4 sm:pb-4">
+		<div class="pointer-events-auto flex flex-col gap-2 px-3 pb-3 text-white sm:px-4 sm:pb-4">
 			<!-- Scrubber -->
 			<div
 				bind:this={scrubTrack}
@@ -797,36 +844,38 @@
 			</div>
 
 			<div class="flex items-center gap-2 sm:gap-3">
-				<button
-					type="button"
+				<Button
+					variant="ghost"
+					size="icon"
 					aria-label={ended ? "Replay" : paused ? "Play" : "Pause"}
 					onclick={togglePlay}
-					class="flex size-9 items-center justify-center rounded-full transition hover:bg-white/15"
+					class="rounded-full [&_svg]:size-5"
 				>
 					{#if ended}
-						<RotateCwIcon class="size-5" />
+						<RotateCwIcon />
 					{:else if paused}
-						<PlayIcon class="size-5 fill-current" />
+						<PlayIcon class="fill-current " /> 
 					{:else}
-						<PauseIcon class="size-5 fill-current" />
+						<PauseIcon class="fill-current" />
 					{/if}
-				</button>
+				</Button>
 
 				<div class="flex items-center gap-1.5">
-					<button
-						type="button"
+					<Button
+						variant="ghost"
+						size="icon"
 						aria-label={muted ? "Unmute" : "Mute"}
 						onclick={() => (muted = !muted)}
-						class="flex size-9 items-center justify-center rounded-full transition hover:bg-white/15"
+						class="rounded-full [&_svg]:size-5"
 					>
 						{#if muted || volume === 0}
-							<VolumeXIcon class="size-5" />
+							<VolumeXIcon />
 						{:else if volume < 0.5}
-							<Volume1Icon class="size-5" />
+							<Volume1Icon />
 						{:else}
-							<Volume2Icon class="size-5" />
+							<Volume2Icon />
 						{/if}
-					</button>
+					</Button>
 					<input
 						type="range"
 						min="0"
@@ -838,101 +887,107 @@
 					/>
 				</div>
 
-				<span class="ml-1 text-xs tabular-nums text-white/80">
-					{formatTime(currentTime)} <span class="text-white/40">/ {formatTime(duration)}</span>
+				<span class="ml-1 text-xs tabular-nums text-muted-foreground">
+					{formatTime(currentTime)}
+					<span class="text-muted-foreground/60">/ {formatTime(duration)}</span>
 				</span>
 
 				<div class="ml-auto flex items-center gap-1 sm:gap-2">
 					{#if onNext}
-						<button
-							type="button"
+						<Button
+							variant="ghost"
+							size="icon"
 							aria-label="Next episode"
 							onclick={onNext}
-							class="flex size-9 items-center justify-center rounded-full transition hover:bg-white/15"
+							class="rounded-full [&_svg]:size-5"
 						>
-							<SkipForwardIcon class="size-5" />
-						</button>
+							<SkipForwardIcon />
+						</Button>
 					{/if}
 					{#if onEpisodes}
-						<button
-							type="button"
+						<Button
+							variant="ghost"
+							size="icon"
 							aria-label="Episodes"
 							onclick={onEpisodes}
-							class="flex size-9 items-center justify-center rounded-full transition hover:bg-white/15"
+							class="rounded-full [&_svg]:size-5"
 						>
-							<ListVideoIcon class="size-5" />
-						</button>
+							<ListVideoIcon />
+						</Button>
 					{/if}
 					{#if options.length > 0}
-						<button
-							type="button"
+						<Button
+							variant="ghost"
+							size="icon"
 							aria-label="Subtitles"
 							aria-pressed={subtitlesOpen}
 							onclick={() => {
 								subtitlesOpen = !subtitlesOpen;
 								settingsOpen = false;
+								infoOpen = false;
 							}}
-							class={cn(
-								"flex size-9 items-center justify-center rounded-full transition hover:bg-white/15",
-								activeCaption && "text-primary",
-							)}
+							class={cn("rounded-full [&_svg]:size-5", activeCaption && "text-primary")}
 						>
 							{#if activeCaption}
-								<CaptionsIcon class="size-5" />
+								<CaptionsIcon />
 							{:else}
-								<CaptionsOffIcon class="size-5" />
+								<CaptionsOffIcon />
 							{/if}
-						</button>
+						</Button>
 					{/if}
 
 					<div class="relative">
-						<button
-							type="button"
+						<Button
+							variant="ghost"
+							size="icon"
 							aria-label="Settings"
 							aria-pressed={settingsOpen}
 							onclick={() => {
 								settingsOpen = !settingsOpen;
 								subtitlesOpen = false;
+								infoOpen = false;
 							}}
-							class="flex size-9 items-center justify-center rounded-full transition hover:bg-white/15"
+							class="rounded-full [&_svg]:size-5"
 						>
-							<SettingsIcon class="size-5" />
-						</button>
+							<SettingsIcon />
+						</Button>
 						{#if settingsOpen}
 							<div
-								class="absolute right-0 bottom-11 max-h-[70vh] w-44 overflow-y-auto rounded-lg border border-white/15 bg-black/90 p-1.5 text-sm backdrop-blur-md scrollbar-thin"
+								class="absolute right-0 bottom-11 max-h-[70vh] w-44 overflow-y-auto rounded-lg border border-border bg-popover p-1.5 text-sm text-popover-foreground shadow-md backdrop-blur-md scrollbar-thin"
 							>
-								<p class="px-2 py-1 text-xs font-medium text-white/50">Playback speed</p>
+								<p class="px-2 py-1 text-xs font-medium text-muted-foreground">Playback speed</p>
 								{#each rates as option (option)}
-									<button
-										type="button"
+									<Button
+										variant="ghost"
+										size="sm"
 										onclick={() => {
 											rate = option;
 											settingsOpen = false;
 										}}
 										class={cn(
-											"flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left transition hover:bg-white/10",
+											"w-full justify-between",
 											rate === option && "text-primary",
 										)}
 									>
 										{option === 1 ? "Normal" : `${option}×`}
 										{#if rate === option}<CheckIcon class="size-3.5" />{/if}
-									</button>
+									</Button>
 								{/each}
 								{#if media.audioTracks.length > 1}
-									<p class="mt-1 px-2 py-1 text-xs font-medium text-white/50">Audio</p>
+									<p class="mt-1 px-2 py-1 text-xs font-medium text-muted-foreground">Audio</p>
 									{#each media.audioTracks as track (track.id)}
-										<button
-											type="button"
+										<Button
+											variant="ghost"
+											size="sm"
 											onclick={() => setAudioTrack(track.id)}
 											class={cn(
-												"flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left transition hover:bg-white/10",
+												"w-full justify-between",
 												media.activeAudioTrack === track.id && "text-primary",
 											)}
 										>
 											<span class="truncate">{track.label}</span>
 											{#if media.activeAudioTrack === track.id}<CheckIcon class="size-3.5 shrink-0" />{/if}
-										</button>
+										</Button>
 									{/each}
 								{/if}
 							</div>
@@ -940,24 +995,26 @@
 					</div>
 
 					{#if typeof document !== "undefined" && document.pictureInPictureEnabled}
-						<button
-							type="button"
+						<Button
+							variant="ghost"
+							size="icon"
 							aria-label="Picture in picture"
 							onclick={togglePip}
-							class="flex size-9 items-center justify-center rounded-full transition hover:bg-white/15"
+							class="rounded-full [&_svg]:size-5"
 						>
-							<PictureInPictureIcon class="size-5" />
-						</button>
+							<PictureInPictureIcon />
+						</Button>
 					{/if}
 
-					<button
-						type="button"
+					<Button
+						variant="ghost"
+						size="icon"
 						aria-label={fullscreen ? "Exit fullscreen" : "Fullscreen"}
 						onclick={toggleFullscreen}
-						class="flex size-9 items-center justify-center rounded-full transition hover:bg-white/15"
+						class="rounded-full [&_svg]:size-5"
 					>
-						{#if fullscreen}<MinimizeIcon class="size-5" />{:else}<MaximizeIcon class="size-5" />{/if}
-					</button>
+						{#if fullscreen}<MinimizeIcon />{:else}<MaximizeIcon />{/if}
+					</Button>
 				</div>
 			</div>
 		</div>
@@ -965,38 +1022,38 @@
 		<!-- Subtitle overlay -->
 		{#if subtitlesOpen}
 			<div
-				class="absolute inset-y-0 right-0 flex w-full max-w-90 flex-col border-l border-white/10 bg-black/85 text-white backdrop-blur-md"
+				class="pointer-events-auto absolute inset-y-0 right-0 z-10 flex w-full max-w-90 flex-col border-l border-border bg-popover text-popover-foreground backdrop-blur-md"
 			>
-				<div class="flex items-center justify-between border-b border-white/10 px-4 py-3">
+				<div class="flex items-center justify-between border-b border-border px-4 py-3">
 					<p class="text-sm font-semibold">Subtitles</p>
-					<button
-						type="button"
+					<Button
+						variant="ghost"
+						size="icon-sm"
 						aria-label="Close subtitles"
 						onclick={() => (subtitlesOpen = false)}
-						class="flex size-8 items-center justify-center rounded-full transition hover:bg-white/15"
+						class="rounded-full"
 					>
 						<XIcon class="size-4" />
-					</button>
+					</Button>
 				</div>
 
 				<div class="min-h-0 flex-1 overflow-y-auto p-2 scrollbar-thin">
-					<button
-						type="button"
+					<Button
+						variant="ghost"
+						size="sm"
 						onclick={() => setCaption(null)}
-						class={cn(
-							"flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition hover:bg-white/10",
-							!activeCaption && "text-primary",
-						)}
+						class={cn("h-auto w-full justify-start gap-2 py-2", !activeCaption && "text-primary")}
 					>
 						<CheckIcon class={cn("size-4 shrink-0", activeCaption && "invisible")} />
 						Off
-					</button>
+					</Button>
 					{#each options as option (option.key)}
-						<button
-							type="button"
+						<Button
+							variant="ghost"
+							size="sm"
 							onclick={() => setCaption(option.key)}
 							class={cn(
-								"flex w-full items-start gap-2 rounded-md px-3 py-2 text-left text-sm transition hover:bg-white/10",
+								"h-auto w-full items-start justify-start gap-2 py-2",
 								activeCaption === option.key && "text-primary",
 							)}
 						>
@@ -1010,33 +1067,29 @@
 								<span class="flex items-center gap-1.5">
 									{option.name}
 									{#if option.sdh}
-										<span class="rounded bg-white/15 px-1 text-[10px] font-medium tracking-wide">SDH</span>
+										<span class="rounded bg-muted px-1 text-[10px] font-medium tracking-wide">SDH</span>
 									{/if}
 								</span>
 								{#if option.addonName}
-									<span class="block truncate text-xs text-white/50">{option.addonName}</span>
+									<span class="block truncate text-xs text-muted-foreground">{option.addonName}</span>
 								{/if}
 							</span>
-						</button>
+						</Button>
 					{/each}
 				</div>
 
-				<div class="space-y-3 border-t border-white/10 p-4">
-					<p class="text-xs font-medium text-white/50">Appearance</p>
+				<div class="space-y-3 border-t border-border p-4">
+					<p class="text-xs font-medium text-muted-foreground">Appearance</p>
 					<div class="flex gap-1.5">
 						{#each SUBTITLE_SIZES as size (size)}
-							<button
-								type="button"
+							<Button
+								variant={subtitleSize === size ? "default" : "outline"}
+								size="sm"
 								onclick={() => applyAppearance({ subtitleSize: size })}
-								class={cn(
-									"flex-1 rounded-md border px-2 py-1.5 text-xs font-medium transition",
-									subtitleSize === size
-										? "border-primary bg-primary/15 text-primary"
-										: "border-white/15 text-white/70 hover:bg-white/10",
-								)}
+								class="flex-1 text-xs"
 							>
 								{sizeLabels[size]}
-							</button>
+							</Button>
 						{/each}
 					</div>
 					<div class="flex items-center gap-2">
@@ -1047,17 +1100,18 @@
 								onclick={() => applyAppearance({ subtitleColor: swatch })}
 								class={cn(
 									"size-6 rounded-full ring-2 transition",
-									subtitleColor === swatch ? "ring-primary" : "ring-white/20",
+									subtitleColor === swatch ? "ring-primary" : "ring-border",
 								)}
 								style={`background-color: ${swatch}`}
 							></button>
 						{/each}
 					</div>
-					<button
-						type="button"
+					<Button
+						variant="outline"
+						size="sm"
 						onclick={() =>
 							applyAppearance({ subtitleBackground: !subtitleBackground })}
-						class="flex w-full items-center justify-between rounded-md border border-white/15 px-3 py-2 text-xs font-medium text-white/80 transition hover:bg-white/10"
+						class="w-full justify-between text-xs"
 					>
 						Background plate
 						<span
@@ -1065,36 +1119,36 @@
 								"rounded-full px-2 py-0.5 text-[10px]",
 								subtitleBackground
 									? "bg-primary/20 text-primary"
-									: "bg-white/10 text-white/50",
+									: "bg-muted text-muted-foreground",
 							)}
 						>
 							{subtitleBackground ? "On" : "Off"}
 						</span>
-					</button>
+					</Button>
 
 					{#if activeCaption}
-						<div class="flex items-center justify-between gap-2 rounded-md border border-white/15 px-3 py-2 text-xs font-medium text-white/80">
+						<div class="flex items-center justify-between gap-2 rounded-md border border-border px-3 py-2 text-xs font-medium text-muted-foreground">
 							<span>Timing</span>
 							<div class="flex items-center gap-2">
-								<button
-									type="button"
+								<Button
+									variant="secondary"
+									size="icon-xs"
 									aria-label="Subtitles earlier"
 									onclick={() => nudgeSubtitleOffset(-0.5)}
-									class="flex size-6 items-center justify-center rounded bg-white/10 transition hover:bg-white/20"
 								>
 									−
-								</button>
-								<span class="w-12 text-center tabular-nums">
+								</Button>
+								<span class="w-12 text-center tabular-nums text-foreground">
 									{subtitleOffset > 0 ? "+" : ""}{subtitleOffset.toFixed(1)}s
 								</span>
-								<button
-									type="button"
+								<Button
+									variant="secondary"
+									size="icon-xs"
 									aria-label="Subtitles later"
 									onclick={() => nudgeSubtitleOffset(0.5)}
-									class="flex size-6 items-center justify-center rounded bg-white/10 transition hover:bg-white/20"
 								>
 									+
-								</button>
+								</Button>
 							</div>
 						</div>
 					{/if}
@@ -1102,26 +1156,6 @@
 			</div>
 		{/if}
 	</div>
-
-	{#if infoOpen && info && !minimized}
-		<PlayerInfoOverlay
-			{title}
-			{subheading}
-			{logo}
-			background={poster}
-			poster={posterImage}
-			{certification}
-			{genres}
-			{info}
-			{detailHref}
-			autoOpened={infoAutoOpened}
-			onResume={() => {
-				closeInfo();
-				void video?.play();
-			}}
-			onClose={closeInfo}
-		/>
-	{/if}
 </div>
 
 <style>

@@ -8,7 +8,8 @@
 	import UsersIcon from "@lucide/svelte/icons/users";
 	import VolumeXIcon from "@lucide/svelte/icons/volume-x";
 	import XIcon from "@lucide/svelte/icons/x";
-	import { fly } from "svelte/transition";
+	import { cubicOut } from "svelte/easing";
+	import { fade, fly } from "svelte/transition";
 	import { theme } from "#lib/settings/theme.svelte.js";
 	import { cn } from "#lib/utils.js";
 	import { goto } from "$app/navigation";
@@ -185,6 +186,7 @@
 	type="button"
 	aria-label="Close sources"
 	onclick={onClose}
+	transition:fade={{ duration: 150 }}
 	class="fixed inset-0 z-40 bg-black/50 backdrop-blur-[2px]"
 ></button>
 
@@ -350,6 +352,7 @@
 
 <aside
 	aria-label="Sources"
+	transition:fly={{ x: 480, duration: 260, easing: cubicOut }}
 	class="fixed inset-y-0 right-0 z-50 flex w-full max-w-105 flex-col border-l border-border bg-background/80 shadow-2xl backdrop-blur-xl"
 >
 	<header class="flex items-start gap-3 border-b border-border p-4">
