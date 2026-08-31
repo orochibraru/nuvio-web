@@ -2,7 +2,7 @@ import type {
 	LibraryDeltaEvent,
 	WatchedItemDeltaEvent,
 	WatchProgressDeltaEvent,
-} from "$lib/nuvio/index.js";
+} from "#lib/nuvio/index.js";
 import type { HistoryRecord, LibraryRecord, ProgressRecord } from "./types.ts";
 import {
 	historyRecordFromDelta,

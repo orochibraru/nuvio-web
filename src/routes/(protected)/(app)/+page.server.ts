@@ -1,5 +1,5 @@
-import { pullLibraryItems } from "$lib/library/library-data.js";
-import { pullResumeRows } from "$lib/watch/watch-data.js";
+import { pullLibraryItems } from "#lib/library/library-data.js";
+import { pullResumeRows } from "#lib/watch/watch-data.js";
 import type { PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = ({ locals, fetch }) => {

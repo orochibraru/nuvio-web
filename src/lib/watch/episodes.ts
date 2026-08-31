@@ -1,4 +1,4 @@
-import type { Meta } from "$lib/addons/index.js";
+import type { Meta } from "#lib/addons/index.js";
 
 /**
  * The episode immediately after `season`/`episode` in play order, or `null`

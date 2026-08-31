@@ -3,7 +3,7 @@ import type {
 	LibraryDeltaEvent,
 	WatchedItemDeltaEvent,
 	WatchProgressDeltaEvent,
-} from "$lib/nuvio/index.js";
+} from "#lib/nuvio/index.js";
 import {
 	overlayPendingLibrary,
 	overlayPendingProgress,

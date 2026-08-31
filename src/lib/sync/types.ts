@@ -5,7 +5,7 @@ import type {
 	WatchedItemDeltaEvent,
 	WatchProgress,
 	WatchProgressDeltaEvent,
-} from "$lib/nuvio/index.js";
+} from "#lib/nuvio/index.js";
 
 export type ContentType = "movie" | "series";
 

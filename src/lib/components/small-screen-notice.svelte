@@ -1,8 +1,8 @@
 <script lang="ts">
 	import SmartphoneIcon from "@lucide/svelte/icons/smartphone";
 	import XIcon from "@lucide/svelte/icons/x";
+	import { NUVIO_WEBSITE_URL } from "#lib/nuvio/index.js";
 	import { browser } from "$app/env";
-	import { NUVIO_WEBSITE_URL } from "$lib/nuvio/index.js";
 
 	const KEY = "nuvio:mobile-banner-dismissed";
 	let dismissed = $state(true);

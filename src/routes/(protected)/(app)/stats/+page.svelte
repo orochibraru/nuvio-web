@@ -3,10 +3,10 @@
 	import ClockIcon from "@lucide/svelte/icons/clock";
 	import FilmIcon from "@lucide/svelte/icons/film";
 	import TvIcon from "@lucide/svelte/icons/tv";
+	import * as Card from "#lib/components/ui/card/index.js";
+	import { watchStats } from "#lib/stats/stats.remote.js";
+	import { pageTitle } from "#lib/stores/title.svelte.js";
 	import { resolve } from "$app/paths";
-	import * as Card from "$lib/components/ui/card/index.js";
-	import { watchStats } from "$lib/stats/stats.remote";
-	import { pageTitle } from "$lib/stores/title.svelte.js";
 
 	pageTitle.set("Stats");
 
@@ -121,7 +121,7 @@
 				<Card.Content class="flex flex-wrap gap-2">
 					{#each stats.topGenres as genre (genre.name)}
 						<a
-							href={resolve(`/search?q=${encodeURIComponent(genre.name)}`)}
+							href={resolve(`search?q=${encodeURIComponent(genre.name)}`)}
 							class="rounded-full bg-foreground/5 px-3 py-1.5 text-sm text-foreground/90 transition hover:bg-foreground/10 hover:text-foreground"
 						>
 							{genre.name}

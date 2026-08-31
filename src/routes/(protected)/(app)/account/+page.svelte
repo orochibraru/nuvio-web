@@ -1,15 +1,15 @@
 <script lang="ts">
 	import ExternalLinkIcon from "@lucide/svelte/icons/external-link";
 	import { toast } from "svelte-sonner";
-	import { invalidateAll } from "$app/navigation";
-	import { Button } from "$lib/components/ui/button/index.js";
-	import * as Card from "$lib/components/ui/card/index.js";
-	import * as Dialog from "$lib/components/ui/dialog/index.js";
-	import { Spinner } from "$lib/components/ui/spinner/index.js";
-	import { NUVIO_WEBSITE_URL } from "$lib/nuvio/index.js";
-	import { pageTitle } from "$lib/stores/title.svelte.js";
-	import { streamed } from "$lib/stream.svelte.js";
-	import { sync } from "$lib/sync/store.svelte.js";
+	import { Button } from "#lib/components/ui/button/index.js";
+	import * as Card from "#lib/components/ui/card/index.js";
+	import * as Dialog from "#lib/components/ui/dialog/index.js";
+	import { Spinner } from "#lib/components/ui/spinner/index.js";
+	import { NUVIO_WEBSITE_URL } from "#lib/nuvio/index.js";
+	import { pageTitle } from "#lib/stores/title.svelte.js";
+	import { streamed } from "#lib/stream.svelte.js";
+	import { sync } from "#lib/sync/store.svelte.js";
+	import { refreshAll } from "$app/navigation";
 	import { signOut } from "../../../auth/auth.remote.ts";
 	import { deleteProfileData } from "./account.remote.ts";
 
@@ -47,7 +47,7 @@
 		try {
 			await deleteProfileData({ profileIndex: data.profile.profile_index });
 			await sync.clear(data.profile.profile_index);
-			await invalidateAll();
+			await refreshAll();
 			toast.success(`Cleared all synced data for ${data.profile.name}.`);
 			confirmOpen = false;
 		} catch {

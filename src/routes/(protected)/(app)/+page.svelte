@@ -9,21 +9,21 @@
 	import { cubicOut } from "svelte/easing";
 	import { fly } from "svelte/transition";
 	import { toast } from "svelte-sonner";
+	import { homeRows } from "#lib/addons/addons.remote.js";
+	import type { MetaPreview } from "#lib/addons/index.js";
+	import AuroraBackground from "#lib/components/aurora-background.svelte";
+	import ContinueWatchingCard from "#lib/components/continue-watching-card.svelte";
+	import MediaHero from "#lib/components/media-hero.svelte";
+	import MediaRow from "#lib/components/media-row.svelte";
+	import QueryError from "#lib/components/query-error.svelte";
+	import { Button } from "#lib/components/ui/button/index.js";
+	import { streamed } from "#lib/stream.svelte.js";
+	import { sync } from "#lib/sync/store.svelte.js";
+	import { cn } from "#lib/utils.js";
+	import { continueWatching } from "#lib/watch/watch.remote.js";
+	import type { ResumeRow } from "#lib/watch/watch-data.js";
 	import { browser } from "$app/env";
 	import { resolve } from "$app/paths";
-	import { homeRows } from "$lib/addons/addons.remote";
-	import type { MetaPreview } from "$lib/addons/index.js";
-	import AuroraBackground from "$lib/components/aurora-background.svelte";
-	import ContinueWatchingCard from "$lib/components/continue-watching-card.svelte";
-	import MediaHero from "$lib/components/media-hero.svelte";
-	import MediaRow from "$lib/components/media-row.svelte";
-	import QueryError from "$lib/components/query-error.svelte";
-	import { Button } from "$lib/components/ui/button/index.js";
-	import { streamed } from "$lib/stream.svelte.js";
-	import { sync } from "$lib/sync/store.svelte.js";
-	import { cn } from "$lib/utils.js";
-	import { continueWatching } from "$lib/watch/watch.remote";
-	import type { ResumeRow } from "$lib/watch/watch-data.js";
 
 	let { data } = $props();
 
@@ -247,11 +247,13 @@
 	}
 
 	const spotlight = $derived(spotlights[heroIndex] ?? null);
+
 	const spotlightHref = $derived(
 		spotlight
-			? resolve(`/detail/${spotlight.type}/${encodeURIComponent(spotlight.id)}`)
+			? resolve(`detail/${spotlight.type}/${encodeURIComponent(spotlight.id)}`)
 			: "",
 	);
+
 	const spotlightRating = $derived(
 		spotlight
 			? typeof spotlight.imdbRating === "number"
@@ -259,6 +261,7 @@
 				: spotlight.imdbRating || null
 			: null,
 	);
+
 	const spotlightType = $derived(
 		spotlight?.type === "series" ? "series" : "movie",
 	);
@@ -323,10 +326,10 @@
 			role="group"
 			aria-roledescription="carousel"
 			aria-label="Featured titles"
-			onmouseenter={() => (heroPaused = true)}
-			onmouseleave={() => (heroPaused = false)}
-			onfocusin={() => (heroPaused = true)}
-			onfocusout={() => (heroPaused = false)}
+			onmouseenter={() => heroPaused = true}
+			onmouseleave={() => heroPaused = false}
+			onfocusin={() => heroPaused = true}
+			onfocusout={() => heroPaused = false}
 			class="grid *:col-start-1 *:row-start-1"
 		>
 			{#key spotlight.id}
@@ -342,82 +345,82 @@
 						easing: cubicOut,
 					}}
 				>
-				<MediaHero
-					title={spotlight.name}
-					logo={spotlight.logo}
-					background={spotlight.background}
-					poster={spotlight.poster}
-					eyebrow="Featured"
-					description={spotlight.description}
-					rating={spotlightRating}
-					year={spotlight.releaseInfo}
-					genres={spotlight.genres ?? []}
-				>
-					{#snippet actions()}
-						<Button size="lg" href={spotlightHref}>
+					<MediaHero
+						title={spotlight.name}
+						logo={spotlight.logo}
+						background={spotlight.background}
+						poster={spotlight.poster}
+						eyebrow="Featured"
+						description={spotlight.description}
+						rating={spotlightRating}
+						year={spotlight.releaseInfo}
+						genres={spotlight.genres ?? []}
+					>
+						{#snippet actions()}
+							<Button size="lg" href={spotlightHref}>
 							<PlayIcon data-icon="inline-start" class="fill-current" /> Watch now
-						</Button>
-						<Button
-							size="lg"
-							variant="secondary"
-							onclick={toggleSpotlightLibrary}
-						>
-							{#if spotlightInLibrary}
+							</Button>
+							<Button
+								size="lg"
+								variant="secondary"
+								onclick={toggleSpotlightLibrary}
+							>
+								{#if spotlightInLibrary}
 								<CheckIcon data-icon="inline-start" /> In library
-							{:else}
+								{:else}
 								<PlusIcon data-icon="inline-start" /> Add to library
-							{/if}
-						</Button>
+								{/if}
+							</Button>
 						<Button size="lg" variant="ghost" href={spotlightHref}>
 							<InfoIcon data-icon="inline-start" /> More info
 						</Button>
-					{/snippet}
+						{/snippet}
 
-					{#snippet overlay()}
-						{#if spotlights.length > 1}
+						{#snippet overlay()}
+							{#if spotlights.length > 1}
 							<div class="absolute right-6 bottom-6 flex items-center gap-3">
-								<div class="flex gap-1.5">
-									{#each spotlights as item, index (item.id)}
-										<button
-											type="button"
-											aria-label={`Show ${item.name}`}
-											aria-current={index === heroIndex ? "true" : undefined}
-											onclick={() => goToHero(index)}
+									<div class="flex gap-1.5">
+										{#each spotlights as item, index (item.id)}
+											<button
+												type="button"
+												aria-label={`Show ${item.name}`}
+												aria-current={index === heroIndex ? "true" : undefined}
+												onclick={() => goToHero(index)}
 											class={cn(
 												"h-1.5 rounded-full transition-all",
 												index === heroIndex
 													? "w-6 bg-primary"
 													: "w-1.5 bg-foreground/30 hover:bg-foreground/50",
 											)}
-										></button>
-									{/each}
-								</div>
-								<div class="hidden gap-1 sm:flex">
-									<button
-										type="button"
-										aria-label="Previous featured title"
-										onclick={() => stepHero(-1)}
-										class="flex size-8 items-center justify-center rounded-full bg-background/60 ring-1 ring-border backdrop-blur-md transition hover:bg-background"
+											></button>
+										{/each}
+									</div>
+									<div class="hidden gap-1 sm:flex">
+										<button
+											type="button"
+											aria-label="Previous featured title"
+											onclick={() => stepHero(-1)}
+											class="flex size-8 items-center justify-center rounded-full bg-background/60 ring-1 ring-border backdrop-blur-md transition hover:bg-background"
 									>
 										<ChevronLeftIcon class="size-4" />
 									</button>
-									<button
-										type="button"
-										aria-label="Next featured title"
-										onclick={() => stepHero(1)}
-										class="flex size-8 items-center justify-center rounded-full bg-background/60 ring-1 ring-border backdrop-blur-md transition hover:bg-background"
+										<button
+											type="button"
+											aria-label="Next featured title"
+											onclick={() => stepHero(1)}
+											class="flex size-8 items-center justify-center rounded-full bg-background/60 ring-1 ring-border backdrop-blur-md transition hover:bg-background"
 									>
 										<ChevronRightIcon class="size-4" />
 									</button>
+									</div>
 								</div>
-							</div>
-						{/if}
-					{/snippet}
-				</MediaHero>
+							{/if}
+						{/snippet}
+					</MediaHero>
 				</div>
 			{/key}
 		</div>
-	{:else if rowsLoading || (rows.length > 0 && spotlights.length === 0)}
+	{:else if rowsLoading || rows.length > 0 && spotlights.length === 0}
 		<!-- Same box as `media-hero.svelte` so the row below doesn't jump when
 		     the real hero paints. -->
 		<section
@@ -450,14 +453,18 @@
 			<h2 class="text-xl font-semibold tracking-tight">Continue watching</h2>
 			<div class="no-scrollbar -mx-2 flex gap-4 overflow-x-auto scroll-smooth px-2 pt-1 pb-2">
 				{#each resume as item (`${item.type}:${item.videoId}`)}
-					<ContinueWatchingCard {item} onClear={dismiss} />
+					<ContinueWatchingCard item={item} onClear={dismiss} />
 				{/each}
 			</div>
 		</section>
 	{/if}
 
 	{#if library.length > 0}
-		<MediaRow title="My library" items={library} href={resolve("/library")} />
+		<MediaRow
+			title="My library"
+			items={library}
+			href={resolve('library')}
+		/>
 	{/if}
 
 	{#if rowsQuery.error}
@@ -487,10 +494,13 @@
 					<SparklesIcon class="size-7" />
 				</span>
 				<p class="mt-4 text-lg font-semibold tracking-tight">Your home feed is empty</p>
-				<p class="mt-1 text-sm text-muted-foreground">
-					Add a catalog addon and rows of movies and series fill in here.
-				</p>
-				<Button href={resolve("/addons")} variant="outline" class="mt-4">Manage addons</Button>
+				<p class="mt-1 text-sm text-muted-foreground">Add a catalog addon and rows of movies and series fill in here.</p>
+
+				<Button
+					href={resolve('addons')}
+					variant="outline"
+					class="mt-4"
+				>Manage addons</Button>
 			</div>
 		</div>
 	{:else}
@@ -498,7 +508,7 @@
 			<MediaRow
 				title={rowTitles[index]}
 				items={row.metas}
-				href={resolve(`/discover?c=${encodeURIComponent(`${row.addonId}|${row.type}|${row.id}`)}`)}
+				href={resolve(`discover?c=${encodeURIComponent(`${row.addonId}|${row.type}|${row.id}`)}`)}
 			/>
 		{/each}
 	{/if}

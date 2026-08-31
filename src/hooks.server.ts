@@ -1,5 +1,5 @@
-import { dev } from "$app/env";
-import { NuvioApiError, NuvioClient } from "$lib/nuvio/index.js";
+import type { HandleServerError } from "@sveltejs/kit/hooks";
+import { NuvioApiError, NuvioClient } from "#lib/nuvio/index.js";
 import {
 	clearStoredSession,
 	createServerClient,
@@ -7,7 +7,8 @@ import {
 	readProfileId,
 	readStoredSession,
 	writeStoredSession,
-} from "$lib/server/session.js";
+} from "#lib/server/session.js";
+import { dev } from "$app/env";
 
 function makeErrorId(): string {
 	return crypto.randomUUID().replace(/-/g, "").slice(0, 24);
@@ -51,8 +52,10 @@ function applySecurityHeaders(headers: Headers): void {
 	}
 }
 
-export function handleError({ event, error, status }) {
-	if (status === 404) {
+export const handleError: HandleServerError = ({ event, error, kind }) => {
+	// SvelteKit 3 routes expected + framework errors through here too; a 404 is
+	// noise, not a bug.
+	if (kind === "framework" && error.status === 404) {
 		return;
 	}
 	const errorId = makeErrorId();
@@ -67,7 +70,7 @@ export function handleError({ event, error, status }) {
 		message:
 			error instanceof Error ? error.message : "An unknown error occurred.",
 	};
-}
+};
 
 export const handle = async ({ event, resolve }) => {
 	let stored = readStoredSession(event.cookies);

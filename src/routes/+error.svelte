@@ -1,10 +1,14 @@
 <script lang="ts">
+	import { Button } from "#lib/components/ui/button/index.js";
+	import { dev } from "$app/env";
 	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
-	import { Button } from "$lib/components/ui/button/index.js";
 
 	const status = $derived(page.status);
-	const message = $derived(page.error?.message ?? "Something went wrong.");
+	const defaultErrorMessage = "Something went wrong.";
+	const message = $derived(
+		dev ? defaultErrorMessage : (page.error?.message ?? defaultErrorMessage),
+	);
 </script>
 
 <div class="relative flex min-h-svh flex-col items-center justify-center gap-4 overflow-hidden p-6 text-center">
@@ -16,6 +20,6 @@
 	<h1 class="relative text-xl font-semibold tracking-tight">{message}</h1>
 	<div class="relative mt-2 flex gap-2">
 		<Button variant="outline" onclick={() => history.back()}>Go back</Button>
-		<Button href={resolve("/")}>Home</Button>
+		<Button href={resolve("/(protected)/(app)")}>Home</Button>
 	</div>
 </div>

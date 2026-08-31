@@ -4,13 +4,13 @@
 	import PlayIcon from "@lucide/svelte/icons/play";
 	import Trash2Icon from "@lucide/svelte/icons/trash-2";
 	import TvIcon from "@lucide/svelte/icons/tv";
+	import EmptyState from "#lib/components/empty-state.svelte";
+	import { watchHistory } from "#lib/history/history.remote.js";
+	import type { HistoryRow } from "#lib/history/history-data.js";
+	import { pageTitle } from "#lib/stores/title.svelte.js";
+	import { streamed } from "#lib/stream.svelte.js";
+	import { sync } from "#lib/sync/store.svelte.js";
 	import { resolve } from "$app/paths";
-	import EmptyState from "$lib/components/empty-state.svelte";
-	import { watchHistory } from "$lib/history/history.remote";
-	import type { HistoryRow } from "$lib/history/history-data.js";
-	import { pageTitle } from "$lib/stores/title.svelte.js";
-	import { streamed } from "$lib/stream.svelte.js";
-	import { sync } from "$lib/sync/store.svelte.js";
 
 	pageTitle.set("Watch history");
 
@@ -119,7 +119,7 @@
 			item.type === "series" && item.season != null && item.episode != null
 				? `${item.contentId}:${item.season}:${item.episode}`
 				: item.contentId;
-		return resolve(`/player/${item.type}/${encodeURIComponent(videoId)}`);
+		return resolve(`player/${item.type}/${encodeURIComponent(videoId)}`);
 	}
 
 	function remove(item: Row) {
@@ -163,7 +163,7 @@
 							class="group/row relative flex gap-3 overflow-hidden rounded-xl border border-border/60 bg-card/40 p-2.5 transition-colors hover:border-primary/40 hover:bg-card"
 						>
 							<a
-								href={resolve(`/detail/${item.type}/${encodeURIComponent(item.contentId)}`)}
+								href={resolve(`detail/${item.type}/${encodeURIComponent(item.contentId)}`)}
 								class="relative aspect-2/3 w-16 shrink-0 overflow-hidden rounded-lg bg-muted"
 							>
 								<span class="absolute inset-0 flex items-center justify-center bg-linear-to-br from-muted to-background">
@@ -186,12 +186,13 @@
 
 							<div class="flex min-w-0 flex-1 flex-col justify-center gap-1">
 								<a
-									href={resolve(`/detail/${item.type}/${encodeURIComponent(item.contentId)}`)}
+									href={resolve(`detail/${item.type}/${encodeURIComponent(item.contentId)}`)}
 									class="line-clamp-2 text-sm font-semibold transition-colors hover:text-primary"
+								>{item.title}</a>
+
+								<div
+									class="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground"
 								>
-									{item.title}
-								</a>
-								<div class="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
 									{#if episodeTag(item.season, item.episode)}
 										<span class="rounded bg-foreground/5 px-1 py-px font-medium text-foreground/70">
 											{episodeTag(item.season, item.episode)}

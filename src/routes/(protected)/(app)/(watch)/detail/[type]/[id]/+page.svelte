@@ -9,32 +9,32 @@
 	import PlayCircleIcon from "@lucide/svelte/icons/play-circle";
 	import PlusIcon from "@lucide/svelte/icons/plus";
 	import { toast } from "svelte-sonner";
-	import { browser } from "$app/env";
-	import { goto } from "$app/navigation";
-	import { resolve } from "$app/paths";
-	import { page } from "$app/state";
-	import { getMeta, similarTitles } from "$lib/addons/addons.remote";
-	import CastRow from "$lib/components/cast-row.svelte";
-	import MediaHero from "$lib/components/media-hero.svelte";
-	import MediaRow from "$lib/components/media-row.svelte";
-	import SeasonCarousel from "$lib/components/season-carousel.svelte";
-	import TrailerModal from "$lib/components/trailer-modal.svelte";
-	import { Button } from "$lib/components/ui/button/index.js";
-	import { libraryIds } from "$lib/library/library.remote";
-	import { theme } from "$lib/settings/theme.svelte";
-	import { pageTitle } from "$lib/stores/title.svelte.js";
-	import { sync } from "$lib/sync/store.svelte.js";
-	import { cn } from "$lib/utils.js";
-	import { parseRuntimeMs } from "$lib/watch/runtime.js";
-	import { sourcesPanel } from "$lib/watch/sources-panel.svelte.js";
+	import { getMeta, similarTitles } from "#lib/addons/addons.remote.js";
+	import CastRow from "#lib/components/cast-row.svelte";
+	import MediaHero from "#lib/components/media-hero.svelte";
+	import MediaRow from "#lib/components/media-row.svelte";
+	import SeasonCarousel from "#lib/components/season-carousel.svelte";
+	import TrailerModal from "#lib/components/trailer-modal.svelte";
+	import { Button } from "#lib/components/ui/button/index.js";
+	import { libraryIds } from "#lib/library/library.remote.js";
+	import { theme } from "#lib/settings/theme.svelte.js";
+	import { pageTitle } from "#lib/stores/title.svelte.js";
+	import { sync } from "#lib/sync/store.svelte.js";
+	import { cn } from "#lib/utils.js";
+	import { parseRuntimeMs } from "#lib/watch/runtime.js";
+	import { sourcesPanel } from "#lib/watch/sources-panel.svelte.js";
 	import {
 		playbackContext,
 		resolveStreams,
 		titleProgress,
-	} from "$lib/watch/watch.remote";
-	import { EMPTY_PROVIDERS } from "$lib/watch/watch-providers.js";
-	import { watchProviders } from "$lib/watch/watch-providers.remote";
-	import WatchProvidersList from "$lib/watch/watch-providers-list.svelte";
+	} from "#lib/watch/watch.remote.js";
+	import { EMPTY_PROVIDERS } from "#lib/watch/watch-providers.js";
+	import { watchProviders } from "#lib/watch/watch-providers.remote.js";
+	import WatchProvidersList from "#lib/watch/watch-providers-list.svelte";
+	import { browser } from "$app/env";
+	import { goto } from "$app/navigation";
+	import { resolve } from "$app/paths";
+	import { page } from "$app/state";
 
 	const type = $derived(page.params.type ?? "movie");
 	const id = $derived(page.params.id ?? "");
@@ -51,7 +51,6 @@
 	const progress = $derived(
 		sync.authoritative ? sync.titleProgress(id) : (progressQuery.current ?? {}),
 	);
-
 	const meta = $derived(metaQuery.current?.meta);
 
 	// A non-reactive-in-template mirror of `meta`: only ever set to a real object,
@@ -158,7 +157,7 @@
 	// Primary CTA: jump straight to the player, which auto-resolves the preferred
 	// stream (first available, browser-friendly audio) on a cold load.
 	function watch(videoId: string) {
-		void goto(resolve(`/player/${type}/${encodeURIComponent(videoId)}`));
+		void goto(resolve(`player/${type}/${encodeURIComponent(videoId)}`));
 	}
 
 	// Secondary CTA: let the viewer pick the exact source themselves.
@@ -186,6 +185,7 @@
 	const ctaVideoId = $derived(
 		contentType === "movie" ? id : (resumeEpisode?.id ?? firstEpisodeId),
 	);
+
 	// Flips once the CTA target's streams have been warmed — gates the reactive
 	// read below so we don't fan out to the addons before the debounce.
 	let ctaWarmed = $state(false);
@@ -213,7 +213,9 @@
 	const releaseYear = $derived(
 		Number((meta?.releaseInfo ?? "").slice(0, 4)) || null,
 	);
+
 	const imdbId = $derived(/^tt\d+$/.test(id) ? id : null);
+
 	const providersQuery = $derived(
 		meta
 			? watchProviders({
@@ -354,7 +356,12 @@
 					No installed addon provides <code>{type}</code> metadata for
 					<code>{id}</code>.
 				</p>
-				<Button href={resolve("/addons")} variant="outline" class="mt-4">Manage addons</Button>
+
+				<Button
+					href={resolve('addons')}
+					variant="outline"
+					class="mt-4"
+				>Manage addons</Button>
 			</div>
 		</div>
 	{:else if !stableMeta}
@@ -378,7 +385,7 @@
 			poster={m.poster}
 			showPoster
 			description={m.description}
-			{rating}
+			rating={rating}
 			year={contentType === "series" && m.status
 				? `${m.releaseInfo ?? ""} · ${m.status}`.replace(/^ · /, "")
 				: m.releaseInfo}
@@ -457,16 +464,16 @@
 
 		<div class="flex flex-col gap-10 pt-2">
 			{#if providers.stream.length > 0 || providers.rent.length > 0 || providers.buy.length > 0}
-				<WatchProvidersList {providers} />
+				<WatchProvidersList providers={providers} />
 			{/if}
 
 			{#if contentType === "series" && seasons.length > 0}
 				<SeasonCarousel
 					videos={m.videos ?? []}
 					seriesRuntime={m.runtime ?? null}
-					{progress}
+					progress={progress}
 					initialSeason={resumeEpisode
-						? (m.videos?.find((v) => v.id === resumeEpisode.id)?.season ?? null)
+						? m.videos?.find((v) => v.id === resumeEpisode.id)?.season ?? null
 						: null}
 					onPlay={watch}
 					onToggleWatched={toggleWatched}
@@ -483,7 +490,7 @@
 						{#each trailers.slice(0, 8) as trailer, i (trailer.ytId)}
 							<button
 								type="button"
-								onclick={() => (trailerId = trailer.ytId)}
+								onclick={() => trailerId = trailer.ytId}
 								class="group/tr relative aspect-video w-72 shrink-0 overflow-hidden rounded-xl bg-muted ring-1 ring-white/5 transition-all hover:-translate-y-1 hover:ring-primary/60"
 							>
 								<img
@@ -570,5 +577,5 @@
 <TrailerModal
 	ytId={trailerId}
 	title={meta?.name ?? "Trailer"}
-	onClose={() => (trailerId = null)}
+	onClose={() => trailerId = null}
 />

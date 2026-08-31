@@ -4,24 +4,24 @@
 	import PlusIcon from "@lucide/svelte/icons/plus";
 	import Trash2Icon from "@lucide/svelte/icons/trash-2";
 	import { toast } from "svelte-sonner";
-	import { goto, invalidateAll } from "$app/navigation";
-	import { resolve } from "$app/paths";
 	import {
 		collectionContents,
 		saveCollections,
-	} from "$lib/collections/collections.remote";
-	import EmptyState from "$lib/components/empty-state.svelte";
-	import MediaGrid from "$lib/components/media-grid.svelte";
-	import MediaRow from "$lib/components/media-row.svelte";
-	import QueryError from "$lib/components/query-error.svelte";
-	import { Button } from "$lib/components/ui/button/index.js";
-	import { Checkbox } from "$lib/components/ui/checkbox/index.js";
-	import * as Dialog from "$lib/components/ui/dialog/index.js";
-	import { Input } from "$lib/components/ui/input/index.js";
-	import type { Collection, CollectionFolder } from "$lib/nuvio/index.js";
-	import { pageTitle } from "$lib/stores/title.svelte.js";
-	import { streamed } from "$lib/stream.svelte.js";
-	import { cn } from "$lib/utils.js";
+	} from "#lib/collections/collections.remote.js";
+	import EmptyState from "#lib/components/empty-state.svelte";
+	import MediaGrid from "#lib/components/media-grid.svelte";
+	import MediaRow from "#lib/components/media-row.svelte";
+	import QueryError from "#lib/components/query-error.svelte";
+	import { Button } from "#lib/components/ui/button/index.js";
+	import { Checkbox } from "#lib/components/ui/checkbox/index.js";
+	import * as Dialog from "#lib/components/ui/dialog/index.js";
+	import { Input } from "#lib/components/ui/input/index.js";
+	import type { Collection, CollectionFolder } from "#lib/nuvio/index.js";
+	import { pageTitle } from "#lib/stores/title.svelte.js";
+	import { streamed } from "#lib/stream.svelte.js";
+	import { cn } from "#lib/utils.js";
+	import { goto, refreshAll } from "$app/navigation";
+	import { resolve } from "$app/paths";
 
 	let { data } = $props();
 
@@ -102,7 +102,7 @@
 					entry.id === collection.id ? { ...entry, folders } : entry,
 				),
 			);
-			await invalidateAll();
+			await refreshAll();
 		} catch {
 			toast.error("Couldn't save the collection.");
 		} finally {
@@ -145,7 +145,7 @@
 					entry.id === collection.id ? { ...entry, viewMode: mode } : entry,
 				),
 			);
-			await invalidateAll();
+			await refreshAll();
 		} finally {
 			saving = false;
 		}
@@ -154,7 +154,7 @@
 
 <button
 	type="button"
-	onclick={() => goto(resolve("/collections"))}
+	onclick={() => goto(resolve('collections'))}
 	class="mb-4 flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition hover:text-foreground"
 >
 	<ArrowLeftIcon class="size-4" /> Collections
@@ -167,9 +167,7 @@
 		description="This collection may have been renamed or removed."
 	>
 		{#snippet actions()}
-			<Button href={resolve("/collections")} variant="outline">
-				All collections
-			</Button>
+			<Button href={resolve('collections')} variant="outline">All collections</Button>
 		{/snippet}
 	</EmptyState>
 {:else}
@@ -191,99 +189,96 @@
 					>
 						{mode === "TABBED_GRID" ? "Tabs" : "Rows"}
 					</button>
-				{/each}
-			</div>
-			<Button size="sm" variant="outline" onclick={() => (addOpen = true)}>
-				<PlusIcon data-icon="inline-start" /> Add folder
-			</Button>
-		</div>
-	</div>
+					{/each}
+				</div>
 
-	{#if contentsQuery?.error}
-		<QueryError
-			message="Couldn't load this collection's folders."
-			onRetry={() => contentsQuery?.refresh()}
-		/>
-	{:else if contentsLoading}
-		<MediaGrid items={[]} loading skeletonCount={12} />
-	{:else if folders.length === 0}
-		<EmptyState
-			icon={FolderPlusIcon}
-			title="No folders yet"
-			description="Add a folder and attach one or more catalogs to fill it."
-		>
-			{#snippet actions()}
-				<Button variant="outline" onclick={() => (addOpen = true)}>
-					<PlusIcon data-icon="inline-start" /> Add folder
-				</Button>
-			{/snippet}
-		</EmptyState>
-	{:else if viewMode === "ROWS"}
-		<div class="flex flex-col gap-10">
-			{#each folders as folder (folder.id)}
-				<div class="group/folder relative">
+				<Button
+					size="sm"
+					variant="outline"
+					onclick={() => addOpen = true}
+				><PlusIcon data-icon="inline-start" />Add folder</Button>
+			</div>
+		</div>
+
+		{#if contentsQuery?.error}
+			<QueryError
+				message="Couldn't load this collection's folders."
+				onRetry={() => contentsQuery?.refresh()}
+			/>
+		{:else if contentsLoading}
+			<MediaGrid items={[]} loading skeletonCount={12} />
+		{:else if folders.length === 0}
+			<EmptyState
+				icon={FolderPlusIcon}
+				title="No folders yet"
+				description="Add a folder and attach one or more catalogs to fill it."
+			>
+				{#snippet actions()}
+					<Button variant="outline" onclick={() => addOpen = true}><PlusIcon data-icon="inline-start" />Add folder</Button>
+				{/snippet}
+			</EmptyState>
+		{:else if viewMode === "ROWS"}
+			<div class="flex flex-col gap-10">
+				{#each folders as folder (folder.id)}
+					<div class="group/folder relative">
 					<MediaRow title={`${folder.coverEmoji ?? ""} ${folder.title}`.trim()} items={folder.metas} />
-					<button
-						type="button"
-						aria-label="Remove folder"
-						onclick={() => removeFolder(folder.id)}
-						class="absolute top-0 right-0 rounded-md p-1.5 text-muted-foreground opacity-0 transition group-hover/folder:opacity-100 hover:bg-destructive/10 hover:text-destructive"
+						<button
+							type="button"
+							aria-label="Remove folder"
+							onclick={() => removeFolder(folder.id)}
+							class="absolute top-0 right-0 rounded-md p-1.5 text-muted-foreground opacity-0 transition group-hover/folder:opacity-100 hover:bg-destructive/10 hover:text-destructive"
 					>
 						<Trash2Icon class="size-4" />
 					</button>
-				</div>
-			{/each}
-		</div>
-	{:else}
+					</div>
+				{/each}
+			</div>
+		{:else}
 		<div class="no-scrollbar flex items-center gap-1.5 overflow-x-auto border-b border-border pb-2">
-			{#if folders.length > 1}
-				<button
-					type="button"
-					onclick={() => (activeTab = -1)}
-					class={cn(
-						"shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium whitespace-nowrap transition",
-						activeTab === -1
+				{#if folders.length > 1}
+					<button
+						type="button"
+						onclick={() => activeTab = -1}
+						class={cn("shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium whitespace-nowrap transition", activeTab === -1
 							? "bg-primary text-primary-foreground"
 							: "bg-foreground/5 text-muted-foreground hover:text-foreground",
 					)}
-				>
+					>
 					All <span class="opacity-70">{allMetas.length}</span>
-				</button>
-			{/if}
-			{#each folders as folder, index (folder.id)}
-				<button
-					type="button"
-					onclick={() => (activeTab = index)}
-					class={cn(
-						"shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium whitespace-nowrap transition",
-						activeTab === index
+					</button>
+				{/if}
+				{#each folders as folder, index (folder.id)}
+					<button
+						type="button"
+						onclick={() => activeTab = index}
+						class={cn("shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium whitespace-nowrap transition", activeTab === index
 							? "bg-primary text-primary-foreground"
 							: "bg-foreground/5 text-muted-foreground hover:text-foreground",
 					)}
 				>
 					{`${folder.coverEmoji ?? ""} ${folder.title}`.trim()}
 				</button>
-			{/each}
-			{#if activeTab >= 0 && folders[activeTab]}
-				<button
-					type="button"
-					aria-label="Remove folder"
-					onclick={() => removeFolder(folders[activeTab]?.id ?? "")}
-					class="ml-auto shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+				{/each}
+				{#if activeTab >= 0 && folders[activeTab]}
+					<button
+						type="button"
+						aria-label="Remove folder"
+						onclick={() => removeFolder(folders[activeTab]?.id ?? "")}
+						class="ml-auto shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
 				>
 					<Trash2Icon class="size-4" />
 				</button>
+				{/if}
+			</div>
+			{#if activeTab === -1}
+				<MediaGrid items={allMetas} />
+			{:else if folders[activeTab]}
+				{#key folders[activeTab].id}
+					<MediaGrid items={folders[activeTab].metas} />
+				{/key}
 			{/if}
-		</div>
-		{#if activeTab === -1}
-			<MediaGrid items={allMetas} />
-		{:else if folders[activeTab]}
-			{#key folders[activeTab].id}
-				<MediaGrid items={folders[activeTab].metas} />
-			{/key}
 		{/if}
-	{/if}
-</div>
+	</div>
 {/if}
 
 <Dialog.Root bind:open={addOpen}>
@@ -314,10 +309,12 @@
 		</div>
 
 		<Dialog.Footer class="mt-4">
-			<Button variant="ghost" onclick={() => (addOpen = false)}>Cancel</Button>
-			<Button disabled={!folderTitle.trim() || picked.length === 0 || saving} onclick={addFolder}>
-				Add
-			</Button>
+			<Button variant="ghost" onclick={() => addOpen = false}>Cancel</Button>
+
+			<Button
+				disabled={!folderTitle.trim() || picked.length === 0 || saving}
+				onclick={addFolder}
+			>Add</Button>
 		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>

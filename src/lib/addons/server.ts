@@ -1,5 +1,5 @@
+import { requireProfile } from "#lib/server/guards.js";
 import { getRequestEvent } from "$app/server";
-import { requireProfile } from "$lib/server/guards.js";
 import { AddonClient } from "./client.ts";
 import {
 	type AddonLoadError,

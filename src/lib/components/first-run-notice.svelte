@@ -1,7 +1,7 @@
 <script lang="ts">
+	import { Button } from "#lib/components/ui/button/index.js";
+	import * as Dialog from "#lib/components/ui/dialog/index.js";
 	import { browser } from "$app/env";
-	import { Button } from "$lib/components/ui/button/index.js";
-	import * as Dialog from "$lib/components/ui/dialog/index.js";
 
 	const KEY = "nuvio:disclaimer-ack:v1";
 

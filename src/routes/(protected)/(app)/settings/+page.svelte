@@ -2,20 +2,20 @@
 	import CheckIcon from "@lucide/svelte/icons/check";
 	import PuzzleIcon from "@lucide/svelte/icons/puzzle";
 	import { toast } from "svelte-sonner";
-	import { resolve } from "$app/paths";
-	import { Button } from "$lib/components/ui/button/index.js";
-	import * as Card from "$lib/components/ui/card/index.js";
-	import { Switch } from "$lib/components/ui/switch/index.js";
-	import { saveUiSettings } from "$lib/settings/settings.remote";
-	import { theme } from "$lib/settings/theme.svelte";
+	import { Button } from "#lib/components/ui/button/index.js";
+	import * as Card from "#lib/components/ui/card/index.js";
+	import { Switch } from "#lib/components/ui/switch/index.js";
+	import { saveUiSettings } from "#lib/settings/settings.remote.js";
+	import { theme } from "#lib/settings/theme.svelte.js";
 	import {
 		type Accent,
 		STREAM_QUALITIES,
 		type UiSettings,
 		WATCH_REGIONS,
-	} from "$lib/settings/ui-settings.js";
-	import { pageTitle } from "$lib/stores/title.svelte.js";
-	import { cn } from "$lib/utils.js";
+	} from "#lib/settings/ui-settings.js";
+	import { pageTitle } from "#lib/stores/title.svelte.js";
+	import { cn } from "#lib/utils.js";
+	import { resolve } from "$app/paths";
 
 	pageTitle.set("Settings");
 
@@ -358,8 +358,9 @@
 			</Card.Description>
 		</Card.Header>
 		<Card.Content>
-			<Button href={resolve("/addons")} variant="outline">
-				<PuzzleIcon data-icon="inline-start" /> Manage addons
+			<Button href={resolve('addons')} variant="outline">
+				<PuzzleIcon data-icon="inline-start" />
+				Manage addons
 			</Button>
 		</Card.Content>
 	</Card.Root>

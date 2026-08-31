@@ -1,5 +1,5 @@
+import type { HealthStatus } from "#lib/nuvio/types.js";
 import { getRequestEvent, query } from "$app/server";
-import type { HealthStatus } from "$lib/nuvio/types.js";
 
 export interface HealthReport {
 	status: HealthStatus;

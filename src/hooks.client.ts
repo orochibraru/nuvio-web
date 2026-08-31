@@ -1,5 +1,5 @@
-import type { HandleClientError } from "@sveltejs/kit";
-import { dev } from "$app/environment";
+import type { HandleClientError } from "@sveltejs/kit/hooks";
+import { dev } from "$app/env";
 
 function makeid(length: number) {
 	let result = "";
@@ -12,11 +12,11 @@ function makeid(length: number) {
 	return result;
 }
 
-export const handleError: HandleClientError = ({ error, event, message }) => {
+export const handleError: HandleClientError = ({ error, event }) => {
 	const errorId = makeid(24);
 
 	// biome-ignore lint/suspicious/noConsole: client-side error log, correlated to the server by errorId
-	console.error("An error occurred on the client side:", error, event, message);
+	console.error("An error occurred on the client side:", error, event);
 
 	if (dev) {
 		if (error instanceof Error) {

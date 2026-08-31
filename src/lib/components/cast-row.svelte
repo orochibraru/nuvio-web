@@ -1,8 +1,8 @@
 <script lang="ts">
+	import { type Person, personInfo } from "#lib/people.js";
+	import { cn } from "#lib/utils.js";
 	import { browser } from "$app/env";
 	import { resolve } from "$app/paths";
-	import { type Person, personInfo } from "$lib/people.js";
-	import { cn } from "$lib/utils.js";
 
 	let { names, class: className }: { names: string[]; class?: string } =
 		$props();
@@ -42,7 +42,7 @@
 	{#each names as name (name)}
 		{@const person = people[name]}
 		<a
-			href={resolve(`/search?q=${encodeURIComponent(name)}`)}
+			href={resolve(`search?q=${encodeURIComponent(name)}`)}
 			class="group/cast flex w-40 shrink-0 flex-col gap-2 rounded-xl border border-border/50 bg-card/40 p-2.5 transition-colors hover:border-primary/40 hover:bg-card"
 		>
 			<div class="relative aspect-square w-full overflow-hidden rounded-lg bg-muted">

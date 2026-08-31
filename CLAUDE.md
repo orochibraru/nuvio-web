@@ -10,21 +10,27 @@
   "unsafe" so `bun run lint:fix` won't add the braces for you — write them.
 - Package manager is **bun**. `bun run lint` / `lint:fix` / `check`. Never
   npx/npm.
-- `$lib` alias (SvelteKit). Import barrels as `$lib/foo/index.js`.
+- **`#lib` subpath imports** (SvelteKit 3 dropped the `$lib` alias). Explicit
+  extensions, barrels as `#lib/foo/index.js`. Configured in `package.json`
+  `imports`. `$app/*` / `$env` → `$app/env` still work as before.
 - **Every internal link goes through `resolve` from `$app/paths`.** `href`,
-  `goto(...)`, `redirect(...)`, `depends(...)` targets — all of them. Use the
-  route-id form with params so a renamed or deleted route fails `bun run check`:
-  `resolve('/detail/[type]/[id]', { type, id })`, not a hand-built
-  `` `/detail/${type}/${id}` ``. Only external URLs (`https://…`, `vlc://…`,
-  provider deep links) skip it.
-- `redirect()` / `error()` from `@sveltejs/kit` **throw on their own** in
-  SvelteKit 2 — call them bare (`redirect(303, resolve('/profiles'))`), never
-  `throw redirect(...)`.
+  `goto(...)`, `redirect(...)`, `depends(...)` targets — all of them. SvelteKit
+  3 type-checks both forms against the route table, so either fails
+  `bun run check` on a renamed/deleted route. Use the pathname form **without a
+  leading slash** (`resolve('detail/' + type + '/' + id)`,
+  `resolve('discover')`) or the route-id form with params
+  (`resolve('/(protected)/(app)/(watch)/detail/[type]/[id]', { type, id })`).
+  Prefer the pathname form — it's shorter and route groups don't leak into it.
+  The site root is `resolve('/(protected)/(app)')` (there is no bare `/` route).
+  Only external URLs (`https://…`, `vlc://…`, provider deep links) skip
+  `resolve`.
+- `redirect()` / `error()` from `@sveltejs/kit` **throw on their own** — call
+  them bare (`redirect(303, resolve('profiles'))`), never `throw redirect(...)`.
 - **`+page.server.ts` loads don't `await` — they stream.** Return the promises
   from `*-data.ts` helpers directly (`return { items: pullX(nuvio, id) }`);
   navigation completes on the shell and the page fills in behind a skeleton.
   Bridge each streamed promise to reactive state with `streamed()` from
-  `$lib/stream.svelte.ts` (`.current` / `.ready`). Use
+  `#lib/stream.svelte.ts` (`.current` / `.ready`). Use
   `locals.nuvio.withFetch(fetch)` (the load's own `fetch`), a plain `*-data.ts`
   helper (never a remote `query`), `.catch()` every pull to an empty/default,
   and **no `Promise.all`**. Addon fan-out (`getMeta` / catalogs / streams) goes
@@ -38,7 +44,7 @@
   `.refresh()`).
 - A `.remote.ts` file may export **only** remote functions — put schemas / types
   / constants / server data-helpers in a sibling `*.ts` (see
-  `$lib/settings/settings-data.ts`).
+  `#lib/settings/settings-data.ts`).
 
 ## Verifying UI changes
 

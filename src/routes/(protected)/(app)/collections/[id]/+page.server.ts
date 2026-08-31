@@ -1,5 +1,5 @@
-import { listCatalogs } from "$lib/addons/server.js";
-import { pullCollections } from "$lib/collections/collections-data.js";
+import { listCatalogs } from "#lib/addons/server.js";
+import { pullCollections } from "#lib/collections/collections-data.js";
 import type { PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = ({ params, locals, fetch }) => {

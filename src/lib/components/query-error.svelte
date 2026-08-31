@@ -1,6 +1,6 @@
 <script lang="ts">
 	import RefreshCwIcon from "@lucide/svelte/icons/refresh-cw";
-	import { Button } from "$lib/components/ui/button/index.js";
+	import { Button } from "#lib/components/ui/button/index.js";
 
 	let {
 		message = "Couldn't load this.",

@@ -5,18 +5,18 @@
 	import PinIcon from "@lucide/svelte/icons/pin";
 	import PlusIcon from "@lucide/svelte/icons/plus";
 	import { toast } from "svelte-sonner";
-	import { invalidateAll } from "$app/navigation";
+	import { saveCollections } from "#lib/collections/collections.remote.js";
+	import EmptyState from "#lib/components/empty-state.svelte";
+	import { Button } from "#lib/components/ui/button/index.js";
+	import * as Dialog from "#lib/components/ui/dialog/index.js";
+	import * as DropdownMenu from "#lib/components/ui/dropdown-menu/index.js";
+	import { Input } from "#lib/components/ui/input/index.js";
+	import type { Collection } from "#lib/nuvio/index.js";
+	import { pageTitle } from "#lib/stores/title.svelte.js";
+	import { streamed } from "#lib/stream.svelte.js";
+	import { cn } from "#lib/utils.js";
+	import { refreshAll } from "$app/navigation";
 	import { resolve } from "$app/paths";
-	import { saveCollections } from "$lib/collections/collections.remote";
-	import EmptyState from "$lib/components/empty-state.svelte";
-	import { Button } from "$lib/components/ui/button/index.js";
-	import * as Dialog from "$lib/components/ui/dialog/index.js";
-	import * as DropdownMenu from "$lib/components/ui/dropdown-menu/index.js";
-	import { Input } from "$lib/components/ui/input/index.js";
-	import type { Collection } from "$lib/nuvio/index.js";
-	import { pageTitle } from "$lib/stores/title.svelte.js";
-	import { streamed } from "$lib/stream.svelte.js";
-	import { cn } from "$lib/utils.js";
 
 	pageTitle.set("Collections");
 
@@ -40,7 +40,7 @@
 		saving = true;
 		try {
 			await saveCollections(next);
-			await invalidateAll();
+			await refreshAll();
 		} catch {
 			toast.error("Couldn't save collections.");
 		} finally {
@@ -102,8 +102,10 @@
 			<h1 class="text-3xl font-bold tracking-tight">Collections</h1>
 			<p class="text-sm text-muted-foreground">Group catalogs into folders for a custom layout.</p>
 		</div>
-		<Button onclick={() => (dialogOpen = true)}>
-			<PlusIcon data-icon="inline-start" /> New collection
+
+		<Button onclick={() => dialogOpen = true}>
+			<PlusIcon data-icon="inline-start" />
+			New collection
 		</Button>
 	</div>
 
@@ -120,8 +122,9 @@
 			description="Bundle catalogs from your addons into folders and browse them your way."
 		>
 			{#snippet actions()}
-				<Button onclick={() => (dialogOpen = true)}>
-					<PlusIcon data-icon="inline-start" /> New collection
+				<Button onclick={() => dialogOpen = true}>
+					<PlusIcon data-icon="inline-start" />
+					New collection
 				</Button>
 			{/snippet}
 		</EmptyState>
@@ -136,10 +139,12 @@
 				>
 					<span
 						class="flex size-11 shrink-0 items-center justify-center rounded-xl bg-foreground/5 text-muted-foreground transition-colors group-hover/col:text-primary"
+					><FolderIcon class="size-5" /></span>
+
+					<a
+						href={resolve(`collections/${collection.id}`)}
+						class="min-w-0 flex-1"
 					>
-						<FolderIcon class="size-5" />
-					</span>
-					<a href={resolve(`/collections/${collection.id}`)} class="min-w-0 flex-1">
 						<div class="flex items-center gap-1.5">
 							{#if collection.pinToTop}
 								<PinIcon class="size-3.5 shrink-0 text-primary" />
@@ -192,8 +197,12 @@
 			onkeydown={(event) => event.key === "Enter" && create()}
 		/>
 		<Dialog.Footer class="mt-4">
-			<Button variant="ghost" onclick={() => (dialogOpen = false)}>Cancel</Button>
-			<Button disabled={!newTitle.trim() || saving} onclick={create}>Create</Button>
+			<Button variant="ghost" onclick={() => dialogOpen = false}>Cancel</Button>
+
+			<Button
+				disabled={!newTitle.trim() || saving}
+				onclick={create}
+			>Create</Button>
 		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>
@@ -208,8 +217,12 @@
 			onkeydown={(event) => event.key === "Enter" && applyRename()}
 		/>
 		<Dialog.Footer class="mt-4">
-			<Button variant="ghost" onclick={() => (renaming = null)}>Cancel</Button>
-			<Button disabled={!renameTitle.trim() || saving} onclick={applyRename}>Save</Button>
+			<Button variant="ghost" onclick={() => renaming = null}>Cancel</Button>
+
+			<Button
+				disabled={!renameTitle.trim() || saving}
+				onclick={applyRename}
+			>Save</Button>
 		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>

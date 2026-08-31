@@ -1,16 +1,16 @@
 <script lang="ts">
 	import BookmarkIcon from "@lucide/svelte/icons/bookmark";
 	import XIcon from "@lucide/svelte/icons/x";
+	import EmptyState from "#lib/components/empty-state.svelte";
+	import MediaPoster from "#lib/components/media-poster.svelte";
+	import { Button } from "#lib/components/ui/button/index.js";
+	import { pageTitle } from "#lib/stores/title.svelte.js";
+	import { streamed } from "#lib/stream.svelte.js";
+	import { sync } from "#lib/sync/store.svelte.js";
+	import { cn } from "#lib/utils.js";
 	import { goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
-	import EmptyState from "$lib/components/empty-state.svelte";
-	import MediaPoster from "$lib/components/media-poster.svelte";
-	import { Button } from "$lib/components/ui/button/index.js";
-	import { pageTitle } from "$lib/stores/title.svelte.js";
-	import { streamed } from "$lib/stream.svelte.js";
-	import { sync } from "$lib/sync/store.svelte.js";
-	import { cn } from "$lib/utils.js";
 
 	pageTitle.set("Library");
 
@@ -42,14 +42,14 @@
 	);
 
 	function setParam(key: string, value: string, fallback: string) {
-		const params = new URLSearchParams(page.url.searchParams);
+		const params = new URLSearchParams(page.url.search);
 		if (value === fallback) {
 			params.delete(key);
 		} else {
 			params.set(key, value);
 		}
 		const query = params.toString();
-		void goto(query ? `?${query}` : "?", { keepFocus: true, noScroll: true });
+		void goto(query ? `?${query}` : "?", { reset: false });
 	}
 
 	interface GridItem {
@@ -86,6 +86,7 @@
 				}))
 			: ssrItems,
 	);
+
 	const progress = $derived(
 		useStore ? sync.libraryProgress : progressStream.current,
 	);
@@ -175,7 +176,7 @@
 			description="Add movies and series from any detail page and they'll show up here."
 		>
 			{#snippet actions()}
-				<Button href={resolve("/discover")} variant="outline">Browse catalogs</Button>
+				<Button href={resolve('discover')} variant="outline">Browse catalogs</Button>
 			{/snippet}
 		</EmptyState>
 	{:else}
@@ -184,7 +185,7 @@
 		>
 			{#each shown as item (`${item.type}:${item.id}`)}
 				<div class="group relative">
-					<MediaPoster {item} progress={progress[item.id]} />
+					<MediaPoster item={item} progress={progress[item.id]} />
 					<button
 						type="button"
 						aria-label="Remove from library"

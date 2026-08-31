@@ -1,5 +1,5 @@
+import { requireProfile } from "#lib/server/guards.js";
 import { command } from "$app/server";
-import { requireProfile } from "$lib/server/guards.js";
 import { pullSettingsBlob } from "./settings-data.ts";
 import { PLATFORM, UI_VERSION, uiSettingsSchema } from "./ui-settings.ts";
 

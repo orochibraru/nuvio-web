@@ -15,17 +15,17 @@
 		installedAddons,
 		previewAddon,
 		saveAddons,
-	} from "$lib/addons/addons.remote";
-	import * as Alert from "$lib/components/ui/alert/index.js";
-	import { Badge } from "$lib/components/ui/badge/index.js";
-	import { Button } from "$lib/components/ui/button/index.js";
-	import * as Card from "$lib/components/ui/card/index.js";
-	import * as Dialog from "$lib/components/ui/dialog/index.js";
-	import * as Field from "$lib/components/ui/field/index.js";
-	import { Input } from "$lib/components/ui/input/index.js";
-	import { Spinner } from "$lib/components/ui/spinner/index.js";
-	import { pageTitle } from "$lib/stores/title.svelte.js";
-	import { cn } from "$lib/utils.js";
+	} from "#lib/addons/addons.remote.js";
+	import * as Alert from "#lib/components/ui/alert/index.js";
+	import { Badge } from "#lib/components/ui/badge/index.js";
+	import { Button } from "#lib/components/ui/button/index.js";
+	import * as Card from "#lib/components/ui/card/index.js";
+	import * as Dialog from "#lib/components/ui/dialog/index.js";
+	import * as Field from "#lib/components/ui/field/index.js";
+	import { Input } from "#lib/components/ui/input/index.js";
+	import { Spinner } from "#lib/components/ui/spinner/index.js";
+	import { pageTitle } from "#lib/stores/title.svelte.js";
+	import { cn } from "#lib/utils.js";
 
 	pageTitle.set("Addons");
 

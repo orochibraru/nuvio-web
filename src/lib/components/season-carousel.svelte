@@ -8,9 +8,9 @@
 	import PlayIcon from "@lucide/svelte/icons/play";
 	import StarIcon from "@lucide/svelte/icons/star";
 	import TvIcon from "@lucide/svelte/icons/tv";
-	import type { MetaVideo } from "$lib/addons/index.js";
-	import * as ContextMenu from "$lib/components/ui/context-menu/index.js";
-	import { cn } from "$lib/utils.js";
+	import type { MetaVideo } from "#lib/addons/index.js";
+	import * as ContextMenu from "#lib/components/ui/context-menu/index.js";
+	import { cn } from "#lib/utils.js";
 
 	let {
 		videos,

@@ -1,6 +1,6 @@
 import * as v from "valibot";
+import { requireProfile } from "#lib/server/guards.js";
 import { getRequestEvent, query } from "$app/server";
-import { requireProfile } from "$lib/server/guards.js";
 import {
 	EMPTY_PROVIDERS,
 	JUSTWATCH_GRAPHQL,

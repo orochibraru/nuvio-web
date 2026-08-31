@@ -1,7 +1,7 @@
 import {
 	pullLibraryItems,
 	pullLibraryProgress,
-} from "$lib/library/library-data.js";
+} from "#lib/library/library-data.js";
 import type { PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = ({ locals, fetch }) => {

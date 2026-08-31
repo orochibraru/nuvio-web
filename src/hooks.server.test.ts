@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("$app/env", () => ({ dev: false }));
-vi.mock("$lib/server/session.js", () => ({
+vi.mock("#lib/server/session.js", () => ({
 	readStoredSession: () => null,
 	createServerClient: () => ({ marker: "client" }),
 	isExpired: () => false,
@@ -43,15 +43,19 @@ describe("handle", () => {
 });
 
 describe("handleError", () => {
-	it("ignores 404s", () => {
+	it("ignores framework 404s", () => {
 		expect(
-			handleError({ status: 404, event: {}, error: new Error("x") } as any),
+			handleError({
+				kind: "framework",
+				event: {},
+				error: { status: 404, message: "Not Found" },
+			} as any),
 		).toBeUndefined();
 	});
 
 	it("returns an errorId + message for real errors", () => {
 		const result = handleError({
-			status: 500,
+			kind: "unknown",
 			event: { request: { method: "GET" }, url: { pathname: "/x" } },
 			error: new Error("boom"),
 		} as any) as { errorId: string; message: string };

@@ -3,15 +3,15 @@
 	import SearchIcon from "@lucide/svelte/icons/search";
 	import XIcon from "@lucide/svelte/icons/x";
 	import { untrack } from "svelte";
+	import { homeRows, searchCatalogs } from "#lib/addons/addons.remote.js";
+	import MediaGrid from "#lib/components/media-grid.svelte";
+	import MediaRow from "#lib/components/media-row.svelte";
+	import { Input } from "#lib/components/ui/input/index.js";
+	import { searchHistory } from "#lib/search-history.svelte.js";
+	import { pageTitle } from "#lib/stores/title.svelte.js";
 	import { afterNavigate, goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
-	import { homeRows, searchCatalogs } from "$lib/addons/addons.remote";
-	import MediaGrid from "$lib/components/media-grid.svelte";
-	import MediaRow from "$lib/components/media-row.svelte";
-	import { Input } from "$lib/components/ui/input/index.js";
-	import { searchHistory } from "$lib/search-history.svelte.js";
-	import { pageTitle } from "$lib/stores/title.svelte.js";
 
 	const term = $derived((page.url.searchParams.get("q") ?? "").trim());
 
@@ -27,9 +27,9 @@
 		}
 		void goto(
 			query
-				? resolve(`/search?q=${encodeURIComponent(query)}`)
-				: resolve("/search"),
-			{ keepFocus: true, noScroll: true, replaceState: replace },
+				? resolve(`search?q=${encodeURIComponent(query)}`)
+				: resolve("search"),
+			{ reset: false, replace },
 		);
 	}
 
@@ -44,7 +44,11 @@
 	});
 
 	// Keep the box in sync with back / forward navigation.
-	afterNavigate(() => {
+	afterNavigate(({ shallow }) => {
+		if (shallow) {
+			return;
+		}
+
 		const q = (page.url.searchParams.get("q") ?? "").trim();
 		if (q !== input.trim()) {
 			input = q;
@@ -89,9 +93,7 @@
 			<MediaRow
 				title={row.title}
 				items={row.metas}
-				href={resolve(
-					`/discover?c=${encodeURIComponent(`${row.addonId}|${row.type}|${row.id}`)}`,
-				)}
+				href={resolve(`discover?c=${encodeURIComponent(`${row.addonId}|${row.type}|${row.id}`)}`)}
 			/>
 		{/each}
 	{/if}

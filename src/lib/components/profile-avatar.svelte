@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { type ProfileView, profileInitial } from "$lib/profile.js";
-	import { cn } from "$lib/utils.js";
+	import { type ProfileView, profileInitial } from "#lib/profile.js";
+	import { cn } from "#lib/utils.js";
 
 	let { profile, class: className }: { profile: ProfileView; class?: string } =
 		$props();

@@ -3,11 +3,11 @@
 	import PlayIcon from "@lucide/svelte/icons/play";
 	import Trash2Icon from "@lucide/svelte/icons/trash-2";
 	import { toast } from "svelte-sonner";
+	import * as ContextMenu from "#lib/components/ui/context-menu/index.js";
+	import { sync } from "#lib/sync/store.svelte.js";
+	import { formatRemaining } from "#lib/watch/runtime.js";
 	import { goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
-	import * as ContextMenu from "$lib/components/ui/context-menu/index.js";
-	import { sync } from "$lib/sync/store.svelte.js";
-	import { formatRemaining } from "$lib/watch/runtime.js";
 
 	let {
 		item,
@@ -28,10 +28,10 @@
 	} = $props();
 
 	const detailHref = $derived(
-		resolve(`/detail/${item.type}/${encodeURIComponent(item.id)}`),
+		resolve(`detail/${item.type}/${encodeURIComponent(item.id)}`),
 	);
 	const playHref = $derived(
-		resolve(`/player/${item.type}/${encodeURIComponent(item.videoId)}`),
+		resolve(`player/${item.type}/${encodeURIComponent(item.videoId)}`),
 	);
 	const started = $derived(item.progress >= 0.01);
 
@@ -67,7 +67,7 @@
 					alt=""
 					loading="lazy"
 					decoding="async"
-					onload={() => (bgLoaded = true)}
+					onload={() => bgLoaded = true}
 					class={`relative size-full object-cover transition-[transform,opacity] duration-500 group-hover/cw:scale-105 ${bgLoaded ? "opacity-100" : "opacity-0"}`}
 				/>
 			{/if}

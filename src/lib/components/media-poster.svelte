@@ -10,14 +10,14 @@
 	import StarIcon from "@lucide/svelte/icons/star";
 	import TvIcon from "@lucide/svelte/icons/tv";
 	import { toast } from "svelte-sonner";
+	import type { MetaPreview } from "#lib/addons/index.js";
+	import * as ContextMenu from "#lib/components/ui/context-menu/index.js";
+	import { posterSrcset } from "#lib/images.js";
+	import { sync } from "#lib/sync/store.svelte.js";
+	import { cn } from "#lib/utils.js";
+	import { parseRuntimeMs } from "#lib/watch/runtime.js";
 	import { goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
-	import type { MetaPreview } from "$lib/addons/index.js";
-	import * as ContextMenu from "$lib/components/ui/context-menu/index.js";
-	import { posterSrcset } from "$lib/images.js";
-	import { sync } from "$lib/sync/store.svelte.js";
-	import { cn } from "$lib/utils.js";
-	import { parseRuntimeMs } from "$lib/watch/runtime.js";
 
 	let {
 		item,
@@ -53,12 +53,12 @@
 				? "aspect-square"
 				: "aspect-2/3",
 	);
+
 	const rating = $derived(
 		typeof item.imdbRating === "number"
 			? item.imdbRating.toFixed(1)
 			: item.imdbRating || null,
 	);
-
 	const contentType = $derived(item.type === "series" ? "series" : "movie");
 	const inLibrary = $derived(
 		sync.authoritative && sync.isInLibrary(contentType, item.id),
@@ -110,116 +110,115 @@
 <ContextMenu.Root>
 	<ContextMenu.Trigger class="contents">
 		<a
-			href={resolve(`/detail/${item.type}/${encodeURIComponent(item.id)}`)}
+			href={resolve(`detail/${item.type}/${encodeURIComponent(item.id)}`)}
 			class={cn("group/poster flex flex-col gap-2.5", className)}
 			data-sveltekit-preload-data="hover"
 		>
-	<div
+			<div
 		class={cn(
 			"relative overflow-hidden rounded-xl bg-muted ring-1 ring-white/5 transition-all duration-300 ease-out",
 			"group-hover/poster:-translate-y-1 group-hover/poster:shadow-[0_24px_50px_-16px] group-hover/poster:shadow-black/70 group-hover/poster:ring-primary/60",
 			aspect,
 		)}
-	>
-		{#if item.poster && !broken}
-			{@const responsive = posterSrcset(item.poster)}
-			{#if !loaded}
-				<div class="skeleton absolute inset-0"></div>
-			{/if}
-			<img
-				src={item.poster}
-				srcset={responsive?.srcset}
-				sizes={responsive?.sizes}
-				alt={item.name}
-				loading="lazy"
-				decoding="async"
-				onload={() => (loaded = true)}
-				onerror={() => (broken = true)}
-				class={cn(
-					"size-full object-cover transition-[transform,opacity] duration-500 ease-out group-hover/poster:scale-[1.06]",
-					loaded ? "opacity-100" : "opacity-0",
-				)}
-			/>
-		{:else}
-			<div
-				class="flex size-full flex-col items-center justify-center gap-2 bg-linear-to-br from-muted via-muted to-background p-3 text-center"
 			>
-				{#if item.type === "series"}
-					<TvIcon class="size-7 text-muted-foreground/50" />
+				{#if item.poster && !broken}
+					{@const responsive = posterSrcset(item.poster)}
+					{#if !loaded}
+						<div class="skeleton absolute inset-0"></div>
+					{/if}
+					<img
+						src={item.poster}
+						srcset={responsive?.srcset}
+						sizes={responsive?.sizes}
+						alt={item.name}
+						loading="lazy"
+						decoding="async"
+						onload={() => loaded = true}
+						onerror={() => broken = true}
+						class={cn("size-full object-cover transition-[transform,opacity] duration-500 ease-out group-hover/poster:scale-[1.06]", loaded ? "opacity-100" : "opacity-0")}
+					/>
 				{:else}
-					<FilmIcon class="size-7 text-muted-foreground/50" />
-				{/if}
+					<div
+						class="flex size-full flex-col items-center justify-center gap-2 bg-linear-to-br from-muted via-muted to-background p-3 text-center"
+					>
+						{#if item.type === "series"}
+							<TvIcon class="size-7 text-muted-foreground/50" />
+						{:else}
+							<FilmIcon class="size-7 text-muted-foreground/50" />
+						{/if}
 				<span class="line-clamp-3 text-sm font-medium text-muted-foreground">
 					{item.name}
 				</span>
-			</div>
-		{/if}
+					</div>
+				{/if}
 
-		<div
-			class="pointer-events-none absolute inset-0 bg-linear-to-t from-black/70 via-black/5 to-transparent opacity-0 transition-opacity duration-300 group-hover/poster:opacity-100"
-		></div>
+				<div
+					class="pointer-events-none absolute inset-0 bg-linear-to-t from-black/70 via-black/5 to-transparent opacity-0 transition-opacity duration-300 group-hover/poster:opacity-100"
+				></div>
 
-		<div
-			class="pointer-events-none absolute inset-0 flex items-center justify-center opacity-0 transition-all duration-300 group-hover/poster:opacity-100"
-		>
-			<span
-				class="flex size-11 translate-y-1 items-center justify-center rounded-full bg-white/15 text-white ring-1 ring-white/25 backdrop-blur-md transition-transform duration-300 group-hover/poster:translate-y-0"
+				<div
+					class="pointer-events-none absolute inset-0 flex items-center justify-center opacity-0 transition-all duration-300 group-hover/poster:opacity-100"
+				>
+					<span
+						class="flex size-11 translate-y-1 items-center justify-center rounded-full bg-white/15 text-white ring-1 ring-white/25 backdrop-blur-md transition-transform duration-300 group-hover/poster:translate-y-0"
 			>
 				<PlayIcon class="size-5 translate-x-px fill-white" />
 			</span>
-		</div>
+				</div>
 
-		{#if rating}
-			<div
-				title="IMDb rating"
-				class="absolute top-2 left-2 flex items-center gap-1 rounded-md bg-black/55 px-1.5 py-0.5 text-xs font-semibold text-white ring-1 ring-white/10 backdrop-blur-md"
-			>
-				<StarIcon class="size-3 fill-amber-400 text-amber-400" />
-				{rating}
-			</div>
-		{/if}
+				{#if rating}
+					<div
+						title="IMDb rating"
+						class="absolute top-2 left-2 flex items-center gap-1 rounded-md bg-black/55 px-1.5 py-0.5 text-xs font-semibold text-white ring-1 ring-white/10 backdrop-blur-md"
+					>
+						<StarIcon class="size-3 fill-amber-400 text-amber-400" />
+						{rating}
+					</div>
+				{/if}
 
-		{#if watched || inLibrary}
-			<div class="absolute top-2 right-2 flex gap-1">
-				{#if watched}
-					<span
-						title="Watched"
-						class="flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground ring-1 ring-black/10"
+				{#if watched || inLibrary}
+					<div class="absolute top-2 right-2 flex gap-1">
+						{#if watched}
+							<span
+								title="Watched"
+								class="flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground ring-1 ring-black/10"
 					>
 						<CheckIcon class="size-3" />
 					</span>
-				{/if}
-				{#if inLibrary}
-					<span
-						title="In your library"
-						class="flex size-5 items-center justify-center rounded-full bg-black/55 text-white ring-1 ring-white/15 backdrop-blur-md"
+						{/if}
+						{#if inLibrary}
+							<span
+								title="In your library"
+								class="flex size-5 items-center justify-center rounded-full bg-black/55 text-white ring-1 ring-white/15 backdrop-blur-md"
 					>
 						<BookmarkIcon class="size-3 fill-current" />
 					</span>
+						{/if}
+					</div>
+				{/if}
+
+				{#if progress != null && progress > 0}
+					<div
+						class="absolute inset-x-0 bottom-0 h-1 bg-black/50"
+					>
+						<div
+							class="h-full rounded-r-full bg-primary"
+							style={`width: ${Math.min(100, Math.max(0, progress * 100))}%`}
+						></div>
+					</div>
 				{/if}
 			</div>
-		{/if}
 
-		{#if progress != null && progress > 0}
-			<div class="absolute inset-x-0 bottom-0 h-1 bg-black/50">
-				<div
-					class="h-full rounded-r-full bg-primary"
-					style={`width: ${Math.min(100, Math.max(0, progress * 100))}%`}
-				></div>
-			</div>
-		{/if}
-	</div>
-
-	<div class="min-w-0">
-		<p
-			class="truncate text-sm font-medium text-foreground/90 transition-colors group-hover/poster:text-foreground"
+			<div class="min-w-0">
+				<p
+					class="truncate text-sm font-medium text-foreground/90 transition-colors group-hover/poster:text-foreground"
 		>
 			{item.name}
 		</p>
-		{#if item.releaseInfo}
-			<p class="truncate text-xs text-muted-foreground">{item.releaseInfo}</p>
-		{/if}
-	</div>
+				{#if item.releaseInfo}
+					<p class="truncate text-xs text-muted-foreground">{item.releaseInfo}</p>
+				{/if}
+			</div>
 		</a>
 	</ContextMenu.Trigger>
 
@@ -242,10 +241,7 @@
 		{/if}
 		<ContextMenu.Separator />
 		<ContextMenu.Item
-			onSelect={() =>
-				goto(resolve(`/detail/${item.type}/${encodeURIComponent(item.id)}`))}
-		>
-			<InfoIcon /> View details
-		</ContextMenu.Item>
+			onSelect={() => goto(resolve(`detail/${item.type}/${encodeURIComponent(item.id)}`))}
+		><InfoIcon />View details</ContextMenu.Item>
 	</ContextMenu.Content>
 </ContextMenu.Root>

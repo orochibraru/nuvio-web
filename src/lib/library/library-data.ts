@@ -1,5 +1,5 @@
-import type { NuvioClient } from "$lib/nuvio/index.js";
-import type { ContentType } from "$lib/sync/types.js";
+import type { NuvioClient } from "#lib/nuvio/index.js";
+import type { ContentType } from "#lib/sync/types.js";
 
 /**
  * SSR helpers for the home / library page loads. Every one degrades to an empty

@@ -1,7 +1,7 @@
 <script lang="ts">
+	import { sourcesPanel } from "#lib/watch/sources-panel.svelte.js";
+	import StreamPanel from "#lib/watch/stream-panel.svelte";
 	import { beforeNavigate } from "$app/navigation";
-	import { sourcesPanel } from "$lib/watch/sources-panel.svelte.js";
-	import StreamPanel from "$lib/watch/stream-panel.svelte";
 
 	let { children } = $props();
 
@@ -12,7 +12,13 @@
 
 	// Any navigation dismisses it — including the pick → /player jump. Closing on
 	// `beforeNavigate` keeps it from flashing over the destination page.
-	beforeNavigate(() => sourcesPanel.close());
+	beforeNavigate(({ shallow }) => {
+		if (shallow) {
+			return;
+		}
+
+		return sourcesPanel.close();
+	});
 </script>
 
 {@render children()}

@@ -1,9 +1,9 @@
 import { error } from "@sveltejs/kit";
 import * as v from "valibot";
+import { getAddonClient } from "#lib/addons/server.js";
+import type { MetaPreview } from "#lib/addons/types.js";
+import { requireProfile } from "#lib/server/guards.js";
 import { command, query } from "$app/server";
-import { getAddonClient } from "$lib/addons/server.js";
-import type { MetaPreview } from "$lib/addons/types.js";
-import { requireProfile } from "$lib/server/guards.js";
 
 const catalogSourceSchema = v.object({
 	addonId: v.string(),

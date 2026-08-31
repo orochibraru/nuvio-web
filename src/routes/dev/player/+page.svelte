@@ -1,6 +1,6 @@
 <script lang="ts">
+	import VideoPlayer from "#lib/components/video-player.svelte";
 	import { page } from "$app/state";
-	import VideoPlayer from "$lib/components/video-player.svelte";
 
 	const src = $derived(page.url.searchParams.get("src") ?? "/e2e/sample.webm");
 	const start = $derived(Number(page.url.searchParams.get("start") ?? "0"));

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { NuvioClient } from "$lib/nuvio/index.js";
+import type { NuvioClient } from "#lib/nuvio/index.js";
 import { pullSettingsBlob, pullUiSettings } from "./settings-data.ts";
 import { DEFAULT_UI_SETTINGS } from "./ui-settings.ts";
 

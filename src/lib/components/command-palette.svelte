@@ -25,61 +25,61 @@
 	const destinations: Destination[] = [
 		{
 			label: "Home",
-			href: resolve("/"),
+			href: resolve("/(protected)/(app)"),
 			icon: HouseIcon,
 			keywords: ["dashboard", "start"],
 		},
 		{
 			label: "Discover",
-			href: resolve("/discover"),
+			href: resolve("discover"),
 			icon: CompassIcon,
 			keywords: ["browse", "catalog"],
 		},
 		{
 			label: "Library",
-			href: resolve("/library"),
+			href: resolve("library"),
 			icon: LibraryBigIcon,
 			keywords: ["saved", "my list"],
 		},
 		{
 			label: "Collections",
-			href: resolve("/collections"),
+			href: resolve("collections"),
 			icon: FolderIcon,
 			keywords: ["folders"],
 		},
 		{
 			label: "Watch history",
-			href: resolve("/history"),
+			href: resolve("history"),
 			icon: ClockIcon,
 			keywords: ["recent", "watched"],
 		},
 		{
 			label: "Your stats",
-			href: resolve("/stats"),
+			href: resolve("stats"),
 			icon: ChartColumnIcon,
 			keywords: ["minutes", "insights"],
 		},
 		{
 			label: "Settings",
-			href: resolve("/settings"),
+			href: resolve("settings"),
 			icon: SettingsIcon,
 			keywords: ["appearance", "theme", "playback"],
 		},
 		{
 			label: "Addons",
-			href: resolve("/addons"),
+			href: resolve("addons"),
 			icon: BlocksIcon,
 			keywords: ["sources", "providers"],
 		},
 		{
 			label: "Account",
-			href: resolve("/account"),
+			href: resolve("account"),
 			icon: CircleUserIcon,
 			keywords: ["profile", "password"],
 		},
 		{
 			label: "Switch profile",
-			href: resolve("/profiles"),
+			href: resolve("profiles"),
 			icon: UsersIcon,
 			keywords: ["accounts"],
 		},
@@ -107,7 +107,7 @@
 			return;
 		}
 		open = false;
-		void goto(resolve(`/search?q=${encodeURIComponent(trimmed)}`));
+		void goto(resolve(`search?q=${encodeURIComponent(trimmed)}`));
 	}
 
 	$effect(() => {
@@ -117,7 +117,7 @@
 	});
 </script>
 
-<svelte:window onkeydown={onWindowKeydown} />
+<svelte:window onkeydown={onWindowKeydown}></svelte:window>
 
 <Dialog.Root bind:open>
 	<Dialog.Portal>

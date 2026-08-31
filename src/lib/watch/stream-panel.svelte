@@ -9,10 +9,10 @@
 	import VolumeXIcon from "@lucide/svelte/icons/volume-x";
 	import XIcon from "@lucide/svelte/icons/x";
 	import { fly } from "svelte/transition";
+	import { theme } from "#lib/settings/theme.svelte.js";
+	import { cn } from "#lib/utils.js";
 	import { goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
-	import { theme } from "$lib/settings/theme.svelte";
-	import { cn } from "$lib/utils.js";
 	import { playbackHandoff } from "./playback.svelte.js";
 	import {
 		isPlayable,
@@ -161,7 +161,7 @@
 		if (isPlayable(row)) {
 			playbackHandoff.select(videoId, row, row.info.title);
 			// The (watch) layout closes the drawer on `afterNavigate`.
-			void goto(resolve(`/player/${type}/${encodeURIComponent(videoId)}`));
+			void goto(resolve(`player/${type}/${encodeURIComponent(videoId)}`));
 		} else if (row.externalUrl) {
 			window.open(row.externalUrl, "_blank", "noopener");
 		}
@@ -179,7 +179,7 @@
 	}
 </script>
 
-<svelte:window onkeydown={onKeydown} />
+<svelte:window onkeydown={onKeydown}></svelte:window>
 
 <button
 	type="button"
@@ -199,7 +199,7 @@
 			<button
 				type="button"
 				aria-label="Close filters"
-				onclick={() => (filtersOpen = false)}
+				onclick={() => filtersOpen = false}
 				class="rounded-md p-1.5 text-muted-foreground transition hover:bg-foreground/5 hover:text-foreground"
 			>
 				<XIcon class="size-4" />
@@ -247,11 +247,9 @@
 					<div class="flex flex-wrap gap-1.5">
 						<button
 							type="button"
-							onclick={() => (quality = null)}
-							class={cn(
-								"rounded-md border px-2.5 py-1 text-xs font-medium transition",
-								quality === null
-									? "border-primary bg-primary/10 text-primary"
+							onclick={() => quality = null}
+							class={cn("rounded-md border px-2.5 py-1 text-xs font-medium transition", quality === null
+								? "border-primary bg-primary/10 text-primary"
 									: "border-border text-muted-foreground hover:text-foreground",
 							)}
 						>
@@ -260,11 +258,9 @@
 						{#each qualities as q (q)}
 							<button
 								type="button"
-								onclick={() => (quality = quality === q ? null : q)}
-								class={cn(
-									"rounded-md border px-2.5 py-1 text-xs font-medium transition",
-									quality === q
-										? "border-primary bg-primary/10 text-primary"
+								onclick={() => quality = quality === q ? null : q}
+								class={cn("rounded-md border px-2.5 py-1 text-xs font-medium transition", quality === q
+									? "border-primary bg-primary/10 text-primary"
 										: "border-border text-muted-foreground hover:text-foreground",
 								)}
 							>
@@ -283,11 +279,9 @@
 					<div class="flex flex-wrap gap-1.5">
 						<button
 							type="button"
-							onclick={() => (addonFilter = null)}
-							class={cn(
-								"rounded-md border px-2.5 py-1 text-xs font-medium transition",
-								addonFilter === null
-									? "border-primary bg-primary/10 text-primary"
+							onclick={() => addonFilter = null}
+							class={cn("rounded-md border px-2.5 py-1 text-xs font-medium transition", addonFilter === null
+								? "border-primary bg-primary/10 text-primary"
 									: "border-border text-muted-foreground hover:text-foreground",
 							)}
 						>
@@ -296,12 +290,9 @@
 						{#each addons as addon (addon)}
 							<button
 								type="button"
-								onclick={() =>
-									(addonFilter = addonFilter === addon ? null : addon)}
-								class={cn(
-									"rounded-md border px-2.5 py-1 text-xs font-medium transition",
-									addonFilter === addon
-										? "border-primary bg-primary/10 text-primary"
+								onclick={() => addonFilter = addonFilter === addon ? null : addon}
+								class={cn("rounded-md border px-2.5 py-1 text-xs font-medium transition", addonFilter === addon
+									? "border-primary bg-primary/10 text-primary"
 										: "border-border text-muted-foreground hover:text-foreground",
 								)}
 							>
@@ -321,11 +312,9 @@
 						type="button"
 						role="switch"
 						aria-checked={showSilent}
-						onclick={() => (showSilent = !showSilent)}
-						class={cn(
-							"flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-xs font-medium transition",
-							showSilent
-								? "border-primary bg-primary/10 text-primary"
+						onclick={() => showSilent = !showSilent}
+						class={cn("flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-xs font-medium transition", showSilent
+							? "border-primary bg-primary/10 text-primary"
 								: "border-border text-muted-foreground hover:text-foreground",
 						)}
 					>
@@ -389,11 +378,9 @@
 			<button
 				type="button"
 				disabled={!result || rows.length === 0}
-				onclick={() => (filtersOpen = !filtersOpen)}
-				class={cn(
-					"flex items-center gap-1.5 rounded-full px-2 py-1 text-xs font-medium transition disabled:opacity-50",
-					filtersOpen || activeFilters > 0
-						? "text-primary"
+				onclick={() => filtersOpen = !filtersOpen}
+				class={cn("flex items-center gap-1.5 rounded-full px-2 py-1 text-xs font-medium transition disabled:opacity-50", filtersOpen || activeFilters > 0
+					? "text-primary"
 						: "text-muted-foreground hover:text-foreground",
 				)}
 			>
@@ -440,7 +427,7 @@
 		{:else if rows.length === 0}
 			<div class="flex flex-col gap-5">
 				{#if hasOfficial}
-					<WatchProvidersList {providers} heading="Watch officially" />
+					<WatchProvidersList providers={providers} heading="Watch officially" />
 				{/if}
 				<div class="flex flex-col items-center gap-2 py-8 text-center">
 					<p class="text-sm font-medium">No addon streams</p>
@@ -493,12 +480,16 @@
 							{/if}
 						</span>
 						<div class="min-w-0 flex-1">
-							<p class="line-clamp-2 text-xs font-medium leading-snug">{m.title}</p>
-							<div class="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px] text-muted-foreground">
-								<span class="flex items-center gap-0.5 font-medium text-foreground/70">
-									<PuzzleIcon class="size-2.5" />
-									{row.addonName}
-								</span>
+							<p
+								class="line-clamp-2 text-xs font-medium leading-snug"
+							>{m.title}</p>
+
+							<div
+								class="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px] text-muted-foreground"
+							>
+								<span
+									class="flex items-center gap-0.5 font-medium text-foreground/70"
+								><PuzzleIcon class="size-2.5" />{row.addonName}</span>
 
 								{#if m.quality}
 									<span class="rounded bg-foreground/10 px-1 py-px font-medium text-foreground/80">
@@ -546,9 +537,7 @@
 			{/if}
 
 			{#if hasOfficial}
-				<div class="mt-5 border-t border-border/60 pt-4">
-					<WatchProvidersList {providers} />
-				</div>
+				<div class="mt-5 border-t border-border/60 pt-4"><WatchProvidersList providers={providers} /></div>
 			{/if}
 		{/if}
 	</div>

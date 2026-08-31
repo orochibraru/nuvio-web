@@ -3,8 +3,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("$app/server", () => ({
 	query: (schemaOrFn: unknown, fn?: unknown) => fn ?? schemaOrFn,
 }));
-vi.mock("$env/dynamic/private", () => ({ env: {} }));
-vi.mock("$lib/server/guards.js", () => ({ requireProfile: () => ({}) }));
+vi.mock("$app/env/private", () => ({ INTRODB_API_KEY: undefined }));
+vi.mock("#lib/server/guards.js", () => ({ requireProfile: () => ({}) }));
 
 import { mediaSegments } from "./segments.remote.js";
 

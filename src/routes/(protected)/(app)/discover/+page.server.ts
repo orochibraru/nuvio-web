@@ -1,4 +1,4 @@
-import { listCatalogs } from "$lib/addons/server.js";
+import { listCatalogs } from "#lib/addons/server.js";
 import type { PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = ({ url }) => {

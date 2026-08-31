@@ -206,22 +206,27 @@ diverges from that.
       `noExcessiveLinesPerFile` ceiling). Decompose: lift the HLS + audio-issue
       detection `$effect` into a `silent-audio.svelte.ts` rune, drop the file
       threshold back toward 550.
-- [ ] Upgrade to SvelteKit next (SvelteKit 3 RC). **Attempted 2026-08-31, backed
-      out** — `@sveltejs/kit@3.0.0-next.25` has no migration guide yet and it's
-      a real migration, not a bump: - `resolve()` from `$app/paths` now types on
-      route _ids_ (incl. `(group)` segments), not URL pathnames — every
-      `resolve("/…")` call in the app fails to type-check. - the generated
-      tsconfig changed: root must `"extends": "$app/tsconfig"` and put
-      `"$app/types"` in `compilerOptions.types`; with those applied, `$lib/*`
-      stopped resolving in `svelte-check` (~600 phantom "cannot find module") —
-      needs investigation (rootDirs / paths interaction). - `svelte-check`
-      started type-checking the adapter's `build/` output (`checkJs` + new
-      include globs) — stale `build/` now poisons the check. - custom adapter
-      `@orochibraru/svelte-smol` peers `@sveltejs/kit ^2` only; needs an adapter
-      release or a compat check against kit 3's builder API. - also
-      de-experimentalises remote functions + `forkPreloads` (drop the
-      `experimental` flags in `vite.config.ts`) and changes
-      `onNavigate`/transition semantics. Needs a dedicated pass.
+- [x] Upgrade to SvelteKit 3 (RC — `@sveltejs/kit@3.0.0-next.25`, `svelte@5.57`,
+      `svelte-check@4.7`). Ran `bunx sv@next migrate sveltekit-3 --tasks all`,
+      then finished the manual tasks by hand: - `$lib` alias → `#lib` subpath
+      imports (`package.json` `imports` map). - `tsconfig.json` extends
+      `$app/tsconfig`, `types` includes `$app/types`. - `$app/environment` →
+      `$app/env`; `$env/dynamic/private` → `$app/env/private` via `src/env.ts`
+      (`defineEnvVars`, `INTRODB_API_KEY` stays optional). - `resolve()` calls:
+      pathname form lost its leading slash; the home route (no bare `/`) is
+      `resolve('/(protected)/(app)')`. - `handleError` hooks: no more top-level
+      `status` — discriminate on `kind` (`framework` 404s skipped); types now
+      from `@sveltejs/kit/hooks`. - `goto` `keepFocus`/`noScroll` →
+      `reset: false`; `replaceState` → `replace`; `page.url.searchParams` is
+      readonly → build a fresh `URLSearchParams` from `page.url.search`;
+      `invalidateAll()` → `refreshAll()`. -
+      `beforeNavigate`/`afterNavigate`/`onNavigate` now fire on shallow nav →
+      added `if (shallow) { return; }` guards. - custom adapter
+      `@orochibraru/svelte-smol@1.6.0` builds fine against kit 3 (one internal
+      `config.kit` deprecation warning — adapter's own code). `check` / `lint` /
+      `test:unit` (154) / `build` / `test:e2e` all green. Remote functions +
+      `forkPreloads` are still `experimental` in this RC, so the
+      `vite.config.ts` flags stay.
 
 ## Standing constraints
 

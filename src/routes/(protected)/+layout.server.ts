@@ -1,12 +1,12 @@
 import { redirect } from "@sveltejs/kit";
+import { toProfileView } from "#lib/profile.js";
 import { resolve } from "$app/paths";
-import { toProfileView } from "$lib/profile.js";
 import type { LayoutServerLoad } from "./$types";
 
 export const load: LayoutServerLoad = async ({ locals, url, fetch }) => {
 	if (!locals.session) {
 		const redirectTo = encodeURIComponent(url.pathname + url.search);
-		redirect(303, `${resolve("/auth/sign-in")}?redirectTo=${redirectTo}`);
+		redirect(303, `${resolve("auth/sign-in")}?redirectTo=${redirectTo}`);
 	}
 
 	const nuvio = locals.nuvio.withFetch(fetch);

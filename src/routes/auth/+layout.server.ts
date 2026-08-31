@@ -8,7 +8,7 @@ export const load: LayoutServerLoad = ({ locals, url }) => {
 		const safe =
 			target?.startsWith("/") && !target.startsWith("//")
 				? target
-				: resolve("/");
+				: resolve("/(protected)/(app)");
 		redirect(303, safe);
 	}
 };

@@ -1,6 +1,6 @@
+import { getAddonClient } from "#lib/addons/server.js";
+import { requireProfile } from "#lib/server/guards.js";
 import { query } from "$app/server";
-import { getAddonClient } from "$lib/addons/server.js";
-import { requireProfile } from "$lib/server/guards.js";
 
 export const watchHistory = query(async () => {
 	const { nuvio, profileId } = requireProfile();

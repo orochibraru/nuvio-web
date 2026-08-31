@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { MetaPreview } from "$lib/addons/index.js";
+	import type { MetaPreview } from "#lib/addons/index.js";
 	import MediaPoster from "./media-poster.svelte";
 
 	let {

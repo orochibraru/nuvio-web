@@ -21,20 +21,20 @@
 	import XIcon from "@lucide/svelte/icons/x";
 	import Hls from "hls.js";
 	import { onDestroy } from "svelte";
-	import PlaybackLoading from "$lib/components/playback-loading.svelte";
+	import PlaybackLoading from "#lib/components/playback-loading.svelte";
 	import {
 		SUBTITLE_SIZES,
 		type SubtitleSize,
 		subtitleFontSize,
-	} from "$lib/settings/ui-settings.js";
-	import { cn } from "$lib/utils.js";
-	import type { PlayerInfo } from "$lib/watch/player-info.js";
-	import PlayerInfoOverlay from "$lib/watch/player-info-overlay.svelte";
+	} from "#lib/settings/ui-settings.js";
+	import { cn } from "#lib/utils.js";
+	import type { PlayerInfo } from "#lib/watch/player-info.js";
+	import PlayerInfoOverlay from "#lib/watch/player-info-overlay.svelte";
 	import {
 		type AudioByteSample,
 		evaluateAudioTick,
 		reportedAudioTrack,
-	} from "$lib/watch/silent-audio.js";
+	} from "#lib/watch/silent-audio.js";
 
 	interface SubtitleTrack {
 		id?: string;

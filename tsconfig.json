@@ -1,23 +1,10 @@
 {
-	"extends": "./.svelte-kit/tsconfig.json",
+	"extends": "$app/tsconfig",
 	"compilerOptions": {
 		"rewriteRelativeImportExtensions": true,
-		"allowJs": true,
-		"checkJs": true,
-		"esModuleInterop": true,
-		"forceConsistentCasingInFileNames": true,
-		"resolveJsonModule": true,
-		"skipLibCheck": true,
 		"sourceMap": true,
 		"strict": true,
-		"moduleResolution": "bundler",
-		"types": ["node", "bun"]
-	}
-	// `include` / `exclude` come from the generated ./.svelte-kit/tsconfig.json.
-	// Do not redefine them here — the generated globs are relative to .svelte-kit/,
-	// so copying them up to the project root makes them resolve to nothing and
-	// svelte-check stops seeing every .svelte file.
-	//
-	// Path aliases are handled by https://svelte.dev/docs/kit/configuration#alias
-	// except $lib which is handled by https://svelte.dev/docs/kit/configuration#files
+		"types": ["node", "bun", "$app/types"]
+	},
+	"include": ["src"]
 }

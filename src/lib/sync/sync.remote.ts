@@ -1,8 +1,8 @@
 import * as v from "valibot";
+import type { LibraryItemInput, WatchProgressInput } from "#lib/nuvio/index.js";
+import { settleAll } from "#lib/pool.js";
+import { requireProfile } from "#lib/server/guards.js";
 import { command, query } from "$app/server";
-import type { LibraryItemInput, WatchProgressInput } from "$lib/nuvio/index.js";
-import { settleAll } from "$lib/pool.js";
-import { requireProfile } from "$lib/server/guards.js";
 
 const ORIGIN_CLIENT_ID = "nuvio-web";
 const DELTA_LIMIT = 500;

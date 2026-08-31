@@ -3,8 +3,8 @@
 	import TriangleAlertIcon from "@lucide/svelte/icons/triangle-alert";
 	import WifiOffIcon from "@lucide/svelte/icons/wifi-off";
 	import XIcon from "@lucide/svelte/icons/x";
+	import { apiHealth } from "#lib/system/health.remote.js";
 	import { browser } from "$app/env";
-	import { apiHealth } from "$lib/system/health.remote";
 
 	const healthQuery = apiHealth();
 	const report = $derived(healthQuery.current);

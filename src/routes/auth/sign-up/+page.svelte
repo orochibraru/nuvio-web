@@ -1,13 +1,13 @@
 <script lang="ts">
 	import AlertCircleIcon from "@lucide/svelte/icons/alert-circle";
+	import * as Alert from "#lib/components/ui/alert/index.js";
+	import { Button } from "#lib/components/ui/button/index.js";
+	import * as Card from "#lib/components/ui/card/index.js";
+	import * as Field from "#lib/components/ui/field/index.js";
+	import { Input } from "#lib/components/ui/input/index.js";
+	import { Spinner } from "#lib/components/ui/spinner/index.js";
+	import { pageTitle } from "#lib/stores/title.svelte.js";
 	import { page } from "$app/state";
-	import * as Alert from "$lib/components/ui/alert/index.js";
-	import { Button } from "$lib/components/ui/button/index.js";
-	import * as Card from "$lib/components/ui/card/index.js";
-	import * as Field from "$lib/components/ui/field/index.js";
-	import { Input } from "$lib/components/ui/input/index.js";
-	import { Spinner } from "$lib/components/ui/spinner/index.js";
-	import { pageTitle } from "$lib/stores/title.svelte.js";
 	import { signUp } from "../auth.remote.ts";
 
 	pageTitle.set("Sign up");

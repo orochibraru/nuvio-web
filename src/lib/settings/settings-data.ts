@@ -1,5 +1,5 @@
 import * as v from "valibot";
-import type { NuvioClient } from "$lib/nuvio/index.js";
+import type { NuvioClient } from "#lib/nuvio/index.js";
 import { PLATFORM, type UiSettings, uiSettingsSchema } from "./ui-settings.ts";
 
 /** The raw `web` settings blob for a profile, or `{}` on any failure. */

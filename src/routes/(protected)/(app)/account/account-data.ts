@@ -1,4 +1,4 @@
-import type { NuvioClient } from "$lib/nuvio/index.js";
+import type { NuvioClient } from "#lib/nuvio/index.js";
 
 /** Per-profile row counts for the account page. Empty on failure. */
 export async function pullSyncOverview(nuvio: NuvioClient): Promise<{

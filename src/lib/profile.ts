@@ -1,4 +1,4 @@
-import type { AvatarCatalogEntry, Profile } from "$lib/nuvio/index.js";
+import type { AvatarCatalogEntry, Profile } from "#lib/nuvio/index.js";
 
 export interface ProfileView extends Profile {
 	/** Resolved avatar image, or null when the profile falls back to a colour tile. */

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { NuvioClient } from "$lib/nuvio/index.js";
+import type { NuvioClient } from "#lib/nuvio/index.js";
 import { pullResumeRows } from "./watch-data.ts";
 
 function nuvioWith(rows: unknown[] | Promise<never>): NuvioClient {

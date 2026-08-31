@@ -3,7 +3,7 @@
 	import PlayIcon from "@lucide/svelte/icons/play";
 	import TvIcon from "@lucide/svelte/icons/tv";
 	import XIcon from "@lucide/svelte/icons/x";
-	import { cn } from "$lib/utils.js";
+	import { cn } from "#lib/utils.js";
 
 	interface Episode {
 		videoId: string;

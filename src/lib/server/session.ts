@@ -1,10 +1,10 @@
 import type { Cookies, RequestEvent } from "@sveltejs/kit";
-import { dev } from "$app/env";
 import {
 	type AuthSession,
 	NuvioClient,
 	type NuvioUser,
-} from "$lib/nuvio/index.js";
+} from "#lib/nuvio/index.js";
+import { dev } from "$app/env";
 
 const COOKIE_NAME = "nuvio_session";
 const PROFILE_COOKIE_NAME = "nuvio_profile";

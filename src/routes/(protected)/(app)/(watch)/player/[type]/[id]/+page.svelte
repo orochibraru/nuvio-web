@@ -6,36 +6,36 @@
 	import PlayIcon from "@lucide/svelte/icons/play";
 	import RotateCcwIcon from "@lucide/svelte/icons/rotate-ccw";
 	import { toast } from "svelte-sonner";
-	import { goto } from "$app/navigation";
-	import { resolve } from "$app/paths";
-	import { page } from "$app/state";
-	import { similarTitles } from "$lib/addons/addons.remote";
-	import PlaybackLoading from "$lib/components/playback-loading.svelte";
-	import { Button } from "$lib/components/ui/button/index.js";
-	import VideoPlayer from "$lib/components/video-player.svelte";
-	import { saveUiSettings } from "$lib/settings/settings.remote";
-	import { theme } from "$lib/settings/theme.svelte";
-	import type { UiSettings } from "$lib/settings/ui-settings.js";
-	import { pageTitle } from "$lib/stores/title.svelte.js";
-	import { sync } from "$lib/sync/store.svelte.js";
-	import { playbackHandoff } from "$lib/watch/playback.svelte.js";
-	import PlayerEpisodesPanel from "$lib/watch/player-episodes-panel.svelte";
-	import { mediaSegments } from "$lib/watch/segments.remote";
-	import { sourcesPanel } from "$lib/watch/sources-panel.svelte.js";
+	import { similarTitles } from "#lib/addons/addons.remote.js";
+	import PlaybackLoading from "#lib/components/playback-loading.svelte";
+	import { Button } from "#lib/components/ui/button/index.js";
+	import VideoPlayer from "#lib/components/video-player.svelte";
+	import { saveUiSettings } from "#lib/settings/settings.remote.js";
+	import { theme } from "#lib/settings/theme.svelte.js";
+	import type { UiSettings } from "#lib/settings/ui-settings.js";
+	import { pageTitle } from "#lib/stores/title.svelte.js";
+	import { sync } from "#lib/sync/store.svelte.js";
+	import { playbackHandoff } from "#lib/watch/playback.svelte.js";
+	import PlayerEpisodesPanel from "#lib/watch/player-episodes-panel.svelte";
+	import { mediaSegments } from "#lib/watch/segments.remote.js";
+	import { sourcesPanel } from "#lib/watch/sources-panel.svelte.js";
 	import {
 		audioSupport,
 		describeStream,
 		pickPreferredStream,
-	} from "$lib/watch/stream-format.js";
+	} from "#lib/watch/stream-format.js";
 	import {
 		getSubtitles,
 		playbackContext,
 		resolveStreams,
 		titleProgress,
-	} from "$lib/watch/watch.remote";
-	import { EMPTY_PROVIDERS } from "$lib/watch/watch-providers.js";
-	import { watchProviders } from "$lib/watch/watch-providers.remote";
-	import WatchProvidersList from "$lib/watch/watch-providers-list.svelte";
+	} from "#lib/watch/watch.remote.js";
+	import { EMPTY_PROVIDERS } from "#lib/watch/watch-providers.js";
+	import { watchProviders } from "#lib/watch/watch-providers.remote.js";
+	import WatchProvidersList from "#lib/watch/watch-providers-list.svelte";
+	import { goto } from "$app/navigation";
+	import { resolve } from "$app/paths";
+	import { page } from "$app/state";
 
 	const type = $derived(page.params.type ?? "movie");
 	const id = $derived(page.params.id ?? "");
@@ -209,12 +209,12 @@
 	}
 
 	function playerHref(videoId: string): string {
-		return resolve(`/player/series/${encodeURIComponent(videoId)}`);
+		return resolve(`player/series/${encodeURIComponent(videoId)}`);
 	}
 
 	// Detail page keys on the base content id, not an episode's `video_id`.
 	const detailHref = $derived(
-		resolve(`/detail/${type}/${encodeURIComponent(context.contentId)}`),
+		resolve(`detail/${type}/${encodeURIComponent(context.contentId)}`),
 	);
 
 	// Intro / outro timestamps (TheIntroDB) — power "Skip intro" and the
@@ -246,6 +246,7 @@
 				})
 			: undefined,
 	);
+
 	const suggestions = $derived(
 		(suggestionsQuery?.current?.metas ?? []).slice(0, 12),
 	);
@@ -307,7 +308,7 @@
 		if (history.length > 1) {
 			history.back();
 		} else {
-			void goto(resolve(`/detail/${type}/${encodeURIComponent(id)}`));
+			void goto(resolve(`detail/${type}/${encodeURIComponent(id)}`));
 		}
 	}
 
@@ -316,6 +317,7 @@
 	const externalLink = $derived(
 		active?.notWebReady ? (active.url ?? active.externalUrl) : null,
 	);
+
 	let copied = $state(false);
 	async function copyStreamLink() {
 		if (!externalLink) {
@@ -384,7 +386,7 @@
 						>
 							{#each suggestions as meta (meta.id)}
 								<a
-									href={resolve(`/detail/${meta.type}/${encodeURIComponent(meta.id)}`)}
+									href={resolve(`detail/${meta.type}/${encodeURIComponent(meta.id)}`)}
 									class="group/sug"
 								>
 									<div
@@ -417,11 +419,11 @@
 				poster={context.background ?? context.poster}
 				posterImage={context.poster}
 				info={context.info}
-				{detailHref}
+				detailHref={detailHref}
 				logo={context.logo}
 				title={context.heading}
 				subheading={active?.label ?? context.subheading}
-				{startTime}
+				startTime={startTime}
 				subtitles={subtitlesQuery?.current ?? []}
 				certification={context.certification}
 				genres={context.genres}
@@ -429,7 +431,7 @@
 				subtitleColor={theme.current.subtitleColor}
 				subtitleBackground={theme.current.subtitleBackground}
 				preferredLanguage={theme.current.subtitleLanguage}
-				{audioRisky}
+				audioRisky={audioRisky}
 				introStart={segments?.intro?.start ?? null}
 				introEnd={segments?.intro?.end ?? null}
 				outroStart={segments?.credits?.start ?? null}
@@ -440,7 +442,7 @@
 				onBack={() => history.back()}
 				onSources={openSources}
 				onSubtitleAppearance={saveSubtitleAppearance}
-				onEpisodes={hasEpisodes ? () => (episodesOpen = true) : undefined}
+				onEpisodes={hasEpisodes ? () => episodesOpen = true : undefined}
 				onNext={nextVideoId ? () => playVideo(nextVideoId) : undefined}
 			/>
 		{/key}
@@ -529,9 +531,7 @@
 			</div>
 
 			{#if providers.stream.length > 1 || providers.rent.length > 0 || providers.buy.length > 0}
-				<div class="dark mt-2 w-full text-left">
-					<WatchProvidersList {providers} heading={null} />
-				</div>
+				<div class="dark mt-2 w-full text-left"><WatchProvidersList providers={providers} heading={null} /></div>
 			{/if}
 		</div>
 	{/if}
@@ -541,7 +541,7 @@
 			episodes={context.episodes}
 			currentVideoId={context.videoId}
 			progress={episodeProgress}
-			onClose={() => (episodesOpen = false)}
+			onClose={() => episodesOpen = false}
 			onSelect={playVideo}
 		/>
 	{/if}

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { NuvioClient } from "$lib/nuvio/index.js";
+import type { NuvioClient } from "#lib/nuvio/index.js";
 import { pullLibraryItems, pullLibraryProgress } from "./library-data.ts";
 
 function client(over: Partial<NuvioClient>): NuvioClient {

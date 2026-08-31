@@ -1,5 +1,5 @@
-import { pooledMap } from "$lib/pool.js";
-import { safeFetch } from "$lib/server/safe-fetch.js";
+import { pooledMap } from "#lib/pool.js";
+import { safeFetch } from "#lib/server/safe-fetch.js";
 import { TtlCache } from "./cache.ts";
 
 // Cap on simultaneous upstream addon requests during a fan-out — keeps a

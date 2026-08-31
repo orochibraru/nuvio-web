@@ -1,17 +1,17 @@
 <script lang="ts">
 	import CompassIcon from "@lucide/svelte/icons/compass";
+	import { browseCatalog } from "#lib/addons/addons.remote.js";
+	import type { MetaPreview } from "#lib/addons/index.js";
+	import EmptyState from "#lib/components/empty-state.svelte";
+	import MediaGrid from "#lib/components/media-grid.svelte";
+	import QueryError from "#lib/components/query-error.svelte";
+	import { Button } from "#lib/components/ui/button/index.js";
+	import { pageTitle } from "#lib/stores/title.svelte.js";
+	import { streamed } from "#lib/stream.svelte.js";
+	import { cn } from "#lib/utils.js";
 	import { goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
-	import { browseCatalog } from "$lib/addons/addons.remote";
-	import type { MetaPreview } from "$lib/addons/index.js";
-	import EmptyState from "$lib/components/empty-state.svelte";
-	import MediaGrid from "$lib/components/media-grid.svelte";
-	import QueryError from "$lib/components/query-error.svelte";
-	import { Button } from "$lib/components/ui/button/index.js";
-	import { pageTitle } from "$lib/stores/title.svelte.js";
-	import { streamed } from "$lib/stream.svelte.js";
-	import { cn } from "$lib/utils.js";
 
 	pageTitle.set("Discover");
 
@@ -34,6 +34,7 @@
 			(entry) => `${entry.addonId}|${entry.type}|${entry.id}` === selectedKey,
 		) ?? catalogs[0],
 	);
+
 	const activeKey = $derived(
 		selected ? `${selected.addonId}|${selected.type}|${selected.id}` : null,
 	);
@@ -92,18 +93,18 @@
 	const items = $derived([...(firstPage?.metas ?? []), ...more]);
 
 	function navigate(params: URLSearchParams) {
-		goto(`?${params}`, { keepFocus: true, noScroll: true });
+		goto(`?${params}`, { reset: false });
 	}
 
 	function selectCatalog(key: string) {
-		const params = new URLSearchParams(page.url.searchParams);
+		const params = new URLSearchParams(page.url.search);
 		params.set("c", key);
 		params.delete("g");
 		navigate(params);
 	}
 
 	function setGenre(value: string) {
-		const params = new URLSearchParams(page.url.searchParams);
+		const params = new URLSearchParams(page.url.search);
 		if (value) {
 			params.set("g", value);
 		} else {
@@ -155,7 +156,7 @@
 			description="Add a catalog addon to start browsing movies and series."
 		>
 			{#snippet actions()}
-				<Button href={resolve("/addons")} variant="outline">Manage addons</Button>
+				<Button href={resolve('addons')} variant="outline">Manage addons</Button>
 			{/snippet}
 		</EmptyState>
 	{:else if selected}
@@ -221,7 +222,12 @@
 		{:else if items.length === 0}
 			<p class="py-10 text-center text-sm text-muted-foreground">Nothing in this catalog.</p>
 		{:else}
-			<MediaGrid {items} loading={loadingMore} skeletonCount={6} />
+			<MediaGrid
+				items={items}
+				loading={loadingMore}
+				skeletonCount={6}
+			/>
+
 			{#if !exhausted && (firstPage?.metas.length ?? 0) > 0}
 				<div class="flex justify-center pt-2">
 					<Button variant="outline" disabled={loadingMore} onclick={loadMore}>

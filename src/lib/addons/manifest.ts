@@ -1,4 +1,4 @@
-import { safeFetch } from "$lib/server/safe-fetch.js";
+import { safeFetch } from "#lib/server/safe-fetch.js";
 import { TtlCache } from "./cache.ts";
 import type {
 	AddonManifest,

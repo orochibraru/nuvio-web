@@ -1,4 +1,4 @@
-import type { Collection, NuvioClient } from "$lib/nuvio/index.js";
+import type { Collection, NuvioClient } from "#lib/nuvio/index.js";
 
 /** This profile's collections blob, or `[]` on any failure. */
 export async function pullCollections(

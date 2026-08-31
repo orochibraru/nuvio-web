@@ -4,16 +4,16 @@
 	import PlusIcon from "@lucide/svelte/icons/plus";
 	import Trash2Icon from "@lucide/svelte/icons/trash-2";
 	import { toast } from "svelte-sonner";
-	import ProfileAvatar from "$lib/components/profile-avatar.svelte";
-	import { Button } from "$lib/components/ui/button/index.js";
-	import * as Dialog from "$lib/components/ui/dialog/index.js";
-	import * as Field from "$lib/components/ui/field/index.js";
-	import { Input } from "$lib/components/ui/input/index.js";
-	import { Spinner } from "$lib/components/ui/spinner/index.js";
-	import { Switch } from "$lib/components/ui/switch/index.js";
-	import type { ProfileView } from "$lib/profile.js";
-	import { pageTitle } from "$lib/stores/title.svelte.js";
-	import { cn } from "$lib/utils.js";
+	import ProfileAvatar from "#lib/components/profile-avatar.svelte";
+	import { Button } from "#lib/components/ui/button/index.js";
+	import * as Dialog from "#lib/components/ui/dialog/index.js";
+	import * as Field from "#lib/components/ui/field/index.js";
+	import { Input } from "#lib/components/ui/input/index.js";
+	import { Spinner } from "#lib/components/ui/spinner/index.js";
+	import { Switch } from "#lib/components/ui/switch/index.js";
+	import type { ProfileView } from "#lib/profile.js";
+	import { pageTitle } from "#lib/stores/title.svelte.js";
+	import { cn } from "#lib/utils.js";
 	import {
 		createProfile,
 		deleteProfile,

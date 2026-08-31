@@ -1,8 +1,8 @@
 <script lang="ts">
 	import ChevronLeftIcon from "@lucide/svelte/icons/chevron-left";
 	import ChevronRightIcon from "@lucide/svelte/icons/chevron-right";
-	import type { MetaPreview } from "$lib/addons/index.js";
-	import { cn } from "$lib/utils.js";
+	import type { MetaPreview } from "#lib/addons/index.js";
+	import { cn } from "#lib/utils.js";
 	import MediaPoster from "./media-poster.svelte";
 
 	let {

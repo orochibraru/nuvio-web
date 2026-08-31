@@ -1,5 +1,5 @@
-import type { NuvioClient, NuvioUser } from "$lib/nuvio/index.js";
-import type { ProfileView } from "$lib/profile.js";
+import type { NuvioClient, NuvioUser } from "#lib/nuvio/index.js";
+import type { ProfileView } from "#lib/profile.js";
 
 declare global {
 	namespace App {

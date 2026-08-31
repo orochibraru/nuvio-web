@@ -1,5 +1,5 @@
-import type { NuvioClient } from "$lib/nuvio/index.js";
-import type { ContentType } from "$lib/sync/types.js";
+import type { NuvioClient } from "#lib/nuvio/index.js";
+import type { ContentType } from "#lib/sync/types.js";
 
 export interface HistoryRow {
 	id: string;

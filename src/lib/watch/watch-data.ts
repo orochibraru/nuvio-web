@@ -1,4 +1,4 @@
-import type { NuvioClient } from "$lib/nuvio/index.js";
+import type { NuvioClient } from "#lib/nuvio/index.js";
 
 /** A continue-watching card before any addon meta is attached. */
 export interface ResumeRow {

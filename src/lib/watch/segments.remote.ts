@@ -1,7 +1,7 @@
 import * as v from "valibot";
+import { requireProfile } from "#lib/server/guards.js";
+import { INTRODB_API_KEY } from "$app/env/private";
 import { query } from "$app/server";
-import { env } from "$env/dynamic/private";
-import { requireProfile } from "$lib/server/guards.js";
 import {
 	INTRODB_BASE,
 	type IntroDbMedia,
@@ -34,8 +34,8 @@ export const mediaSegments = query(
 		}
 
 		const headers: Record<string, string> = { accept: "application/json" };
-		if (env.INTRODB_API_KEY) {
-			headers.authorization = `Bearer ${env.INTRODB_API_KEY}`;
+		if (INTRODB_API_KEY) {
+			headers.authorization = `Bearer ${INTRODB_API_KEY}`;
 		}
 
 		try {

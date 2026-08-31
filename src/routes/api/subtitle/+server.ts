@@ -1,5 +1,5 @@
 import { error } from "@sveltejs/kit";
-import { safeFetch } from "$lib/server/safe-fetch.js";
+import { safeFetch } from "#lib/server/safe-fetch.js";
 import type { RequestHandler } from "./$types";
 
 function srtToVtt(input: string): string {

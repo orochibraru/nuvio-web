@@ -1,7 +1,7 @@
 <script lang="ts">
 	import StarIcon from "@lucide/svelte/icons/star";
 	import type { Snippet } from "svelte";
-	import { backdropSrcset } from "$lib/images.js";
+	import { backdropSrcset } from "#lib/images.js";
 
 	let {
 		title,

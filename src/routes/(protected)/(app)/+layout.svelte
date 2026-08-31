@@ -1,25 +1,25 @@
 <script lang="ts">
 	import MenuIcon from "@lucide/svelte/icons/menu";
 	import SearchIcon from "@lucide/svelte/icons/search";
+	import CommandPalette from "#lib/components/command-palette.svelte";
+	import FirstRunNotice from "#lib/components/first-run-notice.svelte";
+	import HealthBanner from "#lib/components/health-banner.svelte";
+	import ProfileAvatar from "#lib/components/profile-avatar.svelte";
+	import * as DropdownMenu from "#lib/components/ui/dropdown-menu/index.js";
+	import { theme } from "#lib/settings/theme.svelte.js";
+	import { sync } from "#lib/sync/store.svelte.js";
+	import { cn } from "#lib/utils.js";
 	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
-	import CommandPalette from "$lib/components/command-palette.svelte";
-	import FirstRunNotice from "$lib/components/first-run-notice.svelte";
-	import HealthBanner from "$lib/components/health-banner.svelte";
-	import ProfileAvatar from "$lib/components/profile-avatar.svelte";
-	import * as DropdownMenu from "$lib/components/ui/dropdown-menu/index.js";
-	import { theme } from "$lib/settings/theme.svelte";
-	import { sync } from "$lib/sync/store.svelte.js";
-	import { cn } from "$lib/utils.js";
 	import { signOut } from "../../auth/auth.remote.ts";
 
 	let { data, children } = $props();
 
 	const nav = [
-		{ href: resolve("/"), label: "Home", exact: true },
-		{ href: resolve("/discover"), label: "Discover" },
-		{ href: resolve("/library"), label: "Library" },
-		{ href: resolve("/collections"), label: "Collections" },
+		{ href: resolve("/(protected)/(app)"), label: "Home", exact: true },
+		{ href: resolve("discover"), label: "Discover" },
+		{ href: resolve("library"), label: "Library" },
+		{ href: resolve("collections"), label: "Collections" },
 	];
 
 	function isActive(href: string, exact?: boolean) {
@@ -68,7 +68,7 @@
 	});
 </script>
 
-<svelte:window onscroll={() => (scrolled = window.scrollY > 12)} />
+<svelte:window onscroll={() => scrolled = window.scrollY > 12}></svelte:window>
 
 <CommandPalette />
 <FirstRunNotice />
@@ -105,7 +105,7 @@
   >
     <div class="mx-auto flex h-14 items-center gap-6 px-6">
       <a
-        href={resolve("/")}
+        href={resolve("/(protected)/(app)")}
         class="flex items-center gap-2 text-lg font-bold tracking-tight"
       >
       <img  alt="Nuvio logo" src="/logo-text.webp" width={100}/>
@@ -151,7 +151,7 @@
 
       <div class="ml-auto flex items-center gap-3">
         <a
-          href={resolve("/search")}
+          href={resolve('search')}
           aria-current={isActive("/search") ? "page" : undefined}
           class={cn(
             "flex items-center gap-2 rounded-full border border-border bg-background/40 px-3 py-1.5 text-sm transition-colors",
@@ -184,32 +184,32 @@
             <DropdownMenu.Group>
               <DropdownMenu.Item>
                 {#snippet child({ props })}
-                  <a href={resolve("/profiles")} {...props}>Switch profile</a>
+                  <a href={resolve('profiles')} {...props}>Switch profile</a>
                 {/snippet}
               </DropdownMenu.Item>
               <DropdownMenu.Item>
                 {#snippet child({ props })}
-                  <a href={resolve("/history")} {...props}>Watch history</a>
+                  <a href={resolve('history')} {...props}>Watch history</a>
                 {/snippet}
               </DropdownMenu.Item>
               <DropdownMenu.Item>
                 {#snippet child({ props })}
-                  <a href={resolve("/stats")} {...props}>Your stats</a>
+                  <a href={resolve('stats')} {...props}>Your stats</a>
                 {/snippet}
               </DropdownMenu.Item>
               <DropdownMenu.Item>
                 {#snippet child({ props })}
-                  <a href={resolve("/addons")} {...props}>Addons</a>
+                  <a href={resolve('addons')} {...props}>Addons</a>
                 {/snippet}
               </DropdownMenu.Item>
               <DropdownMenu.Item>
                 {#snippet child({ props })}
-                  <a href={resolve("/settings")} {...props}>Settings</a>
+                  <a href={resolve('settings')} {...props}>Settings</a>
                 {/snippet}
               </DropdownMenu.Item>
               <DropdownMenu.Item>
                 {#snippet child({ props })}
-                  <a href={resolve("/account")} {...props}>Account</a>
+                  <a href={resolve('account')} {...props}>Account</a>
                 {/snippet}
               </DropdownMenu.Item>
             </DropdownMenu.Group>
@@ -259,13 +259,17 @@
           target="_blank"
           rel="noopener noreferrer"
           class="transition hover:text-foreground"
-        >
-          Support Nuvio
-        </a>
-        <a href={resolve("/settings")} class="transition hover:text-foreground"
-          >Appearance</a
-        >
-        <a href={resolve("/addons")} class="transition hover:text-foreground">Addons</a>
+        >Support Nuvio</a>
+
+        <a
+          href={resolve('settings')}
+          class="transition hover:text-foreground"
+        >Appearance</a>
+
+        <a
+          href={resolve('addons')}
+          class="transition hover:text-foreground"
+        >Addons</a>
       </div>
     </footer>
   </main>

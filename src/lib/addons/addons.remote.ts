@@ -1,7 +1,7 @@
 import { error } from "@sveltejs/kit";
 import * as v from "valibot";
+import type { AddonInput } from "#lib/nuvio/index.js";
 import { command, getRequestEvent, query } from "$app/server";
-import type { AddonInput } from "$lib/nuvio/index.js";
 import { fetchManifest } from "./manifest.ts";
 import {
 	getAddonClient,
