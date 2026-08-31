@@ -768,14 +768,15 @@
 					variant="ghost"
 					aria-label="Back 10 seconds"
 					onclick={() => seek(-10)}
-					class="pointer-events-auto size-14 rounded-full [&_svg]:size-8"
+					class="pointer-events-auto size-14 rounded-full [&_svg]:size-10"
 				>
 					<RotateCcwIcon />
 				</Button>
 				<Button
+					variant="ghost"
 					aria-label={ended ? "Replay" : paused ? "Play" : "Pause"}
 					onclick={togglePlay}
-					class="pointer-events-auto size-20 rounded-full shadow-lg backdrop-blur-sm transition hover:scale-105 sm:size-24 [&_svg]:size-12 sm:[&_svg]:size-14"
+					class="pointer-events-auto size-16 rounded-full bg-white/10 shadow-lg backdrop-blur-md transition hover:scale-105 hover:bg-white/20 sm:size-18 [&_svg]:size-12 sm:[&_svg]:size-14"
 				>
 					{#if ended}
 						<RotateCwIcon />
@@ -789,7 +790,7 @@
 					variant="ghost"
 					aria-label="Forward 10 seconds"
 					onclick={() => seek(10)}
-					class="pointer-events-auto size-14 rounded-full [&_svg]:size-8"
+					class="pointer-events-auto size-14 rounded-full [&_svg]:size-10"
 				>
 					<RotateCwIcon />
 				</Button>

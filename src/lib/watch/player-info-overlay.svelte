@@ -11,7 +11,6 @@
 		title,
 		subheading = null,
 		logo = null,
-		background = null,
 		poster = null,
 		certification = null,
 		genres = [],
@@ -70,20 +69,9 @@
 <!-- Dims the whole player and lays the info over it. Sits below the transport
      controls (z-30) whose container is click-transparent, so the Back button and
      bottom bar stay live. Dismiss with the ✕, the Info button, Escape or a CTA
-     — never by clicking the body. -->
-<div class="absolute inset-0 z-20 overflow-hidden" transition:fade={{ duration: 150 }}>
-	{#if background || poster}
-		<img
-			src={background ?? poster}
-			alt=""
-			class="absolute inset-0 size-full scale-105 object-cover object-center opacity-20"
-		/>
-	{/if}
+     never by clicking the body. -->
+<div class="absolute inset-0 z-90 bottom-20 top-20 overflow-hidden" transition:fade={{ duration: 150 }}>
 	<div class="absolute inset-0 bg-black/85"></div>
-	<div
-		class="pointer-events-none absolute -top-1/3 left-1/2 size-160 -translate-x-1/2 rounded-full opacity-50 blur-3xl"
-		style="background: radial-gradient(closest-side, oklch(0.55 0.24 275 / 0.45), transparent)"
-	></div>
 
 	<!-- Confined between the player's top bar and its bottom control bar;
 	     vertically centred, left-aligned. Scrolls inside its box when too tall. -->
