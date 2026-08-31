@@ -38,12 +38,23 @@
 		class?: string;
 	} = $props();
 
+	let posterEl = $state<HTMLImageElement>();
 	let broken = $state(false);
 	let loaded = $state(false);
+	let trackedPoster: string | null | undefined;
 	$effect(() => {
-		void item.poster;
-		broken = false;
-		loaded = false;
+		const poster = item.poster;
+		if (poster !== trackedPoster) {
+			// A genuinely new URL — start over.
+			trackedPoster = poster;
+			broken = false;
+		}
+		// The library grid re-publishes fresh `item` objects on every sync tick, so
+		// this effect re-runs constantly. When the `<img>` element is reused with an
+		// unchanged `src`, the browser fires no new `load` event — trust the element
+		// (`complete` + a real `naturalWidth`) instead of waiting on `onload`, or the
+		// poster gets stuck behind its skeleton forever.
+		loaded = Boolean(posterEl?.complete && posterEl.naturalWidth > 0);
 	});
 
 	const aspect = $derived(
@@ -127,14 +138,15 @@
 						<div class="skeleton absolute inset-0"></div>
 					{/if}
 					<img
+						bind:this={posterEl}
 						src={item.poster}
 						srcset={responsive?.srcset}
 						sizes={responsive?.sizes}
 						alt={item.name}
 						loading="lazy"
 						decoding="async"
-						onload={() => loaded = true}
-						onerror={() => broken = true}
+						onload={() => (loaded = true)}
+						onerror={() => (broken = true)}
 						class={cn("size-full object-cover transition-[transform,opacity] duration-500 ease-out group-hover/poster:scale-[1.06]", loaded ? "opacity-100" : "opacity-0")}
 					/>
 				{:else}

@@ -169,6 +169,51 @@ test("poster right-click menu: mark a movie watched, then unwatch", async ({
 	expect(errors, "runtime errors").toEqual([]);
 });
 
+test("library posters stay painted across a sync re-publish", async ({
+	page,
+}) => {
+	const errors = collectRuntimeErrors(page);
+
+	const poster = page.getByRole("link", { name: /Fight Club/i }).first();
+	await expect(async () => {
+		await page.goto("/library");
+		await expect(poster).toBeVisible({ timeout: 8000 });
+	}).toPass({ timeout: 40_000 });
+
+	// Wait for the poster image to actually paint (loaded → opacity 1).
+	const img = poster.locator("img").first();
+	await expect(img).toHaveCSS("opacity", "1", { timeout: 15_000 });
+	expect(
+		await img.evaluate((el: HTMLImageElement) => el.naturalWidth),
+	).toBeGreaterThan(0);
+
+	// A background delta pull re-publishes the store, which rebuilds every `item`
+	// object in the grid and re-runs each poster's load effect. That effect used
+	// to blank `loaded` — and since the cached <img> fires no fresh `load` event,
+	// the poster stayed stuck behind its skeleton forever. Drive a pull by
+	// toggling page visibility (the store syncs on `visibilitychange`).
+	for (let i = 0; i < 2; i += 1) {
+		await page.evaluate(() => {
+			Object.defineProperty(document, "visibilityState", {
+				value: "hidden",
+				configurable: true,
+			});
+			document.dispatchEvent(new Event("visibilitychange"));
+			Object.defineProperty(document, "visibilityState", {
+				value: "visible",
+				configurable: true,
+			});
+			document.dispatchEvent(new Event("visibilitychange"));
+		});
+		await page.waitForTimeout(2500);
+	}
+
+	await expect(img).toHaveCSS("opacity", "1");
+	await expect(poster.locator(".skeleton")).toHaveCount(0);
+
+	expect(errors, "runtime errors").toEqual([]);
+});
+
 test("home hero carousel: manual step changes the featured title", async ({
 	page,
 }) => {

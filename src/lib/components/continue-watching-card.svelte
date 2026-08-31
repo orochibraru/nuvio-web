@@ -35,10 +35,15 @@
 	);
 	const started = $derived(item.progress >= 0.01);
 
+	// The Continue-watching row re-publishes fresh `item` objects on every sync
+	// tick, so this effect re-runs constantly. A reused `<img>` with an unchanged
+	// `src` fires no new `load` event — read `complete` off the element instead of
+	// waiting on `onload`, or the art gets stuck behind its skeleton forever.
+	let bgEl = $state<HTMLImageElement>();
 	let bgLoaded = $state(false);
 	$effect(() => {
 		void item.background;
-		bgLoaded = false;
+		bgLoaded = Boolean(bgEl?.complete && bgEl.naturalWidth > 0);
 	});
 
 	function clearProgress() {
@@ -63,11 +68,12 @@
 			{/if}
 			{#if item.background}
 				<img
+					bind:this={bgEl}
 					src={item.background}
 					alt=""
 					loading="lazy"
 					decoding="async"
-					onload={() => bgLoaded = true}
+					onload={() => (bgLoaded = true)}
 					class={`relative size-full object-cover transition-[transform,opacity] duration-500 group-hover/cw:scale-105 ${bgLoaded ? "opacity-100" : "opacity-0"}`}
 				/>
 			{/if}

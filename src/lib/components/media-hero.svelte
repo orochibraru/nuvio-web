@@ -47,11 +47,16 @@
 	});
 
 	// Blur-up: the poster (small, usually already cached) shows blurred until the
-	// full backdrop paints, then the backdrop fades in over it.
+	// full backdrop paints, then the backdrop fades in over it. Sync the flag from
+	// the element — a reused `<img>` whose `src` didn't change fires no new `load`
+	// event, which would otherwise leave the backdrop stuck at `opacity-0`.
+	let backdropEl = $state<HTMLImageElement>();
 	let backdropLoaded = $state(false);
 	$effect(() => {
 		void background;
-		backdropLoaded = false;
+		backdropLoaded = Boolean(
+			backdropEl?.complete && backdropEl.naturalWidth > 0,
+		);
 	});
 </script>
 
@@ -69,6 +74,7 @@
         />
       {/if}
       <img
+        bind:this={backdropEl}
         src={background}
         srcset={bd?.srcset}
         sizes={bd?.sizes}
