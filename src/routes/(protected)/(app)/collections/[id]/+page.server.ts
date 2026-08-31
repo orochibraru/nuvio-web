@@ -1,19 +1,20 @@
-import { error } from "@sveltejs/kit";
-import { catalogList } from "$lib/addons/addons.remote";
-import { getCollections } from "$lib/collections/collections.remote";
+import { listCatalogs } from "$lib/addons/server.js";
+import { pullCollections } from "$lib/collections/collections-data.js";
 import type { PageServerLoad } from "./$types";
 
-export const load: PageServerLoad = async ({ params }) => {
-	// The collection metadata + catalog list (user data / addon manifests) are
-	// awaited; each folder's resolved contents (addon catalog fetches) load
-	// client-side with a skeleton so a slow addon never stalls the page.
-	const [collections, catalogs] = await Promise.all([
-		getCollections(),
-		catalogList(),
-	]);
-	const collection = collections.find((entry) => entry.id === params.id);
-	if (!collection) {
-		error(404, "Collection not found");
-	}
-	return { collection, catalogs, allCollections: collections };
+export const load: PageServerLoad = ({ params, locals, fetch }) => {
+	// Both stream in (unawaited). The page resolves `params.id` against the
+	// collection list and shows a "not found" state itself — no blocking 404.
+	const collections = pullCollections(
+		locals.nuvio.withFetch(fetch),
+		locals.profileId ?? 0,
+	);
+	return {
+		id: params.id,
+		collections,
+		collection: collections.then(
+			(list) => list.find((entry) => entry.id === params.id) ?? null,
+		),
+		catalogs: listCatalogs(),
+	};
 };

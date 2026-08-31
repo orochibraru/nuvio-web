@@ -11,6 +11,7 @@
 	import TvIcon from "@lucide/svelte/icons/tv";
 	import { toast } from "svelte-sonner";
 	import { goto } from "$app/navigation";
+	import { resolve } from "$app/paths";
 	import type { MetaPreview } from "$lib/addons/index.js";
 	import * as ContextMenu from "$lib/components/ui/context-menu/index.js";
 	import { posterSrcset } from "$lib/images.js";
@@ -103,7 +104,7 @@
 <ContextMenu.Root>
 	<ContextMenu.Trigger class="contents">
 		<a
-			href={`/detail/${item.type}/${encodeURIComponent(item.id)}`}
+			href={resolve(`/detail/${item.type}/${encodeURIComponent(item.id)}`)}
 			class={cn("group/poster flex flex-col gap-2.5", className)}
 			data-sveltekit-preload-data="hover"
 		>
@@ -229,7 +230,7 @@
 		<ContextMenu.Separator />
 		<ContextMenu.Item
 			onSelect={() =>
-				goto(`/detail/${item.type}/${encodeURIComponent(item.id)}`)}
+				goto(resolve(`/detail/${item.type}/${encodeURIComponent(item.id)}`))}
 		>
 			<InfoIcon /> View details
 		</ContextMenu.Item>

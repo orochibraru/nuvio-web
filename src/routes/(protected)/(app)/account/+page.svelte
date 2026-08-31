@@ -8,6 +8,7 @@
 	import { Spinner } from "$lib/components/ui/spinner/index.js";
 	import { NUVIO_WEBSITE_URL } from "$lib/nuvio/index.js";
 	import { pageTitle } from "$lib/stores/title.svelte.js";
+	import { streamed } from "$lib/stream.svelte.js";
 	import { sync } from "$lib/sync/store.svelte.js";
 	import { signOut } from "../../../auth/auth.remote";
 	import { deleteProfileData } from "./account.remote";
@@ -26,7 +27,10 @@
 			: null,
 	);
 
-	const stats = $derived(data.overview?.profiles ?? []);
+	const overviewStream = streamed(() => data.overview, {
+		profiles: [] as Awaited<typeof data.overview>["profiles"],
+	});
+	const stats = $derived(overviewStream.current.profiles);
 
 	const columns: Array<{ key: keyof (typeof stats)[number]; label: string }> = [
 		{ key: "addons", label: "Addons" },

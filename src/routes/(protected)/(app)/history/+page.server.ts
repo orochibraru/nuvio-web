@@ -1,6 +1,11 @@
-import { watchHistory } from "$lib/history/history.remote";
+import { pullWatchHistory } from "$lib/history/history-data.js";
 import type { PageServerLoad } from "./$types";
 
-export const load: PageServerLoad = async () => {
-	return { items: await watchHistory() };
+export const load: PageServerLoad = ({ locals, fetch }) => {
+	return {
+		items: pullWatchHistory(
+			locals.nuvio.withFetch(fetch),
+			locals.profileId ?? 0,
+		),
+	};
 };

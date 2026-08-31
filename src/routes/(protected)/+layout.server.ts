@@ -1,19 +1,22 @@
 import { redirect } from "@sveltejs/kit";
+import { resolve } from "$app/paths";
 import { toProfileView } from "$lib/profile.js";
 import type { LayoutServerLoad } from "./$types";
 
-export const load: LayoutServerLoad = async ({ locals, url }) => {
+export const load: LayoutServerLoad = async ({ locals, url, fetch }) => {
 	if (!locals.session) {
-		redirect(
-			303,
-			`/auth/sign-in?redirectTo=${encodeURIComponent(url.pathname + url.search)}`,
-		);
+		const redirectTo = encodeURIComponent(url.pathname + url.search);
+		redirect(303, `${resolve("/auth/sign-in")}?redirectTo=${redirectTo}`);
 	}
 
-	const [profiles, avatars] = await Promise.all([
-		locals.nuvio.profiles.list(),
-		locals.nuvio.listAvatars(),
-	]);
+	const nuvio = locals.nuvio.withFetch(fetch);
+
+	// The profile list is load-bearing (you can't pick a profile without it) so
+	// this one is allowed to fail loudly — but it's still 12s-bounded, never a
+	// hang. Avatars are cosmetic: fall back to initials.
+	const profiles = await nuvio.profiles.list();
+	const avatars = await nuvio.listAvatars().catch(() => []);
+
 	const catalog = new Map(avatars.map((entry) => [entry.id, entry]));
 
 	return {
@@ -22,7 +25,7 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 		profiles: profiles
 			.sort((a, b) => a.profile_index - b.profile_index)
 			.map((profile) =>
-				toProfileView(profile, catalog, (path) => locals.nuvio.avatarUrl(path)),
+				toProfileView(profile, catalog, (path) => nuvio.avatarUrl(path)),
 			),
 		avatarCatalog: avatars
 			.filter((entry) => entry.is_active)
@@ -30,7 +33,7 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 			.map((entry) => ({
 				id: entry.id,
 				name: entry.display_name,
-				url: locals.nuvio.avatarUrl(entry.storage_path),
+				url: nuvio.avatarUrl(entry.storage_path),
 				bgColor: entry.bg_color,
 			})),
 	};

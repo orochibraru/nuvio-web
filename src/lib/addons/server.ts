@@ -40,6 +40,36 @@ export function invalidateRegistry(): void {
 	cache = null;
 }
 
+/** Every catalog across the enabled addons — for the discover / collection loads. */
+export async function listCatalogs(): Promise<
+	Array<{
+		addonId: string;
+		addonName: string;
+		type: string;
+		id: string;
+		name: string;
+		genres: string[];
+		extraSupported: string[];
+	}>
+> {
+	const { registry } = await getRegistry().catch(() => ({
+		registry: null as AddonRegistry | null,
+	}));
+	if (!registry) {
+		return [];
+	}
+	return registry.catalogs().map(({ addon, catalog }) => ({
+		addonId: addon.manifest.id,
+		addonName: addon.manifest.name,
+		type: catalog.type,
+		id: catalog.id,
+		name: catalog.name ?? `${addon.manifest.name}`,
+		genres: catalog.genres ?? [],
+		extraSupported:
+			catalog.extraSupported ?? catalog.extra?.map((entry) => entry.name) ?? [],
+	}));
+}
+
 export async function getAddonClient(): Promise<{
 	client: AddonClient;
 	registry: AddonRegistry;

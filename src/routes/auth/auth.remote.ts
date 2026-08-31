@@ -1,5 +1,6 @@
 import { invalid, redirect } from "@sveltejs/kit";
 import * as v from "valibot";
+import { resolve } from "$app/paths";
 import { form, getRequestEvent } from "$app/server";
 import { NuvioApiError, NuvioClient } from "$lib/nuvio/index.js";
 import { clearStoredSession, writeStoredSession } from "$lib/server/session.js";
@@ -28,7 +29,9 @@ const signUpSchema = v.object({
 });
 
 function safeTarget(value: string): string {
-	return value.startsWith("/") && !value.startsWith("//") ? value : "/";
+	return value.startsWith("/") && !value.startsWith("//")
+		? value
+		: resolve("/");
 }
 
 export const signIn = form(signInSchema, async (data, issue) => {
@@ -78,7 +81,9 @@ export const signUp = form(signUpSchema, async (data, issue) => {
 	}
 	redirect(
 		303,
-		hasSession ? safeTarget(data.redirectTo) : "/auth/sign-in?registered=1",
+		hasSession
+			? safeTarget(data.redirectTo)
+			: `${resolve("/auth/sign-in")}?registered=1`,
 	);
 });
 
@@ -92,5 +97,5 @@ export const signOut = form(async () => {
 		}
 	}
 	clearStoredSession(cookies);
-	redirect(303, "/auth/sign-in");
+	redirect(303, resolve("/auth/sign-in"));
 });

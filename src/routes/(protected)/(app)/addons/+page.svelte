@@ -4,7 +4,10 @@
 	import GripVerticalIcon from "@lucide/svelte/icons/grip-vertical";
 	import InfoIcon from "@lucide/svelte/icons/info";
 	import PlusIcon from "@lucide/svelte/icons/plus";
+	import PowerIcon from "@lucide/svelte/icons/power";
+	import PowerOffIcon from "@lucide/svelte/icons/power-off";
 	import PuzzleIcon from "@lucide/svelte/icons/puzzle";
+	import SettingsIcon from "@lucide/svelte/icons/settings";
 	import Trash2Icon from "@lucide/svelte/icons/trash-2";
 	import TriangleAlertIcon from "@lucide/svelte/icons/triangle-alert";
 	import { toast } from "svelte-sonner";
@@ -21,7 +24,6 @@
 	import * as Field from "$lib/components/ui/field/index.js";
 	import { Input } from "$lib/components/ui/input/index.js";
 	import { Spinner } from "$lib/components/ui/spinner/index.js";
-	import { Switch } from "$lib/components/ui/switch/index.js";
 	import { pageTitle } from "$lib/stores/title.svelte.js";
 	import { cn } from "$lib/utils.js";
 
@@ -290,6 +292,9 @@
 							<div class="min-w-0 flex-1">
 								<div class="flex items-center gap-2">
 									<span class="truncate font-medium">{addon.name}</span>
+									{#if !addon.enabled}
+										<Badge variant="outline">Disabled</Badge>
+									{/if}
 									{#if !addon.reachable}
 										<Badge variant="secondary">unreachable</Badge>
 									{/if}
@@ -308,6 +313,19 @@
 							</div>
 
 							<div class="flex items-center gap-1">
+								{#if addon.configureUrl}
+									<Button
+										variant="ghost"
+										size="icon-sm"
+										href={addon.configureUrl}
+										target="_blank"
+										rel="noopener noreferrer"
+										aria-label={`Configure ${addon.name}`}
+										title="Open this addon's configuration page"
+									>
+										<SettingsIcon />
+									</Button>
+								{/if}
 								<Button
 									variant="ghost"
 									size="icon-sm"
@@ -326,11 +344,23 @@
 								>
 									<ArrowDownIcon />
 								</Button>
-								<Switch
-									checked={addon.enabled}
+								<Button
+									variant={addon.enabled ? "secondary" : "outline"}
+									size="sm"
 									disabled={saving}
-									onCheckedChange={(value) => setEnabled(addon.url, value)}
-								/>
+									aria-pressed={addon.enabled}
+									aria-label={addon.enabled
+										? `Disable ${addon.name}`
+										: `Enable ${addon.name}`}
+									class="w-20"
+									onclick={() => setEnabled(addon.url, !addon.enabled)}
+								>
+									{#if addon.enabled}
+										<PowerIcon data-icon="inline-start" /> On
+									{:else}
+										<PowerOffIcon data-icon="inline-start" /> Off
+									{/if}
+								</Button>
 								<Button
 									variant="ghost"
 									size="icon-sm"

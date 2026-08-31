@@ -5,6 +5,7 @@
 	import Trash2Icon from "@lucide/svelte/icons/trash-2";
 	import { toast } from "svelte-sonner";
 	import { goto, invalidateAll } from "$app/navigation";
+	import { resolve } from "$app/paths";
 	import {
 		collectionContents,
 		saveCollections,
@@ -17,17 +18,31 @@
 	import { Checkbox } from "$lib/components/ui/checkbox/index.js";
 	import * as Dialog from "$lib/components/ui/dialog/index.js";
 	import { Input } from "$lib/components/ui/input/index.js";
-	import type { CollectionFolder } from "$lib/nuvio/index.js";
+	import type { Collection, CollectionFolder } from "$lib/nuvio/index.js";
 	import { pageTitle } from "$lib/stores/title.svelte.js";
+	import { streamed } from "$lib/stream.svelte.js";
 	import { cn } from "$lib/utils.js";
 
 	let { data } = $props();
 
-	// `data.*` can be briefly undefined during a `forkPreloads` speculative
-	// render — read every field defensively.
-	const collection = $derived(data.collection);
-	const catalogs = $derived(data.catalogs ?? []);
-	const allCollections = $derived(data.allCollections ?? []);
+	// Everything streams in from the load (unawaited) so navigation isn't
+	// blocked. `collection` resolves to `null` if `params.id` doesn't match.
+	const collectionStream = streamed(
+		() => data.collection,
+		null as Collection | null,
+	);
+	const catalogsStream = streamed(
+		() => data.catalogs,
+		[] as Awaited<typeof data.catalogs>,
+	);
+	const allCollectionsStream = streamed(
+		() => data.collections,
+		[] as Collection[],
+	);
+	const collection = $derived(collectionStream.current);
+	const catalogs = $derived(catalogsStream.current);
+	const allCollections = $derived(allCollectionsStream.current);
+	const notFound = $derived(collectionStream.ready && collection === null);
 
 	$effect(() => {
 		pageTitle.set(collection?.title ?? "Collection");
@@ -137,12 +152,25 @@
 
 <button
 	type="button"
-	onclick={() => goto("/collections")}
+	onclick={() => goto(resolve("/collections"))}
 	class="mb-4 flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition hover:text-foreground"
 >
 	<ArrowLeftIcon class="size-4" /> Collections
 </button>
 
+{#if notFound}
+	<EmptyState
+		icon={FolderPlusIcon}
+		title="Collection not found"
+		description="This collection may have been renamed or removed."
+	>
+		{#snippet actions()}
+			<Button href={resolve("/collections")} variant="outline">
+				All collections
+			</Button>
+		{/snippet}
+	</EmptyState>
+{:else}
 <div class="flex flex-col gap-6">
 	<div class="flex flex-wrap items-center justify-between gap-3">
 		<h1 class="text-3xl font-bold tracking-tight">{title}</h1>
@@ -254,6 +282,7 @@
 		{/if}
 	{/if}
 </div>
+{/if}
 
 <Dialog.Root bind:open={addOpen}>
 	<Dialog.Content class="sm:max-w-lg">

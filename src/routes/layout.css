@@ -199,6 +199,52 @@
 	}
 }
 
+/* Slowly drifting colour clouds behind hero / auth surfaces. Three phases so the
+   blobs never sync up. Motion off under prefers-reduced-motion. */
+@utility aurora-a {
+	animation: nuvio-aurora-a 28s ease-in-out infinite alternate;
+	@media (prefers-reduced-motion: reduce) {
+		animation: none;
+	}
+}
+@utility aurora-b {
+	animation: nuvio-aurora-b 34s ease-in-out infinite alternate;
+	@media (prefers-reduced-motion: reduce) {
+		animation: none;
+	}
+}
+@utility aurora-c {
+	animation: nuvio-aurora-c 40s ease-in-out infinite alternate;
+	@media (prefers-reduced-motion: reduce) {
+		animation: none;
+	}
+}
+
+@keyframes nuvio-aurora-a {
+	from {
+		transform: translate3d(0, 0, 0) scale(1);
+	}
+	to {
+		transform: translate3d(12%, 8%, 0) scale(1.15);
+	}
+}
+@keyframes nuvio-aurora-b {
+	from {
+		transform: translate3d(0, 0, 0) scale(1.1);
+	}
+	to {
+		transform: translate3d(-10%, -6%, 0) scale(1);
+	}
+}
+@keyframes nuvio-aurora-c {
+	from {
+		transform: translate3d(0, 0, 0) scale(1);
+	}
+	to {
+		transform: translate3d(-8%, 10%, 0) scale(1.2);
+	}
+}
+
 /* Gentle breathing pulse for a loading title treatment. */
 @utility animate-soft-pulse {
 	animation: nuvio-soft-pulse 1.9s ease-in-out infinite;

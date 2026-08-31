@@ -4,22 +4,43 @@
 	import PlayIcon from "@lucide/svelte/icons/play";
 	import Trash2Icon from "@lucide/svelte/icons/trash-2";
 	import TvIcon from "@lucide/svelte/icons/tv";
+	import { resolve } from "$app/paths";
 	import EmptyState from "$lib/components/empty-state.svelte";
+	import { watchHistory } from "$lib/history/history.remote";
+	import type { HistoryRow } from "$lib/history/history-data.js";
 	import { pageTitle } from "$lib/stores/title.svelte.js";
+	import { streamed } from "$lib/stream.svelte.js";
 	import { sync } from "$lib/sync/store.svelte.js";
 
 	pageTitle.set("Watch history");
 
 	let { data } = $props();
 
-	// Poster + a clean title come from the SSR-enriched payload, keyed by id.
+	const rowsStream = streamed(() => data.items, [] as HistoryRow[]);
+	const ssrItems = $derived(rowsStream.current);
+
+	// Posters + clean titles: the local library mirror first, then the client-side
+	// `watchHistory` query which enriches from the addons (the load ships raw
+	// rows only, so a slow provider never stalls the page).
+	const enrichQuery = watchHistory();
 	const posters = $derived(
-		new Map(
-			(data.items ?? []).map((item) => [item.contentId, item.poster ?? null]),
-		),
+		new Map<string, string | null>([
+			...sync.library.map(
+				(entry) => [entry.contentId, entry.poster ?? null] as const,
+			),
+			...(enrichQuery.current ?? []).map(
+				(item) => [item.contentId, item.poster ?? null] as const,
+			),
+		]),
 	);
 	const names = $derived(
-		new Map((data.items ?? []).map((item) => [item.contentId, item.title])),
+		new Map<string, string>([
+			...sync.library.map((entry) => [entry.contentId, entry.name] as const),
+			...ssrItems.map((item) => [item.contentId, item.title] as const),
+			...(enrichQuery.current ?? []).map(
+				(item) => [item.contentId, item.title] as const,
+			),
+		]),
 	);
 
 	type Row = {
@@ -44,7 +65,7 @@
 					episode: record.episode,
 					watchedAt: record.watchedAt,
 				}))
-			: (data.items ?? []),
+			: ssrItems,
 	);
 
 	function dayLabel(ts: number): string {
@@ -98,7 +119,7 @@
 			item.type === "series" && item.season != null && item.episode != null
 				? `${item.contentId}:${item.season}:${item.episode}`
 				: item.contentId;
-		return `/player/${item.type}/${encodeURIComponent(videoId)}`;
+		return resolve(`/player/${item.type}/${encodeURIComponent(videoId)}`);
 	}
 
 	function remove(item: Row) {
@@ -118,7 +139,13 @@
 		</p>
 	</div>
 
-	{#if groups.length === 0}
+	{#if groups.length === 0 && !rowsStream.ready && !sync.authoritative}
+		<div class="grid gap-3 sm:grid-cols-2">
+			{#each { length: 8 } as _skeleton, i (i)}
+				<div class="skeleton h-24 rounded-xl"></div>
+			{/each}
+		</div>
+	{:else if groups.length === 0}
 		<EmptyState
 			icon={ClockIcon}
 			title="Nothing watched yet"
@@ -136,7 +163,7 @@
 							class="group/row relative flex gap-3 overflow-hidden rounded-xl border border-border/60 bg-card/40 p-2.5 transition-colors hover:border-primary/40 hover:bg-card"
 						>
 							<a
-								href={`/detail/${item.type}/${encodeURIComponent(item.contentId)}`}
+								href={resolve(`/detail/${item.type}/${encodeURIComponent(item.contentId)}`)}
 								class="relative aspect-2/3 w-16 shrink-0 overflow-hidden rounded-lg bg-muted"
 							>
 								<span class="absolute inset-0 flex items-center justify-center bg-linear-to-br from-muted to-background">
@@ -159,7 +186,7 @@
 
 							<div class="flex min-w-0 flex-1 flex-col justify-center gap-1">
 								<a
-									href={`/detail/${item.type}/${encodeURIComponent(item.contentId)}`}
+									href={resolve(`/detail/${item.type}/${encodeURIComponent(item.contentId)}`)}
 									class="line-clamp-2 text-sm font-semibold transition-colors hover:text-primary"
 								>
 									{item.title}

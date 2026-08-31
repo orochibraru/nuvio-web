@@ -2,6 +2,7 @@
 	import CheckIcon from "@lucide/svelte/icons/check";
 	import PuzzleIcon from "@lucide/svelte/icons/puzzle";
 	import { toast } from "svelte-sonner";
+	import { resolve } from "$app/paths";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import * as Card from "$lib/components/ui/card/index.js";
 	import { Switch } from "$lib/components/ui/switch/index.js";
@@ -335,7 +336,7 @@
 			</Card.Description>
 		</Card.Header>
 		<Card.Content>
-			<Button href="/addons" variant="outline">
+			<Button href={resolve("/addons")} variant="outline">
 				<PuzzleIcon data-icon="inline-start" /> Manage addons
 			</Button>
 		</Card.Content>

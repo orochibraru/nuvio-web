@@ -1,6 +1,6 @@
 import type { PageServerLoad } from "./$types";
-import { syncOverview } from "./account.remote";
+import { pullSyncOverview } from "./account-data";
 
-export const load: PageServerLoad = async () => {
-	return { overview: await syncOverview() };
+export const load: PageServerLoad = ({ locals, fetch }) => {
+	return { overview: pullSyncOverview(locals.nuvio.withFetch(fetch)) };
 };

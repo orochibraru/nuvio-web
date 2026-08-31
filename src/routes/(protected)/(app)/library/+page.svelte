@@ -2,11 +2,13 @@
 	import BookmarkIcon from "@lucide/svelte/icons/bookmark";
 	import XIcon from "@lucide/svelte/icons/x";
 	import { goto } from "$app/navigation";
+	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
 	import EmptyState from "$lib/components/empty-state.svelte";
 	import MediaPoster from "$lib/components/media-poster.svelte";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { pageTitle } from "$lib/stores/title.svelte.js";
+	import { streamed } from "$lib/stream.svelte.js";
 	import { sync } from "$lib/sync/store.svelte.js";
 	import { cn } from "$lib/utils.js";
 
@@ -59,10 +61,16 @@
 		imdbRating?: number;
 	};
 
-	// Local store once it has hydrated. Keep showing the SSR payload while the
-	// store is authoritative-but-empty (a snapshot pull that fails / returns
-	// nothing shouldn't blank a library the server just rendered).
-	const ssrItems = $derived<GridItem[]>(data.items ?? []);
+	// The load streams these in (unawaited) so navigation isn't blocked; the
+	// local store takes over once it has hydrated. Keep showing the streamed
+	// payload while the store is authoritative-but-empty (a snapshot pull that
+	// fails / returns nothing shouldn't blank a library the server just sent).
+	const itemsStream = streamed(() => data.items, [] as GridItem[]);
+	const progressStream = streamed(
+		() => data.progress,
+		{} as Record<string, number>,
+	);
+	const ssrItems = $derived<GridItem[]>(itemsStream.current);
 	const useStore = $derived(
 		sync.authoritative && (sync.library.length > 0 || ssrItems.length === 0),
 	);
@@ -79,7 +87,7 @@
 			: ssrItems,
 	);
 	const progress = $derived(
-		useStore ? sync.libraryProgress : (data.progress ?? {}),
+		useStore ? sync.libraryProgress : progressStream.current,
 	);
 
 	const shown = $derived.by(() => {
@@ -152,6 +160,14 @@
 		<p class="py-16 text-center text-sm text-muted-foreground">
 			No titles match this filter.
 		</p>
+	{:else if shown.length === 0 && !itemsStream.ready && !sync.authoritative}
+		<div
+			class="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
+		>
+			{#each { length: 12 } as _skeleton, i (i)}
+				<div class="skeleton aspect-2/3 rounded-xl"></div>
+			{/each}
+		</div>
 	{:else if shown.length === 0}
 		<EmptyState
 			icon={BookmarkIcon}
@@ -159,7 +175,7 @@
 			description="Add movies and series from any detail page and they'll show up here."
 		>
 			{#snippet actions()}
-				<Button href="/discover" variant="outline">Browse catalogs</Button>
+				<Button href={resolve("/discover")} variant="outline">Browse catalogs</Button>
 			{/snippet}
 		</EmptyState>
 	{:else}

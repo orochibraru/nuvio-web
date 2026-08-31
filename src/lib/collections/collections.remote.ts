@@ -3,14 +3,7 @@ import * as v from "valibot";
 import { command, query } from "$app/server";
 import { getAddonClient } from "$lib/addons/server.js";
 import type { MetaPreview } from "$lib/addons/types.js";
-import type { Collection } from "$lib/nuvio/index.js";
 import { requireProfile } from "$lib/server/guards.js";
-
-export const getCollections = query(async (): Promise<Collection[]> => {
-	const { nuvio, profileId } = requireProfile();
-	const blobs = await nuvio.collections.pull(profileId);
-	return blobs[0]?.collections_json ?? [];
-});
 
 const catalogSourceSchema = v.object({
 	addonId: v.string(),
@@ -48,7 +41,6 @@ export const saveCollections = command(
 			p_profile_id: profileId,
 			p_collections_json: collections,
 		});
-		await getCollections().refresh();
 		return { count: collections.length };
 	},
 );

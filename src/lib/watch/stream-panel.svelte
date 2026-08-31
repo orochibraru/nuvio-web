@@ -10,6 +10,7 @@
 	import XIcon from "@lucide/svelte/icons/x";
 	import { fly } from "svelte/transition";
 	import { goto } from "$app/navigation";
+	import { resolve } from "$app/paths";
 	import { cn } from "$lib/utils.js";
 	import { playbackHandoff } from "./playback.svelte.js";
 	import {
@@ -20,6 +21,9 @@
 		streamMeta,
 	} from "./stream-format.js";
 	import { playbackContext, resolveStreams } from "./watch.remote";
+	import { EMPTY_PROVIDERS } from "./watch-providers.js";
+	import { watchProviders } from "./watch-providers.remote";
+	import WatchProvidersList from "./watch-providers-list.svelte";
 
 	let {
 		type,
@@ -34,6 +38,24 @@
 	const contextQuery = $derived(playbackContext({ type, id: videoId }));
 	const heading = $derived(contextQuery.current?.heading ?? "Sources");
 	const subheading = $derived(contextQuery.current?.subheading ?? null);
+
+	// Official "where to watch" — shown prominently when no addon returns a
+	// stream, and as a footer otherwise.
+	const providersQuery = $derived.by(() => {
+		const ctx = contextQuery.current;
+		if (!ctx) {
+			return undefined;
+		}
+		return watchProviders({
+			title: ctx.heading,
+			year: Number((ctx.info?.releaseInfo ?? "").slice(0, 4)) || null,
+			imdbId: /^tt\d+$/.test(ctx.contentId) ? ctx.contentId : null,
+		});
+	});
+	const providers = $derived(providersQuery?.current ?? EMPTY_PROVIDERS);
+	const hasOfficial = $derived(
+		providers.stream.length + providers.rent.length + providers.buy.length > 0,
+	);
 
 	const streamsQuery = $derived(resolveStreams({ type, id: videoId }));
 	const result = $derived(streamsQuery.current);
@@ -137,7 +159,7 @@
 		if (isPlayable(row)) {
 			playbackHandoff.select(videoId, row, row.info.title);
 			// The (watch) layout closes the drawer on `afterNavigate`.
-			void goto(`/player/${type}/${encodeURIComponent(videoId)}`);
+			void goto(resolve(`/player/${type}/${encodeURIComponent(videoId)}`));
 		} else if (row.externalUrl) {
 			window.open(row.externalUrl, "_blank", "noopener");
 		}
@@ -414,21 +436,26 @@
 				{/each}
 			</div>
 		{:else if rows.length === 0}
-			<div class="flex flex-col items-center gap-2 py-12 text-center">
-				<p class="text-sm font-medium">No streams yet</p>
-				<p class="max-w-60 text-xs text-muted-foreground">
-					No installed addon returned a playable stream.
-					{#if result.errors.length > 0}
-						{result.errors.length} addon(s) errored.
-					{/if}
-				</p>
-				<button
-					type="button"
-					onclick={refresh}
-					class="mt-1 rounded-md bg-foreground/5 px-3 py-1.5 text-sm font-medium hover:bg-foreground/10"
-				>
-					Check again
-				</button>
+			<div class="flex flex-col gap-5">
+				{#if hasOfficial}
+					<WatchProvidersList {providers} heading="Watch officially" />
+				{/if}
+				<div class="flex flex-col items-center gap-2 py-8 text-center">
+					<p class="text-sm font-medium">No addon streams</p>
+					<p class="max-w-60 text-xs text-muted-foreground">
+						No installed addon returned a playable stream.
+						{#if result.errors.length > 0}
+							{result.errors.length} addon(s) errored.
+						{/if}
+					</p>
+					<button
+						type="button"
+						onclick={refresh}
+						class="mt-1 rounded-md bg-foreground/5 px-3 py-1.5 text-sm font-medium hover:bg-foreground/10"
+					>
+						Check again
+					</button>
+				</div>
 			</div>
 		{:else if shown.length === 0}
 			<div class="flex flex-col items-center gap-2 py-10 text-center">
@@ -514,6 +541,12 @@
 				<p class="mt-3 text-[11px] text-muted-foreground">
 					{result.errors.map((entry) => entry.addonName).join(", ")} didn't respond.
 				</p>
+			{/if}
+
+			{#if hasOfficial}
+				<div class="mt-5 border-t border-border/60 pt-4">
+					<WatchProvidersList {providers} />
+				</div>
 			{/if}
 		{/if}
 	</div>

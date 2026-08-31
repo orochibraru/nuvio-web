@@ -19,7 +19,29 @@
 						"type": "command",
 						"command": "bun run lint:fix",
 						"timeout": 120,
-						"statusMessage": "Running bun run lint:fix"
+						"statusMessage": "Running Linters"
+					}
+				]
+			},
+			{
+				"matcher": "Edit|Write|MultiEdit",
+				"hooks": [
+					{
+						"type": "command",
+						"command": "bun run format:fix",
+						"timeout": 120,
+						"statusMessage": "Running Formatters"
+					}
+				]
+			},
+			{
+				"matcher": "Edit|Write|MultiEdit",
+				"hooks": [
+					{
+						"type": "command",
+						"command": "bun run test:unit",
+						"timeout": 120,
+						"statusMessage": "Running Unit Tests"
 					}
 				]
 			}

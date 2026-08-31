@@ -10,15 +10,20 @@
 	import { fly } from "svelte/transition";
 	import { toast } from "svelte-sonner";
 	import { browser } from "$app/env";
+	import { resolve } from "$app/paths";
 	import { homeRows } from "$lib/addons/addons.remote";
 	import type { MetaPreview } from "$lib/addons/index.js";
+	import AuroraBackground from "$lib/components/aurora-background.svelte";
+	import ContinueWatchingCard from "$lib/components/continue-watching-card.svelte";
 	import MediaHero from "$lib/components/media-hero.svelte";
 	import MediaRow from "$lib/components/media-row.svelte";
 	import QueryError from "$lib/components/query-error.svelte";
 	import { Button } from "$lib/components/ui/button/index.js";
+	import { streamed } from "$lib/stream.svelte.js";
 	import { sync } from "$lib/sync/store.svelte.js";
 	import { cn } from "$lib/utils.js";
-	import { formatRemaining } from "$lib/watch/runtime.js";
+	import { continueWatching } from "$lib/watch/watch.remote";
+	import type { ResumeRow } from "$lib/watch/watch-data.js";
 
 	let { data } = $props();
 
@@ -26,93 +31,119 @@
 	// render — read every field defensively.
 	const profileName = $derived(data.profile?.name ?? "");
 
-	type ResumeItem = NonNullable<typeof data.resume>[number];
+	// `data.library` / `data.resume` stream in from the server load (unawaited
+	// promises) so the shell paints instantly. The sync store takes over as the
+	// live source the moment it's authoritative, so a brief empty value is fine.
+	const libraryStream = streamed(() => data.library, []);
+	const resumeStream = streamed(() => data.resume, []);
+	const ssrLibrary = $derived(libraryStream.current);
+	const ssrResume = $derived(resumeStream.current);
 
-	// Continue-watching = a union of the SSR `continueWatching` payload (full
-	// meta) and the local progress store. The store makes the row resilient to a
-	// slow / empty SSR pull and reflects a just-watched episode immediately;
-	// local-only titles get their poster + name from the library mirror, else a
-	// minimal card (the fallback art covers a missing poster).
-	const resume = $derived.by<ResumeItem[]>(() => {
-		const ssr = (data.resume ?? []) as ResumeItem[];
-		if (!sync.authoritative) {
-			return ssr;
-		}
+	// Titles the viewer removed from the row this session. `sync.clearProgress`
+	// drops the underlying API row, but the SSR / store snapshot still carries it
+	// until the next pull — filter those out here.
+	let dismissed = $state(new Set<string>());
+	function dismiss(id: string) {
+		dismissed = new Set(dismissed).add(id);
+	}
 
-		// Newest in-progress local row per title.
-		const localByContent = new Map<
-			string,
-			{
-				position: number;
-				duration: number;
-				lastWatched: number;
-				videoId: string;
-				season: number | null;
-				episode: number | null;
-				contentType: "movie" | "series";
-			}
-		>();
-		for (const row of sync.progress) {
-			if (row.duration <= 60_000 || row.position >= row.duration * 0.9) {
-				continue;
-			}
-			const existing = localByContent.get(row.contentId);
-			if (!existing || row.lastWatched > existing.lastWatched) {
-				localByContent.set(row.contentId, {
-					position: row.position,
-					duration: row.duration,
-					lastWatched: row.lastWatched,
+	// Continue-watching. The load ships raw in-progress rows (user data, fast, no
+	// addon calls); the client-side `continueWatching` query enriches them with
+	// meta + rolls a finished series episode forward to the next one; the local
+	// store is the live source once authoritative. Meta falls back to the library
+	// mirror, then to the card's own fallback art.
+	const enrichQuery = continueWatching();
+	const enrichedById = $derived(
+		new Map((enrichQuery.current ?? []).map((item) => [item.id, item])),
+	);
+
+	type ResumeBase = {
+		id: string;
+		type: "movie" | "series";
+		videoId: string;
+		season: number | null;
+		episode: number | null;
+		progress: number;
+		remainingMs: number;
+		lastWatched: number;
+	};
+
+	const resume = $derived.by<ResumeRow[]>(() => {
+		const base = new Map<string, ResumeBase>();
+
+		if (sync.authoritative) {
+			for (const row of sync.progress) {
+				if (row.duration <= 60_000 || row.position >= row.duration * 0.9) {
+					continue;
+				}
+				const existing = base.get(row.contentId);
+				if (existing && existing.lastWatched >= row.lastWatched) {
+					continue;
+				}
+				base.set(row.contentId, {
+					id: row.contentId,
+					type: row.contentType,
 					videoId: row.videoId,
 					season: row.season,
 					episode: row.episode,
-					contentType: row.contentType,
+					progress: row.position / row.duration,
+					remainingMs: Math.max(0, row.duration - row.position),
+					lastWatched: row.lastWatched,
+				});
+			}
+		} else {
+			for (const [index, row] of (ssrResume ?? []).entries()) {
+				base.set(row.id, {
+					id: row.id,
+					type: row.type,
+					videoId: row.videoId,
+					season: row.season,
+					episode: row.episode,
+					progress: row.progress,
+					remainingMs: row.remainingMs,
+					lastWatched: -index,
 				});
 			}
 		}
 
-		const byId = new Map<string, ResumeItem>();
+		const cards = new Map<string, ResumeRow>();
+		const meta = (id: string) =>
+			sync.library.find((entry) => entry.contentId === id);
 
-		for (const item of ssr) {
-			const local = localByContent.get(item.id);
-			byId.set(item.id, {
-				...item,
-				...(local
-					? {
-							videoId: local.videoId,
-							season: local.season,
-							episode: local.episode,
-							progress: local.position / local.duration,
-							remainingMs: Math.max(0, local.duration - local.position),
-						}
-					: {}),
+		for (const entry of [...base.values()].sort(
+			(a, b) => b.lastWatched - a.lastWatched,
+		)) {
+			if (dismissed.has(entry.id)) {
+				continue;
+			}
+			const rich = enrichedById.get(entry.id);
+			const lib = meta(entry.id);
+			cards.set(entry.id, {
+				id: entry.id,
+				type: entry.type,
+				name: rich?.name ?? lib?.name ?? entry.id,
+				poster: rich?.poster ?? lib?.poster ?? null,
+				background: rich?.background ?? lib?.background ?? lib?.poster ?? null,
+				logo: rich?.logo ?? null,
+				videoId: rich?.videoId ?? entry.videoId,
+				season: rich?.season ?? entry.season,
+				episode: rich?.episode ?? entry.episode,
+				progress: rich?.progress ?? entry.progress,
+				remainingMs: rich?.remainingMs ?? entry.remainingMs,
 			});
 		}
 
-		// Local-only in-progress titles the SSR pull missed.
-		for (const [contentId, local] of localByContent) {
-			if (byId.has(contentId)) {
+		// A finished series that rolled forward to its next episode: `progress` is
+		// now 0 so it isn't "in progress" locally — the enriched query is its only
+		// source.
+		for (const item of enrichQuery.current ?? []) {
+			if (cards.has(item.id) || dismissed.has(item.id)) {
 				continue;
 			}
-			const libEntry = sync.library.find(
-				(entry) => entry.contentId === contentId,
-			);
-			byId.set(contentId, {
-				id: contentId,
-				type: local.contentType,
-				name: libEntry?.name ?? contentId,
-				poster: libEntry?.poster ?? null,
-				background: libEntry?.background ?? libEntry?.poster ?? null,
-				logo: null,
-				videoId: local.videoId,
-				season: local.season,
-				episode: local.episode,
-				progress: local.position / local.duration,
-				remainingMs: Math.max(0, local.duration - local.position),
-			} as ResumeItem);
+			cards.set(item.id, item);
 		}
 
-		// Insertion order: SSR items (already `last_watched DESC`) then local-only.
-		return [...byId.values()]
+		return [...cards.values()]
 			.filter((item) => item.progress < 0.9)
 			.slice(0, 20);
 	});
@@ -122,7 +153,7 @@
 	// unless the store is authoritative-but-empty over a non-empty SSR payload.
 	const library = $derived(
 		sync.authoritative &&
-			(sync.library.length > 0 || (data.library ?? []).length === 0)
+			(sync.library.length > 0 || (ssrLibrary ?? []).length === 0)
 			? sync.library.map((record) => ({
 					id: record.contentId,
 					type: record.contentType,
@@ -131,7 +162,7 @@
 					releaseInfo: record.releaseInfo ?? undefined,
 					imdbRating: record.imdbRating ?? undefined,
 				}))
-			: (data.library ?? []),
+			: (ssrLibrary ?? []),
 	);
 
 	// Catalog rows load client-side so a slow addon never stalls SSR / nav.
@@ -212,7 +243,7 @@
 	const spotlight = $derived(spotlights[heroIndex] ?? null);
 	const spotlightHref = $derived(
 		spotlight
-			? `/detail/${spotlight.type}/${encodeURIComponent(spotlight.id)}`
+			? resolve(`/detail/${spotlight.type}/${encodeURIComponent(spotlight.id)}`)
 			: "",
 	);
 	const spotlightRating = $derived(
@@ -276,6 +307,8 @@
 		});
 	});
 </script>
+
+<AuroraBackground fixed class="-z-10 opacity-45" />
 
 <div class="flex flex-col gap-12">
 	{#if spotlight}
@@ -411,50 +444,14 @@
 			<h2 class="text-xl font-semibold tracking-tight">Continue watching</h2>
 			<div class="no-scrollbar -mx-2 flex gap-4 overflow-x-auto scroll-smooth px-2 pt-1 pb-2">
 				{#each resume as item (`${item.type}:${item.videoId}`)}
-					<a
-						href={`/player/${item.type}/${encodeURIComponent(item.videoId)}`}
-						class="group/cw relative aspect-video w-72 shrink-0 overflow-hidden rounded-xl bg-muted ring-1 ring-white/5 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_50px_-16px] hover:shadow-black/70 hover:ring-primary/60"
-					>
-						<div class="absolute inset-0 bg-linear-to-br from-muted via-muted to-background"></div>
-						{#if item.background}
-							<img
-								src={item.background}
-								alt={item.name}
-								loading="lazy"
-								decoding="async"
-								class="relative size-full object-cover transition-transform duration-500 group-hover/cw:scale-105"
-							/>
-						{/if}
-						<div class="absolute inset-0 bg-linear-to-t from-black/85 via-black/25 to-transparent"></div>
-						<span
-							class="absolute top-1/2 left-1/2 flex size-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white/15 text-white opacity-0 ring-1 ring-white/25 backdrop-blur-md transition-opacity duration-300 group-hover/cw:opacity-100"
-						>
-							<PlayIcon class="size-5 translate-x-px fill-white" />
-						</span>
-						<div class="absolute inset-x-0 bottom-0 flex flex-col gap-2 p-3">
-							<div class="min-w-0">
-								<p class="truncate text-sm font-semibold text-white">{item.name}</p>
-								<p class="text-xs text-white/70">
-									{#if item.season != null && item.episode != null}
-										S{item.season} · E{item.episode} ·
-									{/if}
-									{item.progress < 0.01
-										? "Not started"
-										: formatRemaining(item.remainingMs)}
-								</p>
-							</div>
-							<div class="h-1 overflow-hidden rounded-full bg-white/25">
-								<div class="h-full rounded-full bg-primary" style={`width: ${item.progress * 100}%`}></div>
-							</div>
-						</div>
-					</a>
+					<ContinueWatchingCard {item} onClear={dismiss} />
 				{/each}
 			</div>
 		</section>
 	{/if}
 
 	{#if library.length > 0}
-		<MediaRow title="My library" items={library} href="/library" />
+		<MediaRow title="My library" items={library} href={resolve("/library")} />
 	{/if}
 
 	{#if rowsQuery.error}
@@ -487,7 +484,7 @@
 				<p class="mt-1 text-sm text-muted-foreground">
 					Add a catalog addon and rows of movies and series fill in here.
 				</p>
-				<Button href="/addons" variant="outline" class="mt-4">Manage addons</Button>
+				<Button href={resolve("/addons")} variant="outline" class="mt-4">Manage addons</Button>
 			</div>
 		</div>
 	{:else}
@@ -495,7 +492,7 @@
 			<MediaRow
 				title={rowTitles[index]}
 				items={row.metas}
-				href={`/discover?c=${encodeURIComponent(`${row.addonId}|${row.type}|${row.id}`)}`}
+				href={resolve(`/discover?c=${encodeURIComponent(`${row.addonId}|${row.type}|${row.id}`)}`)}
 			/>
 		{/each}
 	{/if}

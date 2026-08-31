@@ -1,6 +1,7 @@
 <script lang="ts">
 	import CompassIcon from "@lucide/svelte/icons/compass";
 	import { goto } from "$app/navigation";
+	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
 	import { browseCatalog } from "$lib/addons/addons.remote";
 	import type { MetaPreview } from "$lib/addons/index.js";
@@ -9,22 +10,31 @@
 	import QueryError from "$lib/components/query-error.svelte";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { pageTitle } from "$lib/stores/title.svelte.js";
+	import { streamed } from "$lib/stream.svelte.js";
 	import { cn } from "$lib/utils.js";
 
 	pageTitle.set("Discover");
 
 	let { data } = $props();
 
-	// `data.*` can be momentarily undefined during a `forkPreloads` speculative
-	// render, so treat every field defensively.
-	const catalogs = $derived(data.catalogs ?? []);
+	// The catalog list streams in from the load (unawaited) so nav isn't blocked;
+	// `selectedKey` / `genre` are read straight off the URL.
+	const catalogsStream = streamed(
+		() => data.catalogs,
+		[] as Awaited<typeof data.catalogs>,
+	);
+	const catalogs = $derived(catalogsStream.current);
 	const selectedKey = $derived(data.selectedKey ?? null);
 	const genre = $derived(data.genre ?? "");
 
+	// The `?c=` catalog if it matches, else the first available one.
 	const selected = $derived(
 		catalogs.find(
 			(entry) => `${entry.addonId}|${entry.type}|${entry.id}` === selectedKey,
-		),
+		) ?? catalogs[0],
+	);
+	const activeKey = $derived(
+		selected ? `${selected.addonId}|${selected.type}|${selected.id}` : null,
 	);
 
 	// Only disambiguate catalog pills by addon when more than one addon supplies them.
@@ -59,7 +69,7 @@
 					addonId: selected.addonId,
 					type: selected.type,
 					id: selected.id,
-					genre: data.genre || undefined,
+					genre: genre || undefined,
 				})
 			: undefined,
 	);
@@ -72,8 +82,8 @@
 
 	// reset appended pages whenever the catalog / genre changes
 	$effect(() => {
-		void data.selectedKey;
-		void data.genre;
+		void selectedKey;
+		void genre;
 		more = [];
 		exhausted = false;
 	});
@@ -111,7 +121,7 @@
 				addonId: selected.addonId,
 				type: selected.type,
 				id: selected.id,
-				genre: data.genre || undefined,
+				genre: genre || undefined,
 				skip: items.length,
 			});
 			if (next.metas.length === 0) {
@@ -137,7 +147,7 @@
 			description="Add a catalog addon to start browsing movies and series."
 		>
 			{#snippet actions()}
-				<Button href="/addons" variant="outline">Manage addons</Button>
+				<Button href={resolve("/addons")} variant="outline">Manage addons</Button>
 			{/snippet}
 		</EmptyState>
 	{:else if selected}
@@ -149,7 +159,7 @@
 					onclick={() => selectCatalog(key)}
 					class={cn(
 						"shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium whitespace-nowrap transition",
-						key === data.selectedKey
+						key === activeKey
 							? "bg-primary text-primary-foreground shadow-sm"
 							: "bg-foreground/5 text-muted-foreground hover:bg-foreground/10 hover:text-foreground",
 					)}
@@ -169,7 +179,7 @@
 					onclick={() => setGenre("")}
 					class={cn(
 						"shrink-0 rounded-full px-2.5 py-1 text-xs font-medium transition",
-						!data.genre
+						!genre
 							? "bg-secondary text-secondary-foreground"
 							: "text-muted-foreground hover:bg-foreground/5 hover:text-foreground",
 					)}
@@ -182,7 +192,7 @@
 						onclick={() => setGenre(option)}
 						class={cn(
 							"shrink-0 rounded-full px-2.5 py-1 text-xs font-medium whitespace-nowrap transition",
-							data.genre === option
+							genre === option
 								? "bg-secondary text-secondary-foreground"
 								: "text-muted-foreground hover:bg-foreground/5 hover:text-foreground",
 						)}

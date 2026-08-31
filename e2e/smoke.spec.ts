@@ -102,6 +102,27 @@ test("interrupting a pending navigation still swaps the page", async ({
 	expect(errors, "runtime errors").toEqual([]);
 });
 
+test("below md the nav collapses into a burger menu", async ({ page }) => {
+	const errors = collectRuntimeErrors(page);
+
+	await page.setViewportSize({ width: 390, height: 844 });
+	await page.goto("/");
+	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
+
+	// The inline nav links are hidden; the burger is the way through.
+	await expect(
+		page.getByRole("navigation").getByRole("link", { name: "Discover" }),
+	).toBeHidden();
+
+	await page.getByRole("button", { name: "Menu", exact: true }).click();
+	await page.getByRole("menuitem", { name: "Discover" }).click();
+
+	await expect(page).toHaveURL(/\/discover$/);
+	await expect(page.getByRole("heading", { name: "Discover" })).toBeVisible();
+
+	expect(errors, "runtime errors").toEqual([]);
+});
+
 test("search auto-runs while typing (debounced)", async ({ page }) => {
 	const errors = collectRuntimeErrors(page);
 
@@ -164,6 +185,44 @@ test("home hero carousel: manual step changes the featured title", async ({
 		await next.click();
 		await expect.poll(() => heading.textContent()).not.toBe(before);
 	}
+
+	expect(errors, "runtime errors").toEqual([]);
+});
+
+test("continue-watching card: right-click menu + play/details targets", async ({
+	page,
+}) => {
+	const errors = collectRuntimeErrors(page);
+
+	await page.goto("/");
+	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
+
+	const row = page.getByRole("heading", { name: "Continue watching" });
+	if (!(await row.isVisible().catch(() => false))) {
+		test.skip(true, "no continue-watching row for this account");
+	}
+
+	// First card in the row. Right-click a corner — the centred play button
+	// intercepts pointer events over the middle.
+	const card = row
+		.locator("xpath=following-sibling::div[1]")
+		.locator("a[href^='/detail/']")
+		.first();
+	await card.click({ button: "right", position: { x: 8, y: 8 } });
+
+	// Menu offers all three actions.
+	await expect(
+		page.getByRole("menuitem", { name: /Play|Resume/ }),
+	).toBeVisible();
+	await expect(
+		page.getByRole("menuitem", { name: "View details" }),
+	).toBeVisible();
+	await expect(
+		page.getByRole("menuitem", { name: "Remove from row" }),
+	).toBeVisible();
+
+	await page.getByRole("menuitem", { name: "View details" }).click();
+	await expect(page).toHaveURL(/\/detail\//);
 
 	expect(errors, "runtime errors").toEqual([]);
 });

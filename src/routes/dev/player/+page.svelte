@@ -12,6 +12,27 @@
 	const introEnd = $derived(numParam("introEnd"));
 	const outroStart = $derived(numParam("outroStart"));
 
+	// `?info=1` mounts the in-player info overlay with canned meta.
+	const info = $derived(
+		page.url.searchParams.get("info")
+			? {
+					description:
+						"A dev-harness synopsis: enough words to fill a couple of lines so the overlay layout can be eyeballed without a real addon.",
+					imdbRating: "8.4",
+					releaseInfo: "2021",
+					runtime: "2h 15min",
+					status: null,
+					country: "United States",
+					awards: "3 wins",
+					cast: ["Ada Lovelace", "Alan Turing", "Grace Hopper"],
+					director: ["Dev Harness"],
+					writer: ["Dev Harness"],
+					episodeTitle: null,
+					episodeOverview: null,
+				}
+			: null,
+	);
+
 	let lastProgress = $state<{ position: number; duration: number } | null>(
 		null,
 	);
@@ -30,6 +51,8 @@
 		{introEnd}
 		{outroStart}
 		{minimized}
+		{info}
+		detailHref="/detail/movie/tt0111161"
 		onProgress={(position, duration) => (lastProgress = { position, duration })}
 		onEnded={() => (ended = true)}
 		onOutro={() => {

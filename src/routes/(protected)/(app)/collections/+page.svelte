@@ -6,6 +6,7 @@
 	import PlusIcon from "@lucide/svelte/icons/plus";
 	import { toast } from "svelte-sonner";
 	import { invalidateAll } from "$app/navigation";
+	import { resolve } from "$app/paths";
 	import { saveCollections } from "$lib/collections/collections.remote";
 	import EmptyState from "$lib/components/empty-state.svelte";
 	import { Button } from "$lib/components/ui/button/index.js";
@@ -14,15 +15,20 @@
 	import { Input } from "$lib/components/ui/input/index.js";
 	import type { Collection } from "$lib/nuvio/index.js";
 	import { pageTitle } from "$lib/stores/title.svelte.js";
+	import { streamed } from "$lib/stream.svelte.js";
 	import { cn } from "$lib/utils.js";
 
 	pageTitle.set("Collections");
 
 	let { data } = $props();
 
-	// `data.collections` can be briefly undefined during a `forkPreloads`
-	// speculative render.
-	const collections = $derived(data.collections ?? []);
+	// Streamed in from the load (unawaited) so navigation isn't blocked.
+	const collectionsStream = streamed(
+		() => data.collections,
+		[] as Collection[],
+	);
+	const collections = $derived(collectionsStream.current);
+	const collectionsReady = $derived(collectionsStream.ready);
 
 	let saving = $state(false);
 	let dialogOpen = $state(false);
@@ -101,7 +107,13 @@
 		</Button>
 	</div>
 
-	{#if sorted.length === 0}
+	{#if !collectionsReady && sorted.length === 0}
+		<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+			{#each { length: 3 } as _skeleton, i (i)}
+				<div class="skeleton h-20 rounded-xl"></div>
+			{/each}
+		</div>
+	{:else if sorted.length === 0}
 		<EmptyState
 			icon={LayersIcon}
 			title="No collections yet"
@@ -127,7 +139,7 @@
 					>
 						<FolderIcon class="size-5" />
 					</span>
-					<a href={`/collections/${collection.id}`} class="min-w-0 flex-1">
+					<a href={resolve(`/collections/${collection.id}`)} class="min-w-0 flex-1">
 						<div class="flex items-center gap-1.5">
 							{#if collection.pinToTop}
 								<PinIcon class="size-3.5 shrink-0 text-primary" />

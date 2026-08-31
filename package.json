@@ -11,6 +11,8 @@
 		"prepare": "husky && svelte-kit sync || echo ''",
 		"lint": "tailwint && biome check .",
 		"lint:fix": "tailwint --fix && biome check --write .",
+		"format": "markdownlint-cli2'**/*.md' && prettier --log-level warn '**/*.md'",
+		"format:fix": "markdownlint-cli2 --fix '**/*.md' && prettier --log-level warn --write '**/*.md'",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"nuvio:check": "bun run scripts/check-nuvio-spec.ts",

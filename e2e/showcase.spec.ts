@@ -43,6 +43,11 @@ const shots: Shot[] = [
 	{ name: "05-search", path: "/search?q=breaking%20bad", settleMs: 600 },
 	{ name: "06-detail-movie", path: "/detail/movie/tt1375666" },
 	{
+		name: "06b-detail-providers",
+		path: "/detail/series/tt9288030",
+		settleMs: 1500,
+	},
+	{
 		name: "07-sources-panel",
 		path: "/detail/movie/tt1375666",
 		fullPage: false,
@@ -62,6 +67,16 @@ const shots: Shot[] = [
 		path: "/player/movie/tt0137523",
 		fullPage: false,
 		settleMs: 800,
+	},
+	{
+		name: "18-player-info",
+		path: "/dev/player?src=/e2e/sample.webm&info=1",
+		fullPage: false,
+		settleMs: 900,
+		prepare: async (page) => {
+			await page.getByRole("button", { name: "Info" }).click();
+			await page.getByText("A dev-harness synopsis").waitFor();
+		},
 	},
 ];
 

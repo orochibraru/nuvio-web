@@ -4,6 +4,7 @@
 	import XIcon from "@lucide/svelte/icons/x";
 	import { untrack } from "svelte";
 	import { afterNavigate, goto } from "$app/navigation";
+	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
 	import { homeRows, searchCatalogs } from "$lib/addons/addons.remote";
 	import MediaGrid from "$lib/components/media-grid.svelte";
@@ -24,11 +25,12 @@
 		if (query === term) {
 			return;
 		}
-		void goto(query ? `/search?q=${encodeURIComponent(query)}` : "/search", {
-			keepFocus: true,
-			noScroll: true,
-			replaceState: replace,
-		});
+		void goto(
+			query
+				? resolve(`/search?q=${encodeURIComponent(query)}`)
+				: resolve("/search"),
+			{ keepFocus: true, noScroll: true, replaceState: replace },
+		);
 	}
 
 	// Auto-search while typing (debounced); Enter still searches immediately.
@@ -87,7 +89,9 @@
 			<MediaRow
 				title={row.title}
 				items={row.metas}
-				href={`/discover?c=${encodeURIComponent(`${row.addonId}|${row.type}|${row.id}`)}`}
+				href={resolve(
+					`/discover?c=${encodeURIComponent(`${row.addonId}|${row.type}|${row.id}`)}`,
+				)}
 			/>
 		{/each}
 	{/if}

@@ -11,6 +11,7 @@
 	import { toast } from "svelte-sonner";
 	import { browser } from "$app/env";
 	import { goto } from "$app/navigation";
+	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
 	import { getMeta, similarTitles } from "$lib/addons/addons.remote";
 	import CastRow from "$lib/components/cast-row.svelte";
@@ -30,6 +31,9 @@
 		resolveStreams,
 		titleProgress,
 	} from "$lib/watch/watch.remote";
+	import { EMPTY_PROVIDERS } from "$lib/watch/watch-providers.js";
+	import { watchProviders } from "$lib/watch/watch-providers.remote";
+	import WatchProvidersList from "$lib/watch/watch-providers-list.svelte";
 
 	const type = $derived(page.params.type ?? "movie");
 	const id = $derived(page.params.id ?? "");
@@ -153,7 +157,7 @@
 	// Primary CTA: jump straight to the player, which auto-resolves the preferred
 	// stream (first available, browser-friendly audio) on a cold load.
 	function watch(videoId: string) {
-		void goto(`/player/${type}/${encodeURIComponent(videoId)}`);
+		void goto(resolve(`/player/${type}/${encodeURIComponent(videoId)}`));
 	}
 
 	// Secondary CTA: let the viewer pick the exact source themselves.
@@ -181,16 +185,56 @@
 	const ctaVideoId = $derived(
 		contentType === "movie" ? id : (resumeEpisode?.id ?? firstEpisodeId),
 	);
+	// Flips once the CTA target's streams have been warmed — gates the reactive
+	// read below so we don't fan out to the addons before the debounce.
+	let ctaWarmed = $state(false);
+	$effect(() => {
+		void ctaVideoId;
+		ctaWarmed = false;
+	});
 	$effect(() => {
 		if (!meta || !ctaVideoId) {
 			return;
 		}
 		const target = ctaVideoId;
-		const timer = setTimeout(() => prefetch(target), 700);
+		const timer = setTimeout(() => {
+			prefetch(target);
+			ctaWarmed = true;
+		}, 700);
 		return () => clearTimeout(timer);
 	});
 
 	const runtimeMs = $derived(parseRuntimeMs(meta?.runtime));
+
+	// Official "where to watch" (JustWatch). Drives the hero network badge, the
+	// "Available on" section, and — when no addon returns a stream — the primary
+	// CTA.
+	const releaseYear = $derived(
+		Number((meta?.releaseInfo ?? "").slice(0, 4)) || null,
+	);
+	const imdbId = $derived(/^tt\d+$/.test(id) ? id : null);
+	const providersQuery = $derived(
+		meta
+			? watchProviders({ title: meta.name, year: releaseYear, imdbId })
+			: undefined,
+	);
+	const providers = $derived(providersQuery?.current ?? EMPTY_PROVIDERS);
+
+	// Does any installed addon return a stream for the CTA target? `null` while
+	// the fan-out is still in flight (or not yet warmed).
+	const ctaStreamsResult = $derived(
+		ctaWarmed && ctaVideoId
+			? resolveStreams({ type, id: ctaVideoId })
+			: undefined,
+	);
+	const ctaStreamCount = $derived(
+		ctaStreamsResult?.current?.streams.length ?? null,
+	);
+	// Fall back to the official source only once we know the addons came back empty.
+	const useOfficialCta = $derived(
+		ctaStreamCount === 0 && providers.stream.length > 0,
+	);
+	const officialCta = $derived(providers.stream[0] ?? null);
 
 	function toggleWatched(
 		videoId: string,
@@ -304,7 +348,7 @@
 					No installed addon provides <code>{type}</code> metadata for
 					<code>{id}</code>.
 				</p>
-				<Button href="/addons" variant="outline" class="mt-4">Manage addons</Button>
+				<Button href={resolve("/addons")} variant="outline" class="mt-4">Manage addons</Button>
 			</div>
 		</div>
 	{:else if !stableMeta}
@@ -334,6 +378,7 @@
 				: m.releaseInfo}
 			runtime={m.runtime}
 			genres={m.genres ?? []}
+			network={providers.network}
 			flag={contentType === "movie"
 				? progress[id]?.completed
 					? "Watched"
@@ -341,7 +386,17 @@
 				: seriesFlag}
 		>
 			{#snippet actions()}
-				{#if contentType === "movie"}
+				{#if useOfficialCta && officialCta}
+					<Button
+						size="lg"
+						href={officialCta.url}
+						target="_blank"
+						rel="noopener noreferrer"
+					>
+						<PlayIcon data-icon="inline-start" class="fill-current" />
+						Watch on {officialCta.provider}
+					</Button>
+				{:else if contentType === "movie"}
 					<Button size="lg" onclick={() => watch(id)}>
 						<PlayIcon data-icon="inline-start" class="fill-current" />
 						{#if progress[id] && !progress[id].completed && progress[id].fraction > 0.02}
@@ -395,6 +450,10 @@
 		</MediaHero>
 
 		<div class="flex flex-col gap-10 pt-2">
+			{#if providers.stream.length > 0 || providers.rent.length > 0 || providers.buy.length > 0}
+				<WatchProvidersList {providers} />
+			{/if}
+
 			{#if contentType === "series" && seasons.length > 0}
 				<SeasonCarousel
 					videos={m.videos ?? []}

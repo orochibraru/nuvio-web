@@ -28,6 +28,8 @@
 		subtitleFontSize,
 	} from "$lib/settings/ui-settings.js";
 	import { cn } from "$lib/utils.js";
+	import type { PlayerInfo } from "$lib/watch/player-info.js";
+	import PlayerInfoOverlay from "$lib/watch/player-info-overlay.svelte";
 	import {
 		type AudioByteSample,
 		classifyAudioSamples,
@@ -51,6 +53,7 @@
 	let {
 		src,
 		poster = null,
+		posterImage = null,
 		logo = null,
 		title,
 		subheading = null,
@@ -59,6 +62,8 @@
 		fill = false,
 		certification = null,
 		genres = [],
+		info = null,
+		detailHref = "",
 		subtitleSize = "medium",
 		subtitleColor = "#ffffff",
 		subtitleBackground = true,
@@ -73,13 +78,15 @@
 		onOutro,
 		onBack,
 		onSources,
-		onDetails,
 		onSubtitleAppearance,
 		onEpisodes,
 		onNext,
 	}: {
 		src: string;
+		/** Backdrop image — loading treatment, `<video poster>`, info-overlay bed. */
 		poster?: string | null;
+		/** 2:3 poster shown in the info overlay. */
+		posterImage?: string | null;
 		logo?: string | null;
 		title: string;
 		subheading?: string | null;
@@ -89,6 +96,10 @@
 		fill?: boolean;
 		certification?: string | null;
 		genres?: string[];
+		/** Meta for the in-player info overlay (Info button + auto-on-pause). */
+		info?: PlayerInfo | null;
+		/** Link to the full detail page, from inside the info overlay. */
+		detailHref?: string;
 		subtitleSize?: SubtitleSize;
 		subtitleColor?: string;
 		subtitleBackground?: boolean;
@@ -108,8 +119,6 @@
 		onOutro?: () => void;
 		onBack?: () => void;
 		onSources?: () => void;
-		/** Return to the title's detail page. */
-		onDetails?: () => void;
 		onSubtitleAppearance?: (patch: SubtitleAppearance) => void;
 		/** Series only: open the episode drawer. */
 		onEpisodes?: () => void;
@@ -134,6 +143,10 @@
 	let controlsVisible = $state(true);
 	let settingsOpen = $state(false);
 	let subtitlesOpen = $state(false);
+	// The in-player info overlay. `infoAutoOpened` = surfaced by a pause (closes
+	// itself on resume); a click on the Info button opens it "sticky".
+	let infoOpen = $state(false);
+	let infoAutoOpened = $state(false);
 	let activeCaption = $state<string | null>(null);
 	let seeded = false;
 	// One silent reload is attempted on a recoverable media error before we
@@ -202,6 +215,39 @@
 			outroFired = true;
 			onOutro?.();
 		}
+	});
+
+	function openInfo() {
+		infoAutoOpened = false;
+		infoOpen = true;
+	}
+
+	function closeInfo() {
+		infoOpen = false;
+		infoAutoOpened = false;
+	}
+
+	// Surface the info overlay on a deliberate pause (not a buffering stall, not
+	// the end of playback), and pull it back down the moment playback resumes.
+	$effect(() => {
+		if (!info || minimized || fatalError || ended || loading) {
+			return;
+		}
+		if (!paused) {
+			if (infoAutoOpened) {
+				infoOpen = false;
+				infoAutoOpened = false;
+			}
+			return;
+		}
+		if (infoOpen || currentTime < 1) {
+			return;
+		}
+		const timer = setTimeout(() => {
+			infoAutoOpened = true;
+			infoOpen = true;
+		}, 700);
+		return () => clearTimeout(timer);
 	});
 
 	const cueFontSize = $derived(subtitleFontSize(subtitleSize));
@@ -653,7 +699,11 @@
 				cycleCaption();
 				break;
 			case "i":
-				onDetails?.();
+				if (info && infoOpen) {
+					closeInfo();
+				} else if (info) {
+					openInfo();
+				}
 				break;
 			case "n":
 				onNext?.();
@@ -851,13 +901,13 @@
 					<p class="truncate text-sm text-white/70">{subheading}</p>
 				{/if}
 			</div>
-			{#if onDetails}
+			{#if info}
 				<button
 					type="button"
-					onclick={onDetails}
+					onclick={openInfo}
 					class="flex shrink-0 items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-xs font-medium backdrop-blur-sm transition hover:bg-white/20"
 				>
-					<InfoIcon class="size-4" /> Details
+					<InfoIcon class="size-4" /> Info
 				</button>
 			{/if}
 			{#if onSources}
@@ -1260,6 +1310,26 @@
 			</div>
 		{/if}
 	</div>
+
+	{#if infoOpen && info && !minimized}
+		<PlayerInfoOverlay
+			{title}
+			{subheading}
+			{logo}
+			background={poster}
+			poster={posterImage}
+			{certification}
+			{genres}
+			{info}
+			{detailHref}
+			autoOpened={infoAutoOpened}
+			onResume={() => {
+				closeInfo();
+				void video?.play();
+			}}
+			onClose={closeInfo}
+		/>
+	{/if}
 </div>
 
 <style>

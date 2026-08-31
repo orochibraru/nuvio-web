@@ -1,14 +1,16 @@
-import { libraryItems } from "$lib/library/library.remote";
-import { continueWatching } from "$lib/watch/watch.remote";
+import { pullLibraryItems } from "$lib/library/library-data.js";
+import { pullResumeRows } from "$lib/watch/watch-data.js";
 import type { PageServerLoad } from "./$types";
 
-export const load: PageServerLoad = async () => {
-	// User data only — the addon-sourced catalog rows (and the spotlight derived
-	// from them) load client-side with a skeleton so a slow addon never blocks
-	// first paint or the click that navigated here.
-	const [library, resume] = await Promise.all([
-		libraryItems(),
-		continueWatching(),
-	]);
-	return { library, resume };
+export const load: PageServerLoad = ({ locals, fetch }) => {
+	// Nothing is awaited: the two pulls are streamed to the page as promises so
+	// the navigation completes on the shell and the rows fill in behind
+	// skeletons. Both are user-data only and self-recovering (empty on failure).
+	const nuvio = locals.nuvio.withFetch(fetch);
+	const profileId = locals.profileId ?? 0;
+
+	return {
+		library: pullLibraryItems(nuvio, profileId),
+		resume: pullResumeRows(nuvio, profileId),
+	};
 };

@@ -1,5 +1,7 @@
 <script lang="ts">
+	import MenuIcon from "@lucide/svelte/icons/menu";
 	import SearchIcon from "@lucide/svelte/icons/search";
+	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
 	import CommandPalette from "$lib/components/command-palette.svelte";
 	import FirstRunNotice from "$lib/components/first-run-notice.svelte";
@@ -14,10 +16,10 @@
 	let { data, children } = $props();
 
 	const nav = [
-		{ href: "/", label: "Home", exact: true },
-		{ href: "/discover", label: "Discover" },
-		{ href: "/library", label: "Library" },
-		{ href: "/collections", label: "Collections" },
+		{ href: resolve("/"), label: "Home", exact: true },
+		{ href: resolve("/discover"), label: "Discover" },
+		{ href: resolve("/library"), label: "Library" },
+		{ href: resolve("/collections"), label: "Collections" },
 	];
 
 	function isActive(href: string, exact?: boolean) {
@@ -77,8 +79,12 @@
   data-amoled={amoled}
 >
   <div
-    class="pointer-events-none fixed inset-x-0 top-0 -z-10 hidden h-[65vh] dark:block"
-    style="background: radial-gradient(70% 55% at 50% 0%, color-mix(in oklch, var(--primary) 13%, transparent), transparent 70%)"
+    class="pointer-events-none fixed inset-x-0 top-0 -z-10 h-[70vh] opacity-60 dark:opacity-100"
+    style="background: radial-gradient(65% 50% at 50% 0%, color-mix(in oklch, var(--primary) 14%, transparent), transparent 70%)"
+  ></div>
+  <div
+    class="pointer-events-none fixed -top-40 -right-40 -z-10 hidden size-140 rounded-full opacity-20 blur-3xl dark:block"
+    style="background: radial-gradient(circle, color-mix(in oklch, var(--primary) 40%, transparent), transparent 70%)"
   ></div>
 
   <header
@@ -92,13 +98,13 @@
   >
     <div class="mx-auto flex h-14 items-center gap-6 px-6">
       <a
-        href="/"
+        href={resolve("/")}
         class="flex items-center gap-2 text-lg font-bold tracking-tight"
       >
       <img  alt="Nuvio logo" src="/logo-text.webp" width={100}/>
       </a>
 
-      <nav class="flex items-center gap-1 text-sm">
+      <nav class="hidden items-center gap-1 text-sm md:flex">
         {#each nav as item (item.href)}
           <a
             href={item.href}
@@ -114,9 +120,29 @@
         {/each}
       </nav>
 
+      <DropdownMenu.Root>
+        <DropdownMenu.Trigger
+          aria-label="Menu"
+          class="flex size-9 items-center justify-center rounded-full text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring md:hidden"
+        >
+          <MenuIcon class="size-5" />
+        </DropdownMenu.Trigger>
+        <DropdownMenu.Content align="start" class="w-44">
+          <DropdownMenu.Group>
+            {#each nav as item (item.href)}
+              <DropdownMenu.Item class={isActive(item.href, item.exact) ? "font-medium text-foreground" : ""}>
+                {#snippet child({ props })}
+                  <a href={item.href} {...props}>{item.label}</a>
+                {/snippet}
+              </DropdownMenu.Item>
+            {/each}
+          </DropdownMenu.Group>
+        </DropdownMenu.Content>
+      </DropdownMenu.Root>
+
       <div class="ml-auto flex items-center gap-3">
         <a
-          href="/search"
+          href={resolve("/search")}
           class={cn(
             "flex items-center gap-2 rounded-full border border-border bg-background/40 px-3 py-1.5 text-sm transition-colors",
             isActive("/search")
@@ -148,32 +174,32 @@
             <DropdownMenu.Group>
               <DropdownMenu.Item>
                 {#snippet child({ props })}
-                  <a href="/profiles" {...props}>Switch profile</a>
+                  <a href={resolve("/profiles")} {...props}>Switch profile</a>
                 {/snippet}
               </DropdownMenu.Item>
               <DropdownMenu.Item>
                 {#snippet child({ props })}
-                  <a href="/history" {...props}>Watch history</a>
+                  <a href={resolve("/history")} {...props}>Watch history</a>
                 {/snippet}
               </DropdownMenu.Item>
               <DropdownMenu.Item>
                 {#snippet child({ props })}
-                  <a href="/stats" {...props}>Your stats</a>
+                  <a href={resolve("/stats")} {...props}>Your stats</a>
                 {/snippet}
               </DropdownMenu.Item>
               <DropdownMenu.Item>
                 {#snippet child({ props })}
-                  <a href="/addons" {...props}>Addons</a>
+                  <a href={resolve("/addons")} {...props}>Addons</a>
                 {/snippet}
               </DropdownMenu.Item>
               <DropdownMenu.Item>
                 {#snippet child({ props })}
-                  <a href="/settings" {...props}>Settings</a>
+                  <a href={resolve("/settings")} {...props}>Settings</a>
                 {/snippet}
               </DropdownMenu.Item>
               <DropdownMenu.Item>
                 {#snippet child({ props })}
-                  <a href="/account" {...props}>Account</a>
+                  <a href={resolve("/account")} {...props}>Account</a>
                 {/snippet}
               </DropdownMenu.Item>
             </DropdownMenu.Group>
@@ -224,10 +250,10 @@
         >
           Support Nuvio
         </a>
-        <a href="/settings" class="transition hover:text-foreground"
+        <a href={resolve("/settings")} class="transition hover:text-foreground"
           >Appearance</a
         >
-        <a href="/addons" class="transition hover:text-foreground">Addons</a>
+        <a href={resolve("/addons")} class="transition hover:text-foreground">Addons</a>
       </div>
     </footer>
   </main>

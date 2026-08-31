@@ -13,6 +13,7 @@
 	import { Command, Dialog } from "bits-ui";
 	import type { Component } from "svelte";
 	import { goto } from "$app/navigation";
+	import { resolve } from "$app/paths";
 
 	type Destination = {
 		label: string;
@@ -24,61 +25,61 @@
 	const destinations: Destination[] = [
 		{
 			label: "Home",
-			href: "/",
+			href: resolve("/"),
 			icon: HouseIcon,
 			keywords: ["dashboard", "start"],
 		},
 		{
 			label: "Discover",
-			href: "/discover",
+			href: resolve("/discover"),
 			icon: CompassIcon,
 			keywords: ["browse", "catalog"],
 		},
 		{
 			label: "Library",
-			href: "/library",
+			href: resolve("/library"),
 			icon: LibraryBigIcon,
 			keywords: ["saved", "my list"],
 		},
 		{
 			label: "Collections",
-			href: "/collections",
+			href: resolve("/collections"),
 			icon: FolderIcon,
 			keywords: ["folders"],
 		},
 		{
 			label: "Watch history",
-			href: "/history",
+			href: resolve("/history"),
 			icon: ClockIcon,
 			keywords: ["recent", "watched"],
 		},
 		{
 			label: "Your stats",
-			href: "/stats",
+			href: resolve("/stats"),
 			icon: ChartColumnIcon,
 			keywords: ["minutes", "insights"],
 		},
 		{
 			label: "Settings",
-			href: "/settings",
+			href: resolve("/settings"),
 			icon: SettingsIcon,
 			keywords: ["appearance", "theme", "playback"],
 		},
 		{
 			label: "Addons",
-			href: "/addons",
+			href: resolve("/addons"),
 			icon: BlocksIcon,
 			keywords: ["sources", "providers"],
 		},
 		{
 			label: "Account",
-			href: "/account",
+			href: resolve("/account"),
 			icon: CircleUserIcon,
 			keywords: ["profile", "password"],
 		},
 		{
 			label: "Switch profile",
-			href: "/profiles",
+			href: resolve("/profiles"),
 			icon: UsersIcon,
 			keywords: ["accounts"],
 		},
@@ -106,7 +107,7 @@
 			return;
 		}
 		open = false;
-		void goto(`/search?q=${encodeURIComponent(trimmed)}`);
+		void goto(resolve(`/search?q=${encodeURIComponent(trimmed)}`));
 	}
 
 	$effect(() => {

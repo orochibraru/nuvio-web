@@ -11,10 +11,34 @@
 - Package manager is **bun**. `bun run lint` / `lint:fix` / `check`. Never
   npx/npm.
 - `$lib` alias (SvelteKit). Import barrels as `$lib/foo/index.js`.
-- Remote `query` functions are `await`ed in `+page.server.ts` loads for real
-  SSR.
+- **Every internal link goes through `resolve` from `$app/paths`.** `href`,
+  `goto(...)`, `redirect(...)`, `depends(...)` targets — all of them. Use the
+  route-id form with params so a renamed or deleted route fails `bun run check`:
+  `resolve('/detail/[type]/[id]', { type, id })`, not a hand-built
+  `` `/detail/${type}/${id}` ``. Only external URLs (`https://…`, `vlc://…`,
+  provider deep links) skip it.
+- `redirect()` / `error()` from `@sveltejs/kit` **throw on their own** in
+  SvelteKit 2 — call them bare (`redirect(303, resolve('/profiles'))`), never
+  `throw redirect(...)`.
+- **`+page.server.ts` loads don't `await` — they stream.** Return the promises
+  from `*-data.ts` helpers directly (`return { items: pullX(nuvio, id) }`);
+  navigation completes on the shell and the page fills in behind a skeleton.
+  Bridge each streamed promise to reactive state with `streamed()` from
+  `$lib/stream.svelte.ts` (`.current` / `.ready`). Use
+  `locals.nuvio.withFetch(fetch)` (the load's own `fetch`), a plain `*-data.ts`
+  helper (never a remote `query`), `.catch()` every pull to an empty/default,
+  and **no `Promise.all`**. Addon fan-out (`getMeta` / catalogs / streams) goes
+  to client-side queries with skeletons, never a load.
+- `+layout.server.ts` loads may still `await` — they don't re-run on client
+  navigation, `parent()` consumers can't take a streamed promise, and the
+  profile gate / theme seed need the resolved value. Keep them bounded
+  (`withFetch`, `.catch`, no `Promise.all`).
+- Remote functions are for **client-initiated** work only: `form` / `command`
+  mutations, and `query` functions read reactively in components (`.current`,
+  `.refresh()`).
 - A `.remote.ts` file may export **only** remote functions — put schemas / types
-  / constants in a sibling `*.ts` (see `$lib/settings/ui-settings.ts`).
+  / constants / server data-helpers in a sibling `*.ts` (see
+  `$lib/settings/settings-data.ts`).
 
 ## Verifying UI changes
 

@@ -102,12 +102,22 @@ export interface NuvioClientOptions {
 	fetch?: FetchImplementation;
 	session?: AuthSession | null;
 	onSessionChange?: (session: AuthSession | null) => void;
+	/** Per-request timeout in ms. Default {@link DEFAULT_REQUEST_TIMEOUT_MS}. */
+	requestTimeoutMs?: number;
 }
 
 interface HttpOptions extends Omit<RequestInit, "headers"> {
 	headers?: Record<string, string>;
 	skipAuth?: boolean;
 }
+
+/**
+ * Hard ceiling on every API call. Without it a stalled socket or a Cloudflare
+ * hold (the API rate-limits with a 1015 that can hang the connection) leaves the
+ * `await` pending forever — and any `+page.server.ts` load waiting on it blocks
+ * the navigation that triggered it.
+ */
+const DEFAULT_REQUEST_TIMEOUT_MS = 12_000;
 
 /**
  * Typed client for the Nuvio public API.
@@ -123,6 +133,7 @@ export class NuvioClient {
 
 	private readonly fetchImplementation: FetchImplementation;
 	private readonly onSessionChange?: (session: AuthSession | null) => void;
+	private readonly requestTimeoutMs: number;
 	private currentSession: AuthSession | null;
 
 	constructor(options: NuvioClientOptions = {}) {
@@ -135,10 +146,29 @@ export class NuvioClient {
 		this.fetchImplementation = options.fetch ?? globalThis.fetch;
 		this.currentSession = options.session ?? null;
 		this.onSessionChange = options.onSessionChange;
+		this.requestTimeoutMs =
+			options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
 	}
 
 	get session(): AuthSession | null {
 		return this.currentSession;
+	}
+
+	/**
+	 * A clone bound to a different `fetch` — used by `+page.server.ts` loads so
+	 * every upstream call goes through the request-scoped `fetch` SvelteKit hands
+	 * the load (never a `fetch` captured earlier). Shares the current session but
+	 * not the cookie writer, so it is read-only by design.
+	 */
+	withFetch(fetch: FetchImplementation): NuvioClient {
+		return new NuvioClient({
+			baseUrl: this.baseUrl,
+			websiteUrl: this.websiteUrl,
+			publishableKey: this.publishableKey,
+			fetch,
+			session: this.currentSession,
+			requestTimeoutMs: this.requestTimeoutMs,
+		});
 	}
 
 	setSession(session: AuthSession | null): void {
@@ -402,10 +432,31 @@ export class NuvioClient {
 			requestHeaders.authorization = `Bearer ${this.currentSession.access_token}`;
 		}
 
-		const response = await this.fetchImplementation(url, {
-			...init,
-			headers: requestHeaders,
-		});
+		// Bound every call. Merge with a caller-supplied signal when present so an
+		// aborted navigation still tears the request down.
+		const timeout = AbortSignal.timeout(this.requestTimeoutMs);
+		const signal =
+			init.signal instanceof AbortSignal
+				? AbortSignal.any([init.signal, timeout])
+				: timeout;
+
+		let response: Response;
+		try {
+			response = await this.fetchImplementation(url, {
+				...init,
+				headers: requestHeaders,
+				signal,
+			});
+		} catch (cause) {
+			if (timeout.aborted) {
+				throw new NuvioApiError(
+					408,
+					{ message: `Request to ${url} timed out` },
+					"The Nuvio API did not respond in time.",
+				);
+			}
+			throw cause;
+		}
 		if (!response.ok) {
 			throw await NuvioApiError.fromResponse(response);
 		}

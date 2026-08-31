@@ -1,5 +1,6 @@
 import { invalid, redirect } from "@sveltejs/kit";
 import * as v from "valibot";
+import { resolve } from "$app/paths";
 import { form, getRequestEvent } from "$app/server";
 import type { Profile, ProfileInput } from "$lib/nuvio/index.js";
 import {
@@ -36,10 +37,10 @@ export const selectProfile = form(
 		const { cookies, locals } = getRequestEvent();
 		const profiles = await locals.nuvio.profiles.list();
 		if (!profiles.some((profile) => profile.profile_index === profileId)) {
-			redirect(303, "/profiles");
+			redirect(303, resolve("/profiles"));
 		}
 		writeProfileId(cookies, profileId);
-		redirect(303, "/");
+		redirect(303, resolve("/"));
 	},
 );
 
@@ -83,7 +84,7 @@ export const createProfile = form(
 			],
 		});
 		writeProfileId(cookies, nextIndex);
-		redirect(303, "/");
+		redirect(303, resolve("/"));
 	},
 );
 
@@ -133,7 +134,7 @@ export const updateProfile = form(
 				};
 			}),
 		});
-		redirect(303, "/profiles");
+		redirect(303, resolve("/profiles"));
 	},
 );
 
@@ -146,7 +147,7 @@ export const deleteProfile = form(
 		const { cookies, locals } = getRequestEvent();
 		const existing = await locals.nuvio.profiles.list();
 		if (!existing.some((profile) => profile.profile_index === profileId)) {
-			redirect(303, "/profiles");
+			redirect(303, resolve("/profiles"));
 		}
 		if (existing.length <= 1) {
 			invalid(issue.profileId("You need at least one profile."));
@@ -163,6 +164,6 @@ export const deleteProfile = form(
 		if (readProfileId(cookies) === profileId) {
 			clearProfileId(cookies);
 		}
-		redirect(303, "/profiles");
+		redirect(303, resolve("/profiles"));
 	},
 );

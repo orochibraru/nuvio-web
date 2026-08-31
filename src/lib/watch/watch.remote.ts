@@ -53,6 +53,8 @@ export const playbackContext = query(
 		const meta = metaResult?.meta;
 		const heading = meta?.name ?? contentId;
 		let subheading: string | null = null;
+		let episodeTitle: string | null = null;
+		let episodeOverview: string | null = null;
 		if (type === "series" && season != null && episode != null) {
 			const video = meta?.videos?.find(
 				(entry) =>
@@ -62,6 +64,8 @@ export const playbackContext = query(
 			subheading = video
 				? `S${season}E${episode} · ${video.title}`
 				: `S${season}E${episode}`;
+			episodeTitle = video?.title ?? null;
+			episodeOverview = video?.overview ?? null;
 		}
 
 		const key = progressKey(contentId, season, episode);
@@ -126,6 +130,25 @@ export const playbackContext = query(
 				(meta?.behaviorHints?.adult ? "18+" : null) ??
 				null,
 			genres: meta?.genres ?? [],
+			// Everything the in-player info overlay shows — so it never has to make
+			// its own `getMeta` call.
+			info: {
+				description: meta?.description ?? null,
+				imdbRating:
+					typeof meta?.imdbRating === "number"
+						? meta.imdbRating.toFixed(1)
+						: (meta?.imdbRating ?? null),
+				releaseInfo: meta?.releaseInfo ?? null,
+				runtime: meta?.runtime ?? null,
+				status: meta?.status ?? null,
+				country: meta?.country ?? null,
+				awards: meta?.awards ?? null,
+				cast: meta?.cast?.slice(0, 8) ?? [],
+				director: meta?.director?.slice(0, 3) ?? [],
+				writer: meta?.writer?.slice(0, 3) ?? [],
+				episodeTitle,
+				episodeOverview,
+			},
 			episodes,
 			next,
 			resume:

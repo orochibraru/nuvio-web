@@ -7,6 +7,7 @@
 	import RotateCcwIcon from "@lucide/svelte/icons/rotate-ccw";
 	import { toast } from "svelte-sonner";
 	import { goto } from "$app/navigation";
+	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
 	import { similarTitles } from "$lib/addons/addons.remote";
 	import PlaybackLoading from "$lib/components/playback-loading.svelte";
@@ -32,6 +33,9 @@
 		resolveStreams,
 		titleProgress,
 	} from "$lib/watch/watch.remote";
+	import { EMPTY_PROVIDERS } from "$lib/watch/watch-providers.js";
+	import { watchProviders } from "$lib/watch/watch-providers.remote";
+	import WatchProvidersList from "$lib/watch/watch-providers-list.svelte";
 
 	const type = $derived(page.params.type ?? "movie");
 	const id = $derived(page.params.id ?? "");
@@ -54,6 +58,20 @@
 		logo: null,
 		certification: null,
 		genres: [],
+		info: {
+			description: null,
+			imdbRating: null,
+			releaseInfo: null,
+			runtime: null,
+			status: null,
+			country: null,
+			awards: null,
+			cast: [],
+			director: [],
+			writer: [],
+			episodeTitle: null,
+			episodeOverview: null,
+		},
 		episodes: [],
 		next: null,
 		resume: null,
@@ -130,6 +148,19 @@
 	);
 	const resolving = $derived(!handed && !streamsQuery?.current);
 
+	// Official "where to watch" — the fallback when no addon stream plays here.
+	const providersQuery = $derived(
+		contextReady
+			? watchProviders({
+					title: context.heading,
+					year: Number((context.info.releaseInfo ?? "").slice(0, 4)) || null,
+					imdbId: /^tt\d+$/.test(context.contentId) ? context.contentId : null,
+				})
+			: undefined,
+	);
+	const providers = $derived(providersQuery?.current ?? EMPTY_PROVIDERS);
+	const officialCta = $derived(providers.stream[0] ?? null);
+
 	// The chosen stream's label hints at a codec the browser can't decode for
 	// audio — used to make the player's no-sound detection more eager.
 	const audioRisky = $derived(
@@ -177,12 +208,12 @@
 	}
 
 	function playerHref(videoId: string): string {
-		return `/player/series/${encodeURIComponent(videoId)}`;
+		return resolve(`/player/series/${encodeURIComponent(videoId)}`);
 	}
 
 	// Detail page keys on the base content id, not an episode's `video_id`.
 	const detailHref = $derived(
-		`/detail/${type}/${encodeURIComponent(context.contentId)}`,
+		resolve(`/detail/${type}/${encodeURIComponent(context.contentId)}`),
 	);
 
 	// Intro / outro timestamps (TheIntroDB) — power "Skip intro" and the
@@ -275,7 +306,7 @@
 		if (history.length > 1) {
 			history.back();
 		} else {
-			void goto(`/detail/${type}/${encodeURIComponent(id)}`);
+			void goto(resolve(`/detail/${type}/${encodeURIComponent(id)}`));
 		}
 	}
 
@@ -352,7 +383,7 @@
 						>
 							{#each suggestions as meta (meta.id)}
 								<a
-									href={`/detail/${meta.type}/${encodeURIComponent(meta.id)}`}
+									href={resolve(`/detail/${meta.type}/${encodeURIComponent(meta.id)}`)}
 									class="group/sug"
 								>
 									<div
@@ -383,6 +414,9 @@
 				src={playableSrc}
 				fill
 				poster={context.background ?? context.poster}
+				posterImage={context.poster}
+				info={context.info}
+				{detailHref}
 				logo={context.logo}
 				title={context.heading}
 				subheading={active?.label ?? context.subheading}
@@ -404,7 +438,6 @@
 				onOutro={reachedEnd}
 				onBack={() => history.back()}
 				onSources={openSources}
-				onDetails={() => goto(detailHref)}
 				onSubtitleAppearance={saveSubtitleAppearance}
 				onEpisodes={hasEpisodes ? () => (episodesOpen = true) : undefined}
 				onNext={nextVideoId ? () => playVideo(nextVideoId) : undefined}
@@ -450,17 +483,27 @@
 			label="Finding a stream…"
 		/>
 	{:else}
-		<div class="relative z-10 flex max-w-sm flex-col items-center gap-4 px-6 text-center">
+		<div class="relative z-10 flex max-w-md flex-col items-center gap-4 px-6 text-center">
 			<p class="text-lg font-semibold">
 				{active ? "This source can't play in the browser" : "No playable stream"}
 			</p>
 			<p class="text-sm text-white/60">
 				{active
 					? "Pick a different source, or open it in an external player."
-					: "None of your addons returned a stream that plays here."}
+					: officialCta
+						? `${context.heading} is available to watch officially.`
+						: "None of your addons returned a stream that plays here."}
 			</p>
 			<div class="flex flex-wrap items-center justify-center gap-2">
-				<Button onclick={openSources}>Choose a source</Button>
+				{#if officialCta}
+					<Button href={officialCta.url} target="_blank" rel="noopener noreferrer">
+						<PlayIcon data-icon="inline-start" class="fill-current" />
+						Watch on {officialCta.provider}
+					</Button>
+				{/if}
+				<Button variant={officialCta ? "secondary" : "default"} onclick={openSources}>
+					Choose a source
+				</Button>
 				{#if externalLink}
 					<Button
 						variant="secondary"
@@ -483,6 +526,12 @@
 					</Button>
 				{/if}
 			</div>
+
+			{#if providers.stream.length > 1 || providers.rent.length > 0 || providers.buy.length > 0}
+				<div class="dark mt-2 w-full text-left">
+					<WatchProvidersList {providers} heading={null} />
+				</div>
+			{/if}
 		</div>
 	{/if}
 

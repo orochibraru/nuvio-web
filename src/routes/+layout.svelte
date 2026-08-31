@@ -36,8 +36,24 @@
 		activeTransition?.skipTransition();
 
 		return new Promise((resolve) => {
+			// Never let the transition machinery stall a navigation: if the update
+			// callback hasn't run within a couple of frames, resolve anyway and
+			// skip the animation. `onNavigate` blocks the nav until this settles.
+			let settled = false;
+			const done = () => {
+				if (!settled) {
+					settled = true;
+					resolve();
+				}
+			};
+			const failsafe = setTimeout(() => {
+				done();
+				activeTransition?.skipTransition();
+			}, 250);
+
 			const transition = document.startViewTransition(async () => {
-				resolve();
+				clearTimeout(failsafe);
+				done();
 				// `navigation.complete` rejects when the navigation is superseded or
 				// aborted — swallow it so the update callback still settles and the
 				// transition pseudo-elements are torn down cleanly.

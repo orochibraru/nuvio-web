@@ -15,6 +15,7 @@
 		runtime = null,
 		genres = [],
 		flag = null,
+		network = null,
 		showPoster = false,
 		actions,
 		overlay,
@@ -31,6 +32,8 @@
 		genres?: string[];
 		/** Small status pill shown before the meta line (e.g. "Watched"). */
 		flag?: string | null;
+		/** Official streaming home, e.g. "Prime Video" — shown as an accent chip. */
+		network?: string | null;
 		showPoster?: boolean;
 		actions?: Snippet;
 		/** Rendered inside the hero `<section>` — e.g. carousel dots. */
@@ -75,6 +78,16 @@
     <div
       class="absolute inset-x-0 top-0 h-28 bg-linear-to-b from-background/70 to-transparent"
     ></div>
+    <!-- Accent bloom rising from the lower-left, where the title sits. -->
+    <div
+      class="absolute -bottom-1/3 left-0 h-2/3 w-2/3 opacity-60 blur-3xl"
+      style="background: radial-gradient(closest-side, color-mix(in oklch, var(--primary) 28%, transparent), transparent)"
+    ></div>
+    <!-- Vignette. -->
+    <div
+      class="absolute inset-0"
+      style="background: radial-gradient(120% 120% at 50% 0%, transparent 55%, color-mix(in oklch, var(--background) 65%, transparent))"
+    ></div>
   </div>
 
   <div
@@ -117,13 +130,18 @@
         </h1>
       {/if}
 
-      {#if flag || rating || year || runtime || genres.length > 0}
+      {#if flag || network || rating || year || runtime || genres.length > 0}
         <div
           class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-medium text-foreground/70"
         >
           {#if flag}
             <span class="rounded-full bg-primary/15 px-2 py-0.5 text-xs font-semibold text-primary">
               {flag}
+            </span>
+          {/if}
+          {#if network}
+            <span class="flex items-center gap-1 rounded-full bg-foreground/10 px-2 py-0.5 text-xs font-semibold text-foreground/80">
+              {network}
             </span>
           {/if}
           {#if rating}

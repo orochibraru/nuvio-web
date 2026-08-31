@@ -38,11 +38,11 @@ test("detail source sidebar: opens, resolves async, refreshes, closes", async ({
 
 	// Test account has only Cinemeta (no stream addon) → resolves to empty.
 	// The addon fan-out can be slow under a cold cache, so give it room.
-	await expect(panel.getByText("No streams yet")).toBeVisible({
+	await expect(panel.getByText("No addon streams")).toBeVisible({
 		timeout: 30_000,
 	});
 	await panel.getByRole("button", { name: "Refresh" }).click();
-	await expect(panel.getByText("No streams yet")).toBeVisible();
+	await expect(panel.getByText("No addon streams")).toBeVisible();
 
 	await page.keyboard.press("Escape");
 	await expect(panel).toBeHidden();
@@ -151,6 +151,67 @@ test("video player: autoplay, keyboard seek, speed menu", async ({ page }) => {
 		() => document.querySelector("video")?.playbackRate ?? 0,
 	);
 	expect(rate).toBe(1.5);
+
+	expect(errors, "runtime errors").toEqual([]);
+});
+
+test("detail page shows official watch providers (JustWatch)", async ({
+	page,
+	context,
+}) => {
+	await signIn(context);
+	const errors = collectRuntimeErrors(page);
+
+	// Reacher — a Prime Video original, stable availability.
+	await page.goto("/detail/series/tt9288030");
+	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
+
+	const available = page.getByText("Available on", { exact: false });
+	// JustWatch can rate-limit / miss — don't hard-fail the suite on a flaky
+	// upstream, but when it does resolve it must render a Prime link + badge.
+	if (await available.isVisible({ timeout: 20_000 }).catch(() => false)) {
+		const prime = page.getByRole("link", { name: /Prime Video/i }).first();
+		await expect(prime).toBeVisible();
+		await expect(prime).toHaveAttribute("target", "_blank");
+		await expect(
+			page.getByRole("link", { name: /More options on JustWatch/i }),
+		).toBeVisible();
+	}
+
+	await page.waitForTimeout(500);
+	expect(errors, "runtime errors").toEqual([]);
+});
+
+test("player info overlay: Info button + auto-on-pause", async ({ page }) => {
+	const errors = collectRuntimeErrors(page);
+
+	await page.goto(harness({ info: "1" }));
+	await page.waitForLoadState("networkidle");
+
+	const player = page.getByRole("region", { name: "Video player" });
+	await expect
+		.poll(() => currentTime(page), { timeout: 15_000 })
+		.toBeGreaterThan(1);
+
+	const synopsis = page.getByText("A dev-harness synopsis", { exact: false });
+
+	// Info button opens it; it stays up while playing.
+	await player.getByRole("button", { name: "Info" }).click();
+	await expect(synopsis).toBeVisible();
+	await page.waitForTimeout(400);
+	await expect(synopsis).toBeVisible();
+
+	// Close it.
+	await page.getByRole("button", { name: "Close", exact: true }).click();
+	await expect(synopsis).toBeHidden();
+
+	// A deliberate pause surfaces it automatically...
+	await page.evaluate(() => document.querySelector("video")?.pause());
+	await expect(synopsis).toBeVisible({ timeout: 4000 });
+
+	// ...and resuming pulls it back down.
+	await page.evaluate(() => document.querySelector("video")?.play());
+	await expect(synopsis).toBeHidden({ timeout: 4000 });
 
 	expect(errors, "runtime errors").toEqual([]);
 });

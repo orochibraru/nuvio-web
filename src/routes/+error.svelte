@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
 	import { Button } from "$lib/components/ui/button/index.js";
 
@@ -15,6 +16,6 @@
 	<h1 class="relative text-xl font-semibold tracking-tight">{message}</h1>
 	<div class="relative mt-2 flex gap-2">
 		<Button variant="outline" onclick={() => history.back()}>Go back</Button>
-		<Button href="/">Home</Button>
+		<Button href={resolve("/")}>Home</Button>
 	</div>
 </div>

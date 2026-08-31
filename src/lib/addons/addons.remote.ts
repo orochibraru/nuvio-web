@@ -28,14 +28,19 @@ export const installedAddons = query(async () => {
 		event.locals.nuvio.addons.list(profileId),
 		getRegistry(),
 	]);
-	const manifestByUrl = new Map(
-		registry.addons.map((addon) => [addon.url, addon.manifest]),
+	const infoByUrl = new Map(
+		registry.addons.map((addon) => [
+			addon.url,
+			{ manifest: addon.manifest, baseUrl: addon.baseUrl },
+		]),
 	);
 	return {
 		addons: rows
 			.sort((a, b) => a.sort_order - b.sort_order)
 			.map((row) => {
-				const manifest = manifestByUrl.get(row.url);
+				const info = infoByUrl.get(row.url);
+				const manifest = info?.manifest;
+				const hints = manifest?.behaviorHints;
 				return {
 					url: row.url,
 					name: manifest?.name ?? row.name ?? row.url,
@@ -50,6 +55,12 @@ export const installedAddons = query(async () => {
 						) ?? [],
 					catalogCount: manifest?.catalogs.length ?? 0,
 					reachable: Boolean(manifest),
+					// Stremio convention: a configurable addon serves its settings UI
+					// at `{transportUrl}/configure`.
+					configureUrl:
+						info && (hints?.configurable || hints?.configurationRequired)
+							? `${info.baseUrl}/configure`
+							: null,
 				};
 			}),
 		errors,
@@ -149,20 +160,6 @@ export const browseCatalog = query(
 		};
 	},
 );
-
-export const catalogList = query(async () => {
-	const { registry } = await getRegistry();
-	return registry.catalogs().map(({ addon, catalog }) => ({
-		addonId: addon.manifest.id,
-		addonName: addon.manifest.name,
-		type: catalog.type,
-		id: catalog.id,
-		name: catalog.name ?? `${addon.manifest.name}`,
-		genres: catalog.genres ?? [],
-		extraSupported:
-			catalog.extraSupported ?? catalog.extra?.map((entry) => entry.name) ?? [],
-	}));
-});
 
 export const getMeta = query(
 	v.object({ type: v.string(), id: v.string() }),
