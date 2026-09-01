@@ -7,11 +7,13 @@ import type {
 import {
 	overlayPendingLibrary,
 	overlayPendingProgress,
+	pruneStale,
 	reconcileHistory,
 	reconcileLibrary,
 	reconcileProgress,
+	sameTarget,
 } from "./reconcile.ts";
-import type { ProgressRecord } from "./types.ts";
+import type { PendingWrite, ProgressRecord } from "./types.ts";
 
 function libEvent(
 	over: Partial<LibraryDeltaEvent> & Pick<LibraryDeltaEvent, "event_id">,
@@ -315,5 +317,63 @@ describe("realistic sync sequence", () => {
 		);
 		expect(state.cursor).toBe(8);
 		expect([...state.records.keys()]).toEqual(["movie:b"]);
+	});
+});
+
+describe("pruneStale", () => {
+	it("drops entries older than the grace window, keeps the rest", () => {
+		const now = 10_000;
+		const entries = [{ at: now - 20_000 }, { at: now - 1000 }, { at: now }];
+		expect(pruneStale(entries, 15_000, now)).toEqual([
+			{ at: now - 1000 },
+			{ at: now },
+		]);
+	});
+
+	it("keeps an entry exactly at the cutoff boundary out", () => {
+		const now = 10_000;
+		expect(pruneStale([{ at: now - 15_000 }], 15_000, now)).toEqual([]);
+	});
+});
+
+describe("sameTarget", () => {
+	const upsert = (contentId: string): PendingWrite => ({
+		kind: "library.upsert",
+		queuedAt: 0,
+		record: {
+			contentId,
+			contentType: "movie",
+			name: contentId,
+			poster: null,
+			background: null,
+			description: null,
+			releaseInfo: null,
+			imdbRating: null,
+			genres: [],
+			addedAt: 0,
+		},
+	});
+	const del = (contentId: string): PendingWrite => ({
+		kind: "library.delete",
+		contentType: "movie",
+		contentId,
+		queuedAt: 0,
+	});
+
+	it("matches an upsert and a delete for the same library item", () => {
+		expect(sameTarget(upsert("tt1"), del("tt1"))).toBe(true);
+	});
+
+	it("does not match different content ids", () => {
+		expect(sameTarget(upsert("tt1"), del("tt2"))).toBe(false);
+	});
+
+	it("does not match writes of unrelated kinds", () => {
+		const progress: PendingWrite = {
+			kind: "progress.delete",
+			progressKey: "tt1",
+			queuedAt: 0,
+		};
+		expect(sameTarget(upsert("tt1"), progress)).toBe(false);
 	});
 });

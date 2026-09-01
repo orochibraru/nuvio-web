@@ -12,7 +12,7 @@
 	import { searchHistory } from "#lib/search-history.svelte.js";
 	import { pageTitle } from "#lib/stores/title.svelte.js";
 	import { browser } from "$app/env";
-	import { afterNavigate, goto } from "$app/navigation";
+	import { afterNavigate, beforeNavigate, goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
 
@@ -47,13 +47,23 @@
 	}
 
 	// Auto-search while typing (debounced); Enter still searches immediately.
+	let debounceTimer: ReturnType<typeof setTimeout> | undefined;
 	$effect(() => {
 		const value = input;
 		if (value.trim() === term) {
 			return;
 		}
-		const timer = setTimeout(() => runSearch(value, true), 450);
-		return () => clearTimeout(timer);
+		debounceTimer = setTimeout(() => runSearch(value, true), 450);
+		return () => clearTimeout(debounceTimer);
+	});
+
+	// A navigation away (e.g. clicking another nav link) must win outright — the
+	// effect cleanup above only clears the timer once this component actually
+	// unmounts, which happens after the destination finishes loading. On a slow
+	// navigation the debounce can still fire in that window and its `goto` to
+	// `/search?q=…` overrides the one already in flight. Cancel eagerly instead.
+	beforeNavigate(() => {
+		clearTimeout(debounceTimer);
 	});
 
 	// Keep the box in sync with back / forward navigation.

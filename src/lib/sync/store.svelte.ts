@@ -3,9 +3,11 @@ import { clearProfile, readAll, readOne, replaceAll, writeOne } from "./idb.ts";
 import {
 	overlayPendingLibrary,
 	overlayPendingProgress,
+	pruneStale,
 	reconcileHistory,
 	reconcileLibrary,
 	reconcileProgress,
+	sameTarget,
 } from "./reconcile.ts";
 import { flushWrites, syncDeltas, syncSnapshot } from "./sync.remote.js";
 import type {
@@ -29,6 +31,9 @@ const SYNC_INTERVAL_MS = 90_000;
 const FLUSH_DEBOUNCE_MS = 1500;
 // Let first paint + the page's own SSR calls settle before the background pull.
 const INITIAL_SYNC_DELAY_MS = 4000;
+// A delta pull just after a flush can read a server snapshot that lags the
+// write; see #pendingWrites(). Comfortably longer than observed read lag.
+const RECENTLY_FLUSHED_GRACE_MS = 15_000;
 
 function online(): boolean {
 	return !browser || navigator.onLine !== false;
@@ -39,6 +44,8 @@ class SyncStore {
 	#cursors: SyncCursors = { ...EMPTY_CURSORS };
 	#bootstrapped = false;
 	#queue: PendingWrite[] = [];
+	// Just-flushed writes, kept briefly — see RECENTLY_FLUSHED_GRACE_MS.
+	#recentlyFlushed: Array<{ write: PendingWrite; at: number }> = [];
 	#library = new Map<string, LibraryRecord>();
 	#progress = new Map<string, ProgressRecord>();
 	#history = new Map<string, HistoryRecord>();
@@ -175,6 +182,7 @@ class SyncStore {
 		this.#cursors = { ...EMPTY_CURSORS };
 		this.#bootstrapped = false;
 		this.#queue = [];
+		this.#recentlyFlushed = [];
 		this.#library = new Map();
 		this.#progress = new Map();
 		this.#history = new Map();
@@ -454,12 +462,23 @@ class SyncStore {
 		this.#progress = new Map();
 		this.#history = new Map();
 		this.#queue = [];
+		this.#recentlyFlushed = [];
 		this.#cursors = { ...EMPTY_CURSORS };
 		this.#bootstrapped = false;
 		this.synced = true;
 		this.mutated = false;
 		this.#publish();
 		await clearProfile(profileId);
+	}
+
+	/** Queued writes plus recently-flushed ones, oldest first so a fresh queued
+	 *  write for the same target overrides a recently-flushed one. */
+	#pendingWrites(): PendingWrite[] {
+		this.#recentlyFlushed = pruneStale(
+			this.#recentlyFlushed,
+			RECENTLY_FLUSHED_GRACE_MS,
+		);
+		return [...this.#recentlyFlushed.map((e) => e.write), ...this.#queue];
 	}
 
 	#pendingLibrary(): Array<
@@ -470,7 +489,7 @@ class SyncStore {
 			| { kind: "library.upsert"; record: LibraryRecord }
 			| { kind: "library.delete"; contentType: ContentType; contentId: string }
 		> = [];
-		for (const write of this.#queue) {
+		for (const write of this.#pendingWrites()) {
 			if (write.kind === "library.upsert") {
 				out.push({ kind: write.kind, record: write.record });
 			} else if (write.kind === "library.delete") {
@@ -485,7 +504,7 @@ class SyncStore {
 	}
 
 	#pendingProgress(): ProgressRecord[] {
-		return this.#queue
+		return this.#pendingWrites()
 			.filter((write) => write.kind === "progress.push")
 			.map((write) => (write as { record: ProgressRecord }).record);
 	}
@@ -574,6 +593,10 @@ class SyncStore {
 			});
 			const flushed = new Set(batch);
 			this.#queue = this.#queue.filter((write) => !flushed.has(write));
+			const flushedAt = Date.now();
+			this.#recentlyFlushed.push(
+				...batch.map((write) => ({ write, at: flushedAt })),
+			);
 			void this.#persist("queue");
 			this.#flushFailures = 0;
 			this.stalled = false;
@@ -633,48 +656,6 @@ class SyncStore {
 			writeOne("meta", profileId, "bootstrapped", this.#bootstrapped),
 		]);
 	}
-}
-
-function libraryTarget(
-	write: PendingWrite,
-): { contentType: ContentType; contentId: string } | null {
-	if (write.kind === "library.upsert") {
-		return {
-			contentType: write.record.contentType,
-			contentId: write.record.contentId,
-		};
-	}
-	if (write.kind === "library.delete") {
-		return { contentType: write.contentType, contentId: write.contentId };
-	}
-	return null;
-}
-
-function progressKeyOf(write: PendingWrite): string | null {
-	if (write.kind === "progress.push") {
-		return write.record.progressKey;
-	}
-	if (write.kind === "progress.delete") {
-		return write.progressKey;
-	}
-	return null;
-}
-
-function sameTarget(a: PendingWrite, b: PendingWrite): boolean {
-	const al = libraryTarget(a);
-	const bl = libraryTarget(b);
-	if (al && bl) {
-		return al.contentId === bl.contentId && al.contentType === bl.contentType;
-	}
-	const ap = progressKeyOf(a);
-	const bp = progressKeyOf(b);
-	if (ap && bp) {
-		return ap === bp;
-	}
-	if (a.kind === "history.delete" && b.kind === "history.delete") {
-		return a.record.id === b.record.id;
-	}
-	return false;
 }
 
 export const sync = new SyncStore();
