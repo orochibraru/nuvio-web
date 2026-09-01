@@ -43,7 +43,7 @@
 		{@const person = people[name]}
 		<a
 			href={resolve(`search?q=${encodeURIComponent(name)}`)}
-			class="group/cast flex w-40 shrink-0 flex-col gap-2 rounded-xl border border-border/50 bg-card/40 p-2.5 transition-colors hover:border-primary/40 hover:bg-card"
+			class="group/cast flex w-40 shrink-0 flex-col gap-2 rounded-xl border border-border bg-card p-2.5 transition-colors hover:border-primary/40 hover:bg-card"
 		>
 			<div class="relative aspect-square w-full overflow-hidden rounded-lg bg-muted">
 				<span class="absolute inset-0 flex items-center justify-center bg-linear-to-br from-muted to-background text-lg font-semibold text-muted-foreground/50">

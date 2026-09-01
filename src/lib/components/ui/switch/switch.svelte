@@ -24,8 +24,8 @@
 		"aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20",
 		"data-disabled:cursor-not-allowed data-disabled:opacity-50",
 		"data-[size=default]:h-5 data-[size=default]:w-9 data-[size=sm]:h-4 data-[size=sm]:w-7",
-		"data-checked:border-primary data-checked:bg-primary",
-		"data-unchecked:border-foreground/30 data-unchecked:bg-foreground/20",
+		"data-[state=checked]:border-primary data-[state=checked]:bg-primary",
+		"data-[state=unchecked]:border-foreground/30 data-[state=unchecked]:bg-foreground/20",
 		"after:absolute after:-inset-x-3 after:-inset-y-2",
 		className,
 	)}
@@ -34,12 +34,9 @@
 	<SwitchPrimitive.Thumb
 		data-slot="switch-thumb"
 		class={cn(
-			"pointer-events-none block rounded-full bg-white shadow ring-0 transition-transform",
+			"pointer-events-none block translate-x-0.5 rounded-full bg-white shadow ring-0 transition-transform",
 			"group-data-[size=default]/switch:size-4 group-data-[size=sm]/switch:size-3",
-			"group-data-[size=default]/switch:data-checked:translate-x-[calc(100%+2px)]",
-			"group-data-[size=sm]/switch:data-checked:translate-x-[calc(100%+2px)]",
-			"data-unchecked:translate-x-0",
-			"data-checked:bg-primary-foreground",
+			"data-[state=checked]:translate-x-[calc(100%+2px)] data-[state=checked]:bg-primary-foreground",
 		)}
 	/>
 </SwitchPrimitive.Root>

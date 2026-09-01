@@ -29,14 +29,21 @@ export default defineConfig({
 				"src/lib/images.ts",
 				"src/hooks.server.ts",
 			],
-			exclude: ["src/**/*.{test,spec}.ts", "src/**/*.d.ts", "src/**/index.ts"],
+			exclude: [
+				"src/**/*.{test,spec}.ts",
+				"src/**/*.d.ts",
+				"src/**/index.ts",
+				// Svelte rune modules ($state/$effect) can't run in the node env —
+				// they're covered by Playwright, not here.
+				"src/**/*.svelte.ts",
+			],
 			// Ratchet upward as tests land — do not lower. Target is 100% for the
 			// server / remote-function layer (see TODO "CI/CD").
 			thresholds: {
-				lines: 57,
-				functions: 57,
-				branches: 58,
-				statements: 57,
+				lines: 77,
+				functions: 72,
+				branches: 72,
+				statements: 76,
 			},
 		},
 	},

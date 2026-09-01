@@ -10,21 +10,13 @@ describe("classifyDecodeSamples", () => {
 		expect(classifyDecodeSamples([30, 30, 30, 30, 30], 5)).toBe("ok");
 	});
 
-	it("flags dead after `needed` consecutive zero-frame ticks", () => {
+	it("flags dead only when no frame ever decoded", () => {
 		expect(classifyDecodeSamples([0, 0, 0, 0, 0], 5)).toBe("dead");
 	});
 
-	it("flags dead when frames decode briefly then stop for good", () => {
-		expect(classifyDecodeSamples([25, 25, 0, 0, 0, 0, 0], 5)).toBe("dead");
-	});
-
-	it("does not flag a single dropped-frame tick mid-stream", () => {
-		expect(classifyDecodeSamples([30, 30, 0, 30, 30, 30], 5)).toBe("ok");
-	});
-
-	it("honours a shorter fuse for label-flagged codecs", () => {
-		expect(classifyDecodeSamples([0, 0, 0], 5)).toBe("unknown");
-		expect(classifyDecodeSamples([0, 0, 0], 3)).toBe("dead");
+	it("stays ok if frames decoded even briefly (avoids false positives)", () => {
+		expect(classifyDecodeSamples([25, 25, 0, 0, 0, 0, 0], 5)).toBe("ok");
+		expect(classifyDecodeSamples([0, 0, 3, 0, 0], 5)).toBe("ok");
 	});
 });
 

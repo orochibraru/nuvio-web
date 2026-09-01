@@ -30,6 +30,7 @@
 					totalVideoFrames: 0,
 					droppedVideoFrames: 0,
 				}) as VideoPlaybackQuality;
+			Object.defineProperty(video, "videoWidth", { get: () => 0 });
 		}
 	});
 	const start = $derived(Number(page.url.searchParams.get("start") ?? "0"));

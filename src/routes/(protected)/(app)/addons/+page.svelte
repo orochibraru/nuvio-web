@@ -85,8 +85,12 @@
 		);
 	}
 
+	let confirmRemove = $state<{ url: string; name: string } | null>(null);
+
 	function removeAddon(url: string) {
+		confirmRemove = null;
 		void persist(toRows().filter((row) => row.url !== url));
+		toast.success("Addon removed");
 	}
 
 	function move(url: string, delta: number) {
@@ -124,7 +128,12 @@
 		void persist(rows);
 	}
 
-	async function runPreview() {
+	// One button: resolve the manifest, then install it. The preview card renders
+	// while it resolves; on success the dialog closes.
+	async function addAddon() {
+		if (!addUrl || previewing || saving) {
+			return;
+		}
 		previewing = true;
 		preview = null;
 		try {
@@ -134,9 +143,6 @@
 		} finally {
 			previewing = false;
 		}
-	}
-
-	async function confirmAdd() {
 		const current = preview;
 		if (!current?.ok) {
 			return;
@@ -144,6 +150,7 @@
 		const rows = toRows();
 		if (rows.some((row) => row.url === current.baseUrl)) {
 			toast.info("That addon is already installed.");
+			dialogOpen = false;
 			return;
 		}
 		await persist([
@@ -170,12 +177,29 @@
 		},
 	];
 
+	let addingSuggested = $state<string | null>(null);
+
 	async function addSuggested(entry: (typeof SUGGESTED)[number]) {
+		if (addingSuggested) {
+			return;
+		}
 		const rows = toRows();
 		if (rows.some((row) => `${row.url}/manifest.json` === entry.url)) {
 			toast.info("That addon is already installed.");
 			return;
 		}
+		addingSuggested = entry.url;
+		try {
+			await doAddSuggested(entry, rows);
+		} finally {
+			addingSuggested = null;
+		}
+	}
+
+	async function doAddSuggested(
+		entry: (typeof SUGGESTED)[number],
+		rows: ReturnType<typeof toRows>,
+	) {
 		const result = await previewAddon(entry.url).catch(() => null);
 		if (!result?.ok) {
 			toast.error(`Couldn't reach ${entry.name}.`);
@@ -386,7 +410,11 @@
 									size="icon-sm"
 									disabled={saving}
 									aria-label="Remove"
-									onclick={() => removeAddon(addon.url)}
+									onclick={() =>
+										(confirmRemove = {
+											url: addon.url,
+											name: addon.name ?? addon.url,
+										})}
 								>
 									<Trash2Icon />
 								</Button>
@@ -410,18 +438,12 @@
 		<Field.FieldGroup>
 			<Field.Field>
 				<Field.FieldLabel for="addon-url">Addon URL</Field.FieldLabel>
-				<div class="flex gap-2">
-					<Input
-						id="addon-url"
-						bind:value={addUrl}
-						placeholder="https://v3-cinemeta.strem.io/manifest.json"
-						onkeydown={(event) => event.key === "Enter" && runPreview()}
-					/>
-					<Button variant="secondary" disabled={!addUrl || previewing} onclick={runPreview}>
-						{#if previewing}<Spinner data-icon="inline-start" />{/if}
-						Check
-					</Button>
-				</div>
+				<Input
+					id="addon-url"
+					bind:value={addUrl}
+					placeholder="https://v3-cinemeta.strem.io/manifest.json"
+					onkeydown={(event) => event.key === "Enter" && addAddon()}
+				/>
 			</Field.Field>
 
 			{#if preview && !preview.ok}
@@ -477,9 +499,34 @@
 
 		<Dialog.Footer class="mt-4">
 			<Button variant="ghost" onclick={() => (dialogOpen = false)}>Cancel</Button>
-			<Button disabled={!preview?.ok || saving} onclick={confirmAdd}>
-				{#if saving}<Spinner data-icon="inline-start" />{/if}
-				Add
+			<Button disabled={!addUrl || previewing || saving} onclick={addAddon}>
+				{#if previewing || saving}<Spinner data-icon="inline-start" />{/if}
+				Add addon
+			</Button>
+		</Dialog.Footer>
+	</Dialog.Content>
+</Dialog.Root>
+
+<Dialog.Root
+	open={confirmRemove !== null}
+	onOpenChange={(open) => !open && (confirmRemove = null)}
+>
+	<Dialog.Content class="sm:max-w-sm">
+		<Dialog.Header>
+			<Dialog.Title>Remove {confirmRemove?.name}?</Dialog.Title>
+			<Dialog.Description>
+				Its catalogs, metadata and streams stop appearing across the app. You can
+				add it back any time.
+			</Dialog.Description>
+		</Dialog.Header>
+		<Dialog.Footer class="mt-4">
+			<Button variant="ghost" onclick={() => (confirmRemove = null)}>Cancel</Button>
+			<Button
+				variant="destructive"
+				disabled={saving}
+				onclick={() => confirmRemove && removeAddon(confirmRemove.url)}
+			>
+				Remove
 			</Button>
 		</Dialog.Footer>
 	</Dialog.Content>

@@ -71,8 +71,12 @@
 		);
 	}
 
+	let confirmingDelete = $state<Collection | null>(null);
+
 	function remove(collection: Collection) {
-		void persist(collections.filter((entry) => entry.id !== collection.id));
+		const target = collection;
+		confirmingDelete = null;
+		void persist(collections.filter((entry) => entry.id !== target.id));
 	}
 
 	async function applyRename() {
@@ -133,7 +137,7 @@
 			{#each sorted as collection (collection.id)}
 				<div
 					class={cn(
-						"group/col flex items-center gap-3 rounded-xl border border-border/60 bg-card/40 p-4 transition-all hover:border-primary/40 hover:bg-card",
+						"group/col flex items-center gap-3 rounded-xl border border-border bg-card p-4 transition-all hover:border-primary/40 hover:bg-card",
 						saving && "opacity-60",
 					)}
 				>
@@ -175,7 +179,10 @@
 								Rename
 							</DropdownMenu.Item>
 							<DropdownMenu.Separator />
-							<DropdownMenu.Item variant="destructive" onclick={() => remove(collection)}>
+							<DropdownMenu.Item
+								variant="destructive"
+								onclick={() => (confirmingDelete = collection)}
+							>
 								Delete
 							</DropdownMenu.Item>
 						</DropdownMenu.Content>
@@ -223,6 +230,32 @@
 				disabled={!renameTitle.trim() || saving}
 				onclick={applyRename}
 			>Save</Button>
+		</Dialog.Footer>
+	</Dialog.Content>
+</Dialog.Root>
+
+<Dialog.Root
+	open={confirmingDelete !== null}
+	onOpenChange={(open) => !open && (confirmingDelete = null)}
+>
+	<Dialog.Content class="sm:max-w-sm">
+		<Dialog.Header>
+			<Dialog.Title>Delete "{confirmingDelete?.title}"?</Dialog.Title>
+			<Dialog.Description>
+				The collection and its folders are removed. Titles in your library stay.
+			</Dialog.Description>
+		</Dialog.Header>
+		<Dialog.Footer class="mt-4">
+			<Button variant="ghost" onclick={() => (confirmingDelete = null)}>
+				Cancel
+			</Button>
+			<Button
+				variant="destructive"
+				disabled={saving}
+				onclick={() => confirmingDelete && remove(confirmingDelete)}
+			>
+				Delete
+			</Button>
 		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>

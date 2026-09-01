@@ -102,6 +102,15 @@ export const uiSettingsSchema = v.object({
 	librarySource: v.fallback(v.picklist(SYNC_SOURCES), "nuvio"),
 	/** Backend watch progress + history are read from / written to. */
 	progressSource: v.fallback(v.picklist(SYNC_SOURCES), "nuvio"),
+	/** Re-open the same title with the last stream URL instead of re-resolving —
+	 *  handy for debrid addons where re-resolution is slow. */
+	reuseLastLink: v.fallback(v.boolean(), false),
+	/** How long a remembered stream URL stays valid, in days (debrid links
+	 *  expire — 3 days matches most providers). */
+	linkCacheDays: v.fallback(
+		v.pipe(v.number(), v.minValue(1), v.maxValue(30)),
+		3,
+	),
 });
 
 export type UiSettings = v.InferOutput<typeof uiSettingsSchema>;
@@ -119,6 +128,8 @@ export const DEFAULT_UI_SETTINGS: UiSettings = {
 	watchRegion: "auto",
 	librarySource: "nuvio",
 	progressSource: "nuvio",
+	reuseLastLink: false,
+	linkCacheDays: 3,
 };
 
 /** `font-size` for the `::cue` pseudo-element, as a share of the video height. */

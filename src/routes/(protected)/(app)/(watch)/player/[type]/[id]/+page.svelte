@@ -16,7 +16,12 @@
 	import { pageTitle } from "#lib/stores/title.svelte.js";
 	import { sync } from "#lib/sync/store.svelte.js";
 	import { browserCanPlayCodec } from "#lib/watch/codec-support.js";
-	import { playbackHandoff } from "#lib/watch/playback.svelte.js";
+	import {
+		forgetLink,
+		playbackHandoff,
+		recallLink,
+		rememberLink,
+	} from "#lib/watch/playback.svelte.js";
 	import PlayerEndPanel from "#lib/watch/player-end-panel.svelte";
 	import PlayerEpisodesPanel from "#lib/watch/player-episodes-panel.svelte";
 	import { mediaSegments } from "#lib/watch/segments.remote.js";
@@ -91,6 +96,9 @@
 
 	// The source drawer, shared with /detail through the (watch) layout.
 	function openSources() {
+		// Reaching for another source means the current link is no good — drop it
+		// so "reuse last link" doesn't hand it back next time.
+		forgetLink(id);
 		sourcesPanel.open(type, id);
 	}
 
@@ -118,8 +126,14 @@
 		void goto(playerHref(videoId));
 	}
 
-	// The stream picked on /streams; on a cold load, resolve one here.
-	const handed = $derived(playbackHandoff.take(id));
+	// The stream picked on /streams; else a remembered link (if "reuse last link"
+	// is on and it's still fresh); else resolve one here on a cold load.
+	const handed = $derived(
+		playbackHandoff.take(id) ??
+			(theme.current.reuseLastLink
+				? recallLink(id, theme.current.linkCacheDays)
+				: null),
+	);
 	const streamsQuery = $derived(
 		handed ? undefined : resolveStreams({ type, id }),
 	);
@@ -217,7 +231,25 @@
 		void saveUiSettings(next);
 	}
 
+	let linkRemembered = false;
+
 	function report(position: number, duration: number) {
+		// First progress tick means the stream actually played — remember its URL
+		// for "reuse last link".
+		if (!linkRemembered && position > 2 && active?.url) {
+			linkRemembered = true;
+			rememberLink({
+				videoId: id,
+				url: active.url,
+				externalUrl: active.externalUrl ?? null,
+				notWebReady: Boolean(active.notWebReady),
+				label: active.label ?? context.heading,
+				addonName: active.addonName ?? "",
+				audioRisky,
+				videoRisky: videoCodec !== null,
+				videoCodec,
+			});
+		}
 		if (!contextReady) {
 			return;
 		}
@@ -348,6 +380,8 @@
 		void page.params.id;
 		endOfShow = false;
 		replayNonce = 0;
+		trueEnd = false;
+		linkRemembered = false;
 		return cancelUpNext;
 	});
 

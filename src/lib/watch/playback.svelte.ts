@@ -87,3 +87,78 @@ class PlaybackHandoff {
 }
 
 export const playbackHandoff = new PlaybackHandoff();
+
+// ---------------------------------------------------------------------------
+// "Reuse last link" — persist the URL that actually played for a videoId so a
+// re-watch (`reuseLastLink` setting) can skip re-resolution. Debrid links
+// expire, so entries carry a timestamp and callers pass a max age.
+
+const LINK_CACHE_KEY = "nuvio:last-links";
+const MAX_ENTRIES = 60;
+
+interface CachedLink extends SelectedStream {
+	resolvedAt: number;
+}
+
+function readCache(): Record<string, CachedLink> {
+	if (!browser) {
+		return {};
+	}
+	try {
+		return JSON.parse(localStorage.getItem(LINK_CACHE_KEY) ?? "{}");
+	} catch {
+		return {};
+	}
+}
+
+function writeCache(map: Record<string, CachedLink>): void {
+	try {
+		const entries = Object.entries(map).sort(
+			(a, b) => b[1].resolvedAt - a[1].resolvedAt,
+		);
+		localStorage.setItem(
+			LINK_CACHE_KEY,
+			JSON.stringify(Object.fromEntries(entries.slice(0, MAX_ENTRIES))),
+		);
+	} catch {
+		// storage full / unavailable — reuse just won't kick in
+	}
+}
+
+/** Remember the stream that's currently playing for `videoId`. */
+export function rememberLink(stream: SelectedStream): void {
+	if (!(browser && stream.url)) {
+		return;
+	}
+	const map = readCache();
+	map[stream.videoId] = { ...stream, resolvedAt: Date.now() };
+	writeCache(map);
+}
+
+/** The remembered stream for `videoId`, if it's newer than `maxAgeDays`. */
+export function recallLink(
+	videoId: string,
+	maxAgeDays: number,
+): SelectedStream | null {
+	const entry = readCache()[videoId];
+	if (!entry?.url) {
+		return null;
+	}
+	if (Date.now() - entry.resolvedAt > maxAgeDays * 86_400_000) {
+		return null;
+	}
+	const { resolvedAt: _resolvedAt, ...stream } = entry;
+	return stream;
+}
+
+/** Drop a remembered link — call when it turns out to be dead. */
+export function forgetLink(videoId: string): void {
+	if (!browser) {
+		return;
+	}
+	const map = readCache();
+	if (map[videoId]) {
+		delete map[videoId];
+		writeCache(map);
+	}
+}

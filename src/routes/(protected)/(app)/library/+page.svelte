@@ -1,6 +1,7 @@
 <script lang="ts">
 	import BookmarkIcon from "@lucide/svelte/icons/bookmark";
 	import XIcon from "@lucide/svelte/icons/x";
+	import { toast } from "svelte-sonner";
 	import EmptyState from "#lib/components/empty-state.svelte";
 	import MediaPoster from "#lib/components/media-poster.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
@@ -116,6 +117,19 @@
 			contentType: item.type,
 			remove: true,
 		});
+		toast(`Removed ${item.name}`, {
+			action: {
+				label: "Undo",
+				onClick: () =>
+					sync.toggleLibrary({
+						contentId: item.id,
+						contentType: item.type,
+						remove: false,
+						name: item.name,
+						poster: item.poster,
+					}),
+			},
+		});
 	}
 </script>
 
@@ -163,7 +177,7 @@
 		</p>
 	{:else if shown.length === 0 && !itemsStream.ready && !sync.authoritative}
 		<div
-			class="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
+			class="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7"
 		>
 			{#each { length: 12 } as _skeleton, i (i)}
 				<div class="skeleton aspect-2/3 rounded-xl"></div>
@@ -181,7 +195,7 @@
 		</EmptyState>
 	{:else}
 		<div
-			class="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
+			class="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7"
 		>
 			{#each shown as item (`${item.type}:${item.id}`)}
 				<div class="group relative">

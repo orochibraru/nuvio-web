@@ -39,9 +39,9 @@
 				"hooks": [
 					{
 						"type": "command",
-						"command": "bun run test:unit",
+						"command": "bun run test:unit:coverage",
 						"timeout": 120,
-						"statusMessage": "Running Unit Tests"
+						"statusMessage": "Running Unit Tests w/ Coverage"
 					}
 				]
 			}

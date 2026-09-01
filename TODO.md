@@ -29,6 +29,7 @@ Open work only. Shipped features live in the code + `CLAUDE.md`.
 - [ ] Store reads/writes per-domain backend (`librarySource` /
       `progressSource`), Nuvio as fallback + mirror
 - [ ] Multi-tab: BroadcastChannel to keep store / player state coherent
+- [ ] Download / Offline media feature
 
 ## Addons
 

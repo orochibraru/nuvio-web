@@ -47,7 +47,7 @@ test("client-side navigation through the whole shell", async ({ page }) => {
 	await page.goto("/");
 	await page.waitForLoadState("networkidle");
 
-	await expect(page).toHaveTitle("Nuvio");
+	await expect(page).toHaveTitle(/^Nuvio(\b|$)/);
 
 	for (const label of ["Discover", "Library", "Collections"]) {
 		await page

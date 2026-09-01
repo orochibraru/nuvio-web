@@ -262,22 +262,36 @@ test("player fatal screen offers an external-player handoff", async ({
 	expect(errors, "runtime errors").toEqual([]);
 });
 
-test("player flags an undecodable video track that raised no error", async ({
+test("video-decode watchdog surfaces a dismissible banner, never a wall", async ({
 	page,
 }) => {
+	test.slow(); // the watchdog's fuse is deliberately long (10s of playback)
 	const errors = collectRuntimeErrors(page);
 
-	// The sample clip plays fine; the harness freezes the frame counter so the
-	// runtime watchdog sees "position advancing, no frames decoded".
+	// The harness fakes "picture never decodes" (frozen counter + videoWidth 0)
+	// and loops the short clip so the long, conservative fuse can elapse.
 	await page.goto(harness({ breakvideo: "1" }));
 	await page.waitForLoadState("networkidle");
+	await page.evaluate(() => {
+		const v = document.querySelector("video");
+		if (v) {
+			v.loop = true;
+		}
+	});
 
 	const player = page.getByRole("region", { name: "Video player" });
-	await expect(
-		player.getByText(/can't decode this source's video/i),
-	).toBeVisible({ timeout: 15_000 });
+	// It's a banner over the still-usable player, not a takeover.
+	await expect(player.getByText(/video may not be playing/i)).toBeVisible({
+		timeout: 30_000,
+	});
+	await expect(player.getByRole("button", { name: "Mute" })).toBeVisible();
 
-	// The watchdog fatal is a controlled state, not an uncaught error.
+	// "Looks fine" dismisses it for good.
+	await player.getByRole("button", { name: "Looks fine" }).click();
+	await expect(player.getByText(/video may not be playing/i)).toBeHidden();
+	await page.waitForTimeout(1500);
+	await expect(player.getByText(/video may not be playing/i)).toBeHidden();
+
 	expect(errors, "runtime errors").toEqual([]);
 });
 

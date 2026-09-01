@@ -7,70 +7,92 @@ interface VideoDecodeDeps {
 	videoRisky: () => boolean;
 	/** True while a fatal error screen is already up — stop sampling. */
 	blocked: () => boolean;
-	/** Called once when the video track is judged undecodable. */
-	onDead: () => void;
 }
 
-/** Rolling frame-delta sampler for one `<video>` element. */
-function createSampler(el: HTMLVideoElement, needed: number) {
+// Seconds of advancing playback with zero decoded frames before we say
+// anything. Long, because the cost of a false positive is a scary banner over a
+// stream that plays fine.
+const NEEDED_TICKS = 10;
+
+/** Per-video sampler. `sample()` → true once the track looks undecodable. */
+function createSampler(el: HTMLVideoElement) {
 	const deltas: number[] = [];
 	let lastFrames: number | null = null;
 	let lastTime = 0;
+	/** Set once the decoder has clearly worked — sampling is then pointless. */
+	let settledOk = false;
 
-	return {
-		/** Record one tick; returns `true` once the track looks undecodable. */
-		sample(): boolean {
-			// Only judge while playback position is genuinely moving forward — a
-			// frozen position means buffering, not a decode failure.
-			const time = el.currentTime;
-			const advancing = time > lastTime + 0.15;
-			lastTime = time;
-			if (!advancing || time < 2) {
-				return false;
-			}
+	function sample(): boolean {
+		if (settledOk) {
+			return false;
+		}
+		// Only judge while the playback position is genuinely moving forward.
+		const time = el.currentTime;
+		const advancing = time > lastTime + 0.15;
+		lastTime = time;
+		if (!advancing || time < 3) {
+			return false;
+		}
 
-			const frames = decodedFrameCount(el) ?? 0;
-			if (lastFrames !== null) {
-				deltas.push(frames - lastFrames);
-				if (deltas.length > 20) {
-					deltas.shift();
-				}
+		const frames = decodedFrameCount(el) ?? 0;
+		if (frames > 30) {
+			settledOk = true; // real frames decoded → the codec is fine
+			return false;
+		}
+		if (lastFrames !== null) {
+			deltas.push(frames - lastFrames);
+			if (deltas.length > NEEDED_TICKS + 4) {
+				deltas.shift();
 			}
-			lastFrames = frames;
-			return classifyDecodeSamples(deltas, needed) === "dead";
-		},
-	};
+		}
+		lastFrames = frames;
+
+		return (
+			el.videoWidth === 0 &&
+			classifyDecodeSamples(deltas, NEEDED_TICKS) === "dead"
+		);
+	}
+
+	return { sample };
 }
 
 /**
- * Watch a playing `<video>` for "audio plays, picture doesn't" — a video codec
- * the browser can't decode that slipped past the pre-flight probe and didn't
- * raise a media `error`. Re-arms whenever `src()` changes.
+ * Watch a playing `<video>` for "audio plays, picture never appears" — a video
+ * codec the browser can't decode. Only arms for a label-flagged codec. The
+ * result is a **non-fatal, dismissible** signal (`issue` / `dismiss()`), like
+ * the silent-audio watch.
  */
-export function createVideoDecodeWatch(deps: VideoDecodeDeps): void {
+export function createVideoDecodeWatch(deps: VideoDecodeDeps) {
+	let issue = $state(false);
+
 	$effect(() => {
 		void deps.src();
+		issue = false;
 
 		const el = deps.video();
-		if (!el || decodedFrameCount(el) === null) {
-			return; // no frame counter → nothing to go on
+		if (!(el && deps.videoRisky()) || decodedFrameCount(el) === null) {
+			return; // not risky, or no frame counter → trust the browser
 		}
 
-		// A label-flagged codec earns a shorter fuse; otherwise wait out a longer
-		// run so a slow first keyframe / hiccup never trips it.
-		const sampler = createSampler(el, deps.videoRisky() ? 4 : 7);
-		let fired = false;
-
+		const sampler = createSampler(el);
 		const timer = setInterval(() => {
-			if (fired || deps.blocked() || el.paused) {
+			if (issue || deps.blocked() || el.paused) {
 				return;
 			}
 			if (sampler.sample()) {
-				fired = true;
+				issue = true;
 				clearInterval(timer);
-				deps.onDead();
 			}
 		}, 1000);
 		return () => clearInterval(timer);
 	});
+
+	return {
+		get issue() {
+			return issue;
+		},
+		dismiss() {
+			issue = false;
+		},
+	};
 }

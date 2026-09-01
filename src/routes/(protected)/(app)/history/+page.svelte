@@ -160,7 +160,7 @@
 				<div class="grid gap-3 sm:grid-cols-2">
 					{#each rows as item (item.id)}
 						<div
-							class="group/row relative flex gap-3 overflow-hidden rounded-xl border border-border/60 bg-card/40 p-2.5 transition-colors hover:border-primary/40 hover:bg-card"
+							class="group/row relative flex gap-3 overflow-hidden rounded-xl border border-border bg-card p-2.5 transition-colors hover:border-primary/40 hover:bg-card"
 						>
 							<!-- Decorative twin of the title link below — hidden from AT so
 							     the row exposes one link to the detail page, not two. -->
