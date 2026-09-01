@@ -19,6 +19,7 @@ jobs:
   code_quality:
     name: Code Quality
     uses: ./.github/workflows/code_quality.yml
+    secrets: inherit
 
   build:
     name: Docker Build (App)
