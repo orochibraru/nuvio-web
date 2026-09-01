@@ -1,7 +1,9 @@
 <script lang="ts">
-	import StarIcon from "@lucide/svelte/icons/star";
+	import { mode } from "mode-watcher";
 	import type { Snippet } from "svelte";
+	import ImdbRating from "#lib/components/imdb-rating.svelte";
 	import { backdropSrcset } from "#lib/images.js";
+	import { theme } from "#lib/settings/theme.svelte.js";
 
 	let {
 		title,
@@ -17,6 +19,7 @@
 		flag = null,
 		network = null,
 		showPoster = false,
+		headingLevel = 1,
 		actions,
 		overlay,
 	}: {
@@ -35,10 +38,30 @@
 		/** Official streaming home, e.g. "Prime Video" — shown as an accent chip. */
 		network?: string | null;
 		showPoster?: boolean;
+		/** Heading level for the title. Home demotes it to 2 (a stable `sr-only`
+		 *  "Home" `h1` owns the page heading there). */
+		headingLevel?: 1 | 2;
 		actions?: Snippet;
 		/** Rendered inside the hero `<section>` — e.g. carousel dots. */
 		overlay?: Snippet;
 	} = $props();
+
+	const headingTag = $derived(`h${headingLevel}` as "h1" | "h2");
+
+	// The `.dark` scope below re-declares every dark-palette token — including
+	// `--background` (shadowing the AMOLED override) and `--primary`/`--ring`
+	// (shadowing the chosen accent colour) — because both of those overrides
+	// are plain attribute selectors that only re-match an element that itself
+	// carries the attribute. Mirror both here so the hero doesn't silently
+	// fall back to dim dark-grey backgrounds and a neutral (grey/white)
+	// accent instead of the real ones.
+	const amoled = $derived(theme.current.darkStyle === "amoled");
+	const accent = $derived(theme.current.accent);
+	// Bleeding the hero's fade into the *real* page colour only reads well
+	// when that colour is already dark-ish (dark / AMOLED) — against a light
+	// page it's a much bigger jump and a gradient there looks muddy, not
+	// seamless. Light mode keeps a clean, deliberate cut instead.
+	const bleedIntoPage = $derived(mode.current === "dark");
 
 	let logoBroken = $state(false);
 	$effect(() => {
@@ -62,9 +85,15 @@
 
 <!-- `dark` scopes the scrims + copy to the dark palette regardless of the app
      theme — a cinematic backdrop is dark media either way, and a white scrim
-     over it (light mode) washed the image to a grey smear. -->
+     over it (light mode) washed the image to a grey smear. That also shadows
+     `--background` itself though, so capture the *real* ambient page colour
+     here, outside the `.dark` rescope, and use it (not the forced-dark token)
+     for the strip that has to match the page content below. -->
+<div style="--hero-page-bg: var(--background)">
 <section
   class="dark relative isolate mx-[calc(50%-50vw)] -mt-20 overflow-hidden text-foreground"
+  data-amoled={amoled ? "true" : undefined}
+  data-accent={accent}
 >
   <div class="absolute inset-0 -z-10">
     {#if background}
@@ -94,6 +123,14 @@
     {:else}
       <div class="size-full bg-linear-to-br from-muted to-background"></div>
     {/if}
+    <!-- Accent bloom rising from the lower-left, where the title sits. Sits
+         BELOW the fade-to-background layers so the solid strip at the very
+         bottom stays pure `background` — otherwise the glow bleeds through it
+         and seams against the page content below. -->
+    <div
+      class="absolute -bottom-1/3 left-0 h-2/3 w-2/3 opacity-50 blur-3xl"
+      style="background: radial-gradient(closest-side, color-mix(in oklch, var(--primary) 24%, transparent), transparent)"
+    ></div>
     <!-- Vertical bleed: solid page background for the bottom third, fading up to
          clear so the image melds seamlessly into the page below. -->
     <div
@@ -105,11 +142,15 @@
     <div
       class="absolute inset-x-0 top-0 h-24 bg-linear-to-b from-background/60 to-transparent"
     ></div>
-    <!-- Accent bloom rising from the lower-left, where the title sits. -->
-    <div
-      class="absolute -bottom-1/3 left-0 h-2/3 w-2/3 opacity-50 blur-3xl"
-      style="background: radial-gradient(closest-side, color-mix(in oklch, var(--primary) 24%, transparent), transparent)"
-    ></div>
+    {#if bleedIntoPage}
+      <!-- Dark / AMOLED only — bridges the forced-dark solid strip above into
+           the *real* ambient page colour right at the very edge. Skipped in
+           light mode: the jump to white is too big for a gradient to read as
+           anything but muddy, so that stays a clean, deliberate cut. -->
+      <div
+        class="absolute inset-x-0 bottom-0 h-[12%] bg-linear-to-t from-(--hero-page-bg) to-transparent"
+      ></div>
+    {/if}
   </div>
 
   <div
@@ -143,13 +184,16 @@
           onerror={() => (logoBroken = true)}
           class="max-h-24 max-w-xs self-start object-contain object-left drop-shadow-lg lg:max-h-36 lg:max-w-md"
         />
-        <h1 class="sr-only">{title}</h1>
+        <svelte:element this={headingTag} class="sr-only"
+          >{title}</svelte:element
+        >
       {:else}
-        <h1
+        <svelte:element
+          this={headingTag}
           class="text-4xl font-bold tracking-tight text-balance drop-shadow-md lg:text-6xl"
         >
           {title}
-        </h1>
+        </svelte:element>
       {/if}
 
       {#if flag || network || rating || year || runtime || genres.length > 0}
@@ -157,21 +201,21 @@
           class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-medium text-foreground/70"
         >
           {#if flag}
-            <span class="rounded-full bg-primary/15 px-2 py-0.5 text-xs font-semibold text-primary">
+            <span
+              class="rounded-full bg-primary/15 px-2 py-0.5 text-xs font-semibold text-primary"
+            >
               {flag}
             </span>
           {/if}
           {#if network}
-            <span class="flex items-center gap-1 rounded-full bg-foreground/10 px-2 py-0.5 text-xs font-semibold text-foreground/80">
+            <span
+              class="flex items-center gap-1 rounded-full bg-foreground/10 px-2 py-0.5 text-xs font-semibold text-foreground/80"
+            >
               {network}
             </span>
           {/if}
           {#if rating}
-            <span class="flex items-center gap-1 text-foreground" title="IMDb rating">
-              <StarIcon class="size-3.5 fill-amber-400 text-amber-400" />
-              {rating}
-              <span class="text-[10px] font-semibold tracking-wide text-foreground/45">IMDb</span>
-            </span>
+            <ImdbRating {rating} size="md" label class="text-foreground" />
           {/if}
           {#if year}<span>{year}</span>{/if}
           {#if runtime}<span>{runtime}</span>{/if}
@@ -201,3 +245,4 @@
     {@render overlay()}
   {/if}
 </section>
+</div>

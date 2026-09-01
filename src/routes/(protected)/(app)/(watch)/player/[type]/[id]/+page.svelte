@@ -523,7 +523,7 @@
 			title={context.heading}
 			certification={context.certification}
 			genres={context.genres}
-			label="Finding a stream…"
+			label="Finding a stream"
 		/>
 	{:else if streamsError}
 		<div class="relative z-10 flex max-w-md flex-col items-center gap-3 px-6 text-center">

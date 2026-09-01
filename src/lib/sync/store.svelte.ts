@@ -436,6 +436,19 @@ class SyncStore {
 		this.#scheduleFlush();
 	}
 
+	/** Undo `deleteHistory` (best-effort — no restore endpoint, so a delete
+	 *  that already flushed wins back on the next pull). */
+	restoreHistory(record: HistoryRecord): void {
+		this.#history.set(record.id, record);
+		this.#queue = this.#queue.filter(
+			(w) => !(w.kind === "history.delete" && w.record.id === record.id),
+		);
+		this.mutated = true;
+		this.#publish();
+		void this.#persist("history");
+		void this.#persist("queue");
+	}
+
 	async clear(profileId: number): Promise<void> {
 		this.#library = new Map();
 		this.#progress = new Map();

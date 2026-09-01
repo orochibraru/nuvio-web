@@ -11,6 +11,7 @@
 	import XIcon from "@lucide/svelte/icons/x";
 	import { cubicOut } from "svelte/easing";
 	import { fade, fly } from "svelte/transition";
+	import { reduced } from "#lib/motion.js";
 	import { theme } from "#lib/settings/theme.svelte.js";
 	import { cn } from "#lib/utils.js";
 	import { goto } from "$app/navigation";
@@ -225,14 +226,14 @@
 	type="button"
 	aria-label="Close sources"
 	onclick={onClose}
-	transition:fade={{ duration: 150 }}
+	transition:fade={reduced({ duration: 150 })}
 	class="fixed inset-0 z-40 bg-black/50 backdrop-blur-[2px]"
 ></button>
 
 {#if filtersOpen}
 	<aside
 		aria-label="Stream filters"
-		transition:fly={{ x: 24, duration: 150 }}
+		transition:fly={reduced({ x: 24, duration: 150 })}
 		class="fixed inset-y-0 right-0 z-50 flex w-72 flex-col border-l border-border bg-background/80 shadow-2xl backdrop-blur-xl md:right-105 md:border-r md:border-l-0"
 	>
 		<header class="flex items-center justify-between border-b border-border p-4">
@@ -394,7 +395,7 @@
 	role="dialog"
 	aria-modal="true"
 	aria-label="Sources"
-	transition:fly={{ x: 480, duration: 260, easing: cubicOut }}
+	transition:fly={reduced({ x: 480, duration: 260, easing: cubicOut })}
 	class="fixed inset-y-0 right-0 z-50 flex w-full max-w-105 flex-col border-l border-border bg-background/80 shadow-2xl backdrop-blur-xl"
 >
 	<header class="flex items-start gap-3 border-b border-border p-4">

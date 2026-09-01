@@ -10,9 +10,20 @@
 	import { Input } from "#lib/components/ui/input/index.js";
 	import { searchHistory } from "#lib/search-history.svelte.js";
 	import { pageTitle } from "#lib/stores/title.svelte.js";
+	import { browser } from "$app/env";
 	import { afterNavigate, goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
+
+	// A native `autofocus` pops the on-screen keyboard the instant a touch
+	// device paints this page, before the viewer has asked to type — only
+	// steal focus where a keyboard doesn't cost anything.
+	let searchInput = $state<HTMLInputElement | null>(null);
+	$effect(() => {
+		if (browser && !window.matchMedia("(pointer: coarse)").matches) {
+			searchInput?.focus();
+		}
+	});
 
 	const term = $derived((page.url.searchParams.get("q") ?? "").trim());
 
@@ -108,8 +119,8 @@
 				class="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-muted-foreground"
 			/>
 			<Input
+				bind:ref={searchInput}
 				bind:value={input}
-				autofocus
 				placeholder="Search movies and series"
 				autocomplete="off"
 				class="h-12 rounded-full pl-12 text-base"

@@ -1,10 +1,11 @@
 <script lang="ts">
 	import InfoIcon from "@lucide/svelte/icons/info";
 	import PlayIcon from "@lucide/svelte/icons/play";
-	import StarIcon from "@lucide/svelte/icons/star";
 	import XIcon from "@lucide/svelte/icons/x";
 	import { fade, fly } from "svelte/transition";
+	import ImdbRating from "#lib/components/imdb-rating.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
+	import { reduced } from "#lib/motion.js";
 	import type { PlayerInfo } from "./player-info.ts";
 
 	let {
@@ -70,14 +71,14 @@
      controls (z-30) whose bars stay click-through, so the Back button and bottom
      bar remain live. Dismiss with the ✕, the Info button, Escape or a CTA —
      never by clicking the body. -->
-<div class="absolute inset-0 z-20 overflow-hidden" transition:fade={{ duration: 150 }}>
+<div class="absolute inset-0 z-20 overflow-hidden" transition:fade={reduced({ duration: 150 })}>
 	<div class="absolute inset-0 bg-black/85"></div>
 
 	<!-- Confined between the player's top bar and its bottom control bar;
 	     vertically centred, left-aligned. Scrolls inside its box when too tall. -->
 	<div
 		class="absolute inset-x-0 top-16 bottom-20 flex items-center justify-start px-6 pb-6 sm:top-20 sm:bottom-24 sm:px-12"
-		transition:fly={{ y: 16, duration: 220 }}
+		transition:fly={reduced({ y: 16, duration: 220 })}
 	>
 		<div class="flex max-h-full w-full max-w-4xl flex-col gap-4 text-white">
 			<div class="flex shrink-0 items-center gap-3">
@@ -125,13 +126,12 @@
 					{#if info.imdbRating || metaBits.length > 0 || genres.length > 0}
 						<div class="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm font-medium text-white/70">
 							{#if info.imdbRating}
-								<span class="flex items-center gap-1 text-white">
-									<StarIcon class="size-3.5 fill-amber-400 text-amber-400" />
-									{info.imdbRating}
-									<span class="text-[10px] font-semibold tracking-wide text-white/45">
-										IMDb
-									</span>
-								</span>
+								<ImdbRating
+									rating={info.imdbRating}
+									size="md"
+									label
+									class="text-white"
+								/>
 							{/if}
 							{#each metaBits as bit (bit)}
 								<span>{bit}</span>

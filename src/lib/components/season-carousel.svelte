@@ -6,9 +6,9 @@
 	import EyeOffIcon from "@lucide/svelte/icons/eye-off";
 	import ListChecksIcon from "@lucide/svelte/icons/list-checks";
 	import PlayIcon from "@lucide/svelte/icons/play";
-	import StarIcon from "@lucide/svelte/icons/star";
 	import TvIcon from "@lucide/svelte/icons/tv";
 	import type { MetaVideo } from "#lib/addons/index.js";
+	import ImdbRating from "#lib/components/imdb-rating.svelte";
 	import * as ContextMenu from "#lib/components/ui/context-menu/index.js";
 	import { cn } from "#lib/utils.js";
 
@@ -227,7 +227,7 @@
 												...brokenThumbs,
 												[episode.id]: true,
 											})}
-										class="relative size-full object-cover transition-transform duration-500 group-hover/ep:scale-105"
+										class="relative size-full object-cover transition-transform duration-200 group-hover/ep:scale-105"
 									/>
 								{/if}
 								<div class="pointer-events-none absolute inset-0 bg-linear-to-t from-black/70 via-transparent to-transparent"></div>
@@ -264,16 +264,11 @@
 								</p>
 								<div class="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
 									{#if episode.rating}
-										<span
-											class="flex items-center gap-0.5 text-foreground/80"
-											title="IMDb rating"
-										>
-											<StarIcon class="size-3 fill-amber-400 text-amber-400" />
-											{episode.rating}
-											<span class="ml-0.5 text-[10px] font-semibold tracking-wide text-muted-foreground">
-												IMDb
-											</span>
-										</span>
+										<ImdbRating
+											rating={episode.rating}
+											label
+											class="text-foreground/80"
+										/>
 									{/if}
 									{#if date}<span>{date}</span>{/if}
 									{#if seriesRuntime}<span>{seriesRuntime}</span>{/if}

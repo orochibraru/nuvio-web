@@ -4,6 +4,7 @@
 	import PlayIcon from "@lucide/svelte/icons/play";
 	import RotateCcwIcon from "@lucide/svelte/icons/rotate-ccw";
 	import { Button } from "#lib/components/ui/button/index.js";
+	import { theme } from "#lib/settings/theme.svelte.js";
 	import { resolve } from "$app/paths";
 
 	interface Suggestion {
@@ -33,9 +34,13 @@
 
 <!-- Takes over the frame once a movie / final episode ends; the player shrinks
      to the top-left corner (`minimized` in video-player.svelte). Only the header
-     + buttons clear it — the poster grid runs the full width. -->
+     + buttons clear it — the poster grid runs the full width.
+     `data-accent` mirrors the chosen accent onto this forced-`.dark` scope —
+     `.dark` re-declares `--primary` too, which otherwise shadows the accent
+     colour and leaves the CTAs a neutral grey/white instead. -->
 <div
 	class="dark absolute inset-0 z-20 flex flex-col gap-6 overflow-y-auto bg-linear-to-b from-black via-black/95 to-black p-6 pt-40 text-white sm:p-10 sm:pt-10"
+	data-accent={theme.current.accent}
 >
 	<div class="flex flex-col gap-1 sm:pl-72">
 		<p class="text-xs font-semibold tracking-[0.2em] text-white/50 uppercase">

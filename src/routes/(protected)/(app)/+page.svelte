@@ -17,6 +17,7 @@
 	import MediaRow from "#lib/components/media-row.svelte";
 	import QueryError from "#lib/components/query-error.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
+	import { reduced } from "#lib/motion.js";
 	import { streamed } from "#lib/stream.svelte.js";
 	import { sync } from "#lib/sync/store.svelte.js";
 	import { cn } from "#lib/utils.js";
@@ -317,9 +318,10 @@
 	});
 </script>
 
-<AuroraBackground fixed class="-z-10 opacity-45" />
-
 <div class="flex flex-col gap-12">
+	<!-- Stable page heading — the hero title rotates, so a screen reader must not
+	     hear a changing movie name as the `h1`. -->
+	<h1 class="sr-only">Home</h1>
 	{#if spotlight}
 		<!-- svelte-ignore a11y_no_static_element_interactions -->
 		<div
@@ -334,19 +336,20 @@
 		>
 			{#key spotlight.id}
 				<div
-					in:fly={{
+					in:fly={reduced({
 						x: heroDir * HERO_SLIDE,
 						duration: 480,
 						easing: cubicOut,
-					}}
-					out:fly={{
+					})}
+					out:fly={reduced({
 						x: heroDir * -HERO_SLIDE,
 						duration: 360,
 						easing: cubicOut,
-					}}
+					})}
 				>
 					<MediaHero
 						title={spotlight.name}
+						headingLevel={2}
 						logo={spotlight.logo}
 						background={spotlight.background}
 						poster={spotlight.poster}
@@ -445,8 +448,17 @@
 			</div>
 		</section>
 	{:else}
-		<h1 class="text-3xl font-bold tracking-tight">Welcome back, {profileName}</h1>
+		<h2 class="text-3xl font-bold tracking-tight">Welcome back, {profileName}</h2>
 	{/if}
+
+	<!-- Anchored to normal document flow (not `fixed`) so it starts exactly
+	     where the hero's own box ends, at any hero height or viewport size —
+	     no viewport-unit guessing. Its own top fade keeps the glow from
+	     switching on abruptly right at that seam. -->
+	<div class="relative flex flex-col gap-12">
+		<AuroraBackground
+			class="-z-10 opacity-45 mask-[linear-gradient(to_bottom,transparent,black_220px)]"
+		/>
 
 	{#if resume.length > 0}
 		<section class="flex flex-col gap-3">
@@ -512,4 +524,5 @@
 			/>
 		{/each}
 	{/if}
+	</div>
 </div>

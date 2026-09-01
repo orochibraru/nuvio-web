@@ -327,7 +327,7 @@
 							</button>
 							<div class="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted">
 								{#if addon.logo}
-									<img src={addon.logo} alt="" class="size-full object-contain" />
+									<img src={addon.logo} alt="" class="size-full object-cover" />
 								{:else}
 									<PuzzleIcon class="size-5 text-muted-foreground" />
 								{/if}
@@ -458,7 +458,7 @@
 					<Card.Content class="flex items-center gap-3 py-4">
 						<div class="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted">
 							{#if preview.manifest.logo}
-								<img src={preview.manifest.logo} alt="" class="size-full object-contain" />
+								<img src={preview.manifest.logo} alt="" class="size-full object-cover" />
 							{:else}
 								<PuzzleIcon class="size-5 text-muted-foreground" />
 							{/if}

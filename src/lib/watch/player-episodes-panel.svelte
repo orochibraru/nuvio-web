@@ -3,6 +3,7 @@
 	import PlayIcon from "@lucide/svelte/icons/play";
 	import TvIcon from "@lucide/svelte/icons/tv";
 	import XIcon from "@lucide/svelte/icons/x";
+	import ImdbRating from "#lib/components/imdb-rating.svelte";
 	import { cn } from "#lib/utils.js";
 
 	interface Episode {
@@ -169,7 +170,7 @@
 						{/if}
 					</p>
 					<div class="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-white/50">
-						{#if entry.rating}<span>★ {entry.rating}</span>{/if}
+						{#if entry.rating}<ImdbRating rating={entry.rating} class="text-white/70" />{/if}
 						{#if date}<span>{date}</span>{/if}
 					</div>
 					{#if entry.overview}

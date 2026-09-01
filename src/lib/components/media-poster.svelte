@@ -7,10 +7,10 @@
 	import InfoIcon from "@lucide/svelte/icons/info";
 	import PlayIcon from "@lucide/svelte/icons/play";
 	import PlusIcon from "@lucide/svelte/icons/plus";
-	import StarIcon from "@lucide/svelte/icons/star";
 	import TvIcon from "@lucide/svelte/icons/tv";
 	import { toast } from "svelte-sonner";
 	import type { MetaPreview } from "#lib/addons/index.js";
+	import ImdbRating from "#lib/components/imdb-rating.svelte";
 	import * as ContextMenu from "#lib/components/ui/context-menu/index.js";
 	import { posterSrcset } from "#lib/images.js";
 	import { sync } from "#lib/sync/store.svelte.js";
@@ -162,7 +162,7 @@
 						decoding="async"
 						onload={() => (loaded = true)}
 						onerror={() => (broken = true)}
-						class={cn("size-full object-cover transition-[transform,opacity] duration-500 ease-out group-hover/poster:scale-[1.06]", loaded ? "opacity-100" : "opacity-0")}
+						class={cn("size-full object-cover [transition:transform_200ms_ease-out,opacity_500ms_ease-out] group-hover/poster:scale-[1.06]", loaded ? "opacity-100" : "opacity-0")}
 					/>
 				{:else}
 					<div
@@ -194,13 +194,11 @@
 				</div>
 
 				{#if rating}
-					<div
-						aria-hidden="true"
-						class="absolute top-2 left-2 flex items-center gap-1 rounded-md bg-black/55 px-1.5 py-0.5 text-xs font-semibold text-white ring-1 ring-white/10 backdrop-blur-md"
-					>
-						<StarIcon class="size-3 fill-amber-400 text-amber-400" />
-						{rating}
-					</div>
+					<ImdbRating
+						rating={rating}
+						variant="badge"
+						class="absolute top-2 left-2"
+					/>
 				{/if}
 
 				{#if watched || inLibrary}

@@ -4,7 +4,9 @@
 	import PlayIcon from "@lucide/svelte/icons/play";
 	import Trash2Icon from "@lucide/svelte/icons/trash-2";
 	import TvIcon from "@lucide/svelte/icons/tv";
+	import { toast } from "svelte-sonner";
 	import EmptyState from "#lib/components/empty-state.svelte";
+	import { Button } from "#lib/components/ui/button/index.js";
 	import { watchHistory } from "#lib/history/history.remote.js";
 	import type { HistoryRow } from "#lib/history/history-data.js";
 	import { pageTitle } from "#lib/stores/title.svelte.js";
@@ -128,6 +130,21 @@
 			season: item.season,
 			episode: item.episode,
 		});
+		toast(`Removed ${item.title}`, {
+			action: {
+				label: "Undo",
+				onClick: () =>
+					sync.restoreHistory({
+						id: item.id,
+						contentId: item.contentId,
+						contentType: item.type,
+						title: item.title,
+						season: item.season,
+						episode: item.episode,
+						watchedAt: item.watchedAt,
+					}),
+			},
+		});
 	}
 </script>
 
@@ -150,7 +167,11 @@
 			icon={ClockIcon}
 			title="Nothing watched yet"
 			description="Titles you finish will be listed here, newest first."
-		/>
+		>
+			{#snippet actions()}
+				<Button href={resolve('discover')} variant="outline">Find something to watch</Button>
+			{/snippet}
+		</EmptyState>
 	{:else}
 		{#each groups as [label, rows] (label)}
 			<section class="flex flex-col gap-3">

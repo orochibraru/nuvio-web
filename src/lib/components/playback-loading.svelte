@@ -1,4 +1,6 @@
 <script lang="ts">
+	import LoadingMark from "#lib/components/loading-mark.svelte";
+	import { Spinner } from "#lib/components/ui/spinner/index.js";
 	import { cn } from "#lib/utils.js";
 
 	let {
@@ -39,7 +41,7 @@
 	{/if}
 	<div class="absolute inset-0 bg-linear-to-t from-black via-black/40 to-black/60"></div>
 
-	<div class="absolute inset-0 flex flex-col items-center justify-center gap-5 px-6 text-center">
+	<div class="absolute inset-0 flex flex-col items-center justify-center gap-4 px-6 text-center">
 		{#if logo && !logoBroken}
 			<img
 				src={logo}
@@ -47,13 +49,16 @@
 				onerror={() => (logoBroken = true)}
 				class="animate-soft-pulse max-h-24 max-w-xs object-contain drop-shadow-lg lg:max-h-28"
 			/>
-		{:else}
-			<p class="animate-soft-pulse text-2xl font-bold tracking-tight text-white lg:text-3xl">
-				{title}
-			</p>
 		{/if}
+		<!-- Its own animation, not tied to whatever title/logo art did or didn't
+		     load — sits under the logo when there is one, or carries the loading
+		     screen on its own when there isn't. -->
+		<LoadingMark />
 		{#if label}
-			<p class="text-sm text-white/60">{label}</p>
+			<p class="flex items-center gap-1.5 text-xs text-white/50">
+				<Spinner class="size-3" />
+				{label}
+			</p>
 		{/if}
 	</div>
 

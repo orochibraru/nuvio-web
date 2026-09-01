@@ -51,6 +51,7 @@
 	// Manage mode: tiles open an editor instead of selecting the profile.
 	let manage = $state(false);
 	let editing = $state<ProfileView | null>(null);
+	let deleteConfirmOpen = $state(false);
 	let editName = $state("");
 	let editColor = $state("#2563EB");
 	let editAvatarId = $state<string | undefined>(undefined);
@@ -373,17 +374,7 @@
 			</form>
 
 			{#if editing.profile_index !== 1 && (data.profiles?.length ?? 0) > 1}
-				{@const remove = deleteProfile.for(`del-${editing.profile_index}`)}
-				<form
-					{...remove}
-					class="mt-4 flex items-center justify-between gap-3 border-t border-border pt-4"
-				>
-					<input
-						{...remove.fields.profileId.as(
-							"hidden",
-							String(editing.profile_index),
-						)}
-					/>
+				<div class="mt-4 flex items-center justify-between gap-3 border-t border-border pt-4">
 					<div class="text-sm text-muted-foreground">
 						<p class="font-medium text-foreground">Delete this profile</p>
 						<p>Its library, history and progress are removed.</p>
@@ -392,15 +383,48 @@
 						{/if}
 					</div>
 					<Button
-						type="submit"
+						type="button"
 						variant="outline"
 						class="shrink-0 text-destructive hover:text-destructive"
-						disabled={remove.pending > 0}
+						onclick={() => (deleteConfirmOpen = true)}
 					>
 						<Trash2Icon data-icon="inline-start" /> Delete
 					</Button>
-				</form>
+				</div>
 			{/if}
+		{/if}
+	</Dialog.Content>
+</Dialog.Root>
+
+<Dialog.Root bind:open={deleteConfirmOpen}>
+	<Dialog.Content class="sm:max-w-md">
+		<Dialog.Header>
+			<Dialog.Title>Delete {editing?.name}?</Dialog.Title>
+			<Dialog.Description>
+				Its library, history and watch progress are removed for good. This cannot be
+				undone.
+			</Dialog.Description>
+		</Dialog.Header>
+		{#if editing}
+			{@const remove = deleteProfile.for(`del-${editing.profile_index}`)}
+			<form {...remove}>
+				<input
+					{...remove.fields.profileId.as("hidden", String(editing.profile_index))}
+				/>
+				<Dialog.Footer class="mt-4">
+					<Button
+						type="button"
+						variant="ghost"
+						onclick={() => (deleteConfirmOpen = false)}
+					>
+						Cancel
+					</Button>
+					<Button type="submit" variant="destructive" disabled={remove.pending > 0}>
+						{#if remove.pending > 0}<Spinner data-icon="inline-start" />{/if}
+						Delete profile
+					</Button>
+				</Dialog.Footer>
+			</form>
 		{/if}
 	</Dialog.Content>
 </Dialog.Root>

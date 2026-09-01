@@ -114,7 +114,7 @@
 	</div>
 
 	{#if !collectionsReady && sorted.length === 0}
-		<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+		<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
 			{#each { length: 3 } as _skeleton, i (i)}
 				<div class="skeleton h-20 rounded-xl"></div>
 			{/each}
@@ -133,7 +133,7 @@
 			{/snippet}
 		</EmptyState>
 	{:else}
-		<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+		<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
 			{#each sorted as collection (collection.id)}
 				<div
 					class={cn(

@@ -74,7 +74,7 @@
 					loading="lazy"
 					decoding="async"
 					onload={() => (bgLoaded = true)}
-					class={`relative size-full object-cover transition-[transform,opacity] duration-500 group-hover/cw:scale-105 ${bgLoaded ? "opacity-100" : "opacity-0"}`}
+					class={`relative size-full object-cover [transition:transform_200ms_ease-out,opacity_500ms_ease-out] group-hover/cw:scale-105 ${bgLoaded ? "opacity-100" : "opacity-0"}`}
 				/>
 			{/if}
 			<div class="absolute inset-0 bg-linear-to-t from-black/85 via-black/25 to-transparent"></div>

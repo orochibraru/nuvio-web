@@ -39,6 +39,22 @@
 		selected ? `${selected.addonId}|${selected.type}|${selected.id}` : null,
 	);
 
+	// A stale `?c=` (an addon was removed, or the link is just wrong) silently
+	// falls back to the first catalog above — sync the URL to match so it
+	// doesn't keep naming a catalog that isn't showing.
+	$effect(() => {
+		if (
+			catalogsReady &&
+			selectedKey &&
+			activeKey &&
+			selectedKey !== activeKey
+		) {
+			const params = new URLSearchParams(page.url.search);
+			params.set("c", activeKey);
+			goto(`?${params}`, { reset: false, replace: true });
+		}
+	});
+
 	// Only disambiguate catalog pills by addon when more than one addon supplies them.
 	const multipleAddons = $derived(
 		new Set(catalogs.map((entry) => entry.addonId)).size > 1,
@@ -220,7 +236,23 @@
 				onRetry={() => firstPageQuery?.refresh()}
 			/>
 		{:else if items.length === 0}
-			<p class="py-10 text-center text-sm text-muted-foreground">Nothing in this catalog.</p>
+			<EmptyState
+				icon={CompassIcon}
+				title="Nothing in this catalog"
+				description={genre
+					? `No "${genre}" titles here.`
+					: "This catalog came back empty."}
+			>
+				{#snippet actions()}
+					{#if genre}
+						<Button variant="outline" onclick={() => setGenre("")}>
+							Clear genre filter
+						</Button>
+					{:else}
+						<Button href={resolve('addons')} variant="outline">Manage addons</Button>
+					{/if}
+				{/snippet}
+			</EmptyState>
 		{:else}
 			<MediaGrid
 				items={items}

@@ -55,7 +55,7 @@
 						alt={name}
 						loading="lazy"
 						decoding="async"
-						class="relative size-full object-cover object-top transition-transform duration-500 group-hover/cast:scale-105"
+						class="relative size-full object-cover object-top transition-transform duration-200 group-hover/cast:scale-105"
 					/>
 				{/if}
 			</div>

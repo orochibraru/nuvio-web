@@ -1,6 +1,7 @@
 <script lang="ts">
 	import ArrowLeftIcon from "@lucide/svelte/icons/arrow-left";
 	import CheckIcon from "@lucide/svelte/icons/check";
+	import ExternalLinkIcon from "@lucide/svelte/icons/external-link";
 	import EyeIcon from "@lucide/svelte/icons/eye";
 	import EyeOffIcon from "@lucide/svelte/icons/eye-off";
 	import FilmIcon from "@lucide/svelte/icons/film";
@@ -79,6 +80,10 @@
 
 	const trailers = $derived(meta?.trailerStreams ?? []);
 	let trailerId = $state<string | null>(null);
+	// The hero's synopsis is `line-clamp-3` with no way to read the rest on
+	// mobile (no hover, no room) — this drives a "More"/"Less" disclosure below
+	// the hero on small screens.
+	let synopsisExpanded = $state(false);
 
 	const similarQuery = $derived(
 		meta ? similarTitles({ type, id, genres: meta.genres ?? [] }) : undefined,
@@ -243,6 +248,11 @@
 		ctaStreamCount === 0 && providers.stream.length > 0,
 	);
 	const officialCta = $derived(providers.stream[0] ?? null);
+	// While `ctaStreamCount` is still `null` we don't yet know whether the
+	// primary CTA is "Watch" (an addon stream) or "Watch on <provider>" (an
+	// external hop) — hold the slot as a skeleton instead of showing one and
+	// silently swapping it a moment later.
+	const ctaPending = $derived(Boolean(ctaVideoId) && ctaStreamCount === null);
 
 	function toggleWatched(
 		videoId: string,
@@ -365,14 +375,21 @@
 			</div>
 		</div>
 	{:else if !stableMeta}
-		<div class="mx-[calc(50%-50vw)] -mt-20 min-h-[70vh] px-6 pt-44">
-			<div class="mx-auto flex items-end gap-8 mt-80">
-				<div class="skeleton hidden aspect-2/3 w-52 shrink-0 rounded-2xl lg:block"></div>
+		<!-- Mirrors `MediaHero`'s own box exactly so the real hero doesn't jump
+		     the page when it lands. -->
+		<div class="mx-[calc(50%-50vw)] -mt-20 min-h-[72vh]" aria-hidden="true">
+			<div class="mx-auto flex items-end gap-8 px-6 pt-32 pb-12 lg:pb-14">
+				<div class="hidden w-52 shrink-0 lg:block">
+					<div class="skeleton aspect-2/3 w-full rounded-2xl"></div>
+				</div>
 				<div class="flex w-full max-w-2xl flex-col gap-4">
-					<div class="skeleton h-12 w-2/3 rounded-lg"></div>
-					<div class="skeleton h-4 w-1/3 rounded"></div>
-					<div class="skeleton h-20 w-full rounded-lg"></div>
-					<div class="skeleton h-10 w-64 rounded-lg"></div>
+					<div class="skeleton h-12 w-2/3 rounded-lg lg:h-16"></div>
+					<div class="skeleton h-4 w-40 rounded"></div>
+					<div class="skeleton h-16 w-full max-w-xl rounded-lg"></div>
+					<div class="mt-2 flex gap-3">
+						<div class="skeleton h-11 w-32 rounded-md"></div>
+						<div class="skeleton h-11 w-36 rounded-md"></div>
+					</div>
 				</div>
 			</div>
 		</div>
@@ -399,7 +416,9 @@
 				: seriesFlag}
 		>
 			{#snippet actions()}
-				{#if useOfficialCta && officialCta}
+				{#if ctaPending}
+					<div class="skeleton h-11 w-32 rounded-md" aria-hidden="true"></div>
+				{:else if useOfficialCta && officialCta}
 					<Button
 						size="lg"
 						href={officialCta.url}
@@ -408,6 +427,7 @@
 					>
 						<PlayIcon data-icon="inline-start" class="fill-current" />
 						Watch on {officialCta.provider}
+						<ExternalLinkIcon data-icon="inline-end" class="size-3.5 opacity-70" />
 					</Button>
 				{:else if contentType === "movie"}
 					<Button size="lg" onclick={() => watch(id)}>
@@ -464,6 +484,26 @@
 		</MediaHero>
 
 		<div class="flex flex-col gap-10 pt-2">
+			{#if m.description}
+				<div class="flex flex-col items-start gap-1.5 sm:hidden">
+					<p
+						class={cn(
+							"max-w-prose text-sm leading-relaxed text-foreground/80",
+							!synopsisExpanded && "line-clamp-3",
+						)}
+					>
+						{m.description}
+					</p>
+					<button
+						type="button"
+						class="text-sm font-semibold text-primary"
+						onclick={() => synopsisExpanded = !synopsisExpanded}
+					>
+						{synopsisExpanded ? "Less" : "More"}
+					</button>
+				</div>
+			{/if}
+
 			{#if providers.stream.length > 0 || providers.rent.length > 0 || providers.buy.length > 0}
 				<WatchProvidersList providers={providers} />
 			{/if}
@@ -499,7 +539,7 @@
 									alt=""
 									loading="lazy"
 									decoding="async"
-									class="size-full object-cover transition-transform duration-500 group-hover/tr:scale-105"
+									class="size-full object-cover transition-transform duration-200 group-hover/tr:scale-105"
 								/>
 								<div class="absolute inset-0 bg-black/30 transition-colors group-hover/tr:bg-black/10"></div>
 								<span class="absolute inset-0 flex items-center justify-center text-white">

@@ -1,10 +1,12 @@
 <script lang="ts">
 	import BookmarkIcon from "@lucide/svelte/icons/bookmark";
+	import ChevronDownIcon from "@lucide/svelte/icons/chevron-down";
 	import XIcon from "@lucide/svelte/icons/x";
 	import { toast } from "svelte-sonner";
 	import EmptyState from "#lib/components/empty-state.svelte";
 	import MediaPoster from "#lib/components/media-poster.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
+	import * as DropdownMenu from "#lib/components/ui/dropdown-menu/index.js";
 	import { pageTitle } from "#lib/stores/title.svelte.js";
 	import { streamed } from "#lib/stream.svelte.js";
 	import { sync } from "#lib/sync/store.svelte.js";
@@ -158,16 +160,26 @@
 					</button>
 				{/each}
 			</div>
-			<button
-				type="button"
-				onclick={() => {
-					const next = (sorts.findIndex((s) => s.value === sort) + 1) % sorts.length;
-					setParam("sort", sorts[next].value, "added");
-				}}
-				class="rounded-full bg-foreground/5 px-3 py-1.5 text-sm font-medium text-muted-foreground transition hover:text-foreground"
-			>
-				{sorts.find((s) => s.value === sort)?.label}
-			</button>
+			<DropdownMenu.Root>
+				<DropdownMenu.Trigger
+					class="flex items-center gap-1 rounded-full bg-foreground/5 px-3 py-1.5 text-sm font-medium text-muted-foreground transition hover:text-foreground"
+				>
+					{sorts.find((s) => s.value === sort)?.label}
+					<ChevronDownIcon class="size-3.5" />
+				</DropdownMenu.Trigger>
+				<DropdownMenu.Content align="end">
+					<DropdownMenu.RadioGroup
+						value={sort}
+						onValueChange={(value) => setParam("sort", value, "added")}
+					>
+						{#each sorts as option (option.value)}
+							<DropdownMenu.RadioItem value={option.value}>
+								{option.label}
+							</DropdownMenu.RadioItem>
+						{/each}
+					</DropdownMenu.RadioGroup>
+				</DropdownMenu.Content>
+			</DropdownMenu.Root>
 		</div>
 	</div>
 

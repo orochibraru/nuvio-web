@@ -2,6 +2,7 @@
 	import { cubicOut } from "svelte/easing";
 	import { Tween } from "svelte/motion";
 	import { fade } from "svelte/transition";
+	import { reduced } from "#lib/motion.js";
 	import { navigating } from "$app/state";
 
 	let showLoadingBar = $state(false);
@@ -41,7 +42,7 @@
 {#if showLoadingBar}
   <div
     class="fixed top-0 z-50 h-0.5 w-full bg-primary transition-all will-change-transform"
-    transition:fade
+    transition:fade={reduced({ duration: 400 })}
   >
     <div
       class="bg-primary h-full"
