@@ -131,7 +131,7 @@
 	}
 </script>
 
-<div class="mx-auto flex max-w-4xl flex-col gap-8">
+<div class="mx-auto flex max-w-3xl flex-col gap-8">
 	<div class="flex flex-col gap-1">
 		<h1 class="text-3xl font-bold tracking-tight">Watch history</h1>
 		<p class="text-sm text-muted-foreground">
@@ -222,7 +222,7 @@
 								type="button"
 								aria-label="Remove from history"
 								onclick={() => remove(item)}
-								class="absolute top-2 right-2 rounded-md p-1.5 text-muted-foreground opacity-0 transition group-hover/row:opacity-100 hover:bg-destructive/10 hover:text-destructive"
+								class="absolute top-2 right-2 rounded-md p-2 text-muted-foreground transition sm:opacity-0 sm:group-hover/row:opacity-100 sm:group-focus-within/row:opacity-100 hover:bg-destructive/10 hover:text-destructive"
 							>
 								<Trash2Icon class="size-4" />
 							</button>

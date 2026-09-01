@@ -17,6 +17,15 @@ export type Accent = (typeof ACCENTS)[number];
 export const SUBTITLE_SIZES = ["small", "medium", "large"] as const;
 export type SubtitleSize = (typeof SUBTITLE_SIZES)[number];
 
+/** Subtitle colour swatches — shared by Settings and the in-player panel. */
+export const SUBTITLE_COLORS = [
+	"#ffffff",
+	"#ffe14d",
+	"#7fd4ff",
+	"#9dffb0",
+	"#ff9db1",
+] as const;
+
 /** Preferred stream resolution for auto-pick on the player. `auto` = addon order. */
 export const STREAM_QUALITIES = [
 	"auto",

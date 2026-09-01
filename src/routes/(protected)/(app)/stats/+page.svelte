@@ -3,6 +3,7 @@
 	import ClockIcon from "@lucide/svelte/icons/clock";
 	import FilmIcon from "@lucide/svelte/icons/film";
 	import TvIcon from "@lucide/svelte/icons/tv";
+	import QueryError from "#lib/components/query-error.svelte";
 	import * as Card from "#lib/components/ui/card/index.js";
 	import { watchStats } from "#lib/stats/stats.remote.js";
 	import { pageTitle } from "#lib/stores/title.svelte.js";
@@ -30,7 +31,7 @@
 	}
 </script>
 
-<div class="flex max-w-4xl flex-col gap-6">
+<div class="mx-auto flex max-w-3xl flex-col gap-6">
 	<div class="flex flex-col gap-1">
 		<h1 class="text-3xl font-bold tracking-tight">Your stats</h1>
 		<p class="text-sm text-muted-foreground">
@@ -39,9 +40,10 @@
 	</div>
 
 	{#if statsQuery.error}
-		<p class="py-16 text-center text-sm text-destructive">
-			Couldn't load your stats. Reload to try again.
-		</p>
+		<QueryError
+			message="Couldn't load your stats."
+			onRetry={() => statsQuery.refresh()}
+		/>
 	{:else if !stats}
 		<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
 			{#each { length: 4 } as _card, index (index)}

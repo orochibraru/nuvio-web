@@ -2,6 +2,7 @@
 	import MenuIcon from "@lucide/svelte/icons/menu";
 	import SearchIcon from "@lucide/svelte/icons/search";
 	import CommandPalette from "#lib/components/command-palette.svelte";
+	import { commandPalette } from "#lib/components/command-palette.svelte.js";
 	import FirstRunNotice from "#lib/components/first-run-notice.svelte";
 	import HealthBanner from "#lib/components/health-banner.svelte";
 	import ProfileAvatar from "#lib/components/profile-avatar.svelte";
@@ -119,12 +120,13 @@
         : "border-b border-transparent bg-transparent",
     )}
   >
-    <div class="mx-auto flex h-14 items-center gap-6 px-6">
+    <div class="flex h-14 items-center gap-6 px-6">
       <a
         href={resolve("/(protected)/(app)")}
-        class="flex items-center gap-2 text-lg font-bold tracking-tight"
+        class="flex shrink-0 items-center gap-2 text-lg font-bold tracking-tight"
+        aria-label="Nuvio — home"
       >
-      <img alt="Nuvio — home" src="/logo-text.webp" width={100} />
+        <img alt="Nuvio — home" src="/logo-text.webp" width={100} />
       </a>
 
       <nav class="hidden items-center gap-1 text-sm md:flex">
@@ -136,7 +138,7 @@
             class={cn(
               "rounded-full px-3 py-1.5 font-medium transition-colors",
               active
-                ? "bg-foreground/10 text-foreground"
+                ? "bg-primary/15 text-foreground"
                 : "text-muted-foreground hover:text-foreground",
             )}
           >
@@ -169,6 +171,12 @@
         <a
           href={resolve('search')}
           aria-current={isActive("/search") ? "page" : undefined}
+          onclick={(e) => {
+            if (e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey) {
+              e.preventDefault();
+              commandPalette.show();
+            }
+          }}
           class={cn(
             "flex items-center gap-2 rounded-full border border-border bg-background/40 px-3 py-1.5 text-sm transition-colors",
             isActive("/search")
@@ -230,7 +238,6 @@
               </DropdownMenu.Item>
             </DropdownMenu.Group>
             <DropdownMenu.Separator />
-            <DropdownMenu.Separator />
             <form {...signOut}>
               <DropdownMenu.Item variant="destructive">
                 {#snippet child({ props })}
@@ -251,7 +258,7 @@
     id="main-content"
     tabindex="-1"
     class={cn(
-      "mx-auto flex w-full flex-1 flex-col outline-none",
+      "flex w-full flex-1 flex-col outline-none",
       immersive ? "p-0" : "px-6 pt-20 pb-16",
     )}
   >

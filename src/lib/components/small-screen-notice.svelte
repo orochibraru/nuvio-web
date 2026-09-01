@@ -3,9 +3,14 @@
 	import XIcon from "@lucide/svelte/icons/x";
 	import { NUVIO_WEBSITE_URL } from "#lib/nuvio/index.js";
 	import { browser } from "$app/env";
+	import { page } from "$app/state";
 
 	const KEY = "nuvio:mobile-banner-dismissed";
 	let dismissed = $state(true);
+
+	// The player is a full-screen surface — a fixed bottom bar would land on the
+	// transport controls.
+	const onPlayer = $derived(page.url.pathname.includes("/player"));
 
 	$effect(() => {
 		if (!browser) {
@@ -28,9 +33,9 @@
 	}
 </script>
 
-{#if !dismissed}
+{#if !dismissed && !onPlayer}
 	<div
-		class="fixed inset-x-0 bottom-0 z-100 flex items-center gap-3 border-t border-border bg-background/95 px-4 py-3 text-sm shadow-[0_-8px_24px_-12px_rgba(0,0,0,0.4)] backdrop-blur md:hidden"
+		class="fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 border-t border-border bg-background/95 px-4 py-3 text-sm shadow-[0_-8px_24px_-12px_rgba(0,0,0,0.4)] backdrop-blur md:hidden"
 	>
 		<SmartphoneIcon class="size-5 shrink-0 text-muted-foreground" />
 		<p class="flex-1 text-muted-foreground">

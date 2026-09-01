@@ -8,15 +8,14 @@ Open work only. Shipped features live in the code + `CLAUDE.md`.
 - [ ] More motion on the catalog rows
 - [ ] Home layout editor in Settings (API plumbing done; reverse-engineer the
       `settings_json` blob shape first)
+- [ ] Add undo button to toasts for quick actions such as "remove from this
+      list", or "remove from library".
 
 ## Playback
 
 - [ ] Next-air-date for an unaired next episode (needs a schedule source)
 - [ ] AniSkip for anime intro/outro
 - [ ] TheIntroDB: check if an OAuth client id keeps the keyless endpoint alive
-- [ ] Detect movie end, then shrink the player to the top-left with an animation
-      and show "It's over but these titles could interest you" + related titles
-      and a go-back button
 
 ## Library, collections & history
 

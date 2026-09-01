@@ -2,9 +2,9 @@
 	import ArrowLeftIcon from "@lucide/svelte/icons/arrow-left";
 	import CopyIcon from "@lucide/svelte/icons/copy";
 	import ExternalLinkIcon from "@lucide/svelte/icons/external-link";
-	import InfoIcon from "@lucide/svelte/icons/info";
 	import PlayIcon from "@lucide/svelte/icons/play";
 	import RotateCcwIcon from "@lucide/svelte/icons/rotate-ccw";
+	import TriangleAlertIcon from "@lucide/svelte/icons/triangle-alert";
 	import { toast } from "svelte-sonner";
 	import { similarTitles } from "#lib/addons/addons.remote.js";
 	import PlaybackLoading from "#lib/components/playback-loading.svelte";
@@ -17,6 +17,7 @@
 	import { sync } from "#lib/sync/store.svelte.js";
 	import { browserCanPlayCodec } from "#lib/watch/codec-support.js";
 	import { playbackHandoff } from "#lib/watch/playback.svelte.js";
+	import PlayerEndPanel from "#lib/watch/player-end-panel.svelte";
 	import PlayerEpisodesPanel from "#lib/watch/player-episodes-panel.svelte";
 	import { mediaSegments } from "#lib/watch/segments.remote.js";
 	import { sourcesPanel } from "#lib/watch/sources-panel.svelte.js";
@@ -163,7 +164,13 @@
 			? (active.url ?? null)
 			: null,
 	);
-	const resolving = $derived(!(handed || streamsQuery?.current));
+	// The stream fan-out rejected (addon host down, CORS, network) — a distinct
+	// state from "still loading" so the shell can offer a retry instead of
+	// spinning forever.
+	const streamsError = $derived(!handed && streamsQuery?.error != null);
+	const resolving = $derived(
+		!(handed || streamsQuery?.current || streamsError),
+	);
 
 	// Official "where to watch" — the fallback when no addon stream plays here.
 	const providersQuery = $derived(
@@ -298,9 +305,16 @@
 		}
 	}
 
+	// True once the video element actually fired `ended` (vs. just crossing the
+	// outro timestamp mid-credits) — gates the "Back to video" affordance.
+	let trueEnd = $state(false);
+
 	// Fired once when playback reaches the credits, and again on the real `ended`
 	// event as a fallback (when there's no outro timestamp).
-	function reachedEnd() {
+	function reachedEnd(ended = false) {
+		if (ended) {
+			trueEnd = true;
+		}
 		if (context.next) {
 			openUpNext();
 		} else {
@@ -308,8 +322,24 @@
 		}
 	}
 
+	// The end-of-show takeover shouldn't leave the credits blaring under it.
+	$effect(() => {
+		if (endOfShow) {
+			document.querySelector("video")?.pause();
+		}
+	});
+
+	// Dismiss the takeover and keep watching from where we are (post-credits
+	// scene, or just finishing the credits).
+	function backToVideo() {
+		endOfShow = false;
+		cancelUpNext();
+		queueMicrotask(() => void document.querySelector("video")?.play());
+	}
+
 	function watchAgain() {
 		endOfShow = false;
+		trueEnd = false;
 		cancelUpNext();
 		replayNonce += 1;
 	}
@@ -376,59 +406,14 @@
 
 	{#if playableSrc}
 		{#if endOfShow}
-			<!-- Netflix-style: the player shrinks to a corner while "more like this"
-			     takes over the screen. -->
-			<div
-				class="absolute inset-0 z-20 flex flex-col gap-6 overflow-y-auto bg-linear-to-b from-black via-black/95 to-black p-6 sm:p-10"
-			>
-				<div class="flex flex-col gap-1">
-					<p class="text-xs font-semibold tracking-[0.2em] text-white/50 uppercase">
-						You finished
-					</p>
-					<h2 class="text-2xl font-bold sm:text-3xl">{context.heading}</h2>
-				</div>
-
-				<div class="flex flex-wrap items-center gap-2">
-					<Button size="lg" variant="secondary" onclick={watchAgain}>
-						<RotateCcwIcon data-icon="inline-start" /> Watch again
-					</Button>
-					<Button size="lg" variant="ghost" href={detailHref}>
-						<InfoIcon data-icon="inline-start" /> Back to details
-					</Button>
-				</div>
-
-				{#if suggestions.length > 0}
-					<div class="flex flex-col gap-3">
-						<p class="text-sm font-semibold text-white/70">More like this</p>
-						<div
-							class="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8"
-						>
-							{#each suggestions as meta (meta.id)}
-								<a
-									href={resolve(`detail/${meta.type}/${encodeURIComponent(meta.id)}`)}
-									class="group/sug"
-								>
-									<div
-										class="aspect-2/3 overflow-hidden rounded-lg bg-white/10 ring-1 ring-white/10 transition group-hover/sug:ring-primary/60"
-									>
-										{#if meta.poster}
-											<img
-												src={meta.poster}
-												alt={meta.name}
-												loading="lazy"
-												class="size-full object-cover"
-											/>
-										{/if}
-									</div>
-									<p class="mt-1.5 line-clamp-2 text-xs text-white/80">
-										{meta.name}
-									</p>
-								</a>
-							{/each}
-						</div>
-					</div>
-				{/if}
-			</div>
+			<PlayerEndPanel
+				heading={context.heading}
+				detailHref={detailHref}
+				suggestions={suggestions}
+				onBack={goBack}
+				onWatchAgain={watchAgain}
+				onResume={trueEnd ? undefined : backToVideo}
+			/>
 		{/if}
 
 		{#key `${playableSrc}:${replayNonce}`}
@@ -458,9 +443,9 @@
 				outroStart={segments?.credits?.start ?? null}
 				minimized={endOfShow}
 				onProgress={report}
-				onEnded={reachedEnd}
-				onOutro={reachedEnd}
-				onBack={() => history.back()}
+				onEnded={() => reachedEnd(true)}
+				onOutro={() => reachedEnd(false)}
+				onBack={goBack}
 				onSources={openSources}
 				onSubtitleAppearance={saveSubtitleAppearance}
 				onEpisodes={hasEpisodes ? () => episodesOpen = true : undefined}
@@ -506,6 +491,20 @@
 			genres={context.genres}
 			label="Finding a stream…"
 		/>
+	{:else if streamsError}
+		<div class="relative z-10 flex max-w-md flex-col items-center gap-3 px-6 text-center">
+			<TriangleAlertIcon class="size-8 text-destructive" />
+			<p class="text-lg font-semibold">Couldn't reach your addons</p>
+			<p class="text-sm text-white/60">
+				Something went wrong finding a stream for this title.
+			</p>
+			<div class="flex flex-wrap items-center justify-center gap-2">
+				<Button onclick={() => streamsQuery?.refresh()}>
+					<RotateCcwIcon data-icon="inline-start" /> Try again
+				</Button>
+				<Button variant="secondary" onclick={openSources}>Choose a source</Button>
+			</div>
+		</div>
 	{:else}
 		<div class="relative z-10 flex max-w-md flex-col items-center gap-4 px-6 text-center">
 			<p class="text-lg font-semibold">

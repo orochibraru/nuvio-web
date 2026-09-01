@@ -30,7 +30,7 @@ test("detail source sidebar: opens, resolves async, refreshes, closes", async ({
 	const url = page.url();
 	await page.getByRole("button", { name: "Select stream" }).first().click();
 
-	const panel = page.getByRole("complementary");
+	const panel = page.getByRole("dialog", { name: "Sources" });
 	await expect(panel.getByText("Sources").first()).toBeVisible();
 	await expect(panel.getByRole("button", { name: "Refresh" })).toBeVisible();
 	// The drawer is module state, not a URL param — opening it must not navigate.

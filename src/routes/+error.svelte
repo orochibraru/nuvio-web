@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { dev } from "$app/env";
+	import { goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
 
@@ -19,7 +20,15 @@
 	<p class="relative text-7xl font-bold tracking-tight text-foreground/15">{status}</p>
 	<h1 class="relative text-xl font-semibold tracking-tight">{message}</h1>
 	<div class="relative mt-2 flex gap-2">
-		<Button variant="outline" onclick={() => history.back()}>Go back</Button>
+		<Button
+			variant="outline"
+			onclick={() =>
+				history.length > 1
+					? history.back()
+					: goto(resolve("/(protected)/(app)"))}
+		>
+			Go back
+		</Button>
 		<Button href={resolve("/(protected)/(app)")}>Home</Button>
 	</div>
 </div>

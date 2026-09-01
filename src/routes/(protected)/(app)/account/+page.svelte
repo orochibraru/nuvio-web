@@ -58,7 +58,7 @@
 	}
 </script>
 
-<div class="flex max-w-3xl flex-col gap-6">
+<div class="mx-auto flex max-w-3xl flex-col gap-6">
 	<h1 class="text-3xl font-bold tracking-tight">Account</h1>
 
 	<Card.Root>

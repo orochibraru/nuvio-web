@@ -65,9 +65,7 @@ test("no violations: detail source drawer open", async ({ page }) => {
 	await page.goto("/detail/movie/tt1375666");
 	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
 	await page.getByRole("button", { name: "Select stream" }).first().click();
-	await expect(
-		page.getByRole("complementary").getByText("Sources").first(),
-	).toBeVisible();
+	await expect(page.getByRole("dialog", { name: "Sources" })).toBeVisible();
 	await expectNoViolations(page);
 });
 

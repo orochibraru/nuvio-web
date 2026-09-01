@@ -6,10 +6,12 @@
 
 <!--
 	The auth screens sit outside the profile-gated app, so there's no stored theme
-	to seed from — pin them to the dark palette (scoped `.dark`, no global toggle).
+	to seed from — pin them to the dark palette + the default accent so the CTA
+	and aurora carry the brand colour.
 -->
 <div
 	class="dark relative flex min-h-svh w-full items-center justify-center overflow-hidden bg-background p-6 text-foreground"
+	data-accent="blue"
 >
 	<AuroraBackground />
 	<div

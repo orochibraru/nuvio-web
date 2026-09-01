@@ -66,17 +66,17 @@
 
 <svelte:window onkeydown={onKeydown} />
 
-<!-- Dims the whole player and lays the info over it. Sits below the transport
-     controls (z-30) whose container is click-transparent, so the Back button and
-     bottom bar stay live. Dismiss with the ✕, the Info button, Escape or a CTA
+<!-- Dims the whole player and lays the info over it. Sits BELOW the transport
+     controls (z-30) whose bars stay click-through, so the Back button and bottom
+     bar remain live. Dismiss with the ✕, the Info button, Escape or a CTA —
      never by clicking the body. -->
-<div class="absolute inset-0 z-90 bottom-20 top-20 overflow-hidden" transition:fade={{ duration: 150 }}>
+<div class="absolute inset-0 z-20 overflow-hidden" transition:fade={{ duration: 150 }}>
 	<div class="absolute inset-0 bg-black/85"></div>
 
 	<!-- Confined between the player's top bar and its bottom control bar;
 	     vertically centred, left-aligned. Scrolls inside its box when too tall. -->
 	<div
-		class="absolute inset-x-0 top-0 bottom-20 flex items-center justify-start px-6 pt-16 pb-6 sm:bottom-24 sm:px-12"
+		class="absolute inset-x-0 top-16 bottom-20 flex items-center justify-start px-6 pb-6 sm:top-20 sm:bottom-24 sm:px-12"
 		transition:fly={{ y: 16, duration: 220 }}
 	>
 		<div class="flex max-h-full w-full max-w-4xl flex-col gap-4 text-white">

@@ -8,6 +8,7 @@
 	import InfoIcon from "@lucide/svelte/icons/info";
 	import LayersIcon from "@lucide/svelte/icons/layers";
 	import ListVideoIcon from "@lucide/svelte/icons/list-video";
+	import LoaderIcon from "@lucide/svelte/icons/loader-circle";
 	import MaximizeIcon from "@lucide/svelte/icons/maximize";
 	import MinimizeIcon from "@lucide/svelte/icons/minimize";
 	import PauseIcon from "@lucide/svelte/icons/pause";
@@ -17,15 +18,18 @@
 	import RotateCwIcon from "@lucide/svelte/icons/rotate-cw";
 	import SettingsIcon from "@lucide/svelte/icons/settings";
 	import SkipForwardIcon from "@lucide/svelte/icons/skip-forward";
+	import TriangleAlertIcon from "@lucide/svelte/icons/triangle-alert";
 	import Volume1Icon from "@lucide/svelte/icons/volume-1";
 	import Volume2Icon from "@lucide/svelte/icons/volume-2";
 	import VolumeXIcon from "@lucide/svelte/icons/volume-x";
 	import XIcon from "@lucide/svelte/icons/x";
 	import { tick } from "svelte";
+	import { toast } from "svelte-sonner";
 	import PlaybackLoading from "#lib/components/playback-loading.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { theme } from "#lib/settings/theme.svelte.js";
 	import {
+		SUBTITLE_COLORS,
 		SUBTITLE_SIZES,
 		type SubtitleSize,
 		subtitleFontSize,
@@ -163,6 +167,8 @@
 	let infoOpen = $state(false);
 	let infoAutoOpened = $state(false);
 	let activeCaption = $state<string | null>(null);
+	// The track key currently being fetched + converted (drives a row spinner).
+	let pendingCaption = $state<string | null>(null);
 	let seeded = false;
 	// One silent reload is attempted on a recoverable media error before we
 	// surface a fatal screen; reset whenever the source changes.
@@ -243,7 +249,7 @@
 		medium: "Medium",
 		large: "Large",
 	};
-	const swatches = ["#ffffff", "#ffe14d", "#7fd4ff", "#9dffb0", "#ff9db1"];
+	const swatches = SUBTITLE_COLORS;
 
 	const bufferedEnd = $derived(buffered.at(-1)?.end ?? 0);
 	const progressRatio = $derived(duration ? currentTime / duration : 0);
@@ -522,8 +528,16 @@
 	async function setCaption(key: string | null) {
 		// Fetch + convert the picked track before switching to it. A failed fetch
 		// (no CORS on the addon host, dead link) leaves the current caption alone.
-		if (key && !(await subs.resolve(key))) {
-			return;
+		if (key && !subs.ready[key]) {
+			pendingCaption = key;
+			const ok = await subs.resolve(key);
+			pendingCaption = null;
+			if (!ok) {
+				toast.error(
+					"That subtitle file couldn't be loaded. Try another track.",
+				);
+				return;
+			}
 		}
 		await tick(); // let the freshly-rendered <track> mount its TextTrack
 		if (!video) {
@@ -621,7 +635,7 @@
 	class={cn(
 		"nuvio-player dark group/player overflow-hidden bg-black text-foreground select-none transition-all duration-500 ease-out",
 		minimized
-			? "fixed right-4 bottom-4 z-40 aspect-video w-56 rounded-xl shadow-2xl ring-1 ring-white/15 sm:w-72"
+			? "fixed top-4 left-4 z-50 aspect-video w-52 rounded-xl shadow-2xl ring-1 ring-white/15 sm:w-64"
 			: fill
 				? "relative h-full w-full"
 				: "relative aspect-video w-full rounded-lg",
@@ -680,39 +694,31 @@
 
 	{#if silentAudio.issue && !fatalError && !minimized}
 		<div
-			class="absolute inset-x-0 bottom-30 z-90 flex  gap-3 bg-black/75 mx-10 rounded-xl items-center justify-between px-4 py-2.5 text-sm text-white border-primary border-2"
+			class="absolute inset-x-4 bottom-24 z-40 mx-auto flex max-w-xl items-center justify-between gap-3 rounded-xl bg-black/80 px-4 py-3 text-sm text-white ring-1 ring-white/15 backdrop-blur-md"
 		>
-			<div class="flex items-center gap-2">
+			<div class="flex items-start gap-2.5">
 				<VolumeXIcon class="mt-0.5 size-5 shrink-0" />
-				<div>
-					<p class="text-md font-medium">
-					Uh oh...
-				</p>
-				<p class="flex-1">
-					{#if silentAudio.issue === "no-track"}
-						This source has no audio.
-					{:else}
-						This source is playing without sound. Its audio codec (Dolby Digital,
-						DTS or Atmos) isn't supported by the browser.
-					{/if}
-				</p>
+				<div class="min-w-0">
+					<p class="font-medium">No sound from this source</p>
+					<p class="text-white/70">
+						{#if silentAudio.issue === "no-track"}
+							It has no audio track.
+						{:else}
+							Its audio codec (Dolby Digital, DTS or Atmos) can't be decoded here.
+						{/if}
+					</p>
+				</div>
 			</div>
-			</div>
-			<div class="flex items-center gap-2">
+			<div class="flex shrink-0 items-center gap-1.5">
 				{#if onSources}
-					<Button
-						size="xs"
-						onclick={onSources}
-					>
-						Other sources
-					</Button>
+					<Button size="xs" onclick={onSources}>Other sources</Button>
 				{/if}
 				<Button
 					variant="ghost"
 					size="icon-xs"
 					aria-label="Dismiss"
 					onclick={() => silentAudio.dismiss()}
-					class="shrink-0 text-white hover:bg-black/10"
+					class="text-white hover:bg-white/15"
 				>
 					<XIcon class="size-4" />
 				</Button>
@@ -721,9 +727,11 @@
 	{/if}
 
 	{#if fatalError}
-		<div class="absolute inset-0 z-40 flex flex-col items-center justify-center gap-4 bg-black/85 px-6 text-center">
-			<p class="max-w-sm text-sm text-muted-foreground">{fatalError}</p>
-			<div class="flex flex-wrap items-center justify-center gap-2">
+		<div class="absolute inset-0 z-40 flex flex-col items-center justify-center gap-3 bg-black/95 px-6 text-center text-white">
+			<TriangleAlertIcon class="size-8 text-destructive" />
+			<h2 class="text-lg font-semibold">Can't play this source</h2>
+			<p class="max-w-sm text-sm text-white/70">{fatalError}</p>
+			<div class="mt-1 flex flex-wrap items-center justify-center gap-2">
 				{#if onSources}
 					<Button onclick={onSources}>
 						<LayersIcon data-icon="inline-start" /> Choose another source
@@ -778,11 +786,14 @@
 	{/if}
 
 	<!-- Transport controls. The container is click-transparent so the info
-	     overlay behind it stays interactive; each bar re-enables pointer events. -->
+	     overlay behind it stays interactive; each bar re-enables pointer events.
+	     `invisible` (not just opacity-0) so a hidden bar can't swallow a tap. -->
 	<div
 		class={cn(
-			"pointer-events-none absolute inset-0 z-30 flex flex-col justify-between bg-linear-to-t from-black/80 via-black/10 to-black/60 transition-opacity duration-200",
-			minimized || !controlsVisible ? "opacity-0" : "opacity-100",
+			"pointer-events-none absolute inset-0 z-30 flex flex-col justify-between bg-linear-to-t from-black/80 via-black/10 to-black/60 transition-[opacity,visibility] duration-200",
+			minimized || !controlsVisible || fatalError
+				? "invisible opacity-0"
+				: "opacity-100",
 		)}
 	>
 		<!-- Top row -->
@@ -842,7 +853,7 @@
 					variant="ghost"
 					aria-label={ended ? "Replay" : paused ? "Play" : "Pause"}
 					onclick={togglePlay}
-					class="pointer-events-auto size-16 rounded-full bg-white/10 shadow-lg backdrop-blur-md transition hover:scale-105 hover:bg-white/20 sm:size-18 [&_svg]:size-12 sm:[&_svg]:size-14"
+					class="pointer-events-auto size-16 rounded-full bg-black/40 shadow-lg ring-1 ring-white/20 backdrop-blur-md transition hover:scale-105 hover:bg-black/55 sm:size-18 [&_svg]:size-11 sm:[&_svg]:size-12"
 				>
 					{#if ended}
 						<RotateCwIcon />
@@ -895,7 +906,7 @@
 					style={`width: ${progressRatio * 100}%`}
 				></div>
 				<div
-					class="pointer-events-none absolute size-3 -translate-x-1/2 rounded-full bg-primary opacity-0 shadow transition-opacity group-hover/scrub:opacity-100"
+					class="pointer-events-none absolute size-3 -translate-x-1/2 rounded-full bg-primary opacity-0 shadow transition-opacity group-hover/scrub:opacity-100 group-focus-within/scrub:opacity-100"
 					style={`left: ${progressRatio * 100}%`}
 				></div>
 				<input
@@ -950,13 +961,13 @@
 						step="0.05"
 						bind:value={volume}
 						aria-label="Volume"
-						class="h-1 w-16 cursor-pointer appearance-none rounded-full bg-white/30 [&::-webkit-slider-thumb]:size-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white"
+						class="hidden h-1 w-16 cursor-pointer appearance-none rounded-full bg-white/30 sm:block [&::-webkit-slider-thumb]:size-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white"
 					/>
 				</div>
 
-				<span class="ml-1 text-xs tabular-nums text-muted-foreground">
+				<span class="ml-1 shrink-0 text-xs whitespace-nowrap tabular-nums text-white/70">
 					{formatTime(currentTime)}
-					<span class="text-muted-foreground/60">/ {formatTime(duration)}</span>
+					<span class="text-white/45">/ {formatTime(duration)}</span>
 				</span>
 
 				<div class="ml-auto flex items-center gap-1 sm:gap-2">
@@ -1130,7 +1141,7 @@
 									activeCaption !== option.key && "invisible",
 								)}
 							/>
-							<span class="min-w-0 flex-1">
+							<span class="flex min-w-0 flex-1 flex-col items-start">
 								<span class="flex items-center gap-1.5">
 									{option.name}
 									{#if option.sdh}
@@ -1141,9 +1152,12 @@
 											unavailable
 										</span>
 									{/if}
+									{#if pendingCaption === option.key}
+										<LoaderIcon class="size-3 animate-spin text-muted-foreground" />
+									{/if}
 								</span>
 								{#if option.addonName}
-									<span class="block truncate text-xs text-muted-foreground">{option.addonName}</span>
+									<span class="block max-w-full truncate text-xs text-muted-foreground">{option.addonName}</span>
 								{/if}
 							</span>
 						</Button>
@@ -1169,10 +1183,11 @@
 							<button
 								type="button"
 								aria-label={`Subtitle colour ${swatch}`}
+								aria-pressed={subtitleColor === swatch}
 								onclick={() => applyAppearance({ subtitleColor: swatch })}
 								class={cn(
-									"size-6 rounded-full ring-2 transition",
-									subtitleColor === swatch ? "ring-primary" : "ring-border",
+									"size-8 rounded-full ring-2 ring-offset-2 ring-offset-popover transition",
+									subtitleColor === swatch ? "ring-foreground" : "ring-transparent",
 								)}
 								style={`background-color: ${swatch}`}
 							></button>

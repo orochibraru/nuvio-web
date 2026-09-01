@@ -190,7 +190,7 @@
 						type="button"
 						aria-label="Remove from library"
 						onclick={() => remove(item)}
-						class="absolute top-1.5 right-1.5 flex size-7 items-center justify-center rounded-full bg-black/70 text-white opacity-0 transition group-hover:opacity-100 hover:bg-black/90"
+						class="absolute top-1.5 right-1.5 flex size-9 items-center justify-center rounded-full bg-black/70 text-white transition sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 hover:bg-black/90"
 					>
 						<XIcon class="size-4" />
 					</button>

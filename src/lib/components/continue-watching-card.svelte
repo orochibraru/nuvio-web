@@ -60,7 +60,7 @@
 <ContextMenu.Root>
 	<ContextMenu.Trigger class="contents">
 		<div
-			class="group/cw relative aspect-video w-72 shrink-0 overflow-hidden rounded-xl bg-muted ring-1 ring-white/5 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_50px_-16px] hover:shadow-black/70 hover:ring-primary/60"
+			class="group/cw relative aspect-video w-72 shrink-0 overflow-hidden rounded-xl bg-muted ring-1 ring-border transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_50px_-16px] hover:shadow-black/70 hover:ring-primary/60 dark:ring-white/10"
 		>
 			<div class="absolute inset-0 bg-linear-to-br from-muted via-muted to-background"></div>
 			{#if item.background && !bgLoaded}
@@ -91,7 +91,7 @@
 			<a
 				href={playHref}
 				aria-label={`${started ? "Resume" : "Play"} ${item.name}`}
-				class="pointer-events-none absolute top-1/2 left-1/2 z-10 flex size-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white/15 text-white opacity-0 ring-1 ring-white/25 backdrop-blur-md transition hover:scale-105 hover:bg-white/25 group-hover/cw:pointer-events-auto group-hover/cw:opacity-100"
+				class="absolute top-1/2 left-1/2 z-10 flex size-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white/15 text-white opacity-100 ring-1 ring-white/25 backdrop-blur-md transition hover:scale-105 hover:bg-white/25 sm:pointer-events-none sm:opacity-0 sm:group-hover/cw:pointer-events-auto sm:group-hover/cw:opacity-100 sm:group-focus-within/cw:pointer-events-auto sm:group-focus-within/cw:opacity-100"
 			>
 				<PlayIcon class="size-5 translate-x-px fill-white" />
 			</a>

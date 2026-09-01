@@ -14,6 +14,8 @@
 	import type { ProfileView } from "#lib/profile.js";
 	import { pageTitle } from "#lib/stores/title.svelte.js";
 	import { cn } from "#lib/utils.js";
+	import { page } from "$app/state";
+	import { signOut } from "../../auth/auth.remote.ts";
 	import {
 		createProfile,
 		deleteProfile,
@@ -24,6 +26,9 @@
 	pageTitle.set("Profiles");
 
 	let { data } = $props();
+
+	// Carried from the profile gate so a shared link resumes after picking.
+	const redirectTo = $derived(page.url.searchParams.get("redirectTo") ?? "");
 
 	const COLORS = [
 		"#2563EB",
@@ -131,6 +136,7 @@
 					<input
 						{...pick.fields.profileId.as("hidden", String(profile.profile_index))}
 					/>
+					<input {...pick.fields.redirectTo.as("hidden", redirectTo)} />
 					<button
 						type="submit"
 						disabled={pick.pending > 0}
@@ -168,9 +174,16 @@
 		{/if}
 	</div>
 
-	<Button variant="ghost" onclick={() => (manage = !manage)}>
-		{manage ? "Done" : "Manage profiles"}
-	</Button>
+	<div class="flex items-center gap-2">
+		<Button variant="ghost" onclick={() => (manage = !manage)}>
+			{manage ? "Done" : "Manage profiles"}
+		</Button>
+		<form {...signOut}>
+			<Button type="submit" variant="ghost" class="text-muted-foreground">
+				Sign out
+			</Button>
+		</form>
+	</div>
 </div>
 
 <Dialog.Root bind:open={dialogOpen}>
@@ -181,6 +194,7 @@
 		</Dialog.Header>
 
 		<form {...createProfile}>
+			<input {...createProfile.fields.redirectTo.as("hidden", redirectTo)} />
 			<Field.FieldGroup>
 				<Field.Field data-invalid={nameIssue ? true : undefined}>
 					<Field.FieldLabel for="profile-name">Name</Field.FieldLabel>

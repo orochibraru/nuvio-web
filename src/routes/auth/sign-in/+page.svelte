@@ -1,16 +1,21 @@
 <script lang="ts">
 	import AlertCircleIcon from "@lucide/svelte/icons/alert-circle";
+	import EyeIcon from "@lucide/svelte/icons/eye";
+	import EyeOffIcon from "@lucide/svelte/icons/eye-off";
 	import * as Alert from "#lib/components/ui/alert/index.js";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import * as Card from "#lib/components/ui/card/index.js";
 	import * as Field from "#lib/components/ui/field/index.js";
 	import { Input } from "#lib/components/ui/input/index.js";
 	import { Spinner } from "#lib/components/ui/spinner/index.js";
+	import { NUVIO_WEBSITE_URL } from "#lib/nuvio/index.js";
 	import { pageTitle } from "#lib/stores/title.svelte.js";
 	import { page } from "$app/state";
 	import { signIn } from "../auth.remote.ts";
 
 	pageTitle.set("Sign in");
+
+	let showPassword = $state(false);
 
 	const redirectTo = $derived(page.url.searchParams.get("redirectTo") ?? "/");
 	const justRegistered = $derived(
@@ -64,12 +69,33 @@
 				</Field.Field>
 
 				<Field.Field data-invalid={passwordIssue ? true : undefined}>
-					<Field.FieldLabel for="password">Password</Field.FieldLabel>
-					<Input
-						id="password"
-						{...signIn.fields.password.as('password')}
-						autocomplete="current-password"
-					/>
+					<div class="flex items-center justify-between">
+						<Field.FieldLabel for="password">Password</Field.FieldLabel>
+						<a
+							href={NUVIO_WEBSITE_URL}
+							target="_blank"
+							rel="noopener noreferrer"
+							class="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground"
+						>
+							Forgot password?
+						</a>
+					</div>
+					<div class="relative">
+						<Input
+							id="password"
+							{...signIn.fields.password.as(showPassword ? 'text' : 'password')}
+							autocomplete="current-password"
+							class="pr-10"
+						/>
+						<button
+							type="button"
+							aria-label={showPassword ? "Hide password" : "Show password"}
+							onclick={() => (showPassword = !showPassword)}
+							class="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-muted-foreground hover:text-foreground"
+						>
+							{#if showPassword}<EyeOffIcon class="size-4" />{:else}<EyeIcon class="size-4" />{/if}
+						</button>
+					</div>
 					{#if passwordIssue}
 						<Field.FieldError>{passwordIssue}</Field.FieldError>
 					{/if}

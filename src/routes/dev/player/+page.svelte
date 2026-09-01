@@ -1,9 +1,20 @@
 <script lang="ts">
 	import { onMount } from "svelte";
 	import VideoPlayer from "#lib/components/video-player.svelte";
+	import PlayerEndPanel from "#lib/watch/player-end-panel.svelte";
 	import { page } from "$app/state";
 
 	const src = $derived(page.url.searchParams.get("src") ?? "/e2e/sample.webm");
+
+	// `?endofshow=1` renders the end-of-show takeover panel over a minimized
+	// player, with canned suggestions.
+	const endOfShow = $derived(Boolean(page.url.searchParams.get("endofshow")));
+	const fakeSuggestions = Array.from({ length: 8 }, (_, i) => ({
+		id: `tt${i}`,
+		type: "movie",
+		name: `Suggested Title ${i + 1}`,
+		poster: null,
+	}));
 
 	// `?breakvideo=1` freezes the decoded-frame counter so the video-decode
 	// watchdog trips even though the sample clip actually plays fine — the only
@@ -78,7 +89,16 @@
 	let minimized = $state(false);
 </script>
 
-<div class="mx-auto max-w-4xl p-6">
+<div class={endOfShow ? "fixed inset-0 bg-black text-white" : "mx-auto max-w-4xl p-6"}>
+	{#if endOfShow}
+		<PlayerEndPanel
+			heading="The Dev Harness Movie"
+			detailHref="/detail/movie/tt0111161"
+			suggestions={fakeSuggestions}
+			onBack={() => history.back()}
+			onWatchAgain={() => (minimized = false)}
+		/>
+	{/if}
 	<VideoPlayer
 		{src}
 		title="Player harness"
@@ -90,7 +110,7 @@
 		{introStart}
 		{introEnd}
 		{outroStart}
-		{minimized}
+		minimized={minimized || endOfShow}
 		{info}
 		detailHref="/detail/movie/tt0111161"
 		onProgress={(position, duration) => (lastProgress = { position, duration })}

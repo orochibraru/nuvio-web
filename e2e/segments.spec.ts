@@ -55,11 +55,39 @@ test("reaching the outro fires the handoff and minimizes the player", async ({
 	await expect(page.getByTestId("outro")).toHaveText("outro", {
 		timeout: 5000,
 	});
-	// Minimized: the player region shrinks to a fixed corner box.
+	// Minimized: the player region shrinks to a fixed box in the top-left corner.
 	await expect(page.getByRole("region", { name: "Video player" })).toHaveClass(
-		/fixed/,
+		/fixed.*top-4.*left-4/,
 		{ timeout: 3000 },
 	);
 
+	expect(errors, "runtime errors").toEqual([]);
+});
+
+test("end-of-show panel: minimized player + suggestions + go-back", async ({
+	page,
+}) => {
+	const errors = collectRuntimeErrors(page);
+
+	await page.goto(`/dev/player?endofshow=1&src=${SAMPLE}`);
+	await page.waitForLoadState("networkidle");
+
+	await expect(
+		page.getByText(/these titles could interest you/i),
+	).toBeVisible();
+	await expect(
+		page.getByRole("heading", { name: "The Dev Harness Movie" }),
+	).toBeVisible();
+	await expect(
+		page.getByRole("link", { name: "Suggested Title 1" }),
+	).toBeVisible();
+	await expect(page.getByRole("button", { name: "Go back" })).toBeVisible();
+
+	// The player is minimized to the top-left corner behind the panel.
+	await expect(page.getByRole("region", { name: "Video player" })).toHaveClass(
+		/fixed.*top-4.*left-4/,
+	);
+
+	await page.waitForTimeout(300);
 	expect(errors, "runtime errors").toEqual([]);
 });

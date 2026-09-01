@@ -6,6 +6,7 @@
 	import { homeRows, searchCatalogs } from "#lib/addons/addons.remote.js";
 	import MediaGrid from "#lib/components/media-grid.svelte";
 	import MediaRow from "#lib/components/media-row.svelte";
+	import QueryError from "#lib/components/query-error.svelte";
 	import { Input } from "#lib/components/ui/input/index.js";
 	import { searchHistory } from "#lib/search-history.svelte.js";
 	import { pageTitle } from "#lib/stores/title.svelte.js";
@@ -158,7 +159,11 @@
 		{/if}
 		{@render discoverRows()}
 	{:else if results?.error}
-		<p class="py-10 text-center text-sm text-destructive">Search failed. Try again.</p>
+		<QueryError
+			message="Search failed."
+			onRetry={() => results?.refresh()}
+			class="mt-6"
+		/>
 	{:else if !results?.current}
 		<MediaGrid items={[]} loading />
 	{:else if results.current.metas.length === 0}

@@ -79,11 +79,15 @@ export const signUp = form(signUpSchema, async (data, issue) => {
 		}
 		throw error;
 	}
+	const params = new URLSearchParams({ registered: "1" });
+	if (data.redirectTo && data.redirectTo !== "/") {
+		params.set("redirectTo", data.redirectTo);
+	}
 	redirect(
 		303,
 		hasSession
 			? safeTarget(data.redirectTo)
-			: `${resolve("auth/sign-in")}?registered=1`,
+			: `${resolve("auth/sign-in")}?${params}`,
 	);
 });
 

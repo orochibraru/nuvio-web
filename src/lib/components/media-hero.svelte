@@ -60,8 +60,11 @@
 	});
 </script>
 
+<!-- `dark` scopes the scrims + copy to the dark palette regardless of the app
+     theme — a cinematic backdrop is dark media either way, and a white scrim
+     over it (light mode) washed the image to a grey smear. -->
 <section
-  class="relative isolate mx-[calc(50%-50vw)] -mt-20 mb-2 overflow-hidden"
+  class="dark relative isolate mx-[calc(50%-50vw)] -mt-20 overflow-hidden text-foreground"
 >
   <div class="absolute inset-0 -z-10">
     {#if background}
@@ -70,7 +73,7 @@
         <img
           src={poster}
           alt=""
-          class="absolute inset-0 size-full scale-110 object-cover blur-2xl saturate-150"
+          class="absolute inset-0 size-full scale-110 object-cover object-top blur-2xl saturate-150"
         />
       {/if}
       <img
@@ -80,35 +83,32 @@
         sizes={bd?.sizes}
         alt=""
         onload={() => (backdropLoaded = true)}
-        class={`animate-hero-zoom size-full object-cover object-center transition-opacity duration-700 ${backdropLoaded ? "opacity-100" : "opacity-0"}`}
+        class={`animate-hero-zoom size-full object-cover object-top transition-opacity duration-700 ${backdropLoaded ? "opacity-100" : "opacity-0"}`}
       />
     {:else if poster}
       <img
         src={poster}
         alt=""
-        class="size-full scale-110 object-cover blur-3xl saturate-150"
+        class="size-full scale-110 object-cover object-top blur-3xl saturate-150"
       />
     {:else}
       <div class="size-full bg-linear-to-br from-muted to-background"></div>
     {/if}
+    <!-- Vertical bleed: solid page background for the bottom third, fading up to
+         clear so the image melds seamlessly into the page below. -->
     <div
-      class="absolute inset-0 bg-linear-to-t from-background via-background/55 to-background/20"
+      class="absolute inset-0 bg-linear-to-t from-background from-15% via-background/45 via-55% to-transparent to-90%"
     ></div>
     <div
-      class="absolute inset-0 bg-linear-to-r from-background via-background/45 to-transparent"
+      class="absolute inset-0 bg-linear-to-r from-background/90 via-background/40 to-transparent"
     ></div>
     <div
-      class="absolute inset-x-0 top-0 h-28 bg-linear-to-b from-background/70 to-transparent"
+      class="absolute inset-x-0 top-0 h-24 bg-linear-to-b from-background/60 to-transparent"
     ></div>
     <!-- Accent bloom rising from the lower-left, where the title sits. -->
     <div
-      class="absolute -bottom-1/3 left-0 h-2/3 w-2/3 opacity-60 blur-3xl"
-      style="background: radial-gradient(closest-side, color-mix(in oklch, var(--primary) 28%, transparent), transparent)"
-    ></div>
-    <!-- Vignette. -->
-    <div
-      class="absolute inset-0"
-      style="background: radial-gradient(120% 120% at 50% 0%, transparent 55%, color-mix(in oklch, var(--background) 65%, transparent))"
+      class="absolute -bottom-1/3 left-0 h-2/3 w-2/3 opacity-50 blur-3xl"
+      style="background: radial-gradient(closest-side, color-mix(in oklch, var(--primary) 24%, transparent), transparent)"
     ></div>
   </div>
 

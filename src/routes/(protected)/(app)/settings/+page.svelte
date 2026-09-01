@@ -4,12 +4,14 @@
 	import { toast } from "svelte-sonner";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import * as Card from "#lib/components/ui/card/index.js";
+	import * as Select from "#lib/components/ui/select/index.js";
 	import { Switch } from "#lib/components/ui/switch/index.js";
 	import { saveUiSettings } from "#lib/settings/settings.remote.js";
 	import { theme } from "#lib/settings/theme.svelte.js";
 	import {
 		type Accent,
 		STREAM_QUALITIES,
+		SUBTITLE_COLORS,
 		type UiSettings,
 		WATCH_REGIONS,
 	} from "#lib/settings/ui-settings.js";
@@ -18,6 +20,10 @@
 	import { resolve } from "$app/paths";
 
 	pageTitle.set("Settings");
+
+	// "idle" → "saving" → "saved" (auto-clears); "error" reverts the preview.
+	let saveState = $state<"idle" | "saving" | "saved" | "error">("idle");
+	let savedTimer: ReturnType<typeof setTimeout> | undefined;
 
 	const modes: Array<{ value: UiSettings["mode"]; label: string }> = [
 		{ value: "system", label: "System" },
@@ -34,14 +40,16 @@
 		{ value: "amoled", label: "AMOLED", hint: "Pure black" },
 	];
 
-	const accents: Array<{ value: Accent; swatch: string }> = [
-		{ value: "blue", swatch: "oklch(0.55 0.2 255)" },
-		{ value: "violet", swatch: "oklch(0.54 0.22 293)" },
-		{ value: "green", swatch: "oklch(0.6 0.15 155)" },
-		{ value: "rose", swatch: "oklch(0.58 0.22 12)" },
-		{ value: "amber", swatch: "oklch(0.75 0.15 75)" },
-		{ value: "cyan", swatch: "oklch(0.62 0.12 210)" },
-		{ value: "neutral", swatch: "oklch(0.55 0 0)" },
+	// Swatch colour comes from `--primary` under each `[data-accent]` scope
+	// (layout.css) — no second copy of the ramp to keep in sync.
+	const accents: Array<{ value: Accent }> = [
+		{ value: "blue" },
+		{ value: "violet" },
+		{ value: "green" },
+		{ value: "rose" },
+		{ value: "amber" },
+		{ value: "cyan" },
+		{ value: "neutral" },
 	];
 
 	const subtitleSizes: Array<{
@@ -53,13 +61,7 @@
 		{ value: "large", label: "Large" },
 	];
 
-	const subtitleColors = [
-		"#ffffff",
-		"#facc15",
-		"#22d3ee",
-		"#a3e635",
-		"#f472b6",
-	];
+	const subtitleColors = SUBTITLE_COLORS;
 
 	const subtitleLanguages: Array<{ value: string; label: string }> = [
 		{ value: "", label: "Off" },
@@ -87,19 +89,45 @@
 		{ value: "simkl", label: "SIMKL", ready: false },
 	];
 
+	const qualityLabel = (q: string) => (q === "auto" ? "Auto (addon order)" : q);
+	const regionLabel = (code: string) =>
+		WATCH_REGIONS.find(([c]) => c === code)?.[1] ?? code;
+	const languageLabel = (code: string) =>
+		subtitleLanguages.find((l) => l.value === code)?.label ?? "Off";
+
 	async function update(patch: Partial<UiSettings>) {
-		const next = { ...theme.current, ...patch };
+		const previous = { ...theme.current };
+		const next = { ...previous, ...patch };
 		theme.preview(next);
+		saveState = "saving";
+		clearTimeout(savedTimer);
 		try {
 			await saveUiSettings(next);
+			saveState = "saved";
+			savedTimer = setTimeout(() => {
+				if (saveState === "saved") {
+					saveState = "idle";
+				}
+			}, 2000);
 		} catch {
-			toast.error("Couldn't save your theme.");
+			theme.preview(previous); // roll the optimistic change back
+			saveState = "error";
+			toast.error("Couldn't save — reverted.");
 		}
 	}
 </script>
 
-<div class="flex max-w-2xl flex-col gap-6">
-	<h1 class="text-3xl font-bold tracking-tight">Settings</h1>
+<div class="mx-auto flex max-w-3xl flex-col gap-6">
+	<div class="flex items-center gap-3">
+		<h1 class="text-3xl font-bold tracking-tight">Settings</h1>
+		{#if saveState === "saving"}
+			<span class="text-xs text-muted-foreground">Saving…</span>
+		{:else if saveState === "saved"}
+			<span class="flex items-center gap-1 text-xs text-muted-foreground">
+				<CheckIcon class="size-3.5" /> Saved
+			</span>
+		{/if}
+	</div>
 
 	<Card.Root>
 		<Card.Header>
@@ -117,7 +145,7 @@
 							class={cn(
 								"rounded-full px-4 py-1.5 text-sm font-medium transition",
 								theme.current.mode === option.value
-									? "bg-background text-foreground shadow-sm"
+									? "bg-primary text-primary-foreground shadow-sm"
 									: "text-muted-foreground hover:text-foreground",
 							)}
 						>
@@ -137,7 +165,7 @@
 							class={cn(
 								"flex flex-col items-start gap-0.5 rounded-xl border px-3.5 py-2.5 text-sm transition",
 								theme.current.darkStyle === option.value
-									? "border-primary/50 bg-primary/5"
+									? "border-primary bg-primary/10 ring-1 ring-primary"
 									: "border-border/60 hover:border-border",
 							)}
 						>
@@ -151,20 +179,24 @@
 
 			<div class="flex flex-col gap-2.5">
 				<span class="text-sm font-medium">Accent colour</span>
-				<div class="flex flex-wrap gap-2.5">
+				<div class="flex flex-wrap gap-3">
 					{#each accents as option (option.value)}
 						<button
 							type="button"
 							aria-label={option.value}
+							aria-pressed={theme.current.accent === option.value}
+							data-accent={option.value === "neutral" ? undefined : option.value}
 							onclick={() => update({ accent: option.value })}
 							class={cn(
-								"flex size-10 items-center justify-center rounded-full ring-2 ring-transparent ring-offset-2 ring-offset-background transition",
-								theme.current.accent === option.value && "ring-ring",
+								"flex size-9 items-center justify-center rounded-full ring-2 ring-offset-2 ring-offset-card transition",
+								option.value === "neutral" ? "bg-neutral-500" : "bg-primary",
+								theme.current.accent === option.value
+									? "ring-foreground"
+									: "ring-transparent",
 							)}
-							style={`background-color: ${option.swatch}`}
 						>
 							{#if theme.current.accent === option.value}
-								<CheckIcon class="size-4 text-white drop-shadow" />
+								<CheckIcon class="size-4 text-white" />
 							{/if}
 						</button>
 					{/each}
@@ -193,23 +225,24 @@
 			</label>
 
 			<div class="flex flex-col gap-2.5">
-				<span class="text-sm font-medium">Preferred quality</span>
-				<select
+				<span class="text-sm font-medium" id="pref-quality-label">Preferred quality</span>
+				<Select.Root
+					type="single"
 					value={theme.current.preferredQuality}
-					aria-label="Preferred quality"
-					onchange={(event) =>
-						update({
-							preferredQuality: event.currentTarget
-								.value as UiSettings["preferredQuality"],
-						})}
-					class="w-fit rounded-md border border-border bg-background px-3 py-1.5 text-sm"
+					onValueChange={(v) =>
+						update({ preferredQuality: v as UiSettings["preferredQuality"] })}
 				>
-					{#each STREAM_QUALITIES as option (option)}
-						<option value={option}>
-							{option === "auto" ? "Auto (addon order)" : option}
-						</option>
-					{/each}
-				</select>
+					<Select.Trigger aria-labelledby="pref-quality-label" class="w-64">
+						{qualityLabel(theme.current.preferredQuality)}
+					</Select.Trigger>
+					<Select.Content>
+						{#each STREAM_QUALITIES as option (option)}
+							<Select.Item value={option} label={qualityLabel(option)}>
+								{qualityLabel(option)}
+							</Select.Item>
+						{/each}
+					</Select.Content>
+				</Select.Root>
 				<span class="text-xs text-muted-foreground">
 					The player auto-picks the closest match from a source list. You can
 					still choose any source manually.
@@ -217,21 +250,22 @@
 			</div>
 
 			<div class="flex flex-col gap-2.5">
-				<span class="text-sm font-medium">Where to watch region</span>
-				<select
+				<span class="text-sm font-medium" id="watch-region-label">Where to watch region</span>
+				<Select.Root
+					type="single"
 					value={theme.current.watchRegion}
-					aria-label="Where to watch region"
-					onchange={(event) =>
-						update({
-							watchRegion: event.currentTarget
-								.value as UiSettings["watchRegion"],
-						})}
-					class="w-fit rounded-md border border-border bg-background px-3 py-1.5 text-sm"
+					onValueChange={(v) =>
+						update({ watchRegion: v as UiSettings["watchRegion"] })}
 				>
-					{#each WATCH_REGIONS as [code, label] (code)}
-						<option value={code}>{label}</option>
-					{/each}
-				</select>
+					<Select.Trigger aria-labelledby="watch-region-label" class="w-64">
+						{regionLabel(theme.current.watchRegion)}
+					</Select.Trigger>
+					<Select.Content>
+						{#each WATCH_REGIONS as [code, label] (code)}
+							<Select.Item value={code} {label}>{label}</Select.Item>
+						{/each}
+					</Select.Content>
+				</Select.Root>
 				<span class="text-xs text-muted-foreground">
 					Which country's streaming services the "Available on" list and the
 					official-source Watch button use.
@@ -239,18 +273,23 @@
 			</div>
 
 			<div class="flex flex-col gap-2.5">
-				<span class="text-sm font-medium">Preferred subtitle language</span>
-				<select
+				<span class="text-sm font-medium" id="sub-lang-label">Preferred subtitle language</span>
+				<Select.Root
+					type="single"
 					value={theme.current.subtitleLanguage}
-					aria-label="Preferred subtitle language"
-					onchange={(event) =>
-						update({ subtitleLanguage: event.currentTarget.value })}
-					class="w-fit rounded-md border border-border bg-background px-3 py-1.5 text-sm"
+					onValueChange={(v) => update({ subtitleLanguage: v })}
 				>
-					{#each subtitleLanguages as option (option.value)}
-						<option value={option.value}>{option.label}</option>
-					{/each}
-				</select>
+					<Select.Trigger aria-labelledby="sub-lang-label" class="w-64">
+						{languageLabel(theme.current.subtitleLanguage)}
+					</Select.Trigger>
+					<Select.Content>
+						{#each subtitleLanguages as option (option.value)}
+							<Select.Item value={option.value} label={option.label}>
+								{option.label}
+							</Select.Item>
+						{/each}
+					</Select.Content>
+				</Select.Root>
 				<span class="text-xs text-muted-foreground">
 					Turned on automatically when a stream offers a matching track.
 				</span>
@@ -266,7 +305,7 @@
 							class={cn(
 								"rounded-full px-4 py-1.5 text-sm font-medium transition",
 								theme.current.subtitleSize === option.value
-									? "bg-background text-foreground shadow-sm"
+									? "bg-primary text-primary-foreground shadow-sm"
 									: "text-muted-foreground hover:text-foreground",
 							)}
 						>
@@ -283,10 +322,13 @@
 						<button
 							type="button"
 							aria-label={`Subtitle colour ${color}`}
+							aria-pressed={theme.current.subtitleColor === color}
 							onclick={() => update({ subtitleColor: color })}
 							class={cn(
-								"flex size-9 items-center justify-center rounded-full ring-2 ring-transparent ring-offset-2 ring-offset-background transition",
-								theme.current.subtitleColor === color && "ring-ring",
+								"flex size-9 items-center justify-center rounded-full ring-2 ring-offset-2 ring-offset-card transition",
+								theme.current.subtitleColor === color
+									? "ring-foreground"
+									: "ring-transparent",
 							)}
 							style={`background-color: ${color}`}
 						>
@@ -330,13 +372,16 @@
 							<button
 								type="button"
 								disabled={!option.ready}
+								title={option.ready
+									? undefined
+									: `Connect ${option.label} in the Nuvio app first`}
 								onclick={() =>
 									update({ [row.key]: option.value } as Partial<UiSettings>)}
 								class={cn(
 									"rounded-full px-4 py-1.5 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-40",
 									theme.current[row.key as "librarySource" | "progressSource"] ===
 										option.value
-										? "bg-background text-foreground shadow-sm"
+										? "bg-primary text-primary-foreground shadow-sm"
 										: "text-muted-foreground enabled:hover:text-foreground",
 								)}
 							>

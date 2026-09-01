@@ -32,7 +32,7 @@ async function openSourcesPanel(page: Page): Promise<void> {
 	await page
 		.getByRole("button", { name: "Select stream", exact: true })
 		.click();
-	await page.getByRole("complementary").waitFor();
+	await page.getByRole("dialog", { name: "Sources" }).waitFor();
 }
 
 const shots: Shot[] = [

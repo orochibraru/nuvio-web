@@ -142,7 +142,7 @@
 		>
 			<div
 		class={cn(
-			"relative overflow-hidden rounded-xl bg-muted ring-1 ring-white/5 transition-all duration-300 ease-out",
+			"relative overflow-hidden rounded-xl bg-muted ring-1 ring-border transition-all dark:ring-white/10 duration-300 ease-out",
 			"group-hover/poster:-translate-y-1 group-hover/poster:shadow-[0_24px_50px_-16px] group-hover/poster:shadow-black/70 group-hover/poster:ring-primary/60",
 			aspect,
 		)}

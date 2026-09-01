@@ -56,6 +56,10 @@ class SyncStore {
 	// unless the user has made an optimistic change (`mutated`).
 	synced = $state(false);
 	mutated = $state(false);
+	// Two+ consecutive flush failures with writes still queued — the optimistic
+	// UI is claiming success for changes that aren't reaching the server.
+	stalled = $state(false);
+	#flushFailures = 0;
 	// Reactive published views. Reads of these track; the private maps do not, so
 	// every derived accessor below must go through them, never `#library` etc.
 	library = $state<LibraryRecord[]>([]);
@@ -486,6 +490,12 @@ class SyncStore {
 		this.#flushTimer = setTimeout(() => void this.#flush(), FLUSH_DEBOUNCE_MS);
 	}
 
+	/** Force an immediate flush attempt — the "Retry" on the sync-stalled banner. */
+	async flushNow(): Promise<void> {
+		clearTimeout(this.#flushTimer);
+		await this.#flush();
+	}
+
 	async #flush(): Promise<void> {
 		if (this.#profileId == null || this.#flushing || !online()) {
 			return;
@@ -552,8 +562,14 @@ class SyncStore {
 			const flushed = new Set(batch);
 			this.#queue = this.#queue.filter((write) => !flushed.has(write));
 			void this.#persist("queue");
+			this.#flushFailures = 0;
+			this.stalled = false;
 		} catch {
 			// keep the queue; a later sync retries
+			this.#flushFailures += 1;
+			if (this.#flushFailures >= 2 && this.#queue.length > 0) {
+				this.stalled = true;
+			}
 		} finally {
 			this.#flushing = false;
 		}

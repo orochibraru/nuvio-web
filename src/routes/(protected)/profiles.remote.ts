@@ -11,6 +11,15 @@ import { form, getRequestEvent } from "$app/server";
 
 const MAX_PROFILES = 6;
 
+const redirectTo = v.optional(v.string(), "");
+
+/** Only allow same-origin path redirects; anything else → the app root. */
+function safeTarget(value: string | undefined): string {
+	return value?.startsWith("/") && !value.startsWith("//")
+		? value
+		: resolve("/(protected)/(app)");
+}
+
 const profileIndex = v.pipe(
 	v.string(),
 	v.transform(Number),
@@ -32,15 +41,15 @@ function toInput(profile: Profile): ProfileInput {
 }
 
 export const selectProfile = form(
-	v.object({ profileId: profileIndex }),
-	async ({ profileId }) => {
+	v.object({ profileId: profileIndex, redirectTo }),
+	async ({ profileId, redirectTo: target }) => {
 		const { cookies, locals } = getRequestEvent();
 		const profiles = await locals.nuvio.profiles.list();
 		if (!profiles.some((profile) => profile.profile_index === profileId)) {
 			redirect(303, resolve("profiles"));
 		}
 		writeProfileId(cookies, profileId);
-		redirect(303, resolve("/(protected)/(app)"));
+		redirect(303, safeTarget(target));
 	},
 );
 
@@ -57,8 +66,9 @@ export const createProfile = form(
 			v.pipe(v.string(), v.regex(/^#[0-9a-fA-F]{6}$/)),
 			"#2563EB",
 		),
+		redirectTo,
 	}),
-	async ({ name, avatarId, colorHex }, issue) => {
+	async ({ name, avatarId, colorHex, redirectTo: target }, issue) => {
 		const { cookies, locals } = getRequestEvent();
 		const existing = await locals.nuvio.profiles.list();
 		if (existing.length >= MAX_PROFILES) {
@@ -84,7 +94,7 @@ export const createProfile = form(
 			],
 		});
 		writeProfileId(cookies, nextIndex);
-		redirect(303, resolve("/(protected)/(app)"));
+		redirect(303, safeTarget(target));
 	},
 );
 

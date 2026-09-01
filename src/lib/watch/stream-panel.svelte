@@ -179,6 +179,44 @@
 			onClose();
 		}
 	}
+
+	// Modal behaviour: move focus in on mount, trap Tab, restore on close.
+	function modal(node: HTMLElement) {
+		const previous = document.activeElement as HTMLElement | null;
+		const focusables = () =>
+			[
+				...node.querySelectorAll<HTMLElement>(
+					'a[href],button:not([disabled]),input,select,textarea,[tabindex]:not([tabindex="-1"])',
+				),
+			].filter((el) => el.offsetParent !== null);
+		focusables()[0]?.focus();
+
+		function onTab(event: KeyboardEvent) {
+			if (event.key !== "Tab") {
+				return;
+			}
+			const items = focusables();
+			if (items.length === 0) {
+				return;
+			}
+			const first = items[0];
+			const last = items[items.length - 1];
+			if (event.shiftKey && document.activeElement === first) {
+				event.preventDefault();
+				last.focus();
+			} else if (!event.shiftKey && document.activeElement === last) {
+				event.preventDefault();
+				first.focus();
+			}
+		}
+		node.addEventListener("keydown", onTab);
+		return {
+			destroy() {
+				node.removeEventListener("keydown", onTab);
+				previous?.focus?.();
+			},
+		};
+	}
 </script>
 
 <svelte:window onkeydown={onKeydown}></svelte:window>
@@ -351,7 +389,10 @@
 	</aside>
 {/if}
 
-<aside
+<div
+	use:modal
+	role="dialog"
+	aria-modal="true"
 	aria-label="Sources"
 	transition:fly={{ x: 480, duration: 260, easing: cubicOut }}
 	class="fixed inset-y-0 right-0 z-50 flex w-full max-w-105 flex-col border-l border-border bg-background/80 shadow-2xl backdrop-blur-xl"
@@ -425,7 +466,7 @@
 		{:else if !result}
 			<div class="flex flex-col gap-2">
 				{#each { length: 6 } as _skeleton, i (i)}
-					<div class="skeleton h-14 rounded-lg"></div>
+					<div class="skeleton h-20 rounded-lg"></div>
 				{/each}
 			</div>
 		{:else if rows.length === 0}
@@ -451,17 +492,25 @@
 				</div>
 			</div>
 		{:else if shown.length === 0}
-			<div class="flex flex-col items-center gap-2 py-10 text-center">
-				<p class="text-xs text-muted-foreground">No sources match those filters.</p>
-				{#if activeFilters > 0}
-					<button
-						type="button"
-						onclick={resetFilters}
-						class="rounded-md bg-foreground/5 px-3 py-1.5 text-xs font-medium hover:bg-foreground/10"
-					>
-						Reset filters
-					</button>
-				{/if}
+			<div class="flex flex-col items-center gap-2 px-4 py-10 text-center">
+				<p class="text-sm font-medium">
+					{rows.length} source{rows.length === 1 ? "" : "s"} hidden
+				</p>
+				<p class="max-w-64 text-xs text-muted-foreground">
+					Every source for this title is P2P or likely-silent — the default
+					filters hide those.
+				</p>
+				<button
+					type="button"
+					onclick={() => {
+						resetFilters();
+						kinds = new Set(["direct", "p2p"]);
+						showSilent = true;
+					}}
+					class="mt-1 rounded-md bg-foreground/5 px-3 py-1.5 text-xs font-medium hover:bg-foreground/10"
+				>
+					Show all sources
+				</button>
 			</div>
 		{:else}
 			<div class="flex flex-col gap-1.5">
@@ -521,7 +570,7 @@
 
 								{#if playable && m.audio === "risky"}
 									<span
-										class="flex items-center gap-0.5 rounded bg-amber-500/15 px-1 py-px text-amber-600 dark:text-amber-400"
+										class="flex items-center gap-0.5 rounded bg-warning/15 px-1 py-px text-warning-foreground"
 										title="This audio codec may not play in the browser (no sound)"
 									>
 										<VolumeXIcon class="size-2.5" /> may be silent
@@ -529,13 +578,13 @@
 								{/if}
 								{#if playable && m.video === "risky"}
 									<span
-										class="flex items-center gap-0.5 rounded bg-amber-500/15 px-1 py-px text-amber-600 dark:text-amber-400"
+										class="flex items-center gap-0.5 rounded bg-warning/15 px-1 py-px text-warning-foreground"
 										title="This video codec (HEVC / AV1) may not decode in the browser"
 									>
 										<FilmIcon class="size-2.5" /> may not play
 									</span>
 								{/if}
-								{#if !playable}<span class="text-amber-500">external</span>{/if}
+								{#if !playable}<span class="rounded bg-warning/15 px-1 py-px text-warning-foreground">external</span>{/if}
 							</div>
 						</div>
 					</button>
@@ -553,4 +602,4 @@
 			{/if}
 		{/if}
 	</div>
-</aside>
+</div>
