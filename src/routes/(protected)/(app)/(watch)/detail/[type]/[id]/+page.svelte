@@ -1,4 +1,11 @@
 <script lang="ts">
+	import {
+		BookmarkCheckIcon,
+		BookmarkIcon,
+		BookmarkOffIcon,
+		EyeDashedIcon,
+		XIcon,
+	} from "@lucide/svelte";
 	import ArrowLeftIcon from "@lucide/svelte/icons/arrow-left";
 	import CheckIcon from "@lucide/svelte/icons/check";
 	import ExternalLinkIcon from "@lucide/svelte/icons/external-link";
@@ -350,273 +357,337 @@
 </script>
 
 <div class="relative">
-	<button
-		type="button"
-		onclick={() => history.back()}
-		class="absolute top-20 left-0 z-10 flex items-center gap-1.5 rounded-full bg-background/50 px-3 py-1.5 text-sm font-medium text-foreground ring-1 ring-border backdrop-blur-md transition hover:bg-background/80"
-	>
-		<ArrowLeftIcon class="size-4" /> Back
-	</button>
+  <button
+    type="button"
+    onclick={() => history.back()}
+    class="absolute top-20 left-0 z-10 flex items-center gap-1.5 rounded-full bg-background/50 px-3 py-1.5 text-sm font-medium text-foreground ring-1 ring-border backdrop-blur-md transition hover:bg-background/80"
+  >
+    <ArrowLeftIcon class="size-4" /> Back
+  </button>
 
-	{#if metaQuery.error}
-		<div class="pt-28">
-			<div class="mx-auto max-w-md rounded-2xl border border-border/60 bg-linear-to-b from-muted/40 to-transparent px-6 py-14 text-center">
-				<p class="text-lg font-semibold tracking-tight">No metadata for this title</p>
-				<p class="mt-1 text-sm text-muted-foreground">
-					No installed addon provides <code>{type}</code> metadata for
-					<code>{id}</code>.
-				</p>
+  {#if metaQuery.error}
+    <div class="pt-28">
+      <div
+        class="mx-auto max-w-md rounded-2xl border border-border/60 bg-linear-to-b from-muted/40 to-transparent px-6 py-14 text-center"
+      >
+        <p class="text-lg font-semibold tracking-tight">
+          No metadata for this title
+        </p>
+        <p class="mt-1 text-sm text-muted-foreground">
+          No installed addon provides <code>{type}</code> metadata for
+          <code>{id}</code>.
+        </p>
 
-				<Button
-					href={resolve('addons')}
-					variant="outline"
-					class="mt-4"
-				>Manage addons</Button>
-			</div>
-		</div>
-	{:else if !stableMeta}
-		<!-- Mirrors `MediaHero`'s own box exactly so the real hero doesn't jump
+        <Button href={resolve("addons")} variant="outline" class="mt-4"
+          >Manage addons</Button
+        >
+      </div>
+    </div>
+  {:else if !stableMeta}
+    <!-- Mirrors `MediaHero`'s own box exactly so the real hero doesn't jump
 		     the page when it lands. -->
-		<div class="mx-[calc(50%-50vw)] -mt-20 min-h-[72vh]" aria-hidden="true">
-			<div class="mx-auto flex items-end gap-8 px-6 pt-32 pb-12 lg:pb-14">
-				<div class="hidden w-52 shrink-0 lg:block">
-					<div class="skeleton aspect-2/3 w-full rounded-2xl"></div>
-				</div>
-				<div class="flex w-full max-w-2xl flex-col gap-4">
-					<div class="skeleton h-12 w-2/3 rounded-lg lg:h-16"></div>
-					<div class="skeleton h-4 w-40 rounded"></div>
-					<div class="skeleton h-16 w-full max-w-xl rounded-lg"></div>
-					<div class="mt-2 flex gap-3">
-						<div class="skeleton h-11 w-32 rounded-md"></div>
-						<div class="skeleton h-11 w-36 rounded-md"></div>
-					</div>
-				</div>
-			</div>
-		</div>
-	{:else if stableMeta}
-		{@const m = stableMeta}
-		<MediaHero
-			title={m.name}
-			logo={m.logo}
-			background={m.background}
-			poster={m.poster}
-			showPoster
-			description={m.description}
-			rating={rating}
-			year={contentType === "series" && m.status
-				? `${m.releaseInfo ?? ""} · ${m.status}`.replace(/^ · /, "")
-				: m.releaseInfo}
-			runtime={m.runtime}
-			genres={m.genres ?? []}
-			network={providers.network}
-			flag={contentType === "movie"
-				? progress[id]?.completed
-					? "Watched"
-					: null
-				: seriesFlag}
-		>
-			{#snippet actions()}
-				{#if ctaPending}
-					<div class="skeleton h-11 w-32 rounded-md" aria-hidden="true"></div>
-				{:else if useOfficialCta && officialCta}
-					<Button
-						size="lg"
-						href={officialCta.url}
-						target="_blank"
-						rel="noopener noreferrer"
-					>
-						<PlayIcon data-icon="inline-start" class="fill-current" />
-						Watch on {officialCta.provider}
-						<ExternalLinkIcon data-icon="inline-end" class="size-3.5 opacity-70" />
-					</Button>
-				{:else if contentType === "movie"}
-					<Button size="lg" onclick={() => watch(id)}>
-						<PlayIcon data-icon="inline-start" class="fill-current" />
-						{#if progress[id] && !progress[id].completed && progress[id].fraction > 0.02}
-							Resume
-						{:else}
-							Watch
-						{/if}
-					</Button>
-				{:else if resumeEpisode}
-					<Button size="lg" onclick={() => watch(resumeEpisode.id)}>
-						<PlayIcon data-icon="inline-start" class="fill-current" />
-						{resumeEpisode.label}
-					</Button>
-				{:else if firstEpisode}
-					<Button size="lg" onclick={() => watch(firstEpisode.id)}>
-						<PlayIcon data-icon="inline-start" class="fill-current" />
-						Play S{firstEpisode.season ?? 1}E{firstEpisode.episode ?? 1}
-					</Button>
-				{/if}
-				{#if ctaVideoId}
-					<Button
-						size="lg"
-						variant="outline"
-						onclick={() => selectStream(ctaVideoId)}
-					>
-						<ListVideoIcon data-icon="inline-start" /> Select stream
-					</Button>
-				{/if}
-				<Button size="lg" variant="secondary" onclick={toggle}>
-					{#if inLibrary}
-						<CheckIcon data-icon="inline-start" />
-					{:else}
-						<PlusIcon data-icon="inline-start" />
-					{/if}
-					{inLibrary ? "In library" : "Add to library"}
-				</Button>
-				{#if contentType === "movie"}
-					<Button
-						size="lg"
-						variant="ghost"
-						onclick={() =>
-							toggleWatched(id, null, null, Boolean(progress[id]?.completed))}
-					>
-						{#if progress[id]?.completed}
-							<EyeOffIcon data-icon="inline-start" /> Watched
-						{:else}
-							<EyeIcon data-icon="inline-start" /> Mark watched
-						{/if}
-					</Button>
-				{/if}
-			{/snippet}
-		</MediaHero>
+    <div class="mx-[calc(50%-50vw)] -mt-20 min-h-[72vh]" aria-hidden="true">
+      <div class="mx-auto flex items-end gap-8 px-6 pt-32 pb-12 lg:pb-14">
+        <div class="hidden w-52 shrink-0 lg:block">
+          <div class="skeleton aspect-2/3 w-full rounded-2xl"></div>
+        </div>
+        <div class="flex w-full max-w-2xl flex-col gap-4">
+          <div class="skeleton h-12 w-2/3 rounded-lg lg:h-16"></div>
+          <div class="skeleton h-4 w-40 rounded"></div>
+          <div class="skeleton h-16 w-full max-w-xl rounded-lg"></div>
+          <div class="mt-2 flex gap-3">
+            <div class="skeleton h-11 w-32 rounded-md"></div>
+            <div class="skeleton h-11 w-36 rounded-md"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  {:else if stableMeta}
+    {@const m = stableMeta}
+    <MediaHero
+      title={m.name}
+      logo={m.logo}
+      background={m.background}
+      poster={m.poster}
+      showPoster
+      description={m.description}
+      {rating}
+      year={contentType === "series" && m.status
+        ? `${m.releaseInfo ?? ""} · ${m.status}`.replace(/^ · /, "")
+        : m.releaseInfo}
+      runtime={m.runtime}
+      genres={m.genres ?? []}
+      network={providers.network}
+      flag={contentType === "movie"
+        ? progress[id]?.completed
+          ? "Watched"
+          : null
+        : seriesFlag}
+    >
+      {#snippet actions()}
+        {#if ctaPending}
+          <div class="skeleton h-11 w-32 rounded-md" aria-hidden="true"></div>
+        {:else if useOfficialCta && officialCta}
+          <Button
+            size="lg"
+            href={officialCta.url}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <PlayIcon data-icon="inline-start" class="fill-current" />
+            Watch on {officialCta.provider}
+            <ExternalLinkIcon
+              data-icon="inline-end"
+              class="size-3.5 opacity-70"
+            />
+          </Button>
+        {:else if contentType === "movie"}
+          <Button size="lg" onclick={() => watch(id)}>
+            <PlayIcon data-icon="inline-start" class="fill-current" />
+            {#if progress[id] && !progress[id].completed && progress[id].fraction > 0.02}
+              Resume
+            {:else}
+              Watch
+            {/if}
+          </Button>
+        {:else if resumeEpisode}
+          <Button size="lg" onclick={() => watch(resumeEpisode.id)}>
+            <PlayIcon data-icon="inline-start" class="fill-current" />
+            {resumeEpisode.label}
+          </Button>
+        {:else if firstEpisode}
+          <Button size="lg" onclick={() => watch(firstEpisode.id)}>
+            <PlayIcon data-icon="inline-start" class="fill-current" />
+            Play S{firstEpisode.season ?? 1}E{firstEpisode.episode ?? 1}
+          </Button>
+        {/if}
+        {#if ctaVideoId}
+          <Button
+            size="lg"
+            variant="outline"
+            onclick={() => selectStream(ctaVideoId)}
+          >
+            <ListVideoIcon data-icon="inline-start" /> Select stream
+          </Button>
+        {/if}
+        <Button size="lg" variant="outline" onclick={toggle} class="group">
+          {#if inLibrary}
+            <BookmarkIcon
+              data-icon="inline-start"
+              class="block group-hover:hidden"
+            />
+            <BookmarkOffIcon
+              class="hidden group-hover:block"
+              data-icon="inline-start"
+            />
+          {:else}
+            <BookmarkIcon
+              class="block group-hover:hidden"
+              data-icon="inline-start"
+            />
+            <BookmarkCheckIcon
+              class="hidden group-hover:block"
+              data-icon="inline-start"
+            />
+          {/if}
+          {inLibrary ? "Remove from library" : "Add to library"}
+        </Button>
+        {#if contentType === "movie"}
+          <Button
+            size="lg"
+            variant="outline"
+            class="group"
+            onclick={() =>
+              toggleWatched(id, null, null, Boolean(progress[id]?.completed))}
+          >
+            {#if progress[id]?.completed}
+              <EyeOffIcon
+                class="hidden group-hover:block"
+                data-icon="inline-start"
+              />
+              <EyeIcon
+                class="block group-hover:hidden"
+                data-icon="inline-start"
+              />
+              Mark not Watched
+            {:else}
+              <EyeIcon
+                class="hidden group-hover:block"
+                data-icon="inline-start"
+              />
+              <EyeDashedIcon
+                class="block group-hover:hidden"
+                data-icon="inline-start"
+              />
+              Mark watched
+            {/if}
+          </Button>
+        {/if}
+      {/snippet}
+    </MediaHero>
 
-		<div class="flex flex-col gap-10 pt-2">
-			{#if m.description}
-				<div class="flex flex-col items-start gap-1.5 sm:hidden">
-					<p
-						class={cn(
-							"max-w-prose text-sm leading-relaxed text-foreground/80",
-							!synopsisExpanded && "line-clamp-3",
-						)}
-					>
-						{m.description}
-					</p>
-					<button
-						type="button"
-						class="text-sm font-semibold text-primary"
-						onclick={() => synopsisExpanded = !synopsisExpanded}
-					>
-						{synopsisExpanded ? "Less" : "More"}
-					</button>
-				</div>
-			{/if}
+    <div class="flex flex-col gap-10 pt-2">
+      {#if m.description}
+        <div class="flex flex-col items-start gap-1.5 sm:hidden">
+          <p
+            class={cn(
+              "max-w-prose text-sm leading-relaxed text-foreground/80",
+              !synopsisExpanded && "line-clamp-3",
+            )}
+          >
+            {m.description}
+          </p>
+          <button
+            type="button"
+            class="text-sm font-semibold text-primary"
+            onclick={() => (synopsisExpanded = !synopsisExpanded)}
+          >
+            {synopsisExpanded ? "Less" : "More"}
+          </button>
+        </div>
+      {/if}
 
-			{#if providers.stream.length > 0 || providers.rent.length > 0 || providers.buy.length > 0}
-				<WatchProvidersList providers={providers} />
-			{/if}
+      {#if providers.stream.length > 0 || providers.rent.length > 0 || providers.buy.length > 0}
+        <WatchProvidersList {providers} />
+      {/if}
 
-			{#if contentType === "series" && seasons.length > 0}
-				<SeasonCarousel
-					videos={m.videos ?? []}
-					seriesRuntime={m.runtime ?? null}
-					progress={progress}
-					initialSeason={resumeEpisode
-						? m.videos?.find((v) => v.id === resumeEpisode.id)?.season ?? null
-						: null}
-					onPlay={watch}
-					onToggleWatched={toggleWatched}
-					onPrefetch={prefetch}
-					onMarkUpTo={markUpTo}
-					onMarkSeason={markSeason}
-				/>
-			{/if}
+      {#if contentType === "series" && seasons.length > 0}
+        <SeasonCarousel
+          videos={m.videos ?? []}
+          seriesRuntime={m.runtime ?? null}
+          {progress}
+          initialSeason={resumeEpisode
+            ? (m.videos?.find((v) => v.id === resumeEpisode.id)?.season ?? null)
+            : null}
+          onPlay={watch}
+          onToggleWatched={toggleWatched}
+          onPrefetch={prefetch}
+          onMarkUpTo={markUpTo}
+          onMarkSeason={markSeason}
+        />
+      {/if}
 
-			{#if trailers.length > 0}
-				<div class="flex flex-col gap-3">
-					<h2 class="text-xl font-semibold tracking-tight">Trailers</h2>
-					<div class="no-scrollbar -mx-2 flex gap-4 overflow-x-auto px-2 pb-2">
-						{#each trailers.slice(0, 8) as trailer, i (trailer.ytId)}
-							<button
-								type="button"
-								onclick={() => trailerId = trailer.ytId}
-								class="group/tr relative aspect-video w-72 shrink-0 overflow-hidden rounded-xl bg-muted ring-1 ring-white/5 transition-all hover:-translate-y-1 hover:ring-primary/60"
-							>
-								<img
-									src={`https://i.ytimg.com/vi/${trailer.ytId}/hqdefault.jpg`}
-									alt=""
-									loading="lazy"
-									decoding="async"
-									class="size-full object-cover transition-transform duration-200 group-hover/tr:scale-105"
-								/>
-								<div class="absolute inset-0 bg-black/30 transition-colors group-hover/tr:bg-black/10"></div>
-								<span class="absolute inset-0 flex items-center justify-center text-white">
-									<PlayCircleIcon class="size-12 drop-shadow-lg" />
-								</span>
-								<span class="absolute bottom-2 left-3 text-xs font-medium text-white drop-shadow">
-									{trailer.title || `Trailer ${i + 1}`}
-								</span>
-							</button>
-						{/each}
-					</div>
-				</div>
-			{/if}
+      {#if trailers.length > 0}
+        <div class="flex flex-col gap-3">
+          <h2 class="text-xl font-semibold tracking-tight">Trailers</h2>
+          <div class="no-scrollbar -mx-2 flex gap-4 overflow-x-auto px-2 pb-2">
+            {#each trailers.slice(0, 8) as trailer, i (trailer.ytId)}
+              <button
+                type="button"
+                onclick={() => (trailerId = trailer.ytId)}
+                class="group/tr relative aspect-video w-72 shrink-0 overflow-hidden rounded-xl bg-muted ring-1 ring-white/5 transition-all hover:-translate-y-1 hover:ring-primary/60"
+              >
+                <img
+                  src={`https://i.ytimg.com/vi/${trailer.ytId}/hqdefault.jpg`}
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                  class="size-full object-cover transition-transform duration-200 group-hover/tr:scale-105"
+                />
+                <div
+                  class="absolute inset-0 bg-black/30 transition-colors group-hover/tr:bg-black/10"
+                ></div>
+                <span
+                  class="absolute inset-0 flex items-center justify-center text-white"
+                >
+                  <PlayCircleIcon class="size-12 drop-shadow-lg" />
+                </span>
+                <span
+                  class="absolute bottom-2 left-3 text-xs font-medium text-white drop-shadow"
+                >
+                  {trailer.title || `Trailer ${i + 1}`}
+                </span>
+              </button>
+            {/each}
+          </div>
+        </div>
+      {/if}
 
-			{#if m.cast?.length}
-				<div class="flex flex-col gap-3">
-					<h2 class="text-xl font-semibold tracking-tight">Cast</h2>
-					<CastRow names={m.cast.slice(0, 18)} />
-				</div>
-			{/if}
+      {#if m.cast?.length}
+        <div class="flex flex-col gap-3">
+          <h2 class="text-xl font-semibold tracking-tight">Cast</h2>
+          <CastRow names={m.cast.slice(0, 18)} />
+        </div>
+      {/if}
 
-			{#if m.director?.length || m.writer?.length || m.country || m.awards || m.released}
-				<div class="grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
-					{#if m.director?.length}
-						<div>
-							<p class="text-xs font-medium tracking-wide text-muted-foreground uppercase">Director</p>
-							<p class="mt-1 text-foreground/90">{m.director.join(", ")}</p>
-						</div>
-					{/if}
-					{#if m.writer?.length}
-						<div>
-							<p class="text-xs font-medium tracking-wide text-muted-foreground uppercase">Writer</p>
-							<p class="mt-1 text-foreground/90">{m.writer.slice(0, 3).join(", ")}</p>
-						</div>
-					{/if}
-					{#if m.country}
-						<div>
-							<p class="text-xs font-medium tracking-wide text-muted-foreground uppercase">Country</p>
-							<p class="mt-1 text-foreground/90">{m.country}</p>
-						</div>
-					{/if}
-					{#if m.released}
-						<div>
-							<p class="text-xs font-medium tracking-wide text-muted-foreground uppercase">Released</p>
-							<p class="mt-1 text-foreground/90">
-								{new Date(m.released).toLocaleDateString(undefined, {
-									day: "numeric",
-									month: "long",
-									year: "numeric",
-								})}
-							</p>
-						</div>
-					{/if}
-					{#if m.awards}
-						<div class="sm:col-span-2 lg:col-span-4">
-							<p class="text-xs font-medium tracking-wide text-muted-foreground uppercase">Awards</p>
-							<p class="mt-1 text-foreground/90">{m.awards}</p>
-						</div>
-					{/if}
-				</div>
-			{/if}
+      {#if m.director?.length || m.writer?.length || m.country || m.awards || m.released}
+        <div class="grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
+          {#if m.director?.length}
+            <div>
+              <p
+                class="text-xs font-medium tracking-wide text-muted-foreground uppercase"
+              >
+                Director
+              </p>
+              <p class="mt-1 text-foreground/90">{m.director.join(", ")}</p>
+            </div>
+          {/if}
+          {#if m.writer?.length}
+            <div>
+              <p
+                class="text-xs font-medium tracking-wide text-muted-foreground uppercase"
+              >
+                Writer
+              </p>
+              <p class="mt-1 text-foreground/90">
+                {m.writer.slice(0, 3).join(", ")}
+              </p>
+            </div>
+          {/if}
+          {#if m.country}
+            <div>
+              <p
+                class="text-xs font-medium tracking-wide text-muted-foreground uppercase"
+              >
+                Country
+              </p>
+              <p class="mt-1 text-foreground/90">{m.country}</p>
+            </div>
+          {/if}
+          {#if m.released}
+            <div>
+              <p
+                class="text-xs font-medium tracking-wide text-muted-foreground uppercase"
+              >
+                Released
+              </p>
+              <p class="mt-1 text-foreground/90">
+                {new Date(m.released).toLocaleDateString(undefined, {
+                  day: "numeric",
+                  month: "long",
+                  year: "numeric",
+                })}
+              </p>
+            </div>
+          {/if}
+          {#if m.awards}
+            <div class="sm:col-span-2 lg:col-span-4">
+              <p
+                class="text-xs font-medium tracking-wide text-muted-foreground uppercase"
+              >
+                Awards
+              </p>
+              <p class="mt-1 text-foreground/90">{m.awards}</p>
+            </div>
+          {/if}
+        </div>
+      {/if}
 
-			{#if contentType === "movie" && !m.description}
-				<div class="flex items-center gap-2 text-sm text-muted-foreground">
-					<FilmIcon class="size-4" /> No synopsis available for this title.
-				</div>
-			{/if}
+      {#if contentType === "movie" && !m.description}
+        <div class="flex items-center gap-2 text-sm text-muted-foreground">
+          <FilmIcon class="size-4" /> No synopsis available for this title.
+        </div>
+      {/if}
 
-			{#if similar.length > 0}
-				<MediaRow title="More like this" items={similar} />
-			{/if}
-		</div>
-	{/if}
+      {#if similar.length > 0}
+        <MediaRow title="More like this" items={similar} />
+      {/if}
+    </div>
+  {/if}
 </div>
 
 <TrailerModal
-	ytId={trailerId}
-	title={meta?.name ?? "Trailer"}
-	onClose={() => trailerId = null}
+  ytId={trailerId}
+  title={meta?.name ?? "Trailer"}
+  onClose={() => (trailerId = null)}
 />

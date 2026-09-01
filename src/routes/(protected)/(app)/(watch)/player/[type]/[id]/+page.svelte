@@ -9,7 +9,7 @@
 	import { similarTitles } from "#lib/addons/addons.remote.js";
 	import PlaybackLoading from "#lib/components/playback-loading.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
-	import VideoPlayer from "#lib/components/video-player.svelte";
+	import VideoPlayer from "#lib/components/video-player/video-player.svelte";
 	import { saveUiSettings } from "#lib/settings/settings.remote.js";
 	import { theme } from "#lib/settings/theme.svelte.js";
 	import type { UiSettings } from "#lib/settings/ui-settings.js";

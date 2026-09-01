@@ -133,140 +133,143 @@
 </script>
 
 <ContextMenu.Root>
-	<ContextMenu.Trigger class="contents">
-		<a
-			href={resolve(`detail/${item.type}/${encodeURIComponent(item.id)}`)}
-			aria-label={linkLabel}
-			class={cn("group/poster flex flex-col gap-2.5", className)}
-			data-sveltekit-preload-data="hover"
-		>
-			<div
-		class={cn(
-			"relative overflow-hidden rounded-xl bg-muted ring-1 ring-border transition-all dark:ring-white/10 duration-300 ease-out",
-			"group-hover/poster:-translate-y-1 group-hover/poster:shadow-[0_24px_50px_-16px] group-hover/poster:shadow-black/70 group-hover/poster:ring-primary/60",
-			aspect,
-		)}
-			>
-				{#if item.poster && !broken}
-					{@const responsive = posterSrcset(item.poster)}
-					{#if !loaded}
-						<div class="skeleton absolute inset-0"></div>
-					{/if}
-					<img
-						bind:this={posterEl}
-						src={item.poster}
-						srcset={responsive?.srcset}
-						sizes={responsive?.sizes}
-						alt=""
-						loading="lazy"
-						decoding="async"
-						onload={() => (loaded = true)}
-						onerror={() => (broken = true)}
-						class={cn("size-full object-cover [transition:transform_200ms_ease-out,opacity_500ms_ease-out] group-hover/poster:scale-[1.06]", loaded ? "opacity-100" : "opacity-0")}
-					/>
-				{:else}
-					<div
-						class="flex size-full flex-col items-center justify-center gap-2 bg-linear-to-br from-muted via-muted to-background p-3 text-center"
-					>
-						{#if item.type === "series"}
-							<TvIcon class="size-7 text-muted-foreground/50" />
-						{:else}
-							<FilmIcon class="size-7 text-muted-foreground/50" />
-						{/if}
-				<span class="line-clamp-3 text-sm font-medium text-muted-foreground">
-					{item.name}
-				</span>
-					</div>
-				{/if}
+  <ContextMenu.Trigger class="contents">
+    <a
+      href={resolve(`detail/${item.type}/${encodeURIComponent(item.id)}`)}
+      aria-label={linkLabel}
+      class={cn("group/poster flex flex-col gap-2.5", className)}
+      data-sveltekit-preload-data="hover"
+    >
+      <div
+        class={cn(
+          "relative overflow-hidden rounded-xl bg-muted ring-1 ring-border transition-all dark:ring-white/10 duration-300 ease-out",
+          "group-hover/poster:-translate-y-1 group-hover/poster:shadow-[0_24px_50px_-16px] group-hover/poster:shadow-black/70 group-hover/poster:ring-primary/60",
+          aspect,
+        )}
+      >
+        {#if item.poster && !broken}
+          {@const responsive = posterSrcset(item.poster)}
+          {#if !loaded}
+            <div class="skeleton absolute inset-0"></div>
+          {/if}
+          <img
+            bind:this={posterEl}
+            src={item.poster}
+            srcset={responsive?.srcset}
+            sizes={responsive?.sizes}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            onload={() => (loaded = true)}
+            onerror={() => (broken = true)}
+            class={cn(
+              "size-full object-cover [transition:transform_200ms_ease-out,opacity_500ms_ease-out] group-hover/poster:scale-[1.06]",
+              loaded ? "opacity-100" : "opacity-0",
+            )}
+          />
+        {:else}
+          <div
+            class="flex size-full flex-col items-center justify-center gap-2 bg-linear-to-br from-muted via-muted to-background p-3 text-center"
+          >
+            {#if item.type === "series"}
+              <TvIcon class="size-7 text-muted-foreground/50" />
+            {:else}
+              <FilmIcon class="size-7 text-muted-foreground/50" />
+            {/if}
+            <span
+              class="line-clamp-3 text-sm font-medium text-muted-foreground"
+            >
+              {item.name}
+            </span>
+          </div>
+        {/if}
 
-				<div
-					class="pointer-events-none absolute inset-0 bg-linear-to-t from-black/70 via-black/5 to-transparent opacity-0 transition-opacity duration-300 group-hover/poster:opacity-100"
-				></div>
+        <div
+          class="pointer-events-none absolute inset-0 bg-linear-to-t from-black/70 via-black/5 to-transparent opacity-0 transition-opacity duration-300 group-hover/poster:opacity-100"
+        ></div>
 
-				<div
-					class="pointer-events-none absolute inset-0 flex items-center justify-center opacity-0 transition-all duration-300 group-hover/poster:opacity-100"
-				>
-					<span
-						class="flex size-11 translate-y-1 items-center justify-center rounded-full bg-white/15 text-white ring-1 ring-white/25 backdrop-blur-md transition-transform duration-300 group-hover/poster:translate-y-0"
-			>
-				<PlayIcon class="size-5 translate-x-px fill-white" />
-			</span>
-				</div>
+        <div
+          class="pointer-events-none absolute inset-0 flex items-center justify-center opacity-0 transition-all duration-300 group-hover/poster:opacity-100"
+        >
+          <span
+            class="flex size-11 translate-y-1 items-center justify-center rounded-full bg-white/15 text-white ring-1 ring-white/25 backdrop-blur-md transition-transform duration-300 group-hover/poster:translate-y-0"
+          >
+            <PlayIcon class="size-5 translate-x-px fill-white" />
+          </span>
+        </div>
 
-				{#if rating}
-					<ImdbRating
-						rating={rating}
-						variant="badge"
-						class="absolute top-2 left-2"
-					/>
-				{/if}
+        {#if rating}
+          <ImdbRating {rating} variant="badge" class="absolute top-2 left-2" />
+        {/if}
 
-				{#if watched || inLibrary}
-					<div aria-hidden="true" class="absolute top-2 right-2 flex gap-1">
-						{#if watched}
-							<span
-								title="Watched"
-								class="flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground ring-1 ring-black/10"
-					>
-						<CheckIcon class="size-3" />
-					</span>
-						{/if}
-						{#if inLibrary}
-							<span
-								title="In your library"
-								class="flex size-5 items-center justify-center rounded-full bg-black/55 text-white ring-1 ring-white/15 backdrop-blur-md"
-					>
-						<BookmarkIcon class="size-3 fill-current" />
-					</span>
-						{/if}
-					</div>
-				{/if}
+        {#if watched || inLibrary}
+          <div aria-hidden="true" class="absolute top-2 right-2 flex gap-1">
+            {#if watched}
+              <span
+                title="Watched"
+                class="flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground ring-1 ring-black/10"
+              >
+                <CheckIcon class="size-3" />
+              </span>
+            {/if}
+            {#if inLibrary}
+              <span
+                title="In your library"
+                class="flex size-5 items-center justify-center rounded-full bg-black/55 text-white ring-1 ring-white/15 backdrop-blur-md"
+              >
+                <BookmarkIcon class="size-3 fill-current" />
+              </span>
+            {/if}
+          </div>
+        {/if}
 
-				{#if progress != null && progress > 0}
-					<div
-						class="absolute inset-x-0 bottom-0 h-1 bg-black/50"
-					>
-						<div
-							class="h-full rounded-r-full bg-primary"
-							style={`width: ${Math.min(100, Math.max(0, progress * 100))}%`}
-						></div>
-					</div>
-				{/if}
-			</div>
+        {#if progress != null && progress > 0}
+          <div class="absolute inset-x-0 bottom-0 h-1 bg-black/50">
+            <div
+              class="h-full rounded-r-full bg-primary"
+              style={`width: ${Math.min(100, Math.max(0, progress * 100))}%`}
+            ></div>
+          </div>
+        {/if}
+      </div>
 
-			<div class="min-w-0">
-				<p
-					class="truncate text-sm font-medium text-foreground/90 transition-colors group-hover/poster:text-foreground"
-		>
-			{item.name}
-		</p>
-				{#if item.releaseInfo}
-					<p class="truncate text-xs text-muted-foreground">{item.releaseInfo}</p>
-				{/if}
-			</div>
-		</a>
-	</ContextMenu.Trigger>
+      <div class="min-w-0">
+        <p
+          class="truncate text-sm font-medium text-foreground/90 transition-colors group-hover/poster:text-foreground"
+        >
+          {item.name}
+        </p>
+        {#if item.releaseInfo}
+          <p class="truncate text-xs text-muted-foreground">
+            {item.releaseInfo}
+          </p>
+        {/if}
+      </div>
+    </a>
+  </ContextMenu.Trigger>
 
-	<ContextMenu.Content class="w-52">
-		<ContextMenu.Item onSelect={toggleLibrary}>
-			{#if inLibrary}
-				<CheckIcon /> In library
-			{:else}
-				<PlusIcon /> Add to library
-			{/if}
-		</ContextMenu.Item>
-		{#if contentType === "movie"}
-			<ContextMenu.Item onSelect={toggleWatched}>
-				{#if watched}
-					<EyeOffIcon /> Mark as unwatched
-				{:else}
-					<EyeIcon /> Mark as watched
-				{/if}
-			</ContextMenu.Item>
-		{/if}
-		<ContextMenu.Separator />
-		<ContextMenu.Item
-			onSelect={() => goto(resolve(`detail/${item.type}/${encodeURIComponent(item.id)}`))}
-		><InfoIcon />View details</ContextMenu.Item>
-	</ContextMenu.Content>
+  <ContextMenu.Content class="w-52">
+    <ContextMenu.Item onSelect={toggleLibrary}>
+      {#if inLibrary}
+        <CheckIcon /> In library
+      {:else}
+        <PlusIcon /> Add to library
+      {/if}
+    </ContextMenu.Item>
+    {#if contentType === "movie"}
+      <ContextMenu.Item onSelect={toggleWatched}>
+        {#if watched}
+          <EyeOffIcon /> Mark as unwatched
+        {:else}
+          <EyeIcon /> Mark as watched
+        {/if}
+      </ContextMenu.Item>
+    {/if}
+    <ContextMenu.Separator />
+    <ContextMenu.Item
+      onSelect={() =>
+        goto(resolve(`detail/${item.type}/${encodeURIComponent(item.id)}`))}
+      ><InfoIcon />View details</ContextMenu.Item
+    >
+  </ContextMenu.Content>
 </ContextMenu.Root>

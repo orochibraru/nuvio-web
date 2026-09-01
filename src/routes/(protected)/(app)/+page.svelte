@@ -1,10 +1,13 @@
 <script lang="ts">
-	import CheckIcon from "@lucide/svelte/icons/check";
+	import {
+		BookmarkCheckIcon,
+		BookmarkIcon,
+		BookmarkOffIcon,
+	} from "@lucide/svelte";
 	import ChevronLeftIcon from "@lucide/svelte/icons/chevron-left";
 	import ChevronRightIcon from "@lucide/svelte/icons/chevron-right";
 	import InfoIcon from "@lucide/svelte/icons/info";
 	import PlayIcon from "@lucide/svelte/icons/play";
-	import PlusIcon from "@lucide/svelte/icons/plus";
 	import SparklesIcon from "@lucide/svelte/icons/sparkles";
 	import { cubicOut } from "svelte/easing";
 	import { fly } from "svelte/transition";
@@ -319,210 +322,240 @@
 </script>
 
 <div class="flex flex-col gap-12">
-	<!-- Stable page heading — the hero title rotates, so a screen reader must not
+  <!-- Stable page heading — the hero title rotates, so a screen reader must not
 	     hear a changing movie name as the `h1`. -->
-	<h1 class="sr-only">Home</h1>
-	{#if spotlight}
-		<!-- svelte-ignore a11y_no_static_element_interactions -->
-		<div
-			role="group"
-			aria-roledescription="carousel"
-			aria-label="Featured titles"
-			onmouseenter={() => heroPaused = true}
-			onmouseleave={() => heroPaused = false}
-			onfocusin={() => heroPaused = true}
-			onfocusout={() => heroPaused = false}
-			class="grid *:col-start-1 *:row-start-1"
-		>
-			{#key spotlight.id}
-				<div
-					in:fly={reduced({
-						x: heroDir * HERO_SLIDE,
-						duration: 480,
-						easing: cubicOut,
-					})}
-					out:fly={reduced({
-						x: heroDir * -HERO_SLIDE,
-						duration: 360,
-						easing: cubicOut,
-					})}
-				>
-					<MediaHero
-						title={spotlight.name}
-						headingLevel={2}
-						logo={spotlight.logo}
-						background={spotlight.background}
-						poster={spotlight.poster}
-						eyebrow="Featured"
-						description={spotlight.description}
-						rating={spotlightRating}
-						year={spotlight.releaseInfo}
-						genres={spotlight.genres ?? []}
-					>
-						{#snippet actions()}
-							<Button size="lg" href={spotlightHref}>
-							<PlayIcon data-icon="inline-start" class="fill-current" /> Watch now
-							</Button>
-							<Button
-								size="lg"
-								variant="secondary"
-								onclick={toggleSpotlightLibrary}
-							>
-								{#if spotlightInLibrary}
-								<CheckIcon data-icon="inline-start" /> In library
-								{:else}
-								<PlusIcon data-icon="inline-start" /> Add to library
-								{/if}
-							</Button>
-						<Button size="lg" variant="ghost" href={spotlightHref}>
-							<InfoIcon data-icon="inline-start" /> More info
-						</Button>
-						{/snippet}
+  <h1 class="sr-only">Home</h1>
+  {#if spotlight}
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div
+      role="group"
+      aria-roledescription="carousel"
+      aria-label="Featured titles"
+      onmouseenter={() => (heroPaused = true)}
+      onmouseleave={() => (heroPaused = false)}
+      onfocusin={() => (heroPaused = true)}
+      onfocusout={() => (heroPaused = false)}
+      class="grid *:col-start-1 *:row-start-1"
+    >
+      {#key spotlight.id}
+        <div
+          in:fly={reduced({
+            x: heroDir * HERO_SLIDE,
+            duration: 480,
+            easing: cubicOut,
+          })}
+          out:fly={reduced({
+            x: heroDir * -HERO_SLIDE,
+            duration: 360,
+            easing: cubicOut,
+          })}
+        >
+          <MediaHero
+            title={spotlight.name}
+            headingLevel={2}
+            logo={spotlight.logo}
+            background={spotlight.background}
+            poster={spotlight.poster}
+            eyebrow="Featured"
+            description={spotlight.description}
+            rating={spotlightRating}
+            year={spotlight.releaseInfo}
+            genres={spotlight.genres ?? []}
+          >
+            {#snippet actions()}
+              <Button size="lg" href={spotlightHref}>
+                <PlayIcon data-icon="inline-start" class="fill-current" /> Watch now
+              </Button>
+              <Button
+                size="lg"
+                class="group"
+                variant="outline"
+                onclick={toggleSpotlightLibrary}
+              >
+                {#if spotlightInLibrary}
+                  <BookmarkIcon
+                    data-icon="inline-start"
+                    class="block group-hover:hidden"
+                  />
+                  <BookmarkOffIcon
+                    class="hidden group-hover:block"
+                    data-icon="inline-start"
+                  />
+                  Remove from Library
+                {:else}
+                  <BookmarkIcon
+                    class="block group-hover:hidden"
+                    data-icon="inline-start"
+                  />
+                  <BookmarkCheckIcon
+                    class="hidden group-hover:block"
+                    data-icon="inline-start"
+                  />
+                  Add to library
+                {/if}
+              </Button>
+              <Button size="lg" variant="outline" href={spotlightHref}>
+                <InfoIcon data-icon="inline-start" />
+                More info
+              </Button>
+            {/snippet}
 
-						{#snippet overlay()}
-							{#if spotlights.length > 1}
-							<div class="absolute right-6 bottom-6 flex items-center gap-3">
-									<div class="flex gap-1.5">
-										{#each spotlights as item, index (item.id)}
-											<button
-												type="button"
-												aria-label={`Show ${item.name}`}
-												aria-current={index === heroIndex ? "true" : undefined}
-												onclick={() => goToHero(index)}
-											class={cn(
-												"h-1.5 rounded-full transition-all",
-												index === heroIndex
-													? "w-6 bg-primary"
-													: "w-1.5 bg-foreground/30 hover:bg-foreground/50",
-											)}
-											></button>
-										{/each}
-									</div>
-									<div class="hidden gap-1 sm:flex">
-										<button
-											type="button"
-											aria-label="Previous featured title"
-											onclick={() => stepHero(-1)}
-											class="flex size-8 items-center justify-center rounded-full bg-background/60 ring-1 ring-border backdrop-blur-md transition hover:bg-background"
-									>
-										<ChevronLeftIcon class="size-4" />
-									</button>
-										<button
-											type="button"
-											aria-label="Next featured title"
-											onclick={() => stepHero(1)}
-											class="flex size-8 items-center justify-center rounded-full bg-background/60 ring-1 ring-border backdrop-blur-md transition hover:bg-background"
-									>
-										<ChevronRightIcon class="size-4" />
-									</button>
-									</div>
-								</div>
-							{/if}
-						{/snippet}
-					</MediaHero>
-				</div>
-			{/key}
-		</div>
-	{:else if rowsLoading || rows.length > 0 && spotlights.length === 0}
-		<!-- Same box as `media-hero.svelte` so the row below doesn't jump when
+            {#snippet overlay()}
+              {#if spotlights.length > 1}
+                <div class="absolute right-6 bottom-6 flex items-center gap-3">
+                  <div class="flex gap-1.5">
+                    {#each spotlights as item, index (item.id)}
+                      <button
+                        type="button"
+                        aria-label={`Show ${item.name}`}
+                        aria-current={index === heroIndex ? "true" : undefined}
+                        onclick={() => goToHero(index)}
+                        class={cn(
+                          "h-1.5 rounded-full transition-all",
+                          index === heroIndex
+                            ? "w-6 bg-primary"
+                            : "w-1.5 bg-foreground/30 hover:bg-foreground/50",
+                        )}
+                      ></button>
+                    {/each}
+                  </div>
+                  <div class="hidden gap-1 sm:flex">
+                    <button
+                      type="button"
+                      aria-label="Previous featured title"
+                      onclick={() => stepHero(-1)}
+                      class="flex size-8 items-center justify-center rounded-full bg-background/60 ring-1 ring-border backdrop-blur-md transition hover:bg-background"
+                    >
+                      <ChevronLeftIcon class="size-4" />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label="Next featured title"
+                      onclick={() => stepHero(1)}
+                      class="flex size-8 items-center justify-center rounded-full bg-background/60 ring-1 ring-border backdrop-blur-md transition hover:bg-background"
+                    >
+                      <ChevronRightIcon class="size-4" />
+                    </button>
+                  </div>
+                </div>
+              {/if}
+            {/snippet}
+          </MediaHero>
+        </div>
+      {/key}
+    </div>
+  {:else if rowsLoading || (rows.length > 0 && spotlights.length === 0)}
+    <!-- Same box as `media-hero.svelte` so the row below doesn't jump when
 		     the real hero paints. -->
-		<section
-			class="relative isolate mx-[calc(50%-50vw)] -mt-20 mb-2 overflow-hidden"
-			aria-hidden="true"
-		>
-			<div class="absolute inset-0 -z-10 bg-linear-to-br from-muted/60 to-background"></div>
-			<div class="mx-auto flex items-end gap-8 px-6 pt-32 pb-12 lg:min-h-[72vh] lg:pb-14">
-				<div class="hidden w-52 shrink-0 lg:block">
-					<div class="skeleton aspect-2/3 w-full rounded-2xl"></div>
-				</div>
-				<div class="flex w-full max-w-2xl flex-col gap-4">
-					<div class="skeleton h-4 w-24 rounded"></div>
-					<div class="skeleton h-12 w-2/3 rounded-lg lg:h-16"></div>
-					<div class="skeleton h-4 w-40 rounded"></div>
-					<div class="skeleton h-16 w-full max-w-xl rounded-lg"></div>
-					<div class="mt-2 flex gap-3">
-						<div class="skeleton h-11 w-32 rounded-md"></div>
-						<div class="skeleton h-11 w-36 rounded-md"></div>
-					</div>
-				</div>
-			</div>
-		</section>
-	{:else}
-		<h2 class="text-3xl font-bold tracking-tight">Welcome back, {profileName}</h2>
-	{/if}
+    <section
+      class="relative isolate mx-[calc(50%-50vw)] -mt-20 mb-2 overflow-hidden"
+      aria-hidden="true"
+    >
+      <div
+        class="absolute inset-0 -z-10 bg-linear-to-br from-muted/60 to-background"
+      ></div>
+      <div
+        class="mx-auto flex items-end gap-8 px-6 pt-32 pb-12 lg:min-h-[72vh] lg:pb-14"
+      >
+        <div class="hidden w-52 shrink-0 lg:block">
+          <div class="skeleton aspect-2/3 w-full rounded-2xl"></div>
+        </div>
+        <div class="flex w-full max-w-2xl flex-col gap-4">
+          <div class="skeleton h-4 w-24 rounded"></div>
+          <div class="skeleton h-12 w-2/3 rounded-lg lg:h-16"></div>
+          <div class="skeleton h-4 w-40 rounded"></div>
+          <div class="skeleton h-16 w-full max-w-xl rounded-lg"></div>
+          <div class="mt-2 flex gap-3">
+            <div class="skeleton h-11 w-32 rounded-md"></div>
+            <div class="skeleton h-11 w-36 rounded-md"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  {:else}
+    <h2 class="text-3xl font-bold tracking-tight">
+      Welcome back, {profileName}
+    </h2>
+  {/if}
 
-	<!-- Anchored to normal document flow (not `fixed`) so it starts exactly
+  <!-- Anchored to normal document flow (not `fixed`) so it starts exactly
 	     where the hero's own box ends, at any hero height or viewport size —
 	     no viewport-unit guessing. Its own top fade keeps the glow from
 	     switching on abruptly right at that seam. -->
-	<div class="relative flex flex-col gap-12">
-		<AuroraBackground
-			class="-z-10 opacity-45 mask-[linear-gradient(to_bottom,transparent,black_220px)]"
-		/>
+  <div class="relative flex flex-col gap-12">
+    <AuroraBackground
+      class="-z-10 opacity-45 mask-[linear-gradient(to_bottom,transparent,black_220px)]"
+    />
 
-	{#if resume.length > 0}
-		<section class="flex flex-col gap-3">
-			<h2 class="text-xl font-semibold tracking-tight">Continue watching</h2>
-			<div class="no-scrollbar -mx-2 flex gap-4 overflow-x-auto scroll-smooth px-2 pt-1 pb-2">
-				{#each resume as item (`${item.type}:${item.videoId}`)}
-					<ContinueWatchingCard item={item} onClear={dismiss} />
-				{/each}
-			</div>
-		</section>
-	{/if}
+    {#if resume.length > 0}
+      <section class="flex flex-col gap-3">
+        <h2 class="text-xl font-semibold tracking-tight">Continue watching</h2>
+        <div
+          class="no-scrollbar -mx-2 flex gap-4 overflow-x-auto scroll-smooth px-2 pt-1 pb-2"
+        >
+          {#each resume as item (`${item.type}:${item.videoId}`)}
+            <ContinueWatchingCard {item} onClear={dismiss} />
+          {/each}
+        </div>
+      </section>
+    {/if}
 
-	{#if library.length > 0}
-		<MediaRow
-			title="My library"
-			items={library}
-			href={resolve('library')}
-		/>
-	{/if}
+    {#if library.length > 0}
+      <MediaRow title="My library" items={library} href={resolve("library")} />
+    {/if}
 
-	{#if rowsQuery.error}
-		<QueryError
-			message="Couldn't load your catalog rows."
-			onRetry={() => rowsQuery.refresh()}
-		/>
-	{:else if rowsLoading}
-		{#each { length: 4 } as _row, index (index)}
-			<section class="flex flex-col gap-3">
-				<div class="skeleton h-6 w-40 rounded"></div>
-				<div class="no-scrollbar -mx-2 flex gap-4 overflow-hidden px-2 py-1">
-					{#each { length: 8 } as _tile, tile (tile)}
-						<div class="flex w-40 shrink-0 flex-col gap-2.5 sm:w-44">
-							<div class="skeleton aspect-2/3 rounded-xl"></div>
-							<div class="skeleton h-3.5 w-3/4 rounded"></div>
-							<div class="skeleton h-3 w-2/5 rounded"></div>
-						</div>
-					{/each}
-				</div>
-			</section>
-		{/each}
-	{:else if rows.length === 0}
-		<div class="py-6">
-			<div class="mx-auto max-w-md rounded-2xl border border-border/60 bg-linear-to-b from-muted/40 to-transparent px-6 py-14 text-center">
-				<span class="mx-auto flex size-14 items-center justify-center rounded-2xl bg-muted text-muted-foreground ring-1 ring-border">
-					<SparklesIcon class="size-7" />
-				</span>
-				<p class="mt-4 text-lg font-semibold tracking-tight">Your home feed is empty</p>
-				<p class="mt-1 text-sm text-muted-foreground">Add a catalog addon and rows of movies and series fill in here.</p>
+    {#if rowsQuery.error}
+      <QueryError
+        message="Couldn't load your catalog rows."
+        onRetry={() => rowsQuery.refresh()}
+      />
+    {:else if rowsLoading}
+      {#each { length: 4 } as _row, index (index)}
+        <section class="flex flex-col gap-3">
+          <div class="skeleton h-6 w-40 rounded"></div>
+          <div class="no-scrollbar -mx-2 flex gap-4 overflow-hidden px-2 py-1">
+            {#each { length: 8 } as _tile, tile (tile)}
+              <div class="flex w-40 shrink-0 flex-col gap-2.5 sm:w-44">
+                <div class="skeleton aspect-2/3 rounded-xl"></div>
+                <div class="skeleton h-3.5 w-3/4 rounded"></div>
+                <div class="skeleton h-3 w-2/5 rounded"></div>
+              </div>
+            {/each}
+          </div>
+        </section>
+      {/each}
+    {:else if rows.length === 0}
+      <div class="py-6">
+        <div
+          class="mx-auto max-w-md rounded-2xl border border-border/60 bg-linear-to-b from-muted/40 to-transparent px-6 py-14 text-center"
+        >
+          <span
+            class="mx-auto flex size-14 items-center justify-center rounded-2xl bg-muted text-muted-foreground ring-1 ring-border"
+          >
+            <SparklesIcon class="size-7" />
+          </span>
+          <p class="mt-4 text-lg font-semibold tracking-tight">
+            Your home feed is empty
+          </p>
+          <p class="mt-1 text-sm text-muted-foreground">
+            Add a catalog addon and rows of movies and series fill in here.
+          </p>
 
-				<Button
-					href={resolve('addons')}
-					variant="outline"
-					class="mt-4"
-				>Manage addons</Button>
-			</div>
-		</div>
-	{:else}
-		{#each rows as row, index (`${row.addonId}:${row.type}:${row.id}`)}
-			<MediaRow
-				title={rowTitles[index]}
-				items={row.metas}
-				href={resolve(`discover?c=${encodeURIComponent(`${row.addonId}|${row.type}|${row.id}`)}`)}
-			/>
-		{/each}
-	{/if}
-	</div>
+          <Button href={resolve("addons")} variant="outline" class="mt-4"
+            >Manage addons</Button
+          >
+        </div>
+      </div>
+    {:else}
+      {#each rows as row, index (`${row.addonId}:${row.type}:${row.id}`)}
+        <MediaRow
+          title={rowTitles[index]}
+          items={row.metas}
+          href={resolve(
+            `discover?c=${encodeURIComponent(`${row.addonId}|${row.type}|${row.id}`)}`,
+          )}
+        />
+      {/each}
+    {/if}
+  </div>
 </div>

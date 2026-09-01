@@ -45,6 +45,8 @@
 - [ ] Split `nuvio/types.ts` by domain to drop the `noExcessiveLinesPerFile`
       ceiling (currently 680). _(File is 600/680 lines as of 2026-09-01 — under
       the ceiling, not currently blocking; revisit once it's back near 680.)_
+- [ ] Split src/lib/components/video-player.svelte so it's easily maintainable,
+      300 lines per file tops.
 - [ ] Extract `media-row`'s edge-fade + arrow pair into a `scroll-rail` wrapper
       and use it for the detail-page rails (trailers, cast, seasons, episodes)
       and the discover pill rows — they currently cut mid-word with no

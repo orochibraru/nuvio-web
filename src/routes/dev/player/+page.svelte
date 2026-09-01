@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from "svelte";
-	import VideoPlayer from "#lib/components/video-player.svelte";
+	import VideoPlayer from "#lib/components/video-player/video-player.svelte";
 	import PlayerEndPanel from "#lib/watch/player-end-panel.svelte";
 	import { page } from "$app/state";
 

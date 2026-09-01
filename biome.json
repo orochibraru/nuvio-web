@@ -37,7 +37,9 @@
 				"useSingleVarDeclarator": "off",
 				"noExcessiveLinesPerFile": {
 					"level": "error",
-					"options": { "maxLines": 680 }
+					"options": {
+						"maxLines": 680
+					}
 				},
 				"noExportedImports": "off",
 				"useExportsLast": "off",
@@ -60,7 +62,9 @@
 				"noExcessiveCognitiveComplexity": "error",
 				"noExcessiveLinesPerFunction": {
 					"level": "error",
-					"options": { "maxLines": 80 }
+					"options": {
+						"maxLines": 80
+					}
 				},
 				"noVoid": "off",
 				"noRedundantDefaultExport": "off",
@@ -71,7 +75,8 @@
 				"noNodejsModules": "off",
 				"noUnresolvedImports": "off",
 				"useImportExtensions": "off",
-				"useQwikValidLexicalScope": "off"
+				"useQwikValidLexicalScope": "off",
+				"noUnusedImports": "warn"
 			},
 			"suspicious": {
 				"noConsole": "error",
