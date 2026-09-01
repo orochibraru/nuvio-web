@@ -1,5 +1,7 @@
-import type { HandleServerError } from "@sveltejs/kit/hooks";
+import type { RequestEvent } from "@sveltejs/kit";
+import type { Handle, HandleServerError } from "@sveltejs/kit/hooks";
 import { NuvioApiError, NuvioClient } from "#lib/nuvio/index.js";
+import { log } from "#lib/server/log.js";
 import {
 	clearStoredSession,
 	createServerClient,
@@ -59,11 +61,10 @@ export const handleError: HandleServerError = ({ event, error, kind }) => {
 		return;
 	}
 	const errorId = makeErrorId();
-	// biome-ignore lint/suspicious/noConsole: server-side error log, correlated to the client by errorId
-	console.error(
-		`Error on ${event.request.method} ${event.url.pathname} (errorId=${errorId})`,
-		error instanceof Error ? (error.stack ?? error.message) : "Unknown error",
-	);
+	log.error(`Error on ${event.request.method} ${event.url.pathname}`, {
+		errorId,
+		error: error instanceof Error ? error : "Unknown error",
+	});
 
 	return {
 		errorId,
@@ -72,7 +73,24 @@ export const handleError: HandleServerError = ({ event, error, kind }) => {
 	};
 };
 
-export const handle = async ({ event, resolve }) => {
+function logAccess(
+	event: RequestEvent,
+	status: number,
+	startedAt: number,
+): void {
+	const ms = Math.round(performance.now() - startedAt);
+	const message = `${event.request.method} ${event.url.pathname}`;
+	if (status >= 500) {
+		log.error(message, { status, ms });
+	} else if (status >= 400) {
+		log.warn(message, { status, ms });
+	} else {
+		log.info(message, { status, ms });
+	}
+}
+
+export const handle: Handle = async ({ event, resolve }) => {
+	const startedAt = performance.now();
 	let stored = readStoredSession(event.cookies);
 
 	if (stored && isExpired(stored)) {
@@ -96,5 +114,6 @@ export const handle = async ({ event, resolve }) => {
 
 	const response = await resolve(event);
 	applySecurityHeaders(response.headers);
+	logAccess(event, response.status, startedAt);
 	return response;
 };
