@@ -1,6 +1,5 @@
 import { pooledMap } from "#lib/pool.js";
 import { safeFetch } from "#lib/server/safe-fetch.js";
-import { TtlCache } from "./cache.ts";
 
 // Cap on simultaneous upstream addon requests during a fan-out — keeps a
 // many-addon profile from bursting well past a sane per-user request rate.
@@ -18,9 +17,6 @@ import type {
 	Stream,
 	Subtitle,
 } from "./types.ts";
-
-const RESPONSE_TTL_MS = 5 * 60 * 1000;
-const responseCache = new TtlCache<unknown>(RESPONSE_TTL_MS);
 
 export interface StreamWithSource extends Stream {
 	addonId: string;
@@ -171,11 +167,12 @@ export class AddonClient {
 			extra.skip = query.skip;
 		}
 
-		const data = await this.request(
-			ref.addon,
-			{ resource: "catalog", type: query.type, id: query.id, extra },
-			true,
-		);
+		const data = await this.request(ref.addon, {
+			resource: "catalog",
+			type: query.type,
+			id: query.id,
+			extra,
+		});
 		return {
 			metas: asArray<MetaPreview>(
 				(data as { metas?: unknown } | null)?.metas,
@@ -193,7 +190,7 @@ export class AddonClient {
 		const providers = [...this.registry.providersFor("meta", type, id)];
 		const responses = await Promise.allSettled(
 			providers.map((addon) =>
-				this.request(addon, { resource: "meta", type, id }, true),
+				this.request(addon, { resource: "meta", type, id }),
 			),
 		);
 		for (const [index, response] of responses.entries()) {
@@ -261,7 +258,7 @@ export class AddonClient {
 			FANOUT_CONCURRENCY,
 			async (addon) => {
 				try {
-					const data = await this.request(addon, ref, false);
+					const data = await this.request(addon, ref);
 					return map(addon, data);
 				} catch (error) {
 					errors.push({
@@ -278,19 +275,16 @@ export class AddonClient {
 		return { items: batches.flat(), errors };
 	}
 
+	/**
+	 * Addon responses are **never cached server-side** — catalog / meta / stream
+	 * payloads point at third-party content and the server must not retain them.
+	 * The browser's HTTP cache still honours whatever the addon sends.
+	 */
 	private async request(
 		addon: InstalledAddon,
 		ref: ResourceRef,
-		cache: boolean,
 	): Promise<unknown> {
 		const url = buildResourceUrl(addon.baseUrl, ref);
-		if (cache) {
-			const hit = responseCache.get(url);
-			if (hit !== undefined) {
-				return hit;
-			}
-		}
-
 		const response = await safeFetch(
 			url,
 			this.fetchImpl,
@@ -303,10 +297,6 @@ export class AddonClient {
 		if (!response.ok) {
 			throw new Error(`${ref.resource} request failed with ${response.status}`);
 		}
-		const data = await response.json();
-		if (cache) {
-			responseCache.set(url, data);
-		}
-		return data;
+		return response.json();
 	}
 }

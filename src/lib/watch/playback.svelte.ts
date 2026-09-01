@@ -1,5 +1,10 @@
 import { browser } from "$app/env";
-import { audioSupport, type ResolvedStream } from "./stream-format.ts";
+import {
+	audioSupport,
+	type ResolvedStream,
+	riskyVideoCodec,
+	videoSupport,
+} from "./stream-format.ts";
 
 const STORAGE_KEY = "nuvio:selected-stream";
 
@@ -12,6 +17,10 @@ export interface SelectedStream {
 	addonName: string;
 	/** The label hints at an audio codec the browser probably can't decode. */
 	audioRisky: boolean;
+	/** The label hints at a video codec the browser probably can't decode. */
+	videoRisky: boolean;
+	/** The `stream-format` video-codec label (HEVC / AV1 / …), for a real probe. */
+	videoCodec: string | null;
 }
 
 /**
@@ -31,6 +40,8 @@ class PlaybackHandoff {
 			label,
 			addonName: stream.addonName,
 			audioRisky: audioSupport(stream) === "risky",
+			videoRisky: videoSupport(stream) === "risky",
+			videoCodec: riskyVideoCodec(stream),
 		};
 		this.#current = value;
 		if (browser) {

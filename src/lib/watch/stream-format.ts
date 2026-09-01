@@ -94,14 +94,27 @@ const AUDIO_CODEC_TOKENS: Array<[RegExp, string]> = [
 const RISKY_AUDIO_TOKENS: Array<[RegExp, string]> = [
 	[/\b(atmos)\b/i, "Atmos"],
 	[/\b(e-?ac-?3|eac3|dd\s?\+|ddp\d?\.?\d?|dolby\s?digital\s?plus)\b/i, "EAC3"],
-	[/\b(ac-?3|dd\s?5\.1|dd\s?2\.0|dolby\s?digital)\b/i, "AC3"],
-	[/\b(dts-?hd|dts-?x|dts\s?ma|dts)\b/i, "DTS"],
+	[/\b(ac-?3|dd\s?[257]\.[01]|dd\b|dolby\s?digital)\b/i, "AC3"],
+	[/\b(dts-?hd|dts-?x|dts-?es|dts\s?ma|dts)\b/i, "DTS"],
 	[/\b(true-?hd|mlp)\b/i, "TrueHD"],
+	[/\b(l?pcm)\b/i, "PCM"],
 ];
 // A positive signal that overrides the risky check.
 const SAFE_AUDIO = /\b(aac|opus|mp3|vorbis|e-ac-3 to aac|→\s?aac|to aac)\b/i;
 
+// Video codecs a browser `<video>` often can't decode from a progressive MP4 —
+// HEVC needs a hardware decoder (absent on many Linux/Windows Chrome builds) and
+// AV1 is missing from older Safari. "likely", not a guarantee — same framing as
+// the audio list above.
+const RISKY_VIDEO_TOKENS: Array<[RegExp, string]> = [
+	[/\b(x265|hevc|h\.?265)\b/i, "HEVC"],
+	[/\b(av1|av01)\b/i, "AV1"],
+	[/\b(xvid|divx)\b/i, "Xvid"],
+];
+
 export type AudioSupport = "ok" | "risky";
+/** Same shape as {@link AudioSupport} — a label-derived "will this decode here" guess. */
+export type MediaSupport = AudioSupport;
 
 /** Everything from the addon's stream label + `behaviorHints`, structured. */
 export interface StreamMeta {
@@ -122,6 +135,8 @@ export interface StreamMeta {
 	/** Flag emojis + text markers (MULTI / Dual) found in the label. */
 	languages: string[];
 	audio: AudioSupport;
+	/** Label-derived guess at whether the video codec decodes in this browser. */
+	video: MediaSupport;
 	/** Short quality/feature chips, kept for back-compat with older callers. */
 	tags: string[];
 }
@@ -168,6 +183,24 @@ export function audioSupport(stream: ResolvedStream): AudioSupport {
 		return "ok";
 	}
 	return SAFE_AUDIO.test(raw) ? "ok" : "risky";
+}
+
+/**
+ * Best guess at whether this stream's *video* will decode in the browser, from
+ * its label. `risky` = an HEVC / AV1 / Xvid tag (needs hardware or a codec the
+ * browser may lack). Pair with a real `MediaSource.isTypeSupported` probe
+ * (`codec-support.ts`) before treating a stream as unplayable.
+ */
+export function videoSupport(stream: ResolvedStream): MediaSupport {
+	const raw = flatLabel(stream);
+	return RISKY_VIDEO_TOKENS.some(([pattern]) => pattern.test(raw))
+		? "risky"
+		: "ok";
+}
+
+/** The video-codec label a browser probe should test, or null when unknown. */
+export function riskyVideoCodec(stream: ResolvedStream): string | null {
+	return firstMatch(flatLabel(stream), RISKY_VIDEO_TOKENS);
 }
 
 /** Regional-indicator flag emojis (as-is) found in the text. */
@@ -262,6 +295,7 @@ export function streamMeta(stream: ResolvedStream): StreamMeta {
 		size: parseSize(stream, flat),
 		languages,
 		audio: audioSupport(stream),
+		video: videoSupport(stream),
 		tags,
 	};
 }

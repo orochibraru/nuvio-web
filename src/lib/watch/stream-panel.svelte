@@ -1,6 +1,7 @@
 <script lang="ts">
 	import CheckIcon from "@lucide/svelte/icons/check";
 	import ExternalLinkIcon from "@lucide/svelte/icons/external-link";
+	import FilmIcon from "@lucide/svelte/icons/film";
 	import PlayIcon from "@lucide/svelte/icons/play";
 	import PuzzleIcon from "@lucide/svelte/icons/puzzle";
 	import RefreshCwIcon from "@lucide/svelte/icons/refresh-cw";
@@ -524,6 +525,14 @@
 										title="This audio codec may not play in the browser (no sound)"
 									>
 										<VolumeXIcon class="size-2.5" /> may be silent
+									</span>
+								{/if}
+								{#if playable && m.video === "risky"}
+									<span
+										class="flex items-center gap-0.5 rounded bg-amber-500/15 px-1 py-px text-amber-600 dark:text-amber-400"
+										title="This video codec (HEVC / AV1) may not decode in the browser"
+									>
+										<FilmIcon class="size-2.5" /> may not play
 									</span>
 								{/if}
 								{#if !playable}<span class="text-amber-500">external</span>{/if}

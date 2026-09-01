@@ -15,6 +15,7 @@
 	import type { UiSettings } from "#lib/settings/ui-settings.js";
 	import { pageTitle } from "#lib/stores/title.svelte.js";
 	import { sync } from "#lib/sync/store.svelte.js";
+	import { browserCanPlayCodec } from "#lib/watch/codec-support.js";
 	import { playbackHandoff } from "#lib/watch/playback.svelte.js";
 	import PlayerEpisodesPanel from "#lib/watch/player-episodes-panel.svelte";
 	import { mediaSegments } from "#lib/watch/segments.remote.js";
@@ -23,6 +24,7 @@
 		audioSupport,
 		describeStream,
 		pickPreferredStream,
+		riskyVideoCodec,
 	} from "#lib/watch/stream-format.js";
 	import {
 		getSubtitles,
@@ -143,8 +145,23 @@
 		return null;
 	});
 
+	// The chosen stream's label names a video codec (HEVC / AV1 / Xvid); ask the
+	// browser whether it can actually decode it before we bother mounting <video>.
+	const videoCodec = $derived(
+		handed
+			? handed.videoCodec
+			: autoStream
+				? riskyVideoCodec(autoStream)
+				: null,
+	);
+	const codecBlocked = $derived(
+		browserCanPlayCodec(videoCodec) === "unsupported",
+	);
+
 	const playableSrc = $derived(
-		active && !active.notWebReady ? (active.url ?? null) : null,
+		active && !active.notWebReady && !codecBlocked
+			? (active.url ?? null)
+			: null,
 	);
 	const resolving = $derived(!(handed || streamsQuery?.current));
 
@@ -312,10 +329,12 @@
 		}
 	}
 
-	// A stream that can't play here but has a direct URL — hand it to an
-	// external player (VLC scheme / copy).
+	// A stream that can't play here (P2P-only, or a codec this browser lacks) but
+	// has a direct URL — hand it to an external player (VLC scheme / copy).
 	const externalLink = $derived(
-		active?.notWebReady ? (active.url ?? active.externalUrl) : null,
+		active && (active.notWebReady || codecBlocked)
+			? (active.url ?? active.externalUrl)
+			: null,
 	);
 
 	let copied = $state(false);
@@ -432,6 +451,8 @@
 				subtitleBackground={theme.current.subtitleBackground}
 				preferredLanguage={theme.current.subtitleLanguage}
 				audioRisky={audioRisky}
+				videoRisky={videoCodec !== null}
+				externalUrl={active?.url ?? active?.externalUrl ?? null}
 				introStart={segments?.intro?.start ?? null}
 				introEnd={segments?.intro?.end ?? null}
 				outroStart={segments?.credits?.start ?? null}
@@ -488,14 +509,25 @@
 	{:else}
 		<div class="relative z-10 flex max-w-md flex-col items-center gap-4 px-6 text-center">
 			<p class="text-lg font-semibold">
-				{active ? "This source can't play in the browser" : "No playable stream"}
+				{#if !active}
+					No playable stream
+				{:else if codecBlocked}
+					This browser can't decode this source's video
+				{:else}
+					This source can't play in the browser
+				{/if}
 			</p>
 			<p class="text-sm text-white/60">
-				{active
-					? "Pick a different source, or open it in an external player."
-					: officialCta
-						? `${context.heading} is available to watch officially.`
-						: "None of your addons returned a stream that plays here."}
+				{#if active && codecBlocked}
+					Its {videoCodec} video isn't supported here. Open it in an external
+					player, or pick a different source.
+				{:else if active}
+					Pick a different source, or open it in an external player.
+				{:else if officialCta}
+					{context.heading} is available to watch officially.
+				{:else}
+					None of your addons returned a stream that plays here.
+				{/if}
 			</p>
 			<div class="flex flex-wrap items-center justify-center gap-2">
 				{#if officialCta}

@@ -33,10 +33,10 @@ export default defineConfig({
 			// Ratchet upward as tests land — do not lower. Target is 100% for the
 			// server / remote-function layer (see TODO "CI/CD").
 			thresholds: {
-				lines: 29,
-				functions: 31,
-				branches: 32,
-				statements: 29,
+				lines: 57,
+				functions: 57,
+				branches: 58,
+				statements: 57,
 			},
 		},
 	},

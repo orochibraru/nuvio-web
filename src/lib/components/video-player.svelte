@@ -3,6 +3,8 @@
 	import CaptionsIcon from "@lucide/svelte/icons/captions";
 	import CaptionsOffIcon from "@lucide/svelte/icons/captions-off";
 	import CheckIcon from "@lucide/svelte/icons/check";
+	import CopyIcon from "@lucide/svelte/icons/copy";
+	import ExternalLinkIcon from "@lucide/svelte/icons/external-link";
 	import InfoIcon from "@lucide/svelte/icons/info";
 	import LayersIcon from "@lucide/svelte/icons/layers";
 	import ListVideoIcon from "@lucide/svelte/icons/list-video";
@@ -19,6 +21,7 @@
 	import Volume2Icon from "@lucide/svelte/icons/volume-2";
 	import VolumeXIcon from "@lucide/svelte/icons/volume-x";
 	import XIcon from "@lucide/svelte/icons/x";
+	import { tick } from "svelte";
 	import PlaybackLoading from "#lib/components/playback-loading.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { theme } from "#lib/settings/theme.svelte.js";
@@ -39,6 +42,8 @@
 	import { createPlayerMedia } from "#lib/watch/player-media.svelte.js";
 	import { createProgressReporter } from "#lib/watch/player-progress.svelte.js";
 	import { createSilentAudioWatch } from "#lib/watch/silent-audio.svelte.js";
+	import { createSubtitleTracks } from "#lib/watch/subtitle-tracks.svelte.js";
+	import { createVideoDecodeWatch } from "#lib/watch/video-decode.svelte.js";
 
 	interface SubtitleTrack {
 		id?: string;
@@ -73,6 +78,8 @@
 		subtitleBackground = true,
 		preferredLanguage = "",
 		audioRisky = false,
+		videoRisky = false,
+		externalUrl = null,
 		introStart = null,
 		introEnd = null,
 		outroStart = null,
@@ -110,6 +117,10 @@
 		preferredLanguage?: string;
 		/** The stream label hints at an audio codec the browser can't decode. */
 		audioRisky?: boolean;
+		/** The stream label hints at a video codec the browser can't decode. */
+		videoRisky?: boolean;
+		/** Direct stream URL for the external-player handoff on a fatal error. */
+		externalUrl?: string | null;
 		/** Intro window in seconds (from TheIntroDB) — drives "Skip intro". */
 		introStart?: number | null;
 		introEnd?: number | null;
@@ -212,6 +223,20 @@
 		},
 	});
 
+	// Audio plays but the picture is frozen/black — a video codec that dodged the
+	// pre-flight probe and raised no media `error`. Fatal: no picture, no watch.
+	createVideoDecodeWatch({
+		src: () => src,
+		video: () => video,
+		videoRisky: () => videoRisky,
+		blocked: () => Boolean(fatalError) || loading,
+		onDead: () => {
+			fatalError =
+				"This browser can't decode this source's video. Try another source or an external player.";
+			loading = false;
+		},
+	});
+
 	const rates = [0.5, 0.75, 1, 1.25, 1.5, 2];
 	const sizeLabels: Record<SubtitleSize, string> = {
 		small: "Small",
@@ -237,6 +262,24 @@
 		if (video && introEnd != null) {
 			video.currentTime = introEnd;
 			void video.play();
+		}
+	}
+
+	// External-player handoff shown on the fatal screen (undecodable codec /
+	// dead source) when the page passed a direct URL.
+	let linkCopied = $state(false);
+	async function copyExternal() {
+		if (!externalUrl) {
+			return;
+		}
+		try {
+			await navigator.clipboard.writeText(externalUrl);
+			linkCopied = true;
+			setTimeout(() => {
+				linkCopied = false;
+			}, 2000);
+		} catch {
+			// clipboard blocked — the VLC link is still there
 		}
 	}
 
@@ -322,6 +365,9 @@
 			name: languageName(track.lang),
 		})),
 	);
+	// Subtitle files are fetched + converted to WebVTT in the browser, on demand
+	// — never proxied through the server.
+	const subs = createSubtitleTracks(() => options);
 	const menuOpen = $derived(settingsOpen || subtitlesOpen);
 	// Any open side panel keeps the transport controls (and the Back button) up,
 	// so a panel is never a dead end.
@@ -351,7 +397,7 @@
 				languageMatches(entry.lang, preferredLanguage),
 			);
 			if (match) {
-				setCaption(match.key);
+				void setCaption(match.key);
 			}
 		}
 	}
@@ -473,7 +519,13 @@
 		}
 	}
 
-	function setCaption(key: string | null) {
+	async function setCaption(key: string | null) {
+		// Fetch + convert the picked track before switching to it. A failed fetch
+		// (no CORS on the addon host, dead link) leaves the current caption alone.
+		if (key && !(await subs.resolve(key))) {
+			return;
+		}
+		await tick(); // let the freshly-rendered <track> mount its TextTrack
 		if (!video) {
 			return;
 		}
@@ -512,7 +564,7 @@
 		}
 		const keys = [null, ...options.map((entry) => entry.key)];
 		const index = keys.indexOf(activeCaption);
-		setCaption(keys[(index + 1) % keys.length]);
+		void setCaption(keys[(index + 1) % keys.length]);
 	}
 
 	function applyAppearance(patch: SubtitleAppearance) {
@@ -604,12 +656,14 @@
 		onended={onEndedInternal}
 	>
 		{#each options as track (track.key)}
-			<track
-				kind="subtitles"
-				srclang={track.lang}
-				label={track.key}
-				src={`/api/subtitle?url=${encodeURIComponent(track.url)}`}
-			/>
+			{#if subs.ready[track.key]}
+				<track
+					kind="subtitles"
+					srclang={track.lang}
+					label={track.key}
+					src={subs.ready[track.key]}
+				/>
+			{/if}
 		{/each}
 	</video>
 
@@ -673,6 +727,18 @@
 				{#if onSources}
 					<Button onclick={onSources}>
 						<LayersIcon data-icon="inline-start" /> Choose another source
+					</Button>
+				{/if}
+				{#if externalUrl}
+					<Button variant="secondary" href={`vlc://${externalUrl}`}>
+						<ExternalLinkIcon data-icon="inline-start" /> Open in VLC
+					</Button>
+					<Button variant="ghost" onclick={copyExternal}>
+						{#if linkCopied}
+							<CheckIcon data-icon="inline-start" /> Copied
+						{:else}
+							<CopyIcon data-icon="inline-start" /> Copy link
+						{/if}
 					</Button>
 				{/if}
 				{#if onBack}
@@ -1069,6 +1135,11 @@
 									{option.name}
 									{#if option.sdh}
 										<span class="rounded bg-muted px-1 text-[10px] font-medium tracking-wide">SDH</span>
+									{/if}
+									{#if subs.failed[option.key]}
+										<span class="rounded bg-destructive/15 px-1 text-[10px] font-medium tracking-wide text-destructive">
+											unavailable
+										</span>
 									{/if}
 								</span>
 								{#if option.addonName}

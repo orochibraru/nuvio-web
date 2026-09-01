@@ -7,9 +7,11 @@ import {
 	isPlayable,
 	pickPreferredStream,
 	type ResolvedStream,
+	riskyVideoCodec,
 	streamKind,
 	streamMeta,
 	streamQuality,
+	videoSupport,
 } from "./stream-format.ts";
 
 function stream(over: Partial<ResolvedStream>): ResolvedStream {
@@ -247,5 +249,46 @@ describe("audioSupport", () => {
 		expect(audioSupport(stream({ title: "Movie 1080p BluRay x265" }))).toBe(
 			"ok",
 		);
+	});
+
+	it("flags a bare DD tag and DTS variants", () => {
+		expect(audioSupport(stream({ title: "Movie 1080p WEB-DL DD" }))).toBe(
+			"risky",
+		);
+		expect(audioSupport(stream({ title: "Movie REMUX DTS-ES 6.1" }))).toBe(
+			"risky",
+		);
+		expect(audioSupport(stream({ name: "Movie BluRay LPCM 2.0" }))).toBe(
+			"risky",
+		);
+	});
+});
+
+describe("videoSupport", () => {
+	it("flags HEVC / AV1 / Xvid tags", () => {
+		expect(videoSupport(stream({ title: "Movie 2160p BluRay HEVC" }))).toBe(
+			"risky",
+		);
+		expect(videoSupport(stream({ title: "Movie 1080p WEB-DL x265" }))).toBe(
+			"risky",
+		);
+		expect(videoSupport(stream({ filename: "Movie.1080p.AV1.mkv" }))).toBe(
+			"risky",
+		);
+		expect(videoSupport(stream({ name: "Movie DVDRip XviD" }))).toBe("risky");
+	});
+
+	it("treats H.264 and unlabelled video as ok", () => {
+		expect(videoSupport(stream({ title: "Movie 1080p WEB-DL H.264" }))).toBe(
+			"ok",
+		);
+		expect(videoSupport(stream({ title: "Movie 1080p BluRay AAC" }))).toBe(
+			"ok",
+		);
+	});
+
+	it("riskyVideoCodec returns the label to probe", () => {
+		expect(riskyVideoCodec(stream({ title: "Movie 4K HEVC DV" }))).toBe("HEVC");
+		expect(riskyVideoCodec(stream({ title: "Movie 1080p H.264" }))).toBeNull();
 	});
 });

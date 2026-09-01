@@ -99,7 +99,7 @@ export function evaluateAudioTick(input: {
 		}
 		return { kind: "flag", issue: input.reported === true ? "codec" : verdict };
 	}
-	if (input.audioRisky && input.playedSeconds >= 8) {
+	if (input.audioRisky && input.playedSeconds >= 6) {
 		return { kind: "flag", issue: "codec" };
 	}
 	return { kind: "continue" };

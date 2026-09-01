@@ -235,6 +235,97 @@ test("player info overlay: Info button + auto-on-pause", async ({ page }) => {
 	expect(errors, "runtime errors").toEqual([]);
 });
 
+test("player fatal screen offers an external-player handoff", async ({
+	page,
+}) => {
+	const errors = collectRuntimeErrors(page);
+
+	// A non-media src trips MEDIA_ERR_SRC_NOT_SUPPORTED → the fatal screen.
+	await page.goto(
+		`/dev/player?${new URLSearchParams({
+			src: "/e2e/errors.ts",
+			external: "https://cdn.example/movie.mkv",
+		}).toString()}`,
+	);
+	await page.waitForLoadState("networkidle").catch(() => {});
+
+	const player = page.getByRole("region", { name: "Video player" });
+	const vlc = player.getByRole("link", { name: "Open in VLC" });
+	await expect(vlc).toBeVisible({ timeout: 10_000 });
+	await expect(vlc).toHaveAttribute(
+		"href",
+		"vlc://https://cdn.example/movie.mkv",
+	);
+	await expect(player.getByRole("button", { name: "Copy link" })).toBeVisible();
+
+	await page.waitForTimeout(500);
+	expect(errors, "runtime errors").toEqual([]);
+});
+
+test("player flags an undecodable video track that raised no error", async ({
+	page,
+}) => {
+	const errors = collectRuntimeErrors(page);
+
+	// The sample clip plays fine; the harness freezes the frame counter so the
+	// runtime watchdog sees "position advancing, no frames decoded".
+	await page.goto(harness({ breakvideo: "1" }));
+	await page.waitForLoadState("networkidle");
+
+	const player = page.getByRole("region", { name: "Video player" });
+	await expect(
+		player.getByText(/can't decode this source's video/i),
+	).toBeVisible({ timeout: 15_000 });
+
+	// The watchdog fatal is a controlled state, not an uncaught error.
+	expect(errors, "runtime errors").toEqual([]);
+});
+
+test("player converts an SRT subtitle to WebVTT in the browser", async ({
+	page,
+}) => {
+	const errors = collectRuntimeErrors(page);
+
+	// No /api/subtitle hop any more — the track is fetched + converted client-side.
+	let proxied = false;
+	page.on("request", (r) => {
+		if (r.url().includes("/api/subtitle")) {
+			proxied = true;
+		}
+	});
+
+	await page.goto(harness({ subs: "/e2e/sample.srt" }));
+	await page.waitForLoadState("networkidle");
+	await expect
+		.poll(() => currentTime(page), { timeout: 15_000 })
+		.toBeGreaterThan(0.4);
+
+	const player = page.getByRole("region", { name: "Video player" });
+	await player.getByRole("button", { name: "Subtitles" }).click();
+	await player.getByRole("button", { name: /English/ }).click();
+
+	// The <track> mounted from a blob: URL and the browser parsed the cues.
+	await expect
+		.poll(
+			() =>
+				page.evaluate(() => {
+					const t = document.querySelector("video")?.textTracks?.[0];
+					return t && t.mode === "showing" ? (t.cues?.length ?? 0) : 0;
+				}),
+			{ timeout: 5000 },
+		)
+		.toBeGreaterThan(0);
+	expect(
+		await page.evaluate(
+			() => document.querySelector("video track")?.getAttribute("src") ?? "",
+		),
+	).toMatch(/^blob:/);
+	expect(proxied, "no server subtitle proxy").toBe(false);
+
+	await page.waitForTimeout(300);
+	expect(errors, "runtime errors").toEqual([]);
+});
+
 test("player seeks to startTime and leaves cleanly", async ({ page }) => {
 	const errors = collectRuntimeErrors(page);
 

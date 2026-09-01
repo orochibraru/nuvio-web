@@ -1,9 +1,46 @@
 <script lang="ts">
+	import { onMount } from "svelte";
 	import VideoPlayer from "#lib/components/video-player.svelte";
 	import { page } from "$app/state";
 
 	const src = $derived(page.url.searchParams.get("src") ?? "/e2e/sample.webm");
+
+	// `?breakvideo=1` freezes the decoded-frame counter so the video-decode
+	// watchdog trips even though the sample clip actually plays fine — the only
+	// way to exercise the "audio plays, picture doesn't" path in a test.
+	onMount(() => {
+		if (!page.url.searchParams.get("breakvideo")) {
+			return;
+		}
+		const video = document.querySelector("video");
+		if (video) {
+			video.getVideoPlaybackQuality = () =>
+				({
+					totalVideoFrames: 0,
+					droppedVideoFrames: 0,
+				}) as VideoPlaybackQuality;
+		}
+	});
 	const start = $derived(Number(page.url.searchParams.get("start") ?? "0"));
+	// `?external=<url>` surfaces the fatal screen's external-player handoff.
+	const externalUrl = $derived(page.url.searchParams.get("external"));
+	// `breakvideo` also flags the codec as risky so the watchdog's short fuse
+	// fires within the sample clip's runtime.
+	const videoRisky = $derived(Boolean(page.url.searchParams.get("breakvideo")));
+	// `?subs=<url>` adds one subtitle track (fetched + converted client-side).
+	const subtitles = $derived(
+		page.url.searchParams.get("subs")
+			? [
+					{
+						id: "harness",
+						lang: "en",
+						url: page.url.searchParams.get("subs") as string,
+						addonName: "Harness",
+						sdh: false,
+					},
+				]
+			: [],
+	);
 	const numParam = (name: string) => {
 		const raw = page.url.searchParams.get(name);
 		return raw === null ? null : Number(raw);
@@ -47,6 +84,9 @@
 		title="Player harness"
 		subheading="dev only"
 		startTime={start}
+		{externalUrl}
+		{videoRisky}
+		{subtitles}
 		{introStart}
 		{introEnd}
 		{outroStart}

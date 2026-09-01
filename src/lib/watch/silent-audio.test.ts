@@ -178,7 +178,7 @@ describe("evaluateAudioTick", () => {
 				...base,
 				haveCounters: false,
 				audioRisky: true,
-				playedSeconds: 8,
+				playedSeconds: 6,
 			}),
 		).toEqual({ kind: "flag", issue: "codec" });
 		expect(
@@ -186,7 +186,7 @@ describe("evaluateAudioTick", () => {
 				...base,
 				haveCounters: false,
 				audioRisky: true,
-				playedSeconds: 7,
+				playedSeconds: 5,
 			}),
 		).toEqual({ kind: "continue" });
 	});
