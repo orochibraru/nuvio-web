@@ -21,6 +21,7 @@
 	import QueryError from "#lib/components/query-error.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { reduced } from "#lib/motion.js";
+	import { QUERY_TTL, ttlPrime } from "#lib/query-cache.js";
 	import { streamed } from "#lib/stream.svelte.js";
 	import { sync } from "#lib/sync/store.svelte.js";
 	import { cn } from "#lib/utils.js";
@@ -176,7 +177,13 @@
 	);
 
 	// Catalog rows load client-side so a slow addon never stalls SSR / nav.
-	const rowsQuery = homeRows();
+	// TTL-cached (profile-scoped) so returning to the feed within the window
+	// paints instantly instead of re-fanning-out to every catalog addon.
+	const profileIndex = $derived(data.profile?.profile_index ?? 0);
+	const rowsQuery = $derived(homeRows());
+	$effect(() => {
+		ttlPrime(rowsQuery, `homeRows:${profileIndex}`, QUERY_TTL.catalog);
+	});
 	const rows = $derived(rowsQuery.current ?? []);
 	const rowsLoading = $derived(
 		rowsQuery.current === undefined && !rowsQuery.error,

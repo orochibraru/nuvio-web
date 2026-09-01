@@ -6,6 +6,7 @@
 	import MediaGrid from "#lib/components/media-grid.svelte";
 	import QueryError from "#lib/components/query-error.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
+	import { QUERY_TTL, ttlPrime } from "#lib/query-cache.js";
 	import { pageTitle } from "#lib/stores/title.svelte.js";
 	import { streamed } from "#lib/stream.svelte.js";
 	import { cn } from "#lib/utils.js";
@@ -81,6 +82,9 @@
 
 	// The first page of catalog contents loads client-side so a slow addon
 	// doesn't stall SSR / navigation — the grid shows a skeleton meanwhile.
+	// TTL-cached (profile + catalog + genre scoped): flipping back to a pill
+	// or genre visited earlier in the session paints instantly.
+	const profileIndex = $derived(data.profile?.profile_index ?? 0);
 	const firstPageQuery = $derived(
 		selected
 			? browseCatalog({
@@ -91,6 +95,15 @@
 				})
 			: undefined,
 	);
+	$effect(() => {
+		if (selected && firstPageQuery) {
+			ttlPrime(
+				firstPageQuery,
+				`catalog:${profileIndex}:${selected.addonId}:${selected.type}:${selected.id}:${genre}`,
+				QUERY_TTL.catalog,
+			);
+		}
+	});
 	const firstPage = $derived(firstPageQuery?.current);
 	const loadingFirst = $derived(Boolean(selected) && firstPage === undefined);
 
