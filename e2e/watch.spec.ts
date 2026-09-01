@@ -410,14 +410,14 @@ test("sync: an optimistic write survives an immediate navigation", async ({
 	await page.waitForLoadState("networkidle");
 
 	const toggle = page.getByRole("button", { name: /library/i });
-	if ((await toggle.textContent())?.includes("In library")) {
+	if ((await toggle.textContent())?.includes("Remove from library")) {
 		await toggle.click();
 		await expect(toggle).toHaveText(/Add to library/i, { timeout: 10_000 });
 	}
 
 	// Toggle, then navigate away well within the flush debounce window.
 	await toggle.click();
-	await expect(toggle).toHaveText(/In library/i, { timeout: 10_000 });
+	await expect(toggle).toHaveText(/Remove from library/i, { timeout: 10_000 });
 	await page
 		.getByRole("navigation")
 		.getByRole("link", { name: "Library" })
@@ -431,7 +431,7 @@ test("sync: an optimistic write survives an immediate navigation", async ({
 	await page.goto("/detail/movie/tt0816692");
 	await page.waitForLoadState("networkidle");
 	const t2 = page.getByRole("button", { name: /library/i });
-	if ((await t2.textContent())?.includes("In library")) {
+	if ((await t2.textContent())?.includes("Remove from library")) {
 		await t2.click();
 		await expect(t2).toHaveText(/Add to library/i, { timeout: 10_000 });
 	}

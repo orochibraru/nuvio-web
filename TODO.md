@@ -34,14 +34,6 @@
 - [ ] Global client request budget.
 - [ ] Unit coverage: `sync/store.svelte.ts` (needs a Svelte test env or a pure
       extraction of the queue/merge logic) + `account.remote.ts`.
-- [ ] Two pre-existing `e2e/smoke.spec.ts` failures, unrelated to
-      `query-cache.ts` (checked 2026-09-01). The two library-toggle tests assert
-      button text matching `/In library/i`, which no longer exists anywhere —
-      the toggle only ever renders "Add to library" / "Remove from library";
-      update the assertions (or the copy) so they agree. Separately, the
-      interrupted-navigation test expects the home `<title>` to be bare "Nuvio"
-      but gets "Nuvio · Watch your library, everywhere." — a `pageTitle`-reset
-      issue on nav to `/`.
 - [ ] Release: release-please + Docker image publish workflow + README
       screenshots.
 

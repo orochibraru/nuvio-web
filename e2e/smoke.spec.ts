@@ -280,12 +280,12 @@ test("detail page: add to library then remove", async ({ page }) => {
 
 	const toggle = page.getByRole("button", { name: /library/i });
 	// Normalise to "not in library" regardless of what a prior run left.
-	if ((await toggle.textContent())?.includes("In library")) {
+	if ((await toggle.textContent())?.includes("Remove from library")) {
 		await toggle.click();
 		await expect(toggle).toHaveText(/Add to library/i, { timeout: 10_000 });
 	}
 	await toggle.click();
-	await expect(toggle).toHaveText(/In library/i, { timeout: 10_000 });
+	await expect(toggle).toHaveText(/Remove from library/i, { timeout: 10_000 });
 	await toggle.click();
 	await expect(toggle).toHaveText(/Add to library/i, { timeout: 10_000 });
 
@@ -303,12 +303,12 @@ test("local store: an optimistic add shows on the library page after client nav"
 
 	const toggle = page.getByRole("button", { name: /library/i });
 	// Start from "not in library" whatever a prior run left behind.
-	if ((await toggle.textContent())?.includes("In library")) {
+	if ((await toggle.textContent())?.includes("Remove from library")) {
 		await toggle.click();
 		await expect(toggle).toHaveText(/Add to library/i, { timeout: 10_000 });
 	}
 	await toggle.click();
-	await expect(toggle).toHaveText(/In library/i, { timeout: 10_000 });
+	await expect(toggle).toHaveText(/Remove from library/i, { timeout: 10_000 });
 
 	await page
 		.getByRole("navigation")
@@ -324,7 +324,7 @@ test("local store: an optimistic add shows on the library page after client nav"
 	await page.goto("/detail/movie/tt0816692");
 	await page.waitForLoadState("networkidle");
 	const t2 = page.getByRole("button", { name: /library/i });
-	if ((await t2.textContent())?.includes("In library")) {
+	if ((await t2.textContent())?.includes("Remove from library")) {
 		await t2.click();
 		await expect(t2).toHaveText(/Add to library/i, { timeout: 10_000 });
 	}
