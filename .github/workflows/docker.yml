@@ -81,7 +81,9 @@ jobs:
   # ===========================================
   build:
     name: Build Images
-    runs-on: ${{ matrix.platform == 'linux/arm64' && 'arm64' || 'amd64' }}
+    runs-on:
+      ${{ matrix.platform == 'linux/arm64' && 'ubuntu-24.04-arm' ||
+      'ubuntu-latest' }}
     needs: prepare
     strategy:
       fail-fast: false
