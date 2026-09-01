@@ -69,7 +69,9 @@ export const handleError: HandleServerError = ({ event, error, kind }) => {
 	return {
 		errorId,
 		message:
-			error instanceof Error ? error.message : "An unknown error occurred.",
+			error instanceof Error && dev
+				? error.message
+				: "An unknown error occurred.",
 	};
 };
 
