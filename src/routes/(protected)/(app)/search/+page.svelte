@@ -8,6 +8,7 @@
 	import MediaRow from "#lib/components/media-row.svelte";
 	import QueryError from "#lib/components/query-error.svelte";
 	import { Input } from "#lib/components/ui/input/index.js";
+	import { QUERY_TTL, ttlPrime } from "#lib/query-cache.js";
 	import { searchHistory } from "#lib/search-history.svelte.js";
 	import { pageTitle } from "#lib/stores/title.svelte.js";
 	import { browser } from "$app/env";
@@ -67,7 +68,19 @@
 		}
 	});
 
+	// Addon results are profile-scoped — fold the profile into every TTL-cache
+	// key so a cached hit never leaks across profiles sharing this browser.
+	const profileIndex = $derived(page.data.profile?.profile_index ?? 0);
 	const results = $derived(term ? searchCatalogs(term) : undefined);
+	$effect(() => {
+		if (results) {
+			ttlPrime(
+				results,
+				`search:${profileIndex}:${term.toLowerCase()}`,
+				QUERY_TTL.search,
+			);
+		}
+	});
 
 	// Record a term once its results come back non-empty (local-only history).
 	$effect(() => {
@@ -92,8 +105,12 @@
 	}
 
 	// Discover fallback — shown when there's no query, or when a query returned
-	// nothing. Same catalog rows as the home feed.
-	const browseQuery = homeRows();
+	// nothing. Same catalog rows as the home feed, same TTL-cache key, so this
+	// reuses whatever the home page already fetched/cached this session.
+	const browseQuery = $derived(homeRows());
+	$effect(() => {
+		ttlPrime(browseQuery, `homeRows:${profileIndex}`, QUERY_TTL.catalog);
+	});
 	const browseRows = $derived((browseQuery.current ?? []).slice(0, 8));
 </script>
 

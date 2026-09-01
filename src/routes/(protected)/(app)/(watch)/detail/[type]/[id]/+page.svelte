@@ -25,6 +25,7 @@
 	import TrailerModal from "#lib/components/trailer-modal.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { libraryIds } from "#lib/library/library.remote.js";
+	import { QUERY_TTL, ttlPrime } from "#lib/query-cache.js";
 	import { theme } from "#lib/settings/theme.svelte.js";
 	import { pageTitle } from "#lib/stores/title.svelte.js";
 	import { sync } from "#lib/sync/store.svelte.js";
@@ -48,6 +49,10 @@
 	const type = $derived(page.params.type ?? "movie");
 	const id = $derived(page.params.id ?? "");
 	const contentType = $derived(type === "series" ? "series" : "movie");
+	// Addon results are profile-scoped (different profiles can have different
+	// addons installed) — fold the profile into every TTL-cache key so a
+	// cached hit never leaks across profiles sharing this browser.
+	const profileIndex = $derived(page.data.profile?.profile_index ?? 0);
 
 	// The source drawer itself lives in the (watch) layout, driven by module state.
 	function openSources(videoId: string) {
@@ -55,6 +60,9 @@
 	}
 
 	const metaQuery = $derived(getMeta({ type, id }));
+	$effect(() => {
+		ttlPrime(metaQuery, `meta:${profileIndex}:${type}:${id}`, QUERY_TTL.meta);
+	});
 	const libraryQuery = libraryIds();
 	const progressQuery = $derived(titleProgress({ contentId: id }));
 	const progress = $derived(
@@ -95,6 +103,15 @@
 	const similarQuery = $derived(
 		meta ? similarTitles({ type, id, genres: meta.genres ?? [] }) : undefined,
 	);
+	$effect(() => {
+		if (similarQuery) {
+			ttlPrime(
+				similarQuery,
+				`similar:${profileIndex}:${type}:${id}`,
+				QUERY_TTL.catalog,
+			);
+		}
+	});
 	const similar = $derived(similarQuery?.current?.metas ?? []);
 
 	const rating = $derived(
