@@ -52,11 +52,11 @@ jobs:
           echo "$output"
           version="$(echo "$output" | grep -oE 'release version is [0-9]+\.[0-9]+\.[0-9]+' | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | tail -n1)"
           if [ -n "$version" ]; then
-            echo "This push will release v$version, tagging images and binaries accordingly."
+            echo "This push will release v$version, tagging images accordingly."
             echo "tag=v$version" >> "$GITHUB_OUTPUT"
             echo "version=$version" >> "$GITHUB_OUTPUT"
           else
-            echo "No release-worthy commits, falling back to the commit SHA for image tags; binaries keep the last released version."
+            echo "No release-worthy commits, falling back to the commit SHA for image tags"
             echo "tag=${{ github.sha }}" >> "$GITHUB_OUTPUT"
             echo "version=" >> "$GITHUB_OUTPUT"
           fi
@@ -85,10 +85,19 @@ jobs:
       - build-app
     permissions:
       contents: write
+      issues: write
+      pull-requests: write
     steps:
+      # RELEASE_TOKEN (a fine-grained PAT scoped to just this repo, Contents +
+      # Issues + Pull requests: write) is required, not the default
+      # GITHUB_TOKEN: the `main` ruleset blocks direct pushes from anyone but
+      # a repo admin, and the default token's actor (github-actions[bot]) isn't
+      # on the bypass list. Used both for git's push auth here and as GH_TOKEN
+      # below for @semantic-release/github's API calls.
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          token: ${{ secrets.RELEASE_TOKEN }}
 
       - name: Setup bun
         uses: oven-sh/setup-bun@v2
@@ -101,12 +110,7 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile --ignore-scripts
 
-      - name: Download binaries
-        uses: orochibraru/download-artifact@v8
-        with:
-          path: dist
-          pattern: binaries-*
-          merge-multiple: true
-
       - name: Release
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
         run: bun run release
