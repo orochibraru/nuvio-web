@@ -1,3 +1,15 @@
+## [1.0.3](https://github.com/orochibraru/nuvio-web/compare/v1.0.2...v1.0.3) (2026-09-02)
+
+### Features
+
+- multi-tab broadcast channel (sync)
+  ([789d27c](https://github.com/orochibraru/nuvio-web/commit/789d27cae0263502604b96f46f1940749d6efa05))
+
+### Bug Fixes
+
+- test coverage
+  ([b7ddc38](https://github.com/orochibraru/nuvio-web/commit/b7ddc381f04dc504359ac3a42ee932d0d4f010c5))
+
 ## [1.0.2](https://github.com/orochibraru/nuvio-web/compare/v1.0.1...v1.0.2) (2026-09-02)
 
 ### Bug Fixes
