@@ -1,6 +1,5 @@
 import * as v from "valibot";
 import { requireProfile } from "#lib/server/guards.js";
-import { INTRODB_API_KEY } from "$app/env/private";
 import { query } from "$app/server";
 import {
 	INTRODB_BASE,
@@ -11,21 +10,23 @@ import {
 } from "./segments.ts";
 
 /**
- * Intro / credits timestamps for a movie or episode, from TheIntroDB. Optional:
- * a missing id mapping, a 404 (no community data), or a rate limit all resolve
- * to "no segments" so the player just doesn't show the skip affordances.
- *
- * `INTRODB_API_KEY` (optional, server-only) raises the rate/usage limits and
- * folds in the key owner's pending submissions; without it the public accepted
- * data is used.
+ * Intro / credits timestamps for a movie or episode, from TheIntroDB. The
+ * public tier is keyless — no server config needed (see TODO.md). `apiKey` is
+ * the caller's own personal TheIntroDB key (Settings → Integrations, stored
+ * per-profile in `ui.introDbApiKey`, never a server env var): it folds their
+ * pending submissions into the result and raises their rate/usage limits.
+ * Optional either way: a missing id mapping, a 404 (no community data), or a
+ * rate limit all resolve to "no segments" so the player just doesn't show the
+ * skip affordances.
  */
 export const mediaSegments = query(
 	v.object({
 		contentId: v.string(),
 		season: v.nullable(v.number()),
 		episode: v.nullable(v.number()),
+		apiKey: v.optional(v.string()),
 	}),
-	async ({ contentId, season, episode }): Promise<MediaSegments> => {
+	async ({ contentId, season, episode, apiKey }): Promise<MediaSegments> => {
 		requireProfile();
 
 		const params = segmentQuery(contentId, season, episode);
@@ -34,8 +35,8 @@ export const mediaSegments = query(
 		}
 
 		const headers: Record<string, string> = { accept: "application/json" };
-		if (INTRODB_API_KEY) {
-			headers.authorization = `Bearer ${INTRODB_API_KEY}`;
+		if (apiKey) {
+			headers.authorization = `Bearer ${apiKey}`;
 		}
 
 		try {

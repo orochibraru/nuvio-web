@@ -15,6 +15,7 @@ const pages = [
 	{ name: "settings-playback", path: "/settings?tab=playback" },
 	{ name: "settings-sync", path: "/settings?tab=sync" },
 	{ name: "settings-addons-tab", path: "/settings?tab=addons" },
+	{ name: "settings-integrations", path: "/settings?tab=integrations" },
 	{ name: "addons", path: "/addons" },
 	{ name: "account", path: "/account" },
 	{ name: "account-history", path: "/account?tab=history" },

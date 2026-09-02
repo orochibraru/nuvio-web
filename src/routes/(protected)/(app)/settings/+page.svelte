@@ -1,5 +1,10 @@
 <script lang="ts">
 	import CheckIcon from "@lucide/svelte/icons/check";
+	import PaletteIcon from "@lucide/svelte/icons/palette";
+	import PlayIcon from "@lucide/svelte/icons/play";
+	import PlugIcon from "@lucide/svelte/icons/plug";
+	import PuzzleIcon from "@lucide/svelte/icons/puzzle";
+	import RefreshCwIcon from "@lucide/svelte/icons/refresh-cw";
 	import { toast } from "svelte-sonner";
 	import * as Tabs from "#lib/components/ui/tabs/index.js";
 	import { saveUiSettings } from "#lib/settings/settings.remote.js";
@@ -10,6 +15,7 @@
 	import { page } from "$app/state";
 	import SettingsAddons from "./settings-addons.svelte";
 	import SettingsAppearance from "./settings-appearance.svelte";
+	import SettingsIntegrations from "./settings-integrations.svelte";
 	import SettingsPlayback from "./settings-playback.svelte";
 	import SettingsSync from "./settings-sync.svelte";
 
@@ -44,10 +50,11 @@
 	// Which section is showing lives in the URL so it survives back/forward
 	// and is shareable/deep-linkable.
 	const tabs = [
-		{ value: "appearance", label: "Appearance" },
-		{ value: "playback", label: "Playback" },
-		{ value: "sync", label: "Sync" },
-		{ value: "addons", label: "Addons" },
+		{ value: "appearance", label: "Appearance", icon: PaletteIcon },
+		{ value: "playback", label: "Playback", icon: PlayIcon },
+		{ value: "sync", label: "Sync", icon: RefreshCwIcon },
+		{ value: "addons", label: "Addons", icon: PuzzleIcon },
+		{ value: "integrations", label: "Integrations", icon: PlugIcon },
 	] as const;
 	type Tab = (typeof tabs)[number]["value"];
 	const tab = $derived<Tab>(
@@ -67,7 +74,7 @@
 	}
 </script>
 
-<div class="mx-auto flex max-w-3xl flex-col gap-6">
+<div class="mx-auto flex max-w-5xl flex-col gap-8">
 	<div class="flex items-center gap-3">
 		<h1 class="text-3xl font-bold tracking-tight">Settings</h1>
 		{#if saveState === "saving"}
@@ -79,24 +86,45 @@
 		{/if}
 	</div>
 
-	<Tabs.Root value={tab} onValueChange={setTab}>
-		<Tabs.List class="w-full sm:w-fit">
-			{#each tabs as t (t.value)}
-				<Tabs.Trigger value={t.value}>{t.label}</Tabs.Trigger>
-			{/each}
-		</Tabs.List>
+	<!-- `Tabs.Root` renders as `display:contents` — the actual row/column layout
+	     is owned by this wrapper (stacked on narrow screens, sidebar from lg up)
+	     so it never fights bits-ui's own orientation-driven flex classes. -->
+	<div class="flex flex-col gap-8 lg:flex-row lg:items-start">
+		<Tabs.Root
+			value={tab}
+			onValueChange={setTab}
+			orientation="vertical"
+			class="contents"
+		>
+			<Tabs.List
+				class="h-fit w-full shrink-0 gap-1 rounded-xl border border-foreground/10 bg-card p-2 lg:w-56"
+			>
+				{#each tabs as t (t.value)}
+					<Tabs.Trigger
+						value={t.value}
+						class="gap-2.5 rounded-lg px-3 py-2.5 text-[0.9rem] font-medium data-[state=active]:bg-foreground/10 data-[state=active]:shadow-none"
+					>
+						<t.icon class="size-4" />
+						{t.label}
+					</Tabs.Trigger>
+				{/each}
+			</Tabs.List>
 
-		<Tabs.Content value="appearance">
-			<SettingsAppearance {update} />
-		</Tabs.Content>
-		<Tabs.Content value="playback">
-			<SettingsPlayback {update} />
-		</Tabs.Content>
-		<Tabs.Content value="sync">
-			<SettingsSync {update} />
-		</Tabs.Content>
-		<Tabs.Content value="addons">
-			<SettingsAddons />
-		</Tabs.Content>
-	</Tabs.Root>
+			<Tabs.Content value="appearance" class="min-w-0">
+				<SettingsAppearance {update} />
+			</Tabs.Content>
+			<Tabs.Content value="playback" class="min-w-0">
+				<SettingsPlayback {update} />
+			</Tabs.Content>
+			<Tabs.Content value="sync" class="min-w-0">
+				<SettingsSync {update} />
+			</Tabs.Content>
+			<Tabs.Content value="addons" class="min-w-0">
+				<SettingsAddons />
+			</Tabs.Content>
+			<Tabs.Content value="integrations" class="min-w-0">
+				<SettingsIntegrations {update} />
+			</Tabs.Content>
+		</Tabs.Root>
+	</div>
 </div>

@@ -49,7 +49,7 @@
 		subtitleLanguages.find((l) => l.value === code)?.label ?? "Off";
 </script>
 
-<Card.Root>
+<Card.Root class="border border-foreground/10">
 	<Card.Header>
 		<Card.Title>Playback</Card.Title>
 		<Card.Description

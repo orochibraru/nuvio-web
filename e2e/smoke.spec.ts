@@ -11,6 +11,7 @@ const routes = [
 	"/settings?tab=playback",
 	"/settings?tab=sync",
 	"/settings?tab=addons",
+	"/settings?tab=integrations",
 	"/addons",
 	"/account",
 	"/account?tab=history",
@@ -44,6 +45,38 @@ for (const route of routes) {
 		expect(errors, `runtime errors on ${route}`).toEqual([]);
 	});
 }
+
+test("settings: TheIntroDB key saves on blur and survives a reload", async ({
+	page,
+}) => {
+	const errors = collectRuntimeErrors(page);
+
+	await page.goto("/settings?tab=integrations");
+	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
+
+	const input = page.locator("#introdb-key");
+	await expect(input).toBeVisible();
+	// Normalise to empty regardless of what a prior run left — only blur
+	// triggers a save, so this is a no-op (and no "Saved" toast) when a prior
+	// run already left it empty.
+	await input.fill("");
+	await input.blur();
+
+	await input.fill("e2e-test-key");
+	await input.blur();
+	await expect(page.getByText("Saved")).toBeVisible({ timeout: 5000 });
+
+	await page.reload();
+	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
+	await expect(page.locator("#introdb-key")).toHaveValue("e2e-test-key");
+
+	// Restore: clear what this test wrote.
+	await page.locator("#introdb-key").fill("");
+	await page.locator("#introdb-key").blur();
+	await expect(page.getByText("Saved")).toBeVisible({ timeout: 5000 });
+
+	expect(errors, "runtime errors").toEqual([]);
+});
 
 test("client-side navigation through the whole shell", async ({ page }) => {
 	const errors = collectRuntimeErrors(page);

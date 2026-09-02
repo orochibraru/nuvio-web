@@ -36,7 +36,7 @@
 	];
 </script>
 
-<Card.Root>
+<Card.Root class="border border-foreground/10">
 	<Card.Header>
 		<Card.Title>Appearance</Card.Title>
 		<Card.Description

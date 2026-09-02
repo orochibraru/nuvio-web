@@ -281,6 +281,7 @@
 					contentId: context.contentId,
 					season: context.season,
 					episode: context.episode,
+					apiKey: theme.current.introDbApiKey,
 				})
 			: undefined,
 	);

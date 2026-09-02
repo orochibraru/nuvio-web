@@ -5,7 +5,7 @@
 	import { resolve } from "$app/paths";
 </script>
 
-<Card.Root>
+<Card.Root class="border border-foreground/10">
 	<Card.Header>
 		<Card.Title>Addons</Card.Title>
 		<Card.Description>

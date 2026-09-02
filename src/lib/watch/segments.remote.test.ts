@@ -3,7 +3,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("$app/server", () => ({
 	query: (schemaOrFn: unknown, fn?: unknown) => fn ?? schemaOrFn,
 }));
-vi.mock("$app/env/private", () => ({ INTRODB_API_KEY: undefined }));
 vi.mock("#lib/server/guards.js", () => ({ requireProfile: () => ({}) }));
 
 import { mediaSegments } from "./segments.remote.js";
@@ -15,11 +14,13 @@ afterEach(() => {
 });
 
 function mockFetch(status: number, body: unknown) {
-	globalThis.fetch = vi.fn(async () =>
+	const spy = vi.fn(async () =>
 		status === 200
 			? new Response(JSON.stringify(body), { status })
 			: new Response("err", { status }),
-	) as unknown as typeof fetch;
+	);
+	globalThis.fetch = spy as unknown as typeof fetch;
+	return spy;
 }
 
 describe("mediaSegments", () => {
@@ -55,6 +56,33 @@ describe("mediaSegments", () => {
 				episode: null,
 			}),
 		).toEqual({ intro: null, credits: null });
+	});
+
+	it("sends a Bearer header when an apiKey is given, omits it otherwise", async () => {
+		const keyed = mockFetch(200, {});
+		await mediaSegments({
+			contentId: "tmdb:550",
+			season: null,
+			episode: null,
+			apiKey: "user-key-123",
+		});
+		const [, keyedInit] = keyed.mock.calls[0] as unknown as [
+			string,
+			RequestInit,
+		];
+		expect((keyedInit.headers as Record<string, string>).authorization).toBe(
+			"Bearer user-key-123",
+		);
+
+		const keyless = mockFetch(200, {});
+		await mediaSegments({ contentId: "tmdb:550", season: null, episode: null });
+		const [, keylessInit] = keyless.mock.calls[0] as unknown as [
+			string,
+			RequestInit,
+		];
+		expect(
+			(keylessInit.headers as Record<string, string>).authorization,
+		).toBeUndefined();
 	});
 
 	it("resolves to nulls when fetch throws", async () => {

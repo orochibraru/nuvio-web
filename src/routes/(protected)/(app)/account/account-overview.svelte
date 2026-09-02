@@ -21,7 +21,7 @@
 	);
 </script>
 
-<Card.Root>
+<Card.Root class="border border-foreground/10">
 	<Card.Header>
 		<Card.Title>Sign-in</Card.Title>
 		<Card.Description>The email and password for your Nuvio account.</Card.Description>

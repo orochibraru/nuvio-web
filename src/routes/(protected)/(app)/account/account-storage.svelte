@@ -51,7 +51,7 @@
 </script>
 
 <div class="flex flex-col gap-6">
-	<Card.Root>
+	<Card.Root class="border border-foreground/10">
 		<Card.Header>
 			<Card.Title>Storage &amp; sync</Card.Title>
 			<Card.Description>What's synced to your account, per profile.</Card.Description>

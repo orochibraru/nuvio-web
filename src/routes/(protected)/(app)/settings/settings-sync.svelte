@@ -29,7 +29,7 @@
 	}
 </script>
 
-<Card.Root>
+<Card.Root class="border border-foreground/10">
 	<Card.Header>
 		<Card.Title>Sync</Card.Title>
 		<Card.Description>

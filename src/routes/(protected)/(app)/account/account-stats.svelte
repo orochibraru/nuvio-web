@@ -42,7 +42,7 @@
 		</div>
 	{:else}
 		<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-			<Card.Root>
+			<Card.Root class="border border-foreground/10">
 				<Card.Header class="pb-2">
 					<Card.Description class="flex items-center gap-1.5">
 						<ClockIcon class="size-3.5" /> Time watched
@@ -59,7 +59,7 @@
 				</Card.Content>
 			</Card.Root>
 
-			<Card.Root>
+			<Card.Root class="border border-foreground/10">
 				<Card.Header class="pb-2">
 					<Card.Description class="flex items-center gap-1.5">
 						<FilmIcon class="size-3.5" /> Movies
@@ -71,7 +71,7 @@
 				</Card.Content>
 			</Card.Root>
 
-			<Card.Root>
+			<Card.Root class="border border-foreground/10">
 				<Card.Header class="pb-2">
 					<Card.Description class="flex items-center gap-1.5">
 						<TvIcon class="size-3.5" /> Shows
@@ -85,7 +85,7 @@
 				</Card.Content>
 			</Card.Root>
 
-			<Card.Root>
+			<Card.Root class="border border-foreground/10">
 				<Card.Header class="pb-2">
 					<Card.Description class="flex items-center gap-1.5">
 						<ClapperboardIcon class="size-3.5" /> Prefers
@@ -105,7 +105,7 @@
 		</div>
 
 		{#if stats.topGenres.length > 0}
-			<Card.Root>
+			<Card.Root class="border border-foreground/10">
 				<Card.Header>
 					<Card.Title>Top genres</Card.Title>
 					<Card.Description>Across your recently watched titles.</Card.Description>

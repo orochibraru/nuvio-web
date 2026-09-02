@@ -111,6 +111,10 @@ export const uiSettingsSchema = v.object({
 		v.pipe(v.number(), v.minValue(1), v.maxValue(30)),
 		3,
 	),
+	/** Personal TheIntroDB API key (https://theintrodb.org) — optional, folds
+	 *  the owner's own pending submissions into the skip-intro/outro lookup and
+	 *  raises their rate/usage limits. The public keyless tier works without it. */
+	introDbApiKey: v.fallback(v.string(), ""),
 });
 
 export type UiSettings = v.InferOutput<typeof uiSettingsSchema>;
@@ -130,6 +134,7 @@ export const DEFAULT_UI_SETTINGS: UiSettings = {
 	progressSource: "nuvio",
 	reuseLastLink: false,
 	linkCacheDays: 3,
+	introDbApiKey: "",
 };
 
 /** `font-size` for the `::cue` pseudo-element, as a share of the video height. */
