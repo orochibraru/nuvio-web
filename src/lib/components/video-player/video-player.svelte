@@ -7,6 +7,7 @@
 	import { createPanelToggles } from "./panel-toggles.svelte.js";
 	import { createPlaybackDiagnostics } from "./playback-diagnostics.svelte.js";
 	import { createPlaybackMilestones } from "./playback-milestones.svelte.js";
+	import { createPlayerBroadcastSync } from "./player-broadcast.svelte.js";
 	import { createPlayerController } from "./player-controller.svelte.js";
 	import PlayerOverlays from "./player-overlays.svelte";
 	import { createSubtitleController } from "./subtitle-controller.svelte.js";
@@ -68,6 +69,13 @@
 	// `player.state` is the shared reactive transport object — read/write it
 	// directly (it's what `<video bind:paused>` etc. below are bound to).
 	const transport = player.state;
+
+	// Multi-tab coherence: starting playback here pauses this video in every
+	// other open tab.
+	createPlayerBroadcastSync({
+		video: () => video,
+		paused: () => transport.paused,
+	});
 
 	const infoOverlay = createInfoOverlayController({
 		hasInfo: () => Boolean(info),

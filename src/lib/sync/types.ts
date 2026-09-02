@@ -58,6 +58,18 @@ export const EMPTY_CURSORS: SyncCursors = {
 	watchHistory: 0,
 };
 
+/** Full in-memory state, broadcast to other same-profile tabs via
+ *  BroadcastChannel so a local mutation or sync shows up elsewhere without
+ *  waiting for their next poll. */
+export interface SyncBroadcastMessage {
+	library: LibraryRecord[];
+	progress: ProgressRecord[];
+	history: HistoryRecord[];
+	cursors: SyncCursors;
+	queue: PendingWrite[];
+	bootstrapped: boolean;
+}
+
 /** A queued optimistic mutation awaiting flush to the API. */
 export type PendingWrite =
 	| { kind: "library.upsert"; record: LibraryRecord; queuedAt: number }

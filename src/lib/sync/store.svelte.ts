@@ -1,13 +1,18 @@
 import { browser } from "$app/env";
+import { fromBroadcastMessage, toBroadcastMessage } from "./broadcast.ts";
 import { clearProfile, readAll, readOne, replaceAll, writeOne } from "./idb.ts";
+import type { PendingLibraryWrite } from "./reconcile.ts";
 import {
+	buildFlushPayload,
 	overlayPendingLibrary,
 	overlayPendingProgress,
-	pruneStale,
+	pendingLibraryWrites,
+	pendingProgressWrites,
 	reconcileHistory,
 	reconcileLibrary,
 	reconcileProgress,
 	sameTarget,
+	splitPendingWrites,
 } from "./reconcile.ts";
 import { flushWrites, syncDeltas, syncSnapshot } from "./sync.remote.js";
 import type {
@@ -16,6 +21,7 @@ import type {
 	LibraryRecord,
 	PendingWrite,
 	ProgressRecord,
+	SyncBroadcastMessage,
 	SyncCursors,
 } from "./types.ts";
 import {
@@ -56,6 +62,13 @@ class SyncStore {
 	#initialSyncTimer: ReturnType<typeof setTimeout> | undefined;
 	#intervalTimer: ReturnType<typeof setInterval> | undefined;
 	#onVisible: (() => void) | undefined;
+	// Cross-tab coherence: same-profile tabs mirror each other's state instantly
+	// instead of waiting for the next poll. Scoped to the profile so switching
+	// profiles in one tab can't leak into another tab's different profile.
+	#channel: BroadcastChannel | undefined;
+	// Set while applying a message from another tab, so re-publishing that state
+	// doesn't bounce straight back out as a broadcast of our own.
+	#applyingBroadcast = false;
 
 	ready = $state(false);
 	// True once a full snapshot has landed — the store is now authoritative.
@@ -167,6 +180,11 @@ class SyncStore {
 				() => void this.sync(),
 				INITIAL_SYNC_DELAY_MS,
 			);
+			if (typeof BroadcastChannel !== "undefined") {
+				this.#channel = new BroadcastChannel(`nuvio-sync-${profileId}`);
+				this.#channel.onmessage = (event) =>
+					this.#applyBroadcast(event.data as SyncBroadcastMessage);
+			}
 		}
 	}
 
@@ -178,6 +196,10 @@ class SyncStore {
 			document.removeEventListener("visibilitychange", this.#onVisible);
 			this.#onVisible = undefined;
 		}
+		// Just close — the state we're about to clear is this tab's local view,
+		// not a real change other tabs on the same profile should adopt.
+		this.#channel?.close();
+		this.#channel = undefined;
 		this.#profileId = null;
 		this.#cursors = { ...EMPTY_CURSORS };
 		this.#bootstrapped = false;
@@ -244,6 +266,7 @@ class SyncStore {
 		this.synced = true;
 		await this.#persistAll();
 		this.#publish();
+		this.#broadcast();
 	}
 
 	async #pullDeltas(): Promise<void> {
@@ -291,6 +314,7 @@ class SyncStore {
 		};
 		await this.#persistAll();
 		this.#publish();
+		this.#broadcast();
 	}
 
 	toggleLibrary(input: {
@@ -332,6 +356,7 @@ class SyncStore {
 		}
 		this.mutated = true;
 		this.#publish();
+		this.#broadcast();
 		void this.#persist("library");
 		this.#scheduleFlush();
 	}
@@ -367,6 +392,7 @@ class SyncStore {
 		this.#enqueue({ kind: "progress.push", record, queuedAt: Date.now() });
 		this.mutated = true;
 		this.#publish();
+		this.#broadcast();
 		void this.#persist("progress");
 		this.#scheduleFlush();
 	}
@@ -413,6 +439,7 @@ class SyncStore {
 		});
 		this.mutated = true;
 		this.#publish();
+		this.#broadcast();
 		void this.#persist("progress");
 		this.#scheduleFlush();
 	}
@@ -440,6 +467,7 @@ class SyncStore {
 		});
 		this.mutated = true;
 		this.#publish();
+		this.#broadcast();
 		void this.#persist("history");
 		this.#scheduleFlush();
 	}
@@ -453,6 +481,7 @@ class SyncStore {
 		);
 		this.mutated = true;
 		this.#publish();
+		this.#broadcast();
 		void this.#persist("history");
 		void this.#persist("queue");
 	}
@@ -468,45 +497,28 @@ class SyncStore {
 		this.synced = true;
 		this.mutated = false;
 		this.#publish();
+		this.#broadcast();
 		await clearProfile(profileId);
 	}
 
 	/** Queued writes plus recently-flushed ones, oldest first so a fresh queued
 	 *  write for the same target overrides a recently-flushed one. */
 	#pendingWrites(): PendingWrite[] {
-		this.#recentlyFlushed = pruneStale(
+		const { pruned, pending } = splitPendingWrites(
+			this.#queue,
 			this.#recentlyFlushed,
 			RECENTLY_FLUSHED_GRACE_MS,
 		);
-		return [...this.#recentlyFlushed.map((e) => e.write), ...this.#queue];
+		this.#recentlyFlushed = pruned;
+		return pending;
 	}
 
-	#pendingLibrary(): Array<
-		| { kind: "library.upsert"; record: LibraryRecord }
-		| { kind: "library.delete"; contentType: ContentType; contentId: string }
-	> {
-		const out: Array<
-			| { kind: "library.upsert"; record: LibraryRecord }
-			| { kind: "library.delete"; contentType: ContentType; contentId: string }
-		> = [];
-		for (const write of this.#pendingWrites()) {
-			if (write.kind === "library.upsert") {
-				out.push({ kind: write.kind, record: write.record });
-			} else if (write.kind === "library.delete") {
-				out.push({
-					kind: write.kind,
-					contentType: write.contentType,
-					contentId: write.contentId,
-				});
-			}
-		}
-		return out;
+	#pendingLibrary(): PendingLibraryWrite[] {
+		return pendingLibraryWrites(this.#pendingWrites());
 	}
 
 	#pendingProgress(): ProgressRecord[] {
-		return this.#pendingWrites()
-			.filter((write) => write.kind === "progress.push")
-			.map((write) => (write as { record: ProgressRecord }).record);
+		return pendingProgressWrites(this.#pendingWrites());
 	}
 
 	#enqueue(write: PendingWrite): void {
@@ -515,6 +527,42 @@ class SyncStore {
 		);
 		this.#queue.push(write);
 		void this.#persist("queue");
+	}
+
+	/** Tell other same-profile tabs about this tab's current state. */
+	#broadcast(): void {
+		if (!this.#channel || this.#applyingBroadcast) {
+			return;
+		}
+		this.#channel.postMessage(
+			toBroadcastMessage({
+				library: this.#library,
+				progress: this.#progress,
+				history: this.#history,
+				cursors: this.#cursors,
+				queue: this.#queue,
+				bootstrapped: this.#bootstrapped,
+			}),
+		);
+	}
+
+	/** Adopt a state message broadcast by another tab on the same profile. */
+	#applyBroadcast(message: SyncBroadcastMessage): void {
+		if (this.#profileId == null) {
+			return;
+		}
+		this.#applyingBroadcast = true;
+		const { library, progress, history } = fromBroadcastMessage(message);
+		this.#library = library;
+		this.#progress = progress;
+		this.#history = history;
+		this.#cursors = message.cursors;
+		this.#queue = message.queue;
+		this.#bootstrapped = message.bootstrapped;
+		this.synced = this.#bootstrapped;
+		this.mutated = this.#queue.length > 0;
+		this.#publish();
+		this.#applyingBroadcast = false;
 	}
 
 	#scheduleFlush(): void {
@@ -538,59 +586,7 @@ class SyncStore {
 		}
 		this.#flushing = true;
 		try {
-			await flushWrites({
-				libraryUpserts: batch
-					.filter((write) => write.kind === "library.upsert")
-					.map((write) => {
-						const { record } = write as { record: LibraryRecord };
-						return {
-							content_id: record.contentId,
-							content_type: record.contentType,
-							name: record.name,
-							poster: record.poster ?? undefined,
-							background: record.background ?? undefined,
-							description: record.description ?? undefined,
-							release_info: record.releaseInfo ?? undefined,
-							imdb_rating: record.imdbRating ?? undefined,
-							genres: record.genres,
-							added_at: record.addedAt,
-						};
-					}),
-				libraryDeletes: batch
-					.filter((write) => write.kind === "library.delete")
-					.map((write) => {
-						const w = write as { contentId: string; contentType: ContentType };
-						return { content_id: w.contentId, content_type: w.contentType };
-					}),
-				progressPushes: batch
-					.filter((write) => write.kind === "progress.push")
-					.map((write) => {
-						const { record } = write as { record: ProgressRecord };
-						return {
-							content_id: record.contentId,
-							content_type: record.contentType,
-							video_id: record.videoId,
-							season: record.season ?? undefined,
-							episode: record.episode ?? undefined,
-							position: record.position,
-							duration: record.duration,
-							last_watched: record.lastWatched,
-						};
-					}),
-				progressDeletes: batch
-					.filter((write) => write.kind === "progress.delete")
-					.map((write) => (write as { progressKey: string }).progressKey),
-				historyDeletes: batch
-					.filter((write) => write.kind === "history.delete")
-					.map((write) => {
-						const { record } = write as { record: HistoryRecord };
-						return {
-							content_id: record.contentId,
-							season: record.season ?? undefined,
-							episode: record.episode ?? undefined,
-						};
-					}),
-			});
+			await flushWrites(buildFlushPayload(batch));
 			const flushed = new Set(batch);
 			this.#queue = this.#queue.filter((write) => !flushed.has(write));
 			const flushedAt = Date.now();
