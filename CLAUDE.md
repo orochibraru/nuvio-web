@@ -33,15 +33,27 @@
   `#lib/stream.svelte.ts` (`.current` / `.ready`). Use
   `locals.nuvio.withFetch(fetch)` (the load's own `fetch`), a plain `*-data.ts`
   helper (never a remote `query`), `.catch()` every pull to an empty/default,
-  and **no `Promise.all`**. Addon fan-out (`getMeta` / catalogs / streams) goes
-  to client-side queries with skeletons, never a load.
+  and **no `Promise.all`** (use `pooledMap` from `#lib/pool.ts` for fan-out).
+- **Page data belongs in the load — including addon fan-out.** Anything the page
+  needs to render for the current URL (catalog rows, a title's meta, search
+  results) is fetched by the load from the route params / query string and
+  streamed down. A client `query` for that costs the page a full extra round
+  trip that can only _start_ once the page has shipped and hydrated, and makes
+  first paint hostage to the device. The addon-touching helpers live in
+  `#lib/addons/catalog-queries.ts` (pure, client injected — unit-tested) with
+  request-scoped wrappers in `#lib/addons/server.ts`.
 - `+layout.server.ts` loads may still `await` — they don't re-run on client
   navigation, `parent()` consumers can't take a streamed promise, and the
   profile gate / theme seed need the resolved value. Keep them bounded
   (`withFetch`, `.catch`, no `Promise.all`).
-- Remote functions are for **client-initiated** work only: `form` / `command`
-  mutations, and `query` functions read reactively in components (`.current`,
-  `.refresh()`).
+- Remote functions are for **client-initiated** work only — a button, a
+  right-click action, "Load more": `form` / `command` mutations, and `query`
+  functions for data a _user gesture_ asks for after the page is up. Never for
+  the page's own initial data.
+- **Anything that crosses structured clone gets `$state.snapshot()` first** —
+  `BroadcastChannel.postMessage` and IndexedDB both throw on a `$state` proxy,
+  and records reaching the sync store may come from a page that read them out of
+  a streamed load (see `store.svelte.ts`'s `#broadcast` / `#persist`).
 - A `.remote.ts` file may export **only** remote functions — put schemas / types
   / constants / server data-helpers in a sibling `*.ts` (see
   `#lib/settings/settings-data.ts`).

@@ -21,7 +21,11 @@
 				progress.target = progress.current + 0.05;
 			}, 100);
 
-			await navigating.complete;
+			// `complete` rejects when this navigation is superseded (a second
+			// click before the first settles). The bar still has to finish and
+			// clean up, and an uncaught rejection here surfaces as a
+			// "navigation aborted" page error.
+			await navigating.complete?.catch(() => undefined);
 			clearInterval(updater);
 
 			progress.target = 1;

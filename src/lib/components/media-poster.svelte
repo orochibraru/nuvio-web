@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { BookmarkXIcon } from "@lucide/svelte";
 	import BookmarkIcon from "@lucide/svelte/icons/bookmark";
 	import CheckIcon from "@lucide/svelte/icons/check";
 	import EyeIcon from "@lucide/svelte/icons/eye";
@@ -288,7 +289,7 @@
   <ContextMenu.Content class="w-52">
     <ContextMenu.Item onSelect={toggleLibrary}>
       {#if inLibrary}
-        <CheckIcon /> In library
+        <BookmarkXIcon /> Remove from library
       {:else}
         <PlusIcon /> Add to library
       {/if}
@@ -302,10 +303,7 @@
         {/if}
       </ContextMenu.Item>
     {:else}
-      <ContextMenu.Item
-        disabled={markingAllWatched}
-        onSelect={markAllWatched}
-      >
+      <ContextMenu.Item disabled={markingAllWatched} onSelect={markAllWatched}>
         <EyeIcon /> Mark all watched
       </ContextMenu.Item>
     {/if}

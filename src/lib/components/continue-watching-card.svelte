@@ -60,7 +60,7 @@
 <ContextMenu.Root>
 	<ContextMenu.Trigger class="contents">
 		<div
-			class="group/cw relative aspect-video w-72 shrink-0 overflow-hidden rounded-xl bg-muted ring-1 ring-border transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_50px_-16px] hover:shadow-black/70 hover:ring-primary/60 dark:ring-white/10"
+			class="group/cw relative aspect-video w-72 shrink-0 content-auto overflow-hidden rounded-xl bg-muted ring-1 ring-border transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_50px_-16px] hover:shadow-black/70 hover:ring-primary/60 dark:ring-white/10"
 		>
 			<div class="absolute inset-0 bg-linear-to-br from-muted via-muted to-background"></div>
 			{#if item.background && !bgLoaded}

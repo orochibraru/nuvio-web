@@ -28,6 +28,9 @@
 		onEpisodes,
 		hasSubtitles,
 		activeCaption,
+		castAvailable,
+		casting,
+		onCast,
 		onToggleSubtitles,
 		onSettingsOpenChange,
 	}: {
@@ -55,6 +58,9 @@
 		onEpisodes?: () => void;
 		hasSubtitles: boolean;
 		activeCaption: string | null;
+		castAvailable: boolean;
+		casting: boolean;
+		onCast: () => void;
 		onToggleSubtitles: () => void;
 		onSettingsOpenChange: (open: boolean) => void;
 	} = $props();
@@ -90,6 +96,9 @@
       {onEpisodes}
       {hasSubtitles}
       {activeCaption}
+      {castAvailable}
+      {casting}
+      {onCast}
       {subtitlesOpen}
       {onToggleSubtitles}
       {settingsOpen}

@@ -31,7 +31,7 @@
 		<ScrollRail label={title} trackClass="snap-x scroll-px-2 gap-4 pt-1 pb-2">
 			{#each items as item, i (`${item.type}:${item.id}`)}
 				<div
-					class="w-40 shrink-0 snap-start sm:w-44"
+					class="w-40 shrink-0 snap-start content-auto sm:w-44"
 					in:fly={reduced({
 						y: 10,
 						duration: 240,

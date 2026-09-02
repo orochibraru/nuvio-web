@@ -7,11 +7,10 @@
 	import QueryError from "#lib/components/query-error.svelte";
 	import ScrollRail from "#lib/components/scroll-rail.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
-	import { QUERY_TTL, ttlPrime } from "#lib/query-cache.js";
 	import { pageTitle } from "#lib/stores/title.svelte.js";
 	import { streamed } from "#lib/stream.svelte.js";
 	import { cn } from "#lib/utils.js";
-	import { goto, refreshAll } from "$app/navigation";
+	import { goto, invalidateAll } from "$app/navigation";
 	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
 
@@ -53,7 +52,10 @@
 		) {
 			const params = new URLSearchParams(page.url.search);
 			params.set("c", activeKey);
-			goto(`?${params}`, { reset: false, replace: true });
+			// Same superseded-navigation caveat as `navigate` below.
+			void goto(`?${params}`, { reset: false, replace: true }).catch(() => {
+				// A newer navigation won — this URL fixup no longer applies.
+			});
 		}
 	});
 
@@ -81,32 +83,18 @@
 		);
 	});
 
-	// The first page of catalog contents loads client-side so a slow addon
-	// doesn't stall SSR / navigation — the grid shows a skeleton meanwhile.
-	// TTL-cached (profile + catalog + genre scoped): flipping back to a pill
-	// or genre visited earlier in the session paints instantly.
-	const profileIndex = $derived(data.profile?.profile_index ?? 0);
-	const firstPageQuery = $derived(
-		selected
-			? browseCatalog({
-					addonId: selected.addonId,
-					type: selected.type,
-					id: selected.id,
-					genre: genre || undefined,
-				})
-			: undefined,
+	// The first page of catalog contents is fetched by the load from the URL's
+	// own `?c=`/`?g=` and streamed down with the page, so it doesn't cost a
+	// client round trip that can only start once the catalog list has landed
+	// and the selection has been derived here. `null` once ready means the
+	// catalog couldn't be read — the retry state below covers it.
+	const firstPageStream = streamed(
+		() => data.firstPage,
+		null as Awaited<typeof data.firstPage>,
 	);
-	$effect(() => {
-		if (selected && firstPageQuery) {
-			ttlPrime(
-				firstPageQuery,
-				`catalog:${profileIndex}:${selected.addonId}:${selected.type}:${selected.id}:${genre}`,
-				QUERY_TTL.catalog,
-			);
-		}
-	});
-	const firstPage = $derived(firstPageQuery?.current);
-	const loadingFirst = $derived(Boolean(selected) && firstPage === undefined);
+	const firstPage = $derived(firstPageStream.current);
+	const loadingFirst = $derived(!firstPageStream.ready);
+	const firstPageFailed = $derived(firstPageStream.ready && firstPage === null);
 
 	let more = $state<MetaPreview[]>([]);
 	let loadingMore = $state(false);
@@ -122,25 +110,32 @@
 
 	const items = $derived([...(firstPage?.metas ?? []), ...more]);
 
-	async function navigate(params: URLSearchParams) {
-		await goto(`?${params}`, { reset: false, refreshAll: true });
+	// `refreshAll` re-runs the load, which is what re-fetches the catalog page
+	// server-side for the new `?c=`/`?g=`. Clicking a second pill before the
+	// first navigation settles aborts it, and SvelteKit rejects the superseded
+	// `goto` — swallow that, or it surfaces as an uncaught "navigation
+	// aborted" page error.
+	function navigate(params: URLSearchParams) {
+		void goto(`?${params}`, { reset: false, refreshAll: true }).catch(() => {
+			// A newer pill click superseded this navigation — nothing to do.
+		});
 	}
 
-	async function selectCatalog(key: string) {
+	function selectCatalog(key: string) {
 		const params = new URLSearchParams(page.url.search);
 		params.set("c", key);
 		params.delete("g");
-		await navigate(params);
+		navigate(params);
 	}
 
-	async function setGenre(value: string) {
+	function setGenre(value: string) {
 		const params = new URLSearchParams(page.url.search);
 		if (value) {
 			params.set("g", value);
 		} else {
 			params.delete("g");
 		}
-		await navigate(params);
+		navigate(params);
 	}
 
 	async function loadMore() {
@@ -247,10 +242,10 @@
 
     {#if loadingFirst}
       <MediaGrid items={[]} loading skeletonCount={12} />
-    {:else if firstPageQuery?.error}
+    {:else if firstPageFailed}
       <QueryError
         message="Couldn't load this catalog."
-        onRetry={() => firstPageQuery?.refresh()}
+        onRetry={() => invalidateAll()}
       />
     {:else if items.length === 0}
       <EmptyState

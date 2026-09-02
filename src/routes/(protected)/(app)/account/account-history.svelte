@@ -7,38 +7,34 @@
 	import { toast } from "svelte-sonner";
 	import EmptyState from "#lib/components/empty-state.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
-	import { watchHistory } from "#lib/history/history.remote.js";
 	import type { HistoryRow } from "#lib/history/history-data.js";
 	import { streamed } from "#lib/stream.svelte.js";
 	import { sync } from "#lib/sync/store.svelte.js";
 	import { resolve } from "$app/paths";
 
-	let { items }: { items: Promise<HistoryRow[]> } = $props();
+	type EnrichedRow = HistoryRow & { poster: string | null };
 
-	const rowsStream = streamed(() => items, [] as HistoryRow[]);
+	let { items }: { items: Promise<EnrichedRow[]> } = $props();
+
+	// The load already joined these to addon meta (poster + clean title), so
+	// rows arrive named rather than showing a raw content id until a client
+	// query lands. The local library mirror still wins where it has an entry —
+	// it reflects an add/remove made this session.
+	const rowsStream = streamed(() => items, [] as EnrichedRow[]);
 	const ssrItems = $derived(rowsStream.current);
 
-	// Posters + clean titles: the local library mirror first, then the client-side
-	// `watchHistory` query which enriches from the addons (the load ships raw
-	// rows only, so a slow provider never stalls the page).
-	const enrichQuery = watchHistory();
 	const posters = $derived(
 		new Map<string, string | null>([
+			...ssrItems.map((item) => [item.contentId, item.poster] as const),
 			...sync.library.map(
 				(entry) => [entry.contentId, entry.poster ?? null] as const,
-			),
-			...(enrichQuery.current ?? []).map(
-				(item) => [item.contentId, item.poster ?? null] as const,
 			),
 		]),
 	);
 	const names = $derived(
 		new Map<string, string>([
-			...sync.library.map((entry) => [entry.contentId, entry.name] as const),
 			...ssrItems.map((item) => [item.contentId, item.title] as const),
-			...(enrichQuery.current ?? []).map(
-				(item) => [item.contentId, item.title] as const,
-			),
+			...sync.library.map((entry) => [entry.contentId, entry.name] as const),
 		]),
 	);
 

@@ -4,23 +4,16 @@ import type { AddonInput } from "#lib/nuvio/index.js";
 import { command, getRequestEvent, query } from "$app/server";
 import { fetchManifest } from "./manifest.ts";
 import {
+	catalogPage,
 	getAddonClient,
 	getRegistry,
+	homeCatalogRows,
 	invalidateRegistry,
 	requireProfile,
+	searchAllCatalogs,
+	similarToTitle,
+	titleMeta,
 } from "./server.ts";
-import type { MetaPreview } from "./types.ts";
-
-function catalogSupports(
-	catalog: { extraSupported?: string[]; extra?: Array<{ name: string }> },
-	key: string,
-): boolean {
-	return (
-		catalog.extraSupported ??
-		catalog.extra?.map((entry) => entry.name) ??
-		[]
-	).includes(key);
-}
 
 export const installedAddons = query(async () => {
 	const { event, profileId } = requireProfile();
@@ -140,26 +133,15 @@ const catalogSchema = v.object({
 	search: v.optional(v.string()),
 });
 
-export const browseCatalog = query(
-	catalogSchema,
-	async ({ type, id, addonId, genre, skip, search }) => {
-		const { client } = await getAddonClient();
-		const result = await client.getCatalog(
-			{ type, id, genre, skip, search },
-			addonId,
-		);
-		if (!result) {
-			error(404, "Catalog not found");
-		}
-		return {
-			metas: result.metas,
-			addon: {
-				id: result.from.addon.manifest.id,
-				name: result.from.addon.manifest.name,
-			},
-		};
-	},
-);
+/** Client-initiated paging ("Load more"). The *first* page comes from the
+ *  discover load instead — see `catalogPage` in `server.ts`. */
+export const browseCatalog = query(catalogSchema, async (selector) => {
+	const page = await catalogPage(selector);
+	if (!page) {
+		error(404, "Catalog not found");
+	}
+	return page;
+});
 
 /** Every `addon_catalog` an installed addon advertises — a directory of other addons. */
 export const addonCatalogSources = query(async () => {
@@ -185,15 +167,16 @@ export const browseAddonCatalog = query(
 	},
 );
 
+/** One-off client lookups (e.g. "mark all watched" from a poster). The
+ *  detail / player loads call `titleMeta` directly. */
 export const getMeta = query(
 	v.object({ type: v.string(), id: v.string() }),
 	async ({ type, id }) => {
-		const { client } = await getAddonClient();
-		const result = await client.getMeta(type, id);
+		const result = await titleMeta(type, id);
 		if (!result) {
 			error(404, "No metadata for this title");
 		}
-		return { meta: result.meta, addonName: result.addon.manifest.name };
+		return result;
 	},
 );
 
@@ -210,119 +193,20 @@ export const getStreams = query(
  * approximate it: the biggest catalog of the right type, filtered to a shared
  * genre, minus the title itself.
  */
+/** Kept for parity; the detail load calls `similarToTitle` directly. */
 export const similarTitles = query(
 	v.object({
 		type: v.string(),
 		id: v.string(),
 		genres: v.array(v.string()),
 	}),
-	async ({ type, id, genres }) => {
-		const { client, registry } = await getAddonClient();
-		const candidates = registry
-			.catalogs()
-			.filter(
-				({ catalog }) =>
-					catalog.type === type && !catalog.extraRequired?.length,
-			)
-			.slice(0, 6);
-		if (candidates.length === 0) {
-			return { metas: [] };
-		}
-		const wanted = genres.slice(0, 2);
-		// Fan every (genre × catalog) probe out at once, then take the first —
-		// genre-major, then catalog order — that yields enough titles.
-		const probes = (wanted.length > 0 ? wanted : [undefined]).flatMap((genre) =>
-			candidates.map(({ addon, catalog }) => ({ genre, addon, catalog })),
-		);
-		const results = await Promise.allSettled(
-			probes.map(({ genre, addon, catalog }) =>
-				client.getCatalog(
-					{ type: catalog.type, id: catalog.id, genre },
-					addon.manifest.id,
-				),
-			),
-		);
-		for (const result of results) {
-			if (result.status !== "fulfilled") {
-				continue;
-			}
-			const metas = (result.value?.metas ?? [])
-				.filter((meta) => meta.id !== id)
-				.slice(0, 20);
-			if (metas.length >= 6) {
-				return { metas };
-			}
-		}
-		return { metas: [] };
-	},
+	({ type, id, genres }) => similarToTitle(type, id, genres),
 );
 
-export const homeRows = query(async () => {
-	const { client, registry } = await getAddonClient();
-	const catalogs = registry
-		.catalogs()
-		.filter(({ catalog }) => !catalog.extraRequired?.length)
-		.slice(0, 8);
+export const homeRows = query(async () => homeCatalogRows());
 
-	const rows = await Promise.all(
-		catalogs.map(async ({ addon, catalog }) => {
-			try {
-				const result = await client.getCatalog(
-					{ type: catalog.type, id: catalog.id },
-					addon.manifest.id,
-				);
-				return {
-					addonId: addon.manifest.id,
-					addonName: addon.manifest.name,
-					type: catalog.type,
-					id: catalog.id,
-					title: catalog.name ?? addon.manifest.name,
-					metas: (result?.metas ?? []).slice(0, 20),
-				};
-			} catch {
-				return null;
-			}
-		}),
-	);
-
-	return rows.filter(
-		(row): row is NonNullable<typeof row> =>
-			row != null && row.metas.length > 0,
-	);
-});
-
+/** Kept for parity; the search load calls `searchAllCatalogs` directly. */
 export const searchCatalogs = query(
 	v.pipe(v.string(), v.trim(), v.minLength(1)),
-	async (term) => {
-		const { client, registry } = await getAddonClient();
-
-		const searchable = registry
-			.catalogs()
-			.filter(({ catalog }) => catalogSupports(catalog, "search"));
-
-		const batches = await Promise.all(
-			searchable.map(async ({ addon, catalog }) => {
-				try {
-					const result = await client.getCatalog(
-						{ type: catalog.type, id: catalog.id, search: term },
-						addon.manifest.id,
-					);
-					return result?.metas ?? [];
-				} catch {
-					return [];
-				}
-			}),
-		);
-
-		const seen = new Set<string>();
-		const metas: MetaPreview[] = [];
-		for (const meta of batches.flat()) {
-			const key = `${meta.type}:${meta.id}`;
-			if (!seen.has(key)) {
-				seen.add(key);
-				metas.push(meta);
-			}
-		}
-		return { metas };
-	},
+	(term) => searchAllCatalogs(term),
 );

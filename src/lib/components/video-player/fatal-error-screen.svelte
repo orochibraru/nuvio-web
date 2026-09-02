@@ -5,6 +5,8 @@
 	import LayersIcon from "@lucide/svelte/icons/layers";
 	import TriangleAlertIcon from "@lucide/svelte/icons/triangle-alert";
 	import { Button } from "#lib/components/ui/button/index.js";
+	import { externalPlayerHandoff } from "#lib/watch/external-player.js";
+	import { browser } from "$app/env";
 
 	let {
 		message,
@@ -19,6 +21,21 @@
 		onBack?: () => void;
 	} = $props();
 
+	// A deep link where the OS has one (mobile), otherwise copying the URL —
+	// desktop registers no player scheme.
+	const handoff = $derived(
+		browser
+			? externalPlayerHandoff({ url: externalUrl }, navigator.userAgent)
+			: null,
+	);
+
+	async function playExternally() {
+		if (handoff?.kind !== "copy") {
+			return;
+		}
+		await copyExternal();
+	}
+
 	let linkCopied = $state(false);
 	async function copyExternal() {
 		if (!externalUrl) {
@@ -31,7 +48,7 @@
 				linkCopied = false;
 			}, 2000);
 		} catch {
-			// clipboard blocked — the VLC link is still there
+			// clipboard blocked — the deep link (where there is one) still is
 		}
 	}
 </script>
@@ -49,9 +66,15 @@
       </Button>
     {/if}
     {#if externalUrl}
-      <Button variant="secondary" href={`vlc://${externalUrl}`}>
-        <ExternalLinkIcon data-icon="inline-start" /> Open in VLC
-      </Button>
+      {#if handoff?.kind === "link"}
+        <Button variant="secondary" href={handoff.href}>
+          <ExternalLinkIcon data-icon="inline-start" /> Play in external player
+        </Button>
+      {:else if handoff?.kind === "copy"}
+        <Button variant="secondary" onclick={playExternally}>
+          <ExternalLinkIcon data-icon="inline-start" /> Play in external player
+        </Button>
+      {/if}
       <Button variant="ghost" onclick={copyExternal}>
         {#if linkCopied}
           <CheckIcon data-icon="inline-start" /> Copied

@@ -242,6 +242,39 @@ test("player fatal screen offers an external-player handoff", async ({
 	const errors = collectRuntimeErrors(page);
 
 	// A non-media src trips MEDIA_ERR_SRC_NOT_SUPPORTED → the fatal screen.
+	const fatal = `/dev/player?${new URLSearchParams({
+		src: "/e2e/errors.ts",
+		external: "https://cdn.example/movie.mkv",
+	}).toString()}`;
+
+	await page.goto(fatal);
+	await page.waitForLoadState("networkidle").catch(() => {});
+
+	const player = page.getByRole("region", { name: "Video player" });
+	// Desktop registers no player URL scheme, so the button copies the link
+	// rather than deep-linking — but it is always offered, because the screen
+	// says an external player is an option.
+	const play = player.getByRole("button", { name: "Play in external player" });
+	await expect(play).toBeVisible({ timeout: 10_000 });
+	await expect(player.getByRole("button", { name: "Copy link" })).toBeVisible();
+
+	await page.waitForTimeout(500);
+	expect(errors, "runtime errors").toEqual([]);
+});
+
+test("external-player handoff hands Android's OS chooser a real Intent URL", async ({
+	browser,
+}) => {
+	// The scheme can't just be glued in front of the URL: `vlc://https://host`
+	// parses as authority `https:` and the colon is dropped, which is what made
+	// the old button a no-op.
+	const context = await browser.newContext({
+		userAgent:
+			"Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36",
+	});
+	const page = await context.newPage();
+	const errors = collectRuntimeErrors(page);
+
 	await page.goto(
 		`/dev/player?${new URLSearchParams({
 			src: "/e2e/errors.ts",
@@ -250,17 +283,18 @@ test("player fatal screen offers an external-player handoff", async ({
 	);
 	await page.waitForLoadState("networkidle").catch(() => {});
 
-	const player = page.getByRole("region", { name: "Video player" });
-	const vlc = player.getByRole("link", { name: "Open in VLC" });
-	await expect(vlc).toBeVisible({ timeout: 10_000 });
-	await expect(vlc).toHaveAttribute(
+	const open = page
+		.getByRole("region", { name: "Video player" })
+		.getByRole("link", { name: "Play in external player" });
+	await expect(open).toBeVisible({ timeout: 10_000 });
+	await expect(open).toHaveAttribute(
 		"href",
-		"vlc://https://cdn.example/movie.mkv",
+		"intent://cdn.example/movie.mkv#Intent;scheme=https;action=android.intent.action.VIEW;type=video/*;end",
 	);
-	await expect(player.getByRole("button", { name: "Copy link" })).toBeVisible();
 
 	await page.waitForTimeout(500);
 	expect(errors, "runtime errors").toEqual([]);
+	await context.close();
 });
 
 test("video-decode watchdog surfaces a dismissible banner, never a wall", async ({
@@ -356,6 +390,29 @@ test("player seeks to startTime and leaves cleanly", async ({ page }) => {
 	expect(errors, "runtime errors leaving the player").toEqual([]);
 });
 
+test("player Back goes to the title's detail page, not wherever history points", async ({
+	page,
+	context,
+}) => {
+	await signIn(context);
+	const errors = collectRuntimeErrors(page);
+
+	// Opened directly, so there is no history to go back to — the old
+	// `history.back()` had nothing to do here. An episode also proves the
+	// destination uses the *content* id, not the video id (`tt0903747:1:1`).
+	await page.goto("/player/series/tt0903747:1:1");
+	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
+
+	await page.getByRole("button", { name: "Back" }).first().click();
+	await expect(page).toHaveURL(/\/detail\/series\/tt0903747$/);
+	await expect(
+		page.getByRole("heading", { name: /Breaking Bad/i }).first(),
+	).toBeVisible({ timeout: 20_000 });
+
+	await page.waitForTimeout(500);
+	expect(errors, "runtime errors").toEqual([]);
+});
+
 test("player episode drawer: season switcher + jump to another episode", async ({
 	page,
 	context,
@@ -437,5 +494,46 @@ test("sync: an optimistic write survives an immediate navigation", async ({
 		await expect(t2).toHaveText(/Add to library/i, { timeout: 10_000 });
 	}
 
+	expect(errors, "runtime errors").toEqual([]);
+});
+
+test("player: the cast button shows only when a device is available", async ({
+	page,
+}) => {
+	const errors = collectRuntimeErrors(page);
+
+	// Headless Chromium exposes the Remote Playback API but never finds a
+	// device, so the button stays hidden rather than dangling uselessly.
+	await page.goto(harness());
+	await expect(
+		page.getByRole("region", { name: "Video player" }),
+	).toBeVisible();
+	await expect(page.getByRole("button", { name: "Cast" })).toHaveCount(0);
+
+	// Fake a device turning up on the network.
+	await page.addInitScript(() => {
+		Object.defineProperty(HTMLMediaElement.prototype, "remote", {
+			configurable: true,
+			get() {
+				return {
+					state: "disconnected",
+					prompt: () => Promise.resolve(),
+					watchAvailability: (cb: (available: boolean) => void) => {
+						setTimeout(() => cb(true), 0);
+						return Promise.resolve(1);
+					},
+					cancelWatchAvailability: () => Promise.resolve(),
+					addEventListener: () => {},
+					removeEventListener: () => {},
+				};
+			},
+		});
+	});
+	await page.goto(harness());
+	await expect(page.getByRole("button", { name: "Cast" })).toBeVisible({
+		timeout: 10_000,
+	});
+
+	await page.waitForTimeout(500);
 	expect(errors, "runtime errors").toEqual([]);
 });

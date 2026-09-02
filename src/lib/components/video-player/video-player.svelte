@@ -3,6 +3,7 @@
 	import { subtitleFontSize } from "#lib/settings/ui-settings.js";
 	import { cn } from "#lib/utils.js";
 	import { handlePlayerKey } from "#lib/watch/player-keymap.js";
+	import { createRemotePlayback } from "#lib/watch/remote-playback.svelte.js";
 	import { createInfoOverlayController } from "./info-overlay-controller.svelte.js";
 	import { createPanelToggles } from "./panel-toggles.svelte.js";
 	import { createPlaybackDiagnostics } from "./playback-diagnostics.svelte.js";
@@ -137,6 +138,10 @@
 		video: () => video,
 		preferredLanguage: () => preferredLanguage,
 	});
+
+	// Cast to a TV via whichever API the browser has (Remote Playback /
+	// AirPlay). The button hides itself when there's no device to cast to.
+	const remotePlayback = createRemotePlayback({ video: () => video });
 
 	const bufferedEnd = $derived(transport.buffered.at(-1)?.end ?? 0);
 	const progressRatio = $derived(
@@ -293,6 +298,9 @@
     {onEpisodes}
     hasSubtitles={captions.options.length > 0}
     activeCaption={captions.activeCaption}
+    castAvailable={remotePlayback.available}
+    casting={remotePlayback.connected}
+    onCast={remotePlayback.prompt}
     onToggleSubtitles={panels.toggleSubtitles}
     onSettingsOpenChange={panels.setSettingsOpen}
   />

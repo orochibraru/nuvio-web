@@ -6,27 +6,18 @@ const state = {
 	getMeta: vi.fn(),
 };
 
-vi.mock("$app/server", () => ({
-	query: (schemaOrFn: unknown, fn?: unknown) => fn ?? schemaOrFn,
-	getRequestEvent: () => ({ locals: {}, fetch }),
-}));
+import type { NuvioClient } from "#lib/nuvio/index.js";
+import { pullWatchStats } from "./stats-data.ts";
 
-vi.mock("#lib/server/guards.js", () => ({
-	requireProfile: () => ({
-		event: { locals: {}, fetch },
-		nuvio: {
-			watchProgress: { pull: state.progressPull },
-			watchHistory: { pull: state.historyPull },
-		},
-		profileId: 1,
-	}),
-}));
+function nuvio(): NuvioClient {
+	return {
+		watchProgress: { pull: state.progressPull },
+		watchHistory: { pull: state.historyPull },
+	} as unknown as NuvioClient;
+}
 
-vi.mock("#lib/addons/server.js", () => ({
-	getAddonClient: async () => ({ client: { getMeta: state.getMeta } }),
-}));
-
-import { watchStats } from "./stats.remote.js";
+const lookup = () => async (_type: string, id: string) =>
+	(await state.getMeta(_type, id))?.meta ?? null;
 
 beforeEach(() => {
 	state.progressPull = vi.fn(async () => []);
@@ -34,9 +25,9 @@ beforeEach(() => {
 	state.getMeta = vi.fn(async () => null);
 });
 
-describe("watchStats", () => {
+describe("pullWatchStats", () => {
 	it("returns a zeroed report with no data", async () => {
-		expect(await watchStats()).toMatchObject({
+		expect(await pullWatchStats(nuvio(), 1, lookup())).toMatchObject({
 			movieMinutes: 0,
 			seriesMinutes: 0,
 			movieCount: 0,
@@ -54,7 +45,7 @@ describe("watchStats", () => {
 			{ content_type: "series", position: 1_200_000, duration: 1_800_000 },
 		]);
 
-		const out = await watchStats();
+		const out = await pullWatchStats(nuvio(), 1, lookup());
 		expect(out.movieMinutes).toBe(70); // 60 + 10 (clamped)
 		expect(out.seriesMinutes).toBe(20);
 		expect(out.preferredFormat).toBe("movie");
@@ -71,7 +62,7 @@ describe("watchStats", () => {
 			meta: { genres: id === "s1" ? ["Drama", "Crime"] : ["Drama"] },
 		}));
 
-		const out = await watchStats();
+		const out = await pullWatchStats(nuvio(), 1, lookup());
 		expect(out.movieCount).toBe(1);
 		expect(out.seriesCount).toBe(1);
 		expect(out.episodeCount).toBe(2);
@@ -88,6 +79,8 @@ describe("watchStats", () => {
 		state.historyPull = vi.fn(async () => {
 			throw new Error("y");
 		});
-		expect(await watchStats()).toMatchObject({ movieMinutes: 0 });
+		expect(await pullWatchStats(nuvio(), 1, lookup())).toMatchObject({
+			movieMinutes: 0,
+		});
 	});
 });

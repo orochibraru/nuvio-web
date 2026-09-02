@@ -15,6 +15,9 @@ export interface SelectedStream {
 	notWebReady: boolean;
 	label: string;
 	addonName: string;
+	/** Torrent info hash, when this is a P2P stream — the player builds the
+	 *  `magnet:` handoff from it, since there's no http url to hand over. */
+	infoHash: string | null;
 	/** The label hints at an audio codec the browser probably can't decode. */
 	audioRisky: boolean;
 	/** The label hints at a video codec the browser probably can't decode. */
@@ -39,6 +42,7 @@ class PlaybackHandoff {
 			notWebReady: stream.notWebReady,
 			label,
 			addonName: stream.addonName,
+			infoHash: stream.infoHash,
 			audioRisky: audioSupport(stream) === "risky",
 			videoRisky: videoSupport(stream) === "risky",
 			videoCodec: riskyVideoCodec(stream),

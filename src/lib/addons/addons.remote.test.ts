@@ -16,6 +16,11 @@ const { state } = vi.hoisted(() => ({
 		getMeta: vi.fn(),
 		getStreams: vi.fn(),
 		getAddonCatalog: vi.fn(),
+		catalogPage: vi.fn(),
+		titleMeta: vi.fn(),
+		homeCatalogRows: vi.fn(),
+		searchAllCatalogs: vi.fn(),
+		similarToTitle: vi.fn(),
 	},
 }));
 
@@ -67,6 +72,11 @@ vi.mock("./server.ts", () => ({
 		registry: state.registry,
 	}),
 	invalidateRegistry: state.invalidateRegistry,
+	catalogPage: state.catalogPage,
+	titleMeta: state.titleMeta,
+	homeCatalogRows: state.homeCatalogRows,
+	searchAllCatalogs: state.searchAllCatalogs,
+	similarToTitle: state.similarToTitle,
 }));
 
 import {
@@ -74,12 +84,9 @@ import {
 	browseAddonCatalog,
 	browseCatalog,
 	getMeta,
-	homeRows,
 	installedAddons,
 	previewAddon,
 	saveAddons,
-	searchCatalogs,
-	similarTitles,
 } from "./addons.remote.js";
 
 beforeEach(() => {
@@ -96,6 +103,11 @@ beforeEach(() => {
 	state.getCatalog.mockReset().mockResolvedValue({ metas: [] });
 	state.getMeta.mockReset().mockResolvedValue(null);
 	state.getAddonCatalog.mockReset().mockResolvedValue({ addons: [] });
+	state.catalogPage.mockReset().mockResolvedValue({ metas: [], addon: {} });
+	state.titleMeta.mockReset().mockResolvedValue(null);
+	state.homeCatalogRows.mockReset().mockResolvedValue([]);
+	state.searchAllCatalogs.mockReset().mockResolvedValue({ metas: [] });
+	state.similarToTitle.mockReset().mockResolvedValue({ metas: [] });
 });
 
 describe("installedAddons", () => {
@@ -189,122 +201,28 @@ describe("saveAddons", () => {
 
 describe("browseCatalog / getMeta", () => {
 	it("browseCatalog throws 404 when the catalog is missing", async () => {
-		state.getCatalog.mockResolvedValue(null);
+		state.catalogPage.mockResolvedValue(null);
 		await expect(
 			browseCatalog({ type: "movie", id: "nope" }),
 		).rejects.toMatchObject({ status: 404 });
 	});
 
 	it("getMeta throws 404 when no addon has metadata", async () => {
-		state.getMeta.mockResolvedValue(null);
+		state.titleMeta.mockResolvedValue(null);
 		await expect(getMeta({ type: "movie", id: "tt0" })).rejects.toMatchObject({
 			status: 404,
 		});
 	});
 
-	it("getMeta returns the meta + addon name on a hit", async () => {
-		state.getMeta.mockResolvedValue({
+	it("getMeta returns what the lookup found", async () => {
+		state.titleMeta.mockResolvedValue({
 			meta: { name: "M" },
-			addon: { manifest: { name: "Cinemeta" } },
+			addonName: "Cinemeta",
 		});
 		expect(await getMeta({ type: "movie", id: "tt1" })).toEqual({
 			meta: { name: "M" },
 			addonName: "Cinemeta",
 		});
-	});
-});
-
-describe("similarTitles", () => {
-	const cat = (id: string) => ({
-		addon: { manifest: { id: `a-${id}` } },
-		catalog: { type: "movie", id },
-	});
-
-	it("returns the first probe that yields at least six other titles", async () => {
-		state.registry.catalogs = vi.fn(() => [cat("top"), cat("new")]);
-		state.getCatalog.mockImplementation(async (sel: { genre?: string }) => ({
-			metas:
-				sel.genre === "Drama"
-					? Array.from({ length: 8 }, (_, i) => ({
-							id: `m${i}`,
-							type: "movie",
-						}))
-					: [],
-		}));
-
-		const out = await similarTitles({
-			type: "movie",
-			id: "m0",
-			genres: ["Drama", "Crime"],
-		});
-		// the seed title itself is filtered out
-		expect(out.metas).toHaveLength(7);
-		expect(out.metas.some((m) => m.id === "m0")).toBe(false);
-	});
-
-	it("returns nothing when there are no candidate catalogs", async () => {
-		state.registry.catalogs = vi.fn(() => []);
-		expect(
-			await similarTitles({ type: "movie", id: "m0", genres: [] }),
-		).toEqual({ metas: [] });
-	});
-});
-
-describe("homeRows", () => {
-	it("drops rows whose catalog returned nothing", async () => {
-		state.registry.catalogs = vi.fn(() => [
-			{
-				addon: { manifest: { id: "a", name: "A" } },
-				catalog: { type: "movie", id: "full", name: "Full" },
-			},
-			{
-				addon: { manifest: { id: "b", name: "B" } },
-				catalog: { type: "movie", id: "empty", name: "Empty" },
-			},
-		]);
-		state.getCatalog.mockImplementation(async (sel: { id: string }) => ({
-			metas: sel.id === "full" ? [{ id: "m1", type: "movie" }] : [],
-		}));
-
-		const out = await homeRows();
-		expect(out).toHaveLength(1);
-		expect(out[0]).toMatchObject({ title: "Full", id: "full" });
-	});
-});
-
-describe("searchCatalogs", () => {
-	it("merges results across searchable catalogs and de-dupes by type:id", async () => {
-		state.registry.catalogs = vi.fn(() => [
-			{
-				addon: { manifest: { id: "a" } },
-				catalog: { type: "movie", id: "s1", extraSupported: ["search"] },
-			},
-			{
-				addon: { manifest: { id: "b" } },
-				catalog: { type: "movie", id: "s2", extra: [{ name: "search" }] },
-			},
-			{
-				addon: { manifest: { id: "c" } },
-				catalog: { type: "movie", id: "s3" },
-			},
-		]);
-		state.getCatalog.mockImplementation(async (sel: { id: string }) => ({
-			metas:
-				sel.id === "s1"
-					? [
-							{ id: "m1", type: "movie" },
-							{ id: "m2", type: "movie" },
-						]
-					: [
-							{ id: "m2", type: "movie" },
-							{ id: "m3", type: "movie" },
-						],
-		}));
-
-		const out = await searchCatalogs("bat");
-		expect(out.metas.map((m) => m.id)).toEqual(["m1", "m2", "m3"]);
-		// s3 doesn't advertise search → never queried
-		expect(state.getCatalog).toHaveBeenCalledTimes(2);
 	});
 });
 

@@ -3,18 +3,24 @@
 	import SearchIcon from "@lucide/svelte/icons/search";
 	import XIcon from "@lucide/svelte/icons/x";
 	import { untrack } from "svelte";
-	import { homeRows, searchCatalogs } from "#lib/addons/addons.remote.js";
 	import MediaGrid from "#lib/components/media-grid.svelte";
 	import MediaRow from "#lib/components/media-row.svelte";
 	import QueryError from "#lib/components/query-error.svelte";
 	import { Input } from "#lib/components/ui/input/index.js";
-	import { QUERY_TTL, ttlPrime } from "#lib/query-cache.js";
 	import { searchHistory } from "#lib/search-history.svelte.js";
 	import { pageTitle } from "#lib/stores/title.svelte.js";
+	import { streamed } from "#lib/stream.svelte.js";
 	import { browser } from "$app/env";
-	import { afterNavigate, beforeNavigate, goto } from "$app/navigation";
+	import {
+		afterNavigate,
+		beforeNavigate,
+		goto,
+		invalidateAll,
+	} from "$app/navigation";
 	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
+
+	let { data } = $props();
 
 	// A native `autofocus` pops the on-screen keyboard the instant a touch
 	// device paints this page, before the viewer has asked to type — only
@@ -78,29 +84,28 @@
 		}
 	});
 
-	// Addon results are profile-scoped — fold the profile into every TTL-cache
-	// key so a cached hit never leaks across profiles sharing this browser.
-	const profileIndex = $derived(page.data.profile?.profile_index ?? 0);
-	const results = $derived(term ? searchCatalogs(term) : undefined);
-	$effect(() => {
-		if (results) {
-			ttlPrime(
-				results,
-				`search:${profileIndex}:${term.toLowerCase()}`,
-				QUERY_TTL.search,
-			);
-		}
-	});
+	// Results are resolved by the load from `?q=` and streamed down with the
+	// page, so they don't wait on hydration plus a round trip. `null` once
+	// ready means the addons couldn't be reached (as opposed to no matches).
+	const resultsStream = streamed(
+		() => data.results ?? undefined,
+		null as Awaited<typeof data.results>,
+	);
+	const results = $derived(resultsStream.current);
+	const resultsLoading = $derived(Boolean(term) && !resultsStream.ready);
+	const resultsFailed = $derived(
+		Boolean(term) && resultsStream.ready && results === null,
+	);
 
 	// Record a term once its results come back non-empty (local-only history).
 	$effect(() => {
-		if (term && (results?.current?.metas.length ?? 0) > 0) {
+		if (term && (results?.metas.length ?? 0) > 0) {
 			untrack(() => searchHistory.record(term));
 		}
 	});
 
 	const groups = $derived.by(() => {
-		const metas = results?.current?.metas ?? [];
+		const metas = results?.metas ?? [];
 		const movies = metas.filter((meta) => meta.type === "movie");
 		const series = metas.filter((meta) => meta.type === "series");
 		const other = metas.filter(
@@ -115,17 +120,17 @@
 	}
 
 	// Discover fallback — shown when there's no query, or when a query returned
-	// nothing. Same catalog rows as the home feed, same TTL-cache key, so this
-	// reuses whatever the home page already fetched/cached this session.
-	const browseQuery = $derived(homeRows());
-	$effect(() => {
-		ttlPrime(browseQuery, `homeRows:${profileIndex}`, QUERY_TTL.catalog);
-	});
-	const browseRows = $derived((browseQuery.current ?? []).slice(0, 8));
+	// nothing. Same catalog rows as the home feed, fetched by this page's load.
+	const browseStream = streamed(
+		() => data.browseRows,
+		[] as Awaited<typeof data.browseRows>,
+	);
+	const browseRows = $derived(browseStream.current.slice(0, 8));
+	const browseLoading = $derived(!browseStream.ready);
 </script>
 
 {#snippet discoverRows()}
-	{#if browseQuery.current === undefined}
+	{#if browseLoading}
 		<MediaGrid items={[]} loading skeletonCount={12} />
 	{:else}
 		{#each browseRows as row (`${row.addonId}:${row.type}:${row.id}`)}
@@ -196,15 +201,15 @@
 			</div>
 		{/if}
 		{@render discoverRows()}
-	{:else if results?.error}
+	{:else if resultsFailed}
 		<QueryError
 			message="Search failed."
-			onRetry={() => results?.refresh()}
+			onRetry={() => invalidateAll()}
 			class="mt-6"
 		/>
-	{:else if !results?.current}
+	{:else if resultsLoading || !results}
 		<MediaGrid items={[]} loading />
-	{:else if results.current.metas.length === 0}
+	{:else if results.metas.length === 0}
 		<div class="flex flex-col gap-8">
 			<p class="text-sm text-muted-foreground">
 				No results for "{term}". You might like:

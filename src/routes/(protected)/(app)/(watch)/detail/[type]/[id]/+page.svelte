@@ -17,7 +17,6 @@
 	import PlayCircleIcon from "@lucide/svelte/icons/play-circle";
 	import PlusIcon from "@lucide/svelte/icons/plus";
 	import { toast } from "svelte-sonner";
-	import { getMeta, similarTitles } from "#lib/addons/addons.remote.js";
 	import CastRow from "#lib/components/cast-row.svelte";
 	import MediaHero from "#lib/components/media-hero.svelte";
 	import MediaRow from "#lib/components/media-row.svelte";
@@ -26,9 +25,9 @@
 	import TrailerModal from "#lib/components/trailer-modal.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { libraryIds } from "#lib/library/library.remote.js";
-	import { QUERY_TTL, ttlPrime } from "#lib/query-cache.js";
 	import { theme } from "#lib/settings/theme.svelte.js";
 	import { pageTitle } from "#lib/stores/title.svelte.js";
+	import { streamed } from "#lib/stream.svelte.js";
 	import { sync } from "#lib/sync/store.svelte.js";
 	import { cn } from "#lib/utils.js";
 	import { playOrder } from "#lib/watch/playback-context.js";
@@ -47,29 +46,31 @@
 	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
 
+	let { data } = $props();
+
 	const type = $derived(page.params.type ?? "movie");
 	const id = $derived(page.params.id ?? "");
 	const contentType = $derived(type === "series" ? "series" : "movie");
-	// Addon results are profile-scoped (different profiles can have different
-	// addons installed) — fold the profile into every TTL-cache key so a
-	// cached hit never leaks across profiles sharing this browser.
-	const profileIndex = $derived(page.data.profile?.profile_index ?? 0);
-
 	// The source drawer itself lives in the (watch) layout, driven by module state.
 	function openSources(videoId: string) {
 		sourcesPanel.open(type, videoId);
 	}
 
-	const metaQuery = $derived(getMeta({ type, id }));
-	$effect(() => {
-		ttlPrime(metaQuery, `meta:${profileIndex}:${type}:${id}`, QUERY_TTL.meta);
-	});
+	// Meta + "more like this" are resolved by the load from the route params and
+	// streamed down with the page, so the addon fetch starts server-side rather
+	// than after hydration and a second round trip. `null` once ready means no
+	// installed addon had this title.
+	const metaStream = streamed(
+		() => data.meta,
+		null as Awaited<typeof data.meta>,
+	);
+	const metaFailed = $derived(metaStream.ready && metaStream.current === null);
 	const libraryQuery = libraryIds();
 	const progressQuery = $derived(titleProgress({ contentId: id }));
 	const progress = $derived(
 		sync.authoritative ? sync.titleProgress(id) : (progressQuery.current ?? {}),
 	);
-	const meta = $derived(metaQuery.current?.meta);
+	const meta = $derived(metaStream.current?.meta);
 
 	// A non-reactive-in-template mirror of `meta`: only ever set to a real object,
 	// cleared only when the query has no result. A `forkPreloads` speculative
@@ -79,7 +80,7 @@
 	$effect(() => {
 		if (meta) {
 			stableMeta = meta;
-		} else if (!metaQuery.current) {
+		} else if (metaStream.ready) {
 			stableMeta = undefined;
 		}
 	});
@@ -101,19 +102,8 @@
 	// the hero on small screens.
 	let synopsisExpanded = $state(false);
 
-	const similarQuery = $derived(
-		meta ? similarTitles({ type, id, genres: meta.genres ?? [] }) : undefined,
-	);
-	$effect(() => {
-		if (similarQuery) {
-			ttlPrime(
-				similarQuery,
-				`similar:${profileIndex}:${type}:${id}`,
-				QUERY_TTL.catalog,
-			);
-		}
-	});
-	const similar = $derived(similarQuery?.current?.metas ?? []);
+	const similarStream = streamed(() => data.similar, { metas: [] });
+	const similar = $derived(similarStream.current.metas);
 
 	const rating = $derived(
 		typeof meta?.imdbRating === "number"
@@ -397,7 +387,7 @@
     <ArrowLeftIcon class="size-4" /> Back
   </button>
 
-  {#if metaQuery.error}
+  {#if metaFailed}
     <div class="pt-28">
       <div
         class="mx-auto max-w-md rounded-2xl border border-border/60 bg-linear-to-b from-muted/40 to-transparent px-6 py-14 text-center"

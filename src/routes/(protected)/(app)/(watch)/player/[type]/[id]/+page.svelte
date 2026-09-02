@@ -14,8 +14,10 @@
 	import { theme } from "#lib/settings/theme.svelte.js";
 	import type { UiSettings } from "#lib/settings/ui-settings.js";
 	import { pageTitle } from "#lib/stores/title.svelte.js";
+	import { streamed } from "#lib/stream.svelte.js";
 	import { sync } from "#lib/sync/store.svelte.js";
 	import { browserCanPlayCodec } from "#lib/watch/codec-support.js";
+	import { externalPlayerHandoff } from "#lib/watch/external-player.js";
 	import {
 		forgetLink,
 		playbackHandoff,
@@ -34,25 +36,31 @@
 	} from "#lib/watch/stream-format.js";
 	import {
 		getSubtitles,
-		playbackContext,
 		resolveStreams,
 		titleProgress,
 	} from "#lib/watch/watch.remote.js";
 	import { EMPTY_PROVIDERS } from "#lib/watch/watch-providers.js";
 	import { watchProviders } from "#lib/watch/watch-providers.remote.js";
 	import WatchProvidersList from "#lib/watch/watch-providers-list.svelte";
+	import { browser } from "$app/env";
 	import { goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
 
+	let { data } = $props();
+
 	const type = $derived(page.params.type ?? "movie");
 	const id = $derived(page.params.id ?? "");
 
-	// Meta / resume / next-episode context loads client-side so the click that
-	// navigated here paints the player shell immediately (no server round-trip).
-	const contextQuery = $derived(playbackContext({ type, id }));
-	type PlaybackCtx = NonNullable<typeof contextQuery.current>;
-	const contextReady = $derived(contextQuery.current !== undefined);
+	// Meta / resume / next-episode context comes from the load, streamed, so
+	// the player shell still paints on navigation but doesn't then pay for a
+	// client round trip to find out what it's playing.
+	const contextStream = streamed(
+		() => data.context,
+		null as Awaited<typeof data.context>,
+	);
+	type PlaybackCtx = NonNullable<Awaited<typeof data.context>>;
+	const contextReady = $derived(contextStream.ready);
 	const contextFallback = $derived({
 		metaType: type === "series" ? "series" : "movie",
 		contentId: id.split(":")[0] ?? id,
@@ -85,7 +93,7 @@
 		resume: null,
 	} satisfies PlaybackCtx);
 	const context = $derived<PlaybackCtx>(
-		contextQuery.current ?? contextFallback,
+		contextStream.current ?? contextFallback,
 	);
 
 	$effect(() => {
@@ -155,6 +163,7 @@
 				notWebReady: autoStream.notWebReady,
 				label: describeStream(autoStream).title,
 				addonName: autoStream.addonName,
+				infoHash: autoStream.infoHash,
 			};
 		}
 		return null;
@@ -245,6 +254,7 @@
 				notWebReady: Boolean(active.notWebReady),
 				label: active.label ?? context.heading,
 				addonName: active.addonName ?? "",
+				infoHash: active.infoHash ?? null,
 				audioRisky,
 				videoRisky: videoCodec !== null,
 				videoCodec,
@@ -386,21 +396,62 @@
 		return cancelUpNext;
 	});
 
+	// Leaving the player always lands on this title's detail page. `history.back()`
+	// is a guess — it can bounce to whatever was open before, or out of the app
+	// when the player was opened directly — and the old fallback used the *video*
+	// id, so an episode (`tt0903747:1:1`) built a detail URL for a title that
+	// doesn't exist. `replaceState` so the player doesn't sit in the history for
+	// the browser's own back button to return to.
 	function goBack() {
-		if (history.length > 1) {
-			history.back();
-		} else {
-			void goto(resolve(`detail/${type}/${encodeURIComponent(id)}`));
-		}
+		void goto(
+			resolve(
+				`detail/${context.metaType}/${encodeURIComponent(context.contentId)}`,
+			),
+			{ replaceState: true },
+		);
 	}
 
 	// A stream that can't play here (P2P-only, or a codec this browser lacks) but
-	// has a direct URL — hand it to an external player (VLC scheme / copy).
+	// has a direct URL — hand it to an external player, or let the viewer copy
+	// it. `playerLink` is null on desktop, where no player registers a URL
+	// scheme, so there the copy button is the handoff.
 	const externalLink = $derived(
 		active && (active.notWebReady || codecBlocked)
 			? (active.url ?? active.externalUrl)
 			: null,
 	);
+	// What "play in an external player" can actually do here: a deep link
+	// (mobile), a `magnet:` (P2P sources — the OS's torrent app, and the only
+	// thing a magnet-only stream *can* hand over), or copying the URL on
+	// desktop, where no player registers a scheme. Never nothing while the
+	// copy above promises one.
+	const handoff = $derived(
+		browser && active
+			? externalPlayerHandoff(
+					{
+						url: active.url,
+						externalUrl: active.externalUrl,
+						infoHash: active.infoHash,
+						name: active.label ?? context.heading,
+					},
+					navigator.userAgent,
+				)
+			: null,
+	);
+
+	async function playExternally() {
+		if (handoff?.kind !== "copy") {
+			return;
+		}
+		try {
+			await navigator.clipboard.writeText(handoff.url);
+			copied = true;
+			toast.success("Link copied — paste it into your player");
+			setTimeout(() => (copied = false), 2000);
+		} catch {
+			toast.error("Couldn't copy the link");
+		}
+	}
 
 	let copied = $state(false);
 	async function copyStreamLink() {
@@ -573,25 +624,19 @@
 				<Button variant={officialCta ? "secondary" : "default"} onclick={openSources}>
 					Choose a source
 				</Button>
-				{#if externalLink}
-					<Button
-						variant="secondary"
-						href={`vlc://${externalLink}`}
-					>
-						<ExternalLinkIcon data-icon="inline-start" /> Open in VLC
+				{#if handoff?.kind === "link"}
+					<Button variant="secondary" href={handoff.href}>
+						<ExternalLinkIcon data-icon="inline-start" /> Play in external player
 					</Button>
+				{:else if handoff?.kind === "copy"}
+					<Button variant="secondary" onclick={playExternally}>
+						<ExternalLinkIcon data-icon="inline-start" /> Play in external player
+					</Button>
+				{/if}
+				{#if externalLink}
 					<Button variant="ghost" onclick={copyStreamLink}>
 						<CopyIcon data-icon="inline-start" />
 						{copied ? "Copied" : "Copy link"}
-					</Button>
-				{:else if active?.externalUrl}
-					<Button
-						variant="secondary"
-						href={active.externalUrl}
-						target="_blank"
-						rel="noopener noreferrer"
-					>
-						<ExternalLinkIcon data-icon="inline-start" /> Open externally
 					</Button>
 				{/if}
 			</div>

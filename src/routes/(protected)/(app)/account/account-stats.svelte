@@ -5,11 +5,19 @@
 	import TvIcon from "@lucide/svelte/icons/tv";
 	import QueryError from "#lib/components/query-error.svelte";
 	import * as Card from "#lib/components/ui/card/index.js";
-	import { watchStats } from "#lib/stats/stats.remote.js";
+	import type { WatchStats } from "#lib/stats/stats-data.js";
+	import { streamed } from "#lib/stream.svelte.js";
+	import { invalidateAll } from "$app/navigation";
 	import { resolve } from "$app/paths";
 
-	const statsQuery = watchStats();
-	const stats = $derived(statsQuery.current);
+	let { stats: streamedStats }: { stats: Promise<WatchStats | null> } =
+		$props();
+
+	// Resolved by the account load and streamed down — `null` once ready means
+	// the pull failed, which the retry below covers.
+	const statsStream = streamed(() => streamedStats, null as WatchStats | null);
+	const stats = $derived(statsStream.current);
+	const statsFailed = $derived(statsStream.ready && stats === null);
 	const totalMinutes = $derived(
 		(stats?.movieMinutes ?? 0) + (stats?.seriesMinutes ?? 0),
 	);
@@ -29,10 +37,10 @@
 </script>
 
 <div class="flex flex-col gap-6">
-	{#if statsQuery.error}
+	{#if statsFailed}
 		<QueryError
 			message="Couldn't load your stats."
-			onRetry={() => statsQuery.refresh()}
+			onRetry={() => invalidateAll()}
 		/>
 	{:else if !stats}
 		<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

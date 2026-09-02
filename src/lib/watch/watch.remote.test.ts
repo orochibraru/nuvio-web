@@ -33,12 +33,7 @@ vi.mock("#lib/addons/server.js", () => ({
 	getAddonClient: async () => ({ client: state.client }),
 }));
 
-import {
-	continueWatching,
-	getSubtitles,
-	resolveStreams,
-	titleProgress,
-} from "./watch.remote.js";
+import { getSubtitles, resolveStreams, titleProgress } from "./watch.remote.js";
 
 function progressRow(over: Record<string, unknown> = {}) {
 	return {
@@ -114,102 +109,6 @@ describe("resolveStreams", () => {
 	});
 });
 
-describe("continueWatching", () => {
-	it("drops rows shorter than a minute and finished movies", async () => {
-		state.watchProgressPull = vi.fn(async () => [
-			progressRow({ content_id: "short", duration: 30_000 }),
-			progressRow({ content_id: "done", position: 595_000, duration: 600_000 }),
-		]);
-		expect(await continueWatching()).toEqual([]);
-	});
-
-	it("keeps a mid-movie row with progress + remaining time", async () => {
-		state.watchProgressPull = vi.fn(async () => [progressRow()]);
-		state.client.getMeta = vi.fn(async () => ({
-			meta: { name: "Movie One", poster: "p.jpg" },
-		}));
-
-		const [item] = await continueWatching();
-		expect(item).toMatchObject({
-			id: "tt1",
-			name: "Movie One",
-			videoId: "tt1",
-			progress: 0.5,
-			remainingMs: 300_000,
-		});
-	});
-
-	it("rolls a finished series episode forward to the next one", async () => {
-		state.watchProgressPull = vi.fn(async () => [
-			progressRow({
-				content_id: "s1",
-				content_type: "series",
-				video_id: "s1:1:1",
-				season: 1,
-				episode: 1,
-				position: 590_000,
-				duration: 600_000,
-			}),
-		]);
-		state.client.getMeta = vi.fn(async () => ({
-			meta: {
-				name: "Show",
-				videos: [
-					{ season: 1, episode: 1 },
-					{ season: 1, episode: 2 },
-				],
-			},
-		}));
-
-		const [item] = await continueWatching();
-		expect(item).toMatchObject({
-			videoId: "s1:1:2",
-			season: 1,
-			episode: 2,
-			progress: 0,
-		});
-	});
-
-	it("keeps only the most-recent row per title", async () => {
-		state.watchProgressPull = vi.fn(async () => [
-			progressRow({ id: "old", last_watched: 10, position: 60_000 }),
-			progressRow({ id: "new", last_watched: 20, position: 120_000 }),
-		]);
-		state.client.getMeta = vi.fn(async () => ({ meta: { name: "M" } }));
-
-		const items = await continueWatching();
-		expect(items).toHaveLength(1);
-		expect(items[0].progress).toBeCloseTo(0.2);
-	});
-
-	it("survives a watch-progress pull failure", async () => {
-		state.watchProgressPull = vi.fn(async () => {
-			throw new Error("500");
-		});
-		expect(await continueWatching()).toEqual([]);
-	});
-});
-
-describe("titleProgress", () => {
-	it("keys fraction + completed per video for the matching title only", async () => {
-		state.watchProgressPull = vi.fn(async () => [
-			progressRow({ video_id: "tt1", position: 300_000, duration: 600_000 }),
-			progressRow({
-				video_id: "tt1:1:2",
-				position: 590_000,
-				duration: 600_000,
-			}),
-			progressRow({ content_id: "other", video_id: "x", duration: 0 }),
-		]);
-
-		const out = await titleProgress({ contentId: "tt1" });
-		expect(out).toEqual({
-			tt1: { fraction: 0.5, completed: false },
-			"tt1:1:2": { fraction: expect.closeTo(0.983, 2), completed: true },
-		});
-	});
-});
-
 describe("getSubtitles", () => {
 	it("dedupes by url and flags SDH tracks", async () => {
 		state.client.getSubtitles = vi.fn(async () => ({
@@ -243,5 +142,25 @@ describe("getSubtitles", () => {
 		expect(out).toHaveLength(2);
 		expect(out[0]).toMatchObject({ id: "a:1", lang: "en", sdh: false });
 		expect(out[1]).toMatchObject({ sdh: true });
+	});
+});
+
+describe("titleProgress", () => {
+	it("keys fraction + completed per video for the matching title only", async () => {
+		state.watchProgressPull = vi.fn(async () => [
+			progressRow({ video_id: "tt1", position: 300_000, duration: 600_000 }),
+			progressRow({
+				video_id: "tt1:1:2",
+				position: 590_000,
+				duration: 600_000,
+			}),
+			progressRow({ content_id: "other", video_id: "x", duration: 0 }),
+		]);
+
+		const out = await titleProgress({ contentId: "tt1" });
+		expect(out).toEqual({
+			tt1: { fraction: 0.5, completed: false },
+			"tt1:1:2": { fraction: expect.closeTo(0.983, 2), completed: true },
+		});
 	});
 });

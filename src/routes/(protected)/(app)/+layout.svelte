@@ -1,6 +1,17 @@
 <script lang="ts">
+	import BookmarkIcon from "@lucide/svelte/icons/bookmark";
+	import CircleUserIcon from "@lucide/svelte/icons/circle-user";
+	import CompassIcon from "@lucide/svelte/icons/compass";
+	import HouseIcon from "@lucide/svelte/icons/house";
+	import LayersIcon from "@lucide/svelte/icons/layers";
+	import LogOutIcon from "@lucide/svelte/icons/log-out";
 	import MenuIcon from "@lucide/svelte/icons/menu";
 	import SearchIcon from "@lucide/svelte/icons/search";
+	import SettingsIcon from "@lucide/svelte/icons/settings";
+	import UsersIcon from "@lucide/svelte/icons/users";
+	import XIcon from "@lucide/svelte/icons/x";
+	import { Dialog as DialogPrimitive } from "bits-ui";
+	import { fade, fly } from "svelte/transition";
 	import CommandPalette from "#lib/components/command-palette.svelte";
 	import { commandPalette } from "#lib/components/command-palette.svelte.js";
 	import FirstRunNotice from "#lib/components/first-run-notice.svelte";
@@ -8,6 +19,7 @@
 	import ProfileAvatar from "#lib/components/profile-avatar.svelte";
 	import * as DropdownMenu from "#lib/components/ui/dropdown-menu/index.js";
 	import { Separator } from "#lib/components/ui/separator/index.js";
+	import { reduced } from "#lib/motion.js";
 	import { theme } from "#lib/settings/theme.svelte.js";
 	import { sync } from "#lib/sync/store.svelte.js";
 	import { cn } from "#lib/utils.js";
@@ -19,11 +31,18 @@
 	let { data, children } = $props();
 
 	const nav = [
-		{ href: resolve("/(protected)/(app)"), label: "Home", exact: true },
-		{ href: resolve("discover"), label: "Discover" },
-		{ href: resolve("library"), label: "Library" },
-		{ href: resolve("collections"), label: "Collections" },
+		{
+			href: resolve("/(protected)/(app)"),
+			label: "Home",
+			exact: true,
+			icon: HouseIcon,
+		},
+		{ href: resolve("discover"), label: "Discover", icon: CompassIcon },
+		{ href: resolve("library"), label: "Library", icon: BookmarkIcon },
+		{ href: resolve("collections"), label: "Collections", icon: LayersIcon },
 	];
+
+	let mobileNavOpen = $state(false);
 
 	function isActive(href: string, exact?: boolean) {
 		return exact
@@ -47,6 +66,7 @@
 	// it renders inside <main>, so this is a no-op there. `type === "enter"` is
 	// the initial SSR load — leave it be.
 	afterNavigate(({ type }) => {
+		mobileNavOpen = false;
 		if (type === "enter") {
 			return;
 		}
@@ -126,6 +146,14 @@
     )}
   >
     <div class="flex h-14 items-center gap-6 px-6">
+      <button
+        type="button"
+        aria-label="Menu"
+        onclick={() => (mobileNavOpen = true)}
+        class="flex size-9 items-center justify-center rounded-full text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring md:hidden"
+      >
+        <MenuIcon class="size-5" />
+      </button>
       <a
         href={resolve("/(protected)/(app)")}
         class="flex shrink-0 items-center gap-2 text-lg font-bold tracking-tight"
@@ -152,33 +180,10 @@
         {/each}
       </nav>
 
-      <DropdownMenu.Root>
-        <DropdownMenu.Trigger
-          aria-label="Menu"
-          class="flex size-9 items-center justify-center rounded-full text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring md:hidden"
-        >
-          <MenuIcon class="size-5" />
-        </DropdownMenu.Trigger>
-        <DropdownMenu.Content align="start" class="w-44">
-          <DropdownMenu.Group>
-            {#each nav as item (item.href)}
-              <DropdownMenu.Item
-                class={isActive(item.href, item.exact)
-                  ? "font-medium text-foreground"
-                  : ""}
-              >
-                {#snippet child({ props })}
-                  <a href={item.href} {...props}>{item.label}</a>
-                {/snippet}
-              </DropdownMenu.Item>
-            {/each}
-          </DropdownMenu.Group>
-        </DropdownMenu.Content>
-      </DropdownMenu.Root>
-
       <div class="ml-auto flex items-center gap-3">
         <a
           href={resolve("search")}
+          aria-label="Search"
           aria-current={isActive("/search") ? "page" : undefined}
           onclick={(e) => {
             if (e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey) {
@@ -217,17 +222,23 @@
             <DropdownMenu.Group>
               <DropdownMenu.Item>
                 {#snippet child({ props })}
-                  <a href={resolve("profiles")} {...props}>Switch profile</a>
+                  <a href={resolve("profiles")} {...props}
+                    ><UsersIcon />Switch profile</a
+                  >
                 {/snippet}
               </DropdownMenu.Item>
               <DropdownMenu.Item>
                 {#snippet child({ props })}
-                  <a href={resolve("settings")} {...props}>Settings</a>
+                  <a href={resolve("settings")} {...props}
+                    ><SettingsIcon />Settings</a
+                  >
                 {/snippet}
               </DropdownMenu.Item>
               <DropdownMenu.Item>
                 {#snippet child({ props })}
-                  <a href={resolve("account")} {...props}>Account</a>
+                  <a href={resolve("account")} {...props}
+                    ><CircleUserIcon />Account</a
+                  >
                 {/snippet}
               </DropdownMenu.Item>
             </DropdownMenu.Group>
@@ -236,7 +247,7 @@
               <DropdownMenu.Item variant="destructive">
                 {#snippet child({ props })}
                   <button type="submit" class="w-full text-left" {...props}
-                    >Sign out</button
+                    ><LogOutIcon />Sign out</button
                   >
                 {/snippet}
               </DropdownMenu.Item>
@@ -246,6 +257,69 @@
       </div>
     </div>
   </header>
+
+  {#if mobileNavOpen}
+    <DialogPrimitive.Root
+      open
+      onOpenChange={(open) => {
+        if (!open) {
+          mobileNavOpen = false;
+        }
+      }}
+    >
+      <DialogPrimitive.Overlay>
+        {#snippet child({ props })}
+          <div
+            {...props}
+            class="fixed inset-0 z-100 bg-black/50 backdrop-blur-[2px] md:hidden"
+            transition:fade={reduced({ duration: 150 })}
+          ></div>
+        {/snippet}
+      </DialogPrimitive.Overlay>
+      <DialogPrimitive.Content>
+        {#snippet child({ props })}
+          <div
+            {...props}
+            aria-label="Menu"
+            class="fixed inset-y-0 left-0 z-100 flex w-72 max-w-[85vw] flex-col border-r border-border bg-background outline-none md:hidden"
+            transition:fly={reduced({ x: -24, duration: 220 })}
+          >
+            <div
+              class="flex h-14 shrink-0 items-center justify-between border-b border-border px-4"
+            >
+              <span class="text-sm font-semibold">Menu</span>
+              <button
+                type="button"
+                aria-label="Close menu"
+                onclick={() => (mobileNavOpen = false)}
+                class="flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <XIcon class="size-4" />
+              </button>
+            </div>
+            <nav class="flex flex-col gap-1 overflow-y-auto p-3">
+              {#each nav as item (item.href)}
+                {@const active = isActive(item.href, item.exact)}
+                <a
+                  href={item.href}
+                  aria-current={active ? "page" : undefined}
+                  class={cn(
+                    "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                    active
+                      ? "bg-primary/15 text-foreground"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                  )}
+                >
+                  <item.icon class="size-5" />
+                  {item.label}
+                </a>
+              {/each}
+            </nav>
+          </div>
+        {/snippet}
+      </DialogPrimitive.Content>
+    </DialogPrimitive.Root>
+  {/if}
 
   <main
     bind:this={mainEl}

@@ -1,4 +1,8 @@
 import Hls from "hls.js";
+import {
+	attachNativeAudioTracks,
+	type VideoWithAudioTracks,
+} from "./player-media.ts";
 
 interface MediaDeps {
 	src: () => string;
@@ -9,9 +13,16 @@ interface MediaDeps {
 }
 
 /**
- * Attach a source to the `<video>` — hls.js for `.m3u8`, a plain `src` otherwise
- * — and expose the HLS audio-track list. Tears the HLS instance down and clears
- * the element `src` when the source changes or the component unmounts.
+ * Attach a source to the `<video>` — hls.js for `.m3u8`, a plain `src`
+ * otherwise — and expose an audio-track list for the settings menu. HLS
+ * multi-language streams come from hls.js's own track list; a direct file
+ * (mp4/mkv/…) that muxes more than one audio track comes from the browser's
+ * native `HTMLMediaElement.audioTracks` instead (see `attachNativeAudioTracks`
+ * in `player-media.ts`) — Chromium and Firefox both populate it, Safari
+ * doesn't, so a single-track or unsupported source just never grows past the
+ * empty list and the settings menu hides that section. Tears the HLS
+ * instance / native listeners down and clears the element `src` when the
+ * source changes or the component unmounts.
  */
 export function createPlayerMedia(deps: MediaDeps) {
 	let hls = $state<Hls | null>(null);
@@ -55,7 +66,16 @@ export function createPlayerMedia(deps: MediaDeps) {
 
 		el.src = src;
 		el.load();
+		const cleanupNative = attachNativeAudioTracks(
+			el as VideoWithAudioTracks,
+			(tracks, active) => {
+				audioTracks = tracks;
+				activeAudioTrack = active;
+			},
+		);
+
 		return () => {
+			cleanupNative?.();
 			el.removeAttribute("src");
 			el.load();
 		};
@@ -79,7 +99,17 @@ export function createPlayerMedia(deps: MediaDeps) {
 			if (hls) {
 				hls.audioTrack = id;
 				activeAudioTrack = id;
+				return;
 			}
+			const nativeTracks = (deps.video() as VideoWithAudioTracks | null)
+				?.audioTracks;
+			if (!nativeTracks) {
+				return;
+			}
+			for (let index = 0; index < nativeTracks.length; index++) {
+				nativeTracks[index].enabled = index === id;
+			}
+			activeAudioTrack = id;
 		},
 	};
 }

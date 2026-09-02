@@ -49,6 +49,15 @@ function online(): boolean {
 	return !browser || navigator.onLine !== false;
 }
 
+/** Plain (structured-cloneable) entries for IndexedDB — see `#broadcast`. */
+function snapshotEntries(
+	map: Map<string, unknown>,
+): Iterable<[string, unknown]> {
+	return [...map.entries()].map(
+		([key, value]) => [key, $state.snapshot(value)] as [string, unknown],
+	);
+}
+
 class SyncStore {
 	#profileId: number | null = null;
 	#cursors: SyncCursors = { ...EMPTY_CURSORS };
@@ -512,15 +521,21 @@ class SyncStore {
 		if (!this.#channel || this.#applyingBroadcast) {
 			return;
 		}
+		// `$state.snapshot` because both this and IndexedDB below go through
+		// structured clone, which throws on a `$state` proxy — and records can
+		// arrive from a caller holding proxied data (anything a page read out
+		// of a streamed `load` promise, say).
 		this.#channel.postMessage(
-			toBroadcastMessage({
-				library: this.#library,
-				progress: this.#progress,
-				history: this.#history,
-				cursors: this.#cursors,
-				queue: this.#queue,
-				bootstrapped: this.#bootstrapped,
-			}),
+			$state.snapshot(
+				toBroadcastMessage({
+					library: this.#library,
+					progress: this.#progress,
+					history: this.#history,
+					cursors: this.#cursors,
+					queue: this.#queue,
+					bootstrapped: this.#bootstrapped,
+				}),
+			),
 		);
 	}
 
@@ -605,7 +620,7 @@ class SyncStore {
 			return;
 		}
 		if (which === "queue") {
-			await writeOne("meta", profileId, "queue", this.#queue);
+			await writeOne("meta", profileId, "queue", $state.snapshot(this.#queue));
 			return;
 		}
 		const map =
@@ -614,7 +629,7 @@ class SyncStore {
 				: which === "progress"
 					? this.#progress
 					: this.#history;
-		await replaceAll(which, profileId, map.entries());
+		await replaceAll(which, profileId, snapshotEntries(map));
 	}
 
 	async #persistAll(): Promise<void> {
@@ -623,10 +638,10 @@ class SyncStore {
 			return;
 		}
 		await Promise.all([
-			replaceAll("library", profileId, this.#library.entries()),
-			replaceAll("progress", profileId, this.#progress.entries()),
-			replaceAll("history", profileId, this.#history.entries()),
-			writeOne("meta", profileId, "cursors", this.#cursors),
+			replaceAll("library", profileId, snapshotEntries(this.#library)),
+			replaceAll("progress", profileId, snapshotEntries(this.#progress)),
+			replaceAll("history", profileId, snapshotEntries(this.#history)),
+			writeOne("meta", profileId, "cursors", $state.snapshot(this.#cursors)),
 			writeOne("meta", profileId, "bootstrapped", this.#bootstrapped),
 		]);
 	}

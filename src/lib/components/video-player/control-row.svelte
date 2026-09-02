@@ -1,6 +1,8 @@
 <script lang="ts">
 	import CaptionsIcon from "@lucide/svelte/icons/captions";
 	import CaptionsOffIcon from "@lucide/svelte/icons/captions-off";
+	import CastIcon from "@lucide/svelte/icons/cast";
+	import GaugeIcon from "@lucide/svelte/icons/gauge";
 	import ListVideoIcon from "@lucide/svelte/icons/list-video";
 	import MaximizeIcon from "@lucide/svelte/icons/maximize";
 	import MinimizeIcon from "@lucide/svelte/icons/minimize";
@@ -8,8 +10,8 @@
 	import PictureInPictureIcon from "@lucide/svelte/icons/picture-in-picture-2";
 	import PlayIcon from "@lucide/svelte/icons/play";
 	import RotateCwIcon from "@lucide/svelte/icons/rotate-cw";
-	import SettingsIcon from "@lucide/svelte/icons/settings";
 	import SkipForwardIcon from "@lucide/svelte/icons/skip-forward";
+	import TvMinimalPlayIcon from "@lucide/svelte/icons/tv-minimal-play";
 	import Volume1Icon from "@lucide/svelte/icons/volume-1";
 	import Volume2Icon from "@lucide/svelte/icons/volume-2";
 	import VolumeXIcon from "@lucide/svelte/icons/volume-x";
@@ -29,6 +31,9 @@
 		onEpisodes,
 		hasSubtitles,
 		activeCaption,
+		castAvailable,
+		casting,
+		onCast,
 		subtitlesOpen,
 		onToggleSubtitles,
 		settingsOpen,
@@ -48,6 +53,10 @@
 		onEpisodes?: () => void;
 		hasSubtitles: boolean;
 		activeCaption: string | null;
+		/** A cast target exists — the button is hidden entirely otherwise. */
+		castAvailable: boolean;
+		casting: boolean;
+		onCast: () => void;
 		subtitlesOpen: boolean;
 		onToggleSubtitles: () => void;
 		settingsOpen: boolean;
@@ -159,7 +168,7 @@
             class="rounded-full [&_svg]:size-5"
             {...props}
           >
-            <SettingsIcon />
+            <GaugeIcon />
           </Button>
         {/snippet}
       </DropdownMenu.Trigger>
@@ -171,6 +180,23 @@
         onAudioTrackSelect={(id) => media.selectAudioTrack(id)}
       />
     </DropdownMenu.Root>
+
+    {#if castAvailable}
+      <Button
+        variant="ghost"
+        size="icon"
+        aria-label={casting ? "Stop casting" : "Cast"}
+        aria-pressed={casting}
+        onclick={onCast}
+        class={cn("rounded-full [&_svg]:size-5", casting && "text-primary")}
+      >
+        {#if casting}
+          <TvMinimalPlayIcon />
+        {:else}
+          <CastIcon />
+        {/if}
+      </Button>
+    {/if}
 
     {#if typeof document !== "undefined" && document.pictureInPictureEnabled}
       <Button

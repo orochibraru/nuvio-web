@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { NuvioClient } from "#lib/nuvio/index.js";
-import { pullResumeRows } from "./watch-data.ts";
+import { pullContinueWatching, pullResumeRows } from "./watch-data.ts";
 
 function nuvioWith(rows: unknown[] | Promise<never>): NuvioClient {
 	return {
@@ -49,5 +49,113 @@ describe("pullResumeRows", () => {
 	it("degrades to an empty list on failure", async () => {
 		const nuvio = nuvioWith(Promise.reject(new Error("down")) as never);
 		expect(await pullResumeRows(nuvio, 1)).toEqual([]);
+	});
+});
+
+describe("pullContinueWatching", () => {
+	const lookup = (byId: Record<string, unknown> = {}) =>
+		vi.fn(async (_type: string, id: string) => (byId[id] ?? null) as never);
+
+	it("drops rows shorter than a minute and finished movies", async () => {
+		const nuvio = nuvioWith([
+			row({ content_id: "short", duration: 30_000 }),
+			row({ content_id: "done", position: 595_000, duration: 600_000 }),
+		]);
+		expect(await pullContinueWatching(nuvio, 1, lookup())).toEqual([]);
+	});
+
+	it("keeps a mid-movie row with progress + remaining time", async () => {
+		const nuvio = nuvioWith([row({ position: 300_000, duration: 600_000 })]);
+		const [item] = await pullContinueWatching(
+			nuvio,
+			1,
+			lookup({ tt1: { name: "Movie One", poster: "p.jpg" } }),
+		);
+		expect(item).toMatchObject({
+			id: "tt1",
+			name: "Movie One",
+			videoId: "tt1",
+			progress: 0.5,
+			remainingMs: 300_000,
+		});
+	});
+
+	it("rolls a finished series episode forward to the next one", async () => {
+		const nuvio = nuvioWith([
+			row({
+				content_id: "s1",
+				content_type: "series",
+				video_id: "s1:1:1",
+				season: 1,
+				episode: 1,
+				position: 590_000,
+				duration: 600_000,
+			}),
+		]);
+		const [item] = await pullContinueWatching(
+			nuvio,
+			1,
+			lookup({
+				s1: {
+					name: "Show",
+					videos: [
+						{ season: 1, episode: 1 },
+						{ season: 1, episode: 2 },
+					],
+				},
+			}),
+		);
+		expect(item).toMatchObject({
+			videoId: "s1:1:2",
+			season: 1,
+			episode: 2,
+			progress: 0,
+		});
+	});
+
+	it("falls back to the content id when no addon knows the title", async () => {
+		const nuvio = nuvioWith([row({})]);
+		const [item] = await pullContinueWatching(nuvio, 1, lookup());
+		expect(item.name).toBe("tt1");
+	});
+
+	it("keeps only the most-recent row per title", async () => {
+		const nuvio = nuvioWith([
+			row({ last_watched: 10, position: 60_000, duration: 600_000 }),
+			row({ last_watched: 20, position: 120_000, duration: 600_000 }),
+		]);
+		const items = await pullContinueWatching(
+			nuvio,
+			1,
+			lookup({ tt1: { name: "M" } }),
+		);
+		expect(items).toHaveLength(1);
+		expect(items[0].progress).toBeCloseTo(0.2);
+	});
+
+	it("survives a watch-progress pull failure", async () => {
+		const nuvio = nuvioWith(Promise.reject(new Error("500")) as never);
+		expect(await pullContinueWatching(nuvio, 1, lookup())).toEqual([]);
+	});
+
+	it("never has more than a handful of meta lookups in flight at once", async () => {
+		// An unbounded burst is what times some out and leaves those cards
+		// showing a bare content id for a name.
+		const nuvio = nuvioWith(
+			Array.from({ length: 10 }, (_, i) => row({ content_id: `tt${i}` })),
+		);
+		let active = 0;
+		let peak = 0;
+		const slowLookup = vi.fn(async () => {
+			active += 1;
+			peak = Math.max(peak, active);
+			await new Promise((r) => setTimeout(r, 5));
+			active -= 1;
+			return { name: "M" } as never;
+		});
+
+		await pullContinueWatching(nuvio, 1, slowLookup);
+		expect(peak).toBeLessThanOrEqual(4);
+		expect(slowLookup).toHaveBeenCalledTimes(10);
 	});
 });

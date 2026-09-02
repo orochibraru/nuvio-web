@@ -76,7 +76,7 @@
 				<AccountHistory items={data.historyItems} />
 			</Tabs.Content>
 			<Tabs.Content value="stats" class="min-w-0">
-				<AccountStats />
+				<AccountStats stats={data.stats} />
 			</Tabs.Content>
 			<Tabs.Content value="storage" class="min-w-0">
 				<AccountStorage {data} />

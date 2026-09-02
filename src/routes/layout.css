@@ -269,45 +269,30 @@
 	}
 }
 
-/* Player loading mark: a play glyph that gently breathes, with rings pulsing
-   outward from it — independent of whatever title/logo art did or didn't load. */
-@utility animate-loading-ring {
-	transform-box: fill-box;
-	transform-origin: center;
-	animation: nuvio-loading-ring 1.8s cubic-bezier(0.2, 0.6, 0.4, 1) infinite;
-	@media (prefers-reduced-motion: reduce) {
-		animation: none;
-		opacity: 0;
-	}
-}
-
-@keyframes nuvio-loading-ring {
-	0% {
-		transform: scale(0.72);
-		opacity: 0.6;
-	}
-	100% {
-		transform: scale(1.35);
-		opacity: 0;
-	}
-}
-
-@utility animate-loading-core {
-	transform-box: fill-box;
-	transform-origin: center;
-	animation: nuvio-loading-core 2.4s ease-in-out infinite;
+/* Player loading mark: the brand mark breathing — scale + opacity + a soft
+   glow, all with a floor well above zero so it never dips to invisible and
+   reads as a plain static button at a glance (the failure mode of the
+   previous fade-to-nothing ring animation this replaced). */
+@utility animate-loading-mark {
+	animation: nuvio-loading-mark 1.8s ease-in-out infinite;
 	@media (prefers-reduced-motion: reduce) {
 		animation: none;
 	}
 }
 
-@keyframes nuvio-loading-core {
+@keyframes nuvio-loading-mark {
 	0%,
 	100% {
-		transform: scale(1);
+		transform: scale(0.94);
+		opacity: 0.82;
+		filter: drop-shadow(0 0 0 transparent);
 	}
 	50% {
 		transform: scale(1.06);
+		opacity: 1;
+		filter: drop-shadow(
+			0 0 18px color-mix(in oklch, var(--primary) 55%, transparent)
+		);
 	}
 }
 

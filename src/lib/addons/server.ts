@@ -1,11 +1,13 @@
 import { requireProfile } from "#lib/server/guards.js";
 import { getRequestEvent } from "$app/server";
+import * as queries from "./catalog-queries.ts";
 import { AddonClient } from "./client.ts";
 import {
 	type AddonLoadError,
 	type AddonRegistry,
 	buildRegistry,
 } from "./registry.ts";
+import type { Meta, MetaPreview } from "./types.ts";
 
 export { requireProfile };
 
@@ -82,4 +84,52 @@ export async function getAddonClient(): Promise<{
 		registry,
 		errors,
 	};
+}
+
+export type {
+	CatalogSelector,
+	HomeRow,
+} from "./catalog-queries.ts";
+
+/**
+ * Thin request-scoped wrappers over `catalog-queries.ts`: grab this request's
+ * addon client, then delegate. The loads call these directly (streamed, never
+ * awaited in the load itself) so addon fetches start server-side instead of
+ * after the page has shipped, hydrated and made a second round trip.
+ */
+export async function homeCatalogRows(): Promise<queries.HomeRow[]> {
+	const { client, registry } = await getAddonClient();
+	return queries.homeCatalogRows(client, registry);
+}
+
+export async function searchAllCatalogs(
+	term: string,
+): Promise<{ metas: MetaPreview[] }> {
+	const { client, registry } = await getAddonClient();
+	return queries.searchAllCatalogs(client, registry, term);
+}
+
+export async function similarToTitle(
+	type: string,
+	id: string,
+	genres: string[],
+): Promise<{ metas: MetaPreview[] }> {
+	const { client, registry } = await getAddonClient();
+	return queries.similarToTitle(client, registry, { type, id, genres });
+}
+
+export async function catalogPage(selector: queries.CatalogSelector): Promise<{
+	metas: MetaPreview[];
+	addon: { id: string; name: string };
+} | null> {
+	const { client } = await getAddonClient();
+	return queries.catalogPage(client, selector);
+}
+
+export async function titleMeta(
+	type: string,
+	id: string,
+): Promise<{ meta: Meta; addonName: string } | null> {
+	const { client } = await getAddonClient();
+	return queries.titleMeta(client, type, id);
 }

@@ -74,6 +74,15 @@ test("no violations: detail source drawer open", async ({ page }) => {
 	await expectNoViolations(page);
 });
 
+test("no violations: mobile nav drawer open", async ({ page }) => {
+	await page.setViewportSize({ width: 390, height: 844 });
+	await page.goto("/");
+	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
+	await page.getByRole("button", { name: "Menu", exact: true }).click();
+	await expect(page.getByRole("dialog", { name: "Menu" })).toBeVisible();
+	await expectNoViolations(page);
+});
+
 test("skip link jumps focus to main content", async ({ page }) => {
 	await page.goto("/");
 	await page.keyboard.press("Tab");

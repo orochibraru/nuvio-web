@@ -12,7 +12,6 @@
 	import { cubicOut } from "svelte/easing";
 	import { fly } from "svelte/transition";
 	import { toast } from "svelte-sonner";
-	import { homeRows } from "#lib/addons/addons.remote.js";
 	import type { MetaPreview } from "#lib/addons/index.js";
 	import AuroraBackground from "#lib/components/aurora-background.svelte";
 	import ContinueWatchingCard from "#lib/components/continue-watching-card.svelte";
@@ -21,13 +20,12 @@
 	import QueryError from "#lib/components/query-error.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { reduced } from "#lib/motion.js";
-	import { QUERY_TTL, ttlPrime } from "#lib/query-cache.js";
 	import { streamed } from "#lib/stream.svelte.js";
 	import { sync } from "#lib/sync/store.svelte.js";
 	import { cn } from "#lib/utils.js";
-	import { continueWatching } from "#lib/watch/watch.remote.js";
 	import type { ResumeRow } from "#lib/watch/watch-data.js";
 	import { browser } from "$app/env";
+	import { invalidateAll } from "$app/navigation";
 	import { resolve } from "$app/paths";
 
 	let { data } = $props();
@@ -52,14 +50,12 @@
 		dismissed = new Set(dismissed).add(id);
 	}
 
-	// Continue-watching. The load ships raw in-progress rows (user data, fast, no
-	// addon calls); the client-side `continueWatching` query enriches them with
-	// meta + rolls a finished series episode forward to the next one; the local
-	// store is the live source once authoritative. Meta falls back to the library
-	// mirror, then to the card's own fallback art.
-	const enrichQuery = continueWatching();
+	// Continue-watching. The load ships rows already joined to addon meta (name
+	// / art, with a finished series episode rolled forward to the next one);
+	// the local store is the live source once authoritative. Meta falls back to
+	// the library mirror, then to the card's own fallback art.
 	const enrichedById = $derived(
-		new Map((enrichQuery.current ?? []).map((item) => [item.id, item])),
+		new Map(ssrResume.map((item) => [item.id, item])),
 	);
 
 	interface ResumeBase {
@@ -146,9 +142,9 @@
 		}
 
 		// A finished series that rolled forward to its next episode: `progress` is
-		// now 0 so it isn't "in progress" locally — the enriched query is its only
-		// source.
-		for (const item of enrichQuery.current ?? []) {
+		// now 0 so it isn't "in progress" locally — the load's resolved rows are
+		// its only source.
+		for (const item of ssrResume) {
 			if (!(cards.has(item.id) || dismissed.has(item.id))) {
 				cards.set(item.id, item);
 			}
@@ -176,18 +172,16 @@
 			: (ssrLibrary ?? []),
 	);
 
-	// Catalog rows load client-side so a slow addon never stalls SSR / nav.
-	// TTL-cached (profile-scoped) so returning to the feed within the window
-	// paints instantly instead of re-fanning-out to every catalog addon.
-	const profileIndex = $derived(data.profile?.profile_index ?? 0);
-	const rowsQuery = $derived(homeRows());
-	$effect(() => {
-		ttlPrime(rowsQuery, `homeRows:${profileIndex}`, QUERY_TTL.catalog);
-	});
-	const rows = $derived(rowsQuery.current ?? []);
-	const rowsLoading = $derived(
-		rowsQuery.current === undefined && !rowsQuery.error,
+	// Catalog rows are fetched by the load and streamed down with the page, so
+	// they don't wait on hydration plus a round trip. Still unawaited there, so
+	// a slow addon never stalls navigation — the skeletons below cover it.
+	const rowsStream = streamed(
+		() => data.rows,
+		null as Awaited<typeof data.rows>,
 	);
+	const rows = $derived(rowsStream.current ?? []);
+	const rowsLoading = $derived(!rowsStream.ready);
+	const rowsFailed = $derived(rowsStream.ready && rowsStream.current === null);
 
 	// Spotlight carousel: derived from the rows once, on first arrival, so the
 	// shuffle stays stable across re-renders.
@@ -255,6 +249,39 @@
 		heroDir = direction;
 		const count = spotlights.length;
 		heroIndex = (heroIndex + direction + count) % count;
+	}
+
+	// Touch swipe — the arrow buttons are desktop-only (`hidden sm:flex`), so a
+	// touch viewer's only way to step the carousel is otherwise the dots.
+	let swipeStartX = 0;
+	let swipeStartY = 0;
+	let swiping = false;
+	const SWIPE_THRESHOLD = 40;
+
+	function onHeroPointerDown(event: PointerEvent) {
+		if (event.pointerType !== "touch") {
+			return;
+		}
+		swiping = true;
+		swipeStartX = event.clientX;
+		swipeStartY = event.clientY;
+	}
+
+	function onHeroPointerUp(event: PointerEvent) {
+		if (!swiping) {
+			return;
+		}
+		swiping = false;
+		const dx = event.clientX - swipeStartX;
+		const dy = event.clientY - swipeStartY;
+		// Mostly-vertical drags (scrolling the page) don't count as a swipe.
+		if (Math.abs(dx) < SWIPE_THRESHOLD || Math.abs(dx) < Math.abs(dy) * 1.5) {
+			return;
+		}
+		if (spotlights.length < 2) {
+			return;
+		}
+		stepHero(dx < 0 ? 1 : -1);
 	}
 
 	const spotlight = $derived(spotlights[heroIndex] ?? null);
@@ -342,7 +369,10 @@
       onmouseleave={() => (heroPaused = false)}
       onfocusin={() => (heroPaused = true)}
       onfocusout={() => (heroPaused = false)}
-      class="grid *:col-start-1 *:row-start-1"
+      onpointerdown={onHeroPointerDown}
+      onpointerup={onHeroPointerUp}
+      onpointercancel={() => (swiping = false)}
+      class="grid touch-pan-y *:col-start-1 *:row-start-1"
     >
       {#key spotlight.id}
         <div
@@ -511,10 +541,10 @@
       <MediaRow title="My library" items={library} href={resolve("library")} />
     {/if}
 
-    {#if rowsQuery.error}
+    {#if rowsFailed}
       <QueryError
         message="Couldn't load your catalog rows."
-        onRetry={() => rowsQuery.refresh()}
+        onRetry={() => invalidateAll()}
       />
     {:else if rowsLoading}
       {#each { length: 4 } as _row, index (index)}
