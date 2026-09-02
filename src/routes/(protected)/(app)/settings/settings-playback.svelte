@@ -1,52 +1,52 @@
 <script lang="ts">
-  import CheckIcon from "@lucide/svelte/icons/check";
-  import * as Card from "#lib/components/ui/card/index.js";
-  import * as Select from "#lib/components/ui/select/index.js";
-  import { Switch } from "#lib/components/ui/switch/index.js";
-  import { theme } from "#lib/settings/theme.svelte.js";
-  import {
-    STREAM_QUALITIES,
-    SUBTITLE_COLORS,
-    type UiSettings,
-    WATCH_REGIONS,
-  } from "#lib/settings/ui-settings.js";
-  import { cn } from "#lib/utils.js";
+	import CheckIcon from "@lucide/svelte/icons/check";
+	import * as Card from "#lib/components/ui/card/index.js";
+	import * as Select from "#lib/components/ui/select/index.js";
+	import { Switch } from "#lib/components/ui/switch/index.js";
+	import { theme } from "#lib/settings/theme.svelte.js";
+	import {
+		STREAM_QUALITIES,
+		SUBTITLE_COLORS,
+		type UiSettings,
+		WATCH_REGIONS,
+	} from "#lib/settings/ui-settings.js";
+	import { cn } from "#lib/utils.js";
 
-  let { update }: { update: (patch: Partial<UiSettings>) => Promise<void> } =
-    $props();
+	let { update }: { update: (patch: Partial<UiSettings>) => Promise<void> } =
+		$props();
 
-  const subtitleSizes: Array<{
-    value: UiSettings["subtitleSize"];
-    label: string;
-  }> = [
-    { value: "small", label: "Small" },
-    { value: "medium", label: "Medium" },
-    { value: "large", label: "Large" },
-  ];
+	const subtitleSizes: Array<{
+		value: UiSettings["subtitleSize"];
+		label: string;
+	}> = [
+		{ value: "small", label: "Small" },
+		{ value: "medium", label: "Medium" },
+		{ value: "large", label: "Large" },
+	];
 
-  const subtitleColors = SUBTITLE_COLORS;
+	const subtitleColors = SUBTITLE_COLORS;
 
-  const subtitleLanguages: Array<{ value: string; label: string }> = [
-    { value: "", label: "Off" },
-    { value: "eng", label: "English" },
-    { value: "spa", label: "Spanish" },
-    { value: "fre", label: "French" },
-    { value: "ger", label: "German" },
-    { value: "por", label: "Portuguese" },
-    { value: "ita", label: "Italian" },
-    { value: "dut", label: "Dutch" },
-    { value: "rus", label: "Russian" },
-    { value: "jpn", label: "Japanese" },
-    { value: "kor", label: "Korean" },
-    { value: "chi", label: "Chinese" },
-    { value: "ara", label: "Arabic" },
-  ];
+	const subtitleLanguages: Array<{ value: string; label: string }> = [
+		{ value: "", label: "Off" },
+		{ value: "eng", label: "English" },
+		{ value: "spa", label: "Spanish" },
+		{ value: "fre", label: "French" },
+		{ value: "ger", label: "German" },
+		{ value: "por", label: "Portuguese" },
+		{ value: "ita", label: "Italian" },
+		{ value: "dut", label: "Dutch" },
+		{ value: "rus", label: "Russian" },
+		{ value: "jpn", label: "Japanese" },
+		{ value: "kor", label: "Korean" },
+		{ value: "chi", label: "Chinese" },
+		{ value: "ara", label: "Arabic" },
+	];
 
-  const qualityLabel = (q: string) => (q === "auto" ? "Auto (addon order)" : q);
-  const regionLabel = (code: string) =>
-    WATCH_REGIONS.find(([c]) => c === code)?.[1] ?? code;
-  const languageLabel = (code: string) =>
-    subtitleLanguages.find((l) => l.value === code)?.label ?? "Off";
+	const qualityLabel = (q: string) => (q === "auto" ? "Auto (addon order)" : q);
+	const regionLabel = (code: string) =>
+		WATCH_REGIONS.find(([c]) => c === code)?.[1] ?? code;
+	const languageLabel = (code: string) =>
+		subtitleLanguages.find((l) => l.value === code)?.label ?? "Off";
 </script>
 
 <Card.Root class="border border-foreground/10">

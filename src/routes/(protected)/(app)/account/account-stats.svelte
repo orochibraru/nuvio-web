@@ -1,39 +1,39 @@
 <script lang="ts">
-  import ClapperboardIcon from "@lucide/svelte/icons/clapperboard";
-  import ClockIcon from "@lucide/svelte/icons/clock";
-  import FilmIcon from "@lucide/svelte/icons/film";
-  import TvIcon from "@lucide/svelte/icons/tv";
-  import QueryError from "#lib/components/query-error.svelte";
-  import * as Card from "#lib/components/ui/card/index.js";
-  import type { WatchStats } from "#lib/stats/stats-data.js";
-  import { streamed } from "#lib/stream.svelte.js";
-  import { invalidateAll } from "$app/navigation";
-  import { resolve } from "$app/paths";
+	import ClapperboardIcon from "@lucide/svelte/icons/clapperboard";
+	import ClockIcon from "@lucide/svelte/icons/clock";
+	import FilmIcon from "@lucide/svelte/icons/film";
+	import TvIcon from "@lucide/svelte/icons/tv";
+	import QueryError from "#lib/components/query-error.svelte";
+	import * as Card from "#lib/components/ui/card/index.js";
+	import type { WatchStats } from "#lib/stats/stats-data.js";
+	import { streamed } from "#lib/stream.svelte.js";
+	import { invalidateAll } from "$app/navigation";
+	import { resolve } from "$app/paths";
 
-  let { stats: streamedStats }: { stats: Promise<WatchStats | null> } =
-    $props();
+	let { stats: streamedStats }: { stats: Promise<WatchStats | null> } =
+		$props();
 
-  // Resolved by the account load and streamed down : `null` once ready means
-  // the pull failed, which the retry below covers.
-  const statsStream = streamed(() => streamedStats, null as WatchStats | null);
-  const stats = $derived(statsStream.current);
-  const statsFailed = $derived(statsStream.ready && stats === null);
-  const totalMinutes = $derived(
-    (stats?.movieMinutes ?? 0) + (stats?.seriesMinutes ?? 0),
-  );
+	// Resolved by the account load and streamed down : `null` once ready means
+	// the pull failed, which the retry below covers.
+	const statsStream = streamed(() => streamedStats, null as WatchStats | null);
+	const stats = $derived(statsStream.current);
+	const statsFailed = $derived(statsStream.ready && stats === null);
+	const totalMinutes = $derived(
+		(stats?.movieMinutes ?? 0) + (stats?.seriesMinutes ?? 0),
+	);
 
-  function humanDuration(minutes: number): string {
-    if (minutes < 60) {
-      return `${minutes} min`;
-    }
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) {
-      const rem = minutes % 60;
-      return rem ? `${hours} h ${rem} min` : `${hours} h`;
-    }
-    const days = Math.floor(hours / 24);
-    return `${days} d ${hours % 24} h`;
-  }
+	function humanDuration(minutes: number): string {
+		if (minutes < 60) {
+			return `${minutes} min`;
+		}
+		const hours = Math.floor(minutes / 60);
+		if (hours < 24) {
+			const rem = minutes % 60;
+			return rem ? `${hours} h ${rem} min` : `${hours} h`;
+		}
+		const days = Math.floor(hours / 24);
+		return `${days} d ${hours % 24} h`;
+	}
 </script>
 
 <div class="flex flex-col gap-6">

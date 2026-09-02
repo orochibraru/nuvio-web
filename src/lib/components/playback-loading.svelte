@@ -1,34 +1,34 @@
 <script lang="ts">
-  import LoadingMark from "#lib/components/loading-mark.svelte";
-  import { Spinner } from "#lib/components/ui/spinner/index.js";
-  import { cn } from "#lib/utils.js";
+	import LoadingMark from "#lib/components/loading-mark.svelte";
+	import { Spinner } from "#lib/components/ui/spinner/index.js";
+	import { cn } from "#lib/utils.js";
 
-  let {
-    backdrop = null,
-    logo = null,
-    title,
-    label = null,
-    certification = null,
-    genres = [],
-  }: {
-    backdrop?: string | null;
-    logo?: string | null;
-    title: string;
-    label?: string | null;
-    certification?: string | null;
-    genres?: string[];
-  } = $props();
+	let {
+		backdrop = null,
+		logo = null,
+		title,
+		label = null,
+		certification = null,
+		genres = [],
+	}: {
+		backdrop?: string | null;
+		logo?: string | null;
+		title: string;
+		label?: string | null;
+		certification?: string | null;
+		genres?: string[];
+	} = $props();
 
-  let logoBroken = $state(false);
+	let logoBroken = $state(false);
 
-  // Content-advisory card fades out a few seconds into the load.
-  const hasAdvisory = $derived(certification !== null || genres.length > 0);
-  let advisoryExpired = $state(false);
-  $effect(() => {
-    const timer = setTimeout(() => (advisoryExpired = true), 3200);
-    return () => clearTimeout(timer);
-  });
-  const showAdvisory = $derived(hasAdvisory && !advisoryExpired);
+	// Content-advisory card fades out a few seconds into the load.
+	const hasAdvisory = $derived(certification !== null || genres.length > 0);
+	let advisoryExpired = $state(false);
+	$effect(() => {
+		const timer = setTimeout(() => (advisoryExpired = true), 3200);
+		return () => clearTimeout(timer);
+	});
+	const showAdvisory = $derived(hasAdvisory && !advisoryExpired);
 </script>
 
 <div class="absolute inset-0 overflow-hidden bg-black">

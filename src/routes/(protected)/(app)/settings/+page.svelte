@@ -1,77 +1,77 @@
 <script lang="ts">
-  import CheckIcon from "@lucide/svelte/icons/check";
-  import PaletteIcon from "@lucide/svelte/icons/palette";
-  import PlayIcon from "@lucide/svelte/icons/play";
-  import PlugIcon from "@lucide/svelte/icons/plug";
-  import PuzzleIcon from "@lucide/svelte/icons/puzzle";
-  import RefreshCwIcon from "@lucide/svelte/icons/refresh-cw";
-  import { toast } from "svelte-sonner";
-  import * as Tabs from "#lib/components/ui/tabs/index.js";
-  import { saveUiSettings } from "#lib/settings/settings.remote.js";
-  import { theme } from "#lib/settings/theme.svelte.js";
-  import type { UiSettings } from "#lib/settings/ui-settings.js";
-  import { pageTitle } from "#lib/stores/title.svelte.js";
-  import { goto, refreshAll } from "$app/navigation";
-  import { page } from "$app/state";
-  import SettingsAddons from "./settings-addons.svelte";
-  import SettingsAppearance from "./settings-appearance.svelte";
-  import SettingsIntegrations from "./settings-integrations.svelte";
-  import SettingsPlayback from "./settings-playback.svelte";
-  import SettingsSync from "./settings-sync.svelte";
+	import CheckIcon from "@lucide/svelte/icons/check";
+	import PaletteIcon from "@lucide/svelte/icons/palette";
+	import PlayIcon from "@lucide/svelte/icons/play";
+	import PlugIcon from "@lucide/svelte/icons/plug";
+	import PuzzleIcon from "@lucide/svelte/icons/puzzle";
+	import RefreshCwIcon from "@lucide/svelte/icons/refresh-cw";
+	import { toast } from "svelte-sonner";
+	import * as Tabs from "#lib/components/ui/tabs/index.js";
+	import { saveUiSettings } from "#lib/settings/settings.remote.js";
+	import { theme } from "#lib/settings/theme.svelte.js";
+	import type { UiSettings } from "#lib/settings/ui-settings.js";
+	import { pageTitle } from "#lib/stores/title.svelte.js";
+	import { goto, refreshAll } from "$app/navigation";
+	import { page } from "$app/state";
+	import SettingsAddons from "./settings-addons.svelte";
+	import SettingsAppearance from "./settings-appearance.svelte";
+	import SettingsIntegrations from "./settings-integrations.svelte";
+	import SettingsPlayback from "./settings-playback.svelte";
+	import SettingsSync from "./settings-sync.svelte";
 
-  pageTitle.set("Settings");
+	pageTitle.set("Settings");
 
-  // "idle" → "saving" → "saved" (auto-clears); "error" reverts the preview.
-  let saveState = $state<"idle" | "saving" | "saved" | "error">("idle");
-  let savedTimer: ReturnType<typeof setTimeout> | undefined;
+	// "idle" → "saving" → "saved" (auto-clears); "error" reverts the preview.
+	let saveState = $state<"idle" | "saving" | "saved" | "error">("idle");
+	let savedTimer: ReturnType<typeof setTimeout> | undefined;
 
-  async function update(patch: Partial<UiSettings>) {
-    const previous = { ...theme.current };
-    const next = { ...previous, ...patch };
-    theme.preview(next);
-    saveState = "saving";
-    clearTimeout(savedTimer);
-    try {
-      await saveUiSettings(next);
-      saveState = "saved";
-      await refreshAll();
-      savedTimer = setTimeout(() => {
-        if (saveState === "saved") {
-          saveState = "idle";
-        }
-      }, 2000);
-    } catch {
-      theme.preview(previous); // roll the optimistic change back
-      saveState = "error";
-      toast.error("Couldn't save : reverted.");
-    }
-  }
+	async function update(patch: Partial<UiSettings>) {
+		const previous = { ...theme.current };
+		const next = { ...previous, ...patch };
+		theme.preview(next);
+		saveState = "saving";
+		clearTimeout(savedTimer);
+		try {
+			await saveUiSettings(next);
+			saveState = "saved";
+			await refreshAll();
+			savedTimer = setTimeout(() => {
+				if (saveState === "saved") {
+					saveState = "idle";
+				}
+			}, 2000);
+		} catch {
+			theme.preview(previous); // roll the optimistic change back
+			saveState = "error";
+			toast.error("Couldn't save : reverted.");
+		}
+	}
 
-  // Which section is showing lives in the URL so it survives back/forward
-  // and is shareable/deep-linkable.
-  const tabs = [
-    { value: "appearance", label: "Appearance", icon: PaletteIcon },
-    { value: "playback", label: "Playback", icon: PlayIcon },
-    { value: "sync", label: "Sync", icon: RefreshCwIcon },
-    { value: "addons", label: "Addons", icon: PuzzleIcon },
-    { value: "integrations", label: "Integrations", icon: PlugIcon },
-  ] as const;
-  type Tab = (typeof tabs)[number]["value"];
-  const tab = $derived<Tab>(
-    (tabs.find((t) => t.value === page.url.searchParams.get("tab"))?.value ??
-      "appearance") as Tab,
-  );
+	// Which section is showing lives in the URL so it survives back/forward
+	// and is shareable/deep-linkable.
+	const tabs = [
+		{ value: "appearance", label: "Appearance", icon: PaletteIcon },
+		{ value: "playback", label: "Playback", icon: PlayIcon },
+		{ value: "sync", label: "Sync", icon: RefreshCwIcon },
+		{ value: "addons", label: "Addons", icon: PuzzleIcon },
+		{ value: "integrations", label: "Integrations", icon: PlugIcon },
+	] as const;
+	type Tab = (typeof tabs)[number]["value"];
+	const tab = $derived<Tab>(
+		(tabs.find((t) => t.value === page.url.searchParams.get("tab"))?.value ??
+			"appearance") as Tab,
+	);
 
-  function setTab(value: string) {
-    const params = new URLSearchParams(page.url.search);
-    if (value === "appearance") {
-      params.delete("tab");
-    } else {
-      params.set("tab", value);
-    }
-    const query = params.toString();
-    void goto(query ? `?${query}` : "?", { reset: false });
-  }
+	function setTab(value: string) {
+		const params = new URLSearchParams(page.url.search);
+		if (value === "appearance") {
+			params.delete("tab");
+		} else {
+			params.set("tab", value);
+		}
+		const query = params.toString();
+		void goto(query ? `?${query}` : "?", { reset: false });
+	}
 </script>
 
 <div class="mx-auto flex max-w-5xl flex-col gap-8">

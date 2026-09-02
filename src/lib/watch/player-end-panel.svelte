@@ -1,35 +1,35 @@
 <script lang="ts">
-  import ArrowLeftIcon from "@lucide/svelte/icons/arrow-left";
-  import InfoIcon from "@lucide/svelte/icons/info";
-  import PlayIcon from "@lucide/svelte/icons/play";
-  import RotateCcwIcon from "@lucide/svelte/icons/rotate-ccw";
-  import { Button } from "#lib/components/ui/button/index.js";
-  import { theme } from "#lib/settings/theme.svelte.js";
-  import { resolve } from "$app/paths";
+	import ArrowLeftIcon from "@lucide/svelte/icons/arrow-left";
+	import InfoIcon from "@lucide/svelte/icons/info";
+	import PlayIcon from "@lucide/svelte/icons/play";
+	import RotateCcwIcon from "@lucide/svelte/icons/rotate-ccw";
+	import { Button } from "#lib/components/ui/button/index.js";
+	import { theme } from "#lib/settings/theme.svelte.js";
+	import { resolve } from "$app/paths";
 
-  interface Suggestion {
-    id: string;
-    type: string;
-    name: string;
-    poster?: string | null;
-  }
+	interface Suggestion {
+		id: string;
+		type: string;
+		name: string;
+		poster?: string | null;
+	}
 
-  let {
-    heading,
-    detailHref,
-    suggestions = [],
-    onBack,
-    onWatchAgain,
-    onResume,
-  }: {
-    heading: string;
-    detailHref: string;
-    suggestions?: Suggestion[];
-    onBack: () => void;
-    onWatchAgain: () => void;
-    /** Present while the video is still running (outro handoff) : keep watching. */
-    onResume?: () => void;
-  } = $props();
+	let {
+		heading,
+		detailHref,
+		suggestions = [],
+		onBack,
+		onWatchAgain,
+		onResume,
+	}: {
+		heading: string;
+		detailHref: string;
+		suggestions?: Suggestion[];
+		onBack: () => void;
+		onWatchAgain: () => void;
+		/** Present while the video is still running (outro handoff) : keep watching. */
+		onResume?: () => void;
+	} = $props();
 </script>
 
 <!-- Takes over the frame once a movie / final episode ends; the player shrinks

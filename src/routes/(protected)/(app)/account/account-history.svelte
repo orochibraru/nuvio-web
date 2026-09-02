@@ -1,144 +1,144 @@
 <script lang="ts">
-  import ClockIcon from "@lucide/svelte/icons/clock";
-  import FilmIcon from "@lucide/svelte/icons/film";
-  import PlayIcon from "@lucide/svelte/icons/play";
-  import Trash2Icon from "@lucide/svelte/icons/trash-2";
-  import TvIcon from "@lucide/svelte/icons/tv";
-  import { toast } from "svelte-sonner";
-  import EmptyState from "#lib/components/empty-state.svelte";
-  import { Button } from "#lib/components/ui/button/index.js";
-  import type { HistoryRow } from "#lib/history/history-data.js";
-  import { streamed } from "#lib/stream.svelte.js";
-  import { sync } from "#lib/sync/store.svelte.js";
-  import { resolve } from "$app/paths";
+	import ClockIcon from "@lucide/svelte/icons/clock";
+	import FilmIcon from "@lucide/svelte/icons/film";
+	import PlayIcon from "@lucide/svelte/icons/play";
+	import Trash2Icon from "@lucide/svelte/icons/trash-2";
+	import TvIcon from "@lucide/svelte/icons/tv";
+	import { toast } from "svelte-sonner";
+	import EmptyState from "#lib/components/empty-state.svelte";
+	import { Button } from "#lib/components/ui/button/index.js";
+	import type { HistoryRow } from "#lib/history/history-data.js";
+	import { streamed } from "#lib/stream.svelte.js";
+	import { sync } from "#lib/sync/store.svelte.js";
+	import { resolve } from "$app/paths";
 
-  type EnrichedRow = HistoryRow & { poster: string | null };
+	type EnrichedRow = HistoryRow & { poster: string | null };
 
-  let { items }: { items: Promise<EnrichedRow[]> } = $props();
+	let { items }: { items: Promise<EnrichedRow[]> } = $props();
 
-  // The load already joined these to addon meta (poster + clean title), so
-  // rows arrive named rather than showing a raw content id until a client
-  // query lands. The local library mirror still wins where it has an entry —
-  // it reflects an add/remove made this session.
-  const rowsStream = streamed(() => items, [] as EnrichedRow[]);
-  const ssrItems = $derived(rowsStream.current);
+	// The load already joined these to addon meta (poster + clean title), so
+	// rows arrive named rather than showing a raw content id until a client
+	// query lands. The local library mirror still wins where it has an entry —
+	// it reflects an add/remove made this session.
+	const rowsStream = streamed(() => items, [] as EnrichedRow[]);
+	const ssrItems = $derived(rowsStream.current);
 
-  const posters = $derived(
-    new Map<string, string | null>([
-      ...ssrItems.map((item) => [item.contentId, item.poster] as const),
-      ...sync.library.map(
-        (entry) => [entry.contentId, entry.poster ?? null] as const,
-      ),
-    ]),
-  );
-  const names = $derived(
-    new Map<string, string>([
-      ...ssrItems.map((item) => [item.contentId, item.title] as const),
-      ...sync.library.map((entry) => [entry.contentId, entry.name] as const),
-    ]),
-  );
+	const posters = $derived(
+		new Map<string, string | null>([
+			...ssrItems.map((item) => [item.contentId, item.poster] as const),
+			...sync.library.map(
+				(entry) => [entry.contentId, entry.poster ?? null] as const,
+			),
+		]),
+	);
+	const names = $derived(
+		new Map<string, string>([
+			...ssrItems.map((item) => [item.contentId, item.title] as const),
+			...sync.library.map((entry) => [entry.contentId, entry.name] as const),
+		]),
+	);
 
-  interface Row {
-    id: string;
-    contentId: string;
-    type: "movie" | "series";
-    title: string;
-    season: number | null;
-    episode: number | null;
-    watchedAt: number;
-  }
+	interface Row {
+		id: string;
+		contentId: string;
+		type: "movie" | "series";
+		title: string;
+		season: number | null;
+		episode: number | null;
+		watchedAt: number;
+	}
 
-  const rows = $derived<Row[]>(
-    sync.authoritative
-      ? sync.history.map((record) => ({
-          id: record.id,
-          contentId: record.contentId,
-          type: record.contentType,
-          title:
-            names.get(record.contentId) || record.title || record.contentId,
-          season: record.season,
-          episode: record.episode,
-          watchedAt: record.watchedAt,
-        }))
-      : ssrItems,
-  );
+	const rows = $derived<Row[]>(
+		sync.authoritative
+			? sync.history.map((record) => ({
+					id: record.id,
+					contentId: record.contentId,
+					type: record.contentType,
+					title:
+						names.get(record.contentId) || record.title || record.contentId,
+					season: record.season,
+					episode: record.episode,
+					watchedAt: record.watchedAt,
+				}))
+			: ssrItems,
+	);
 
-  function dayLabel(ts: number): string {
-    const date = new Date(ts);
-    const now = new Date();
-    const startOfToday = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate(),
-    ).getTime();
-    const dayMs = 86_400_000;
-    if (ts >= startOfToday) {
-      return "Today";
-    }
-    if (ts >= startOfToday - dayMs) {
-      return "Yesterday";
-    }
-    if (ts >= startOfToday - 6 * dayMs) {
-      return date.toLocaleDateString(undefined, { weekday: "long" });
-    }
-    return date.toLocaleDateString(undefined, {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    });
-  }
+	function dayLabel(ts: number): string {
+		const date = new Date(ts);
+		const now = new Date();
+		const startOfToday = new Date(
+			now.getFullYear(),
+			now.getMonth(),
+			now.getDate(),
+		).getTime();
+		const dayMs = 86_400_000;
+		if (ts >= startOfToday) {
+			return "Today";
+		}
+		if (ts >= startOfToday - dayMs) {
+			return "Yesterday";
+		}
+		if (ts >= startOfToday - 6 * dayMs) {
+			return date.toLocaleDateString(undefined, { weekday: "long" });
+		}
+		return date.toLocaleDateString(undefined, {
+			day: "numeric",
+			month: "long",
+			year: "numeric",
+		});
+	}
 
-  const groups = $derived.by(() => {
-    const map = new Map<string, Row[]>();
-    for (const item of rows) {
-      const label = dayLabel(item.watchedAt);
-      const bucket = map.get(label);
-      if (bucket) {
-        bucket.push(item);
-      } else {
-        map.set(label, [item]);
-      }
-    }
-    return [...map.entries()];
-  });
+	const groups = $derived.by(() => {
+		const map = new Map<string, Row[]>();
+		for (const item of rows) {
+			const label = dayLabel(item.watchedAt);
+			const bucket = map.get(label);
+			if (bucket) {
+				bucket.push(item);
+			} else {
+				map.set(label, [item]);
+			}
+		}
+		return [...map.entries()];
+	});
 
-  function episodeTag(season: number | null, episode: number | null): string {
-    if (season == null || episode == null) {
-      return "";
-    }
-    return `S${season}E${episode}`;
-  }
+	function episodeTag(season: number | null, episode: number | null): string {
+		if (season == null || episode == null) {
+			return "";
+		}
+		return `S${season}E${episode}`;
+	}
 
-  function watchHref(item: Row): string {
-    const videoId =
-      item.type === "series" && item.season != null && item.episode != null
-        ? `${item.contentId}:${item.season}:${item.episode}`
-        : item.contentId;
-    return resolve(`player/${item.type}/${encodeURIComponent(videoId)}`);
-  }
+	function watchHref(item: Row): string {
+		const videoId =
+			item.type === "series" && item.season != null && item.episode != null
+				? `${item.contentId}:${item.season}:${item.episode}`
+				: item.contentId;
+		return resolve(`player/${item.type}/${encodeURIComponent(videoId)}`);
+	}
 
-  function remove(item: Row) {
-    sync.deleteHistory({
-      contentId: item.contentId,
-      season: item.season,
-      episode: item.episode,
-    });
-    toast(`Removed ${item.title}`, {
-      action: {
-        label: "Undo",
-        onClick: () =>
-          sync.restoreHistory({
-            id: item.id,
-            contentId: item.contentId,
-            contentType: item.type,
-            title: item.title,
-            season: item.season,
-            episode: item.episode,
-            watchedAt: item.watchedAt,
-          }),
-      },
-    });
-  }
+	function remove(item: Row) {
+		sync.deleteHistory({
+			contentId: item.contentId,
+			season: item.season,
+			episode: item.episode,
+		});
+		toast(`Removed ${item.title}`, {
+			action: {
+				label: "Undo",
+				onClick: () =>
+					sync.restoreHistory({
+						id: item.id,
+						contentId: item.contentId,
+						contentType: item.type,
+						title: item.title,
+						season: item.season,
+						episode: item.episode,
+						watchedAt: item.watchedAt,
+					}),
+			},
+		});
+	}
 </script>
 
 <div class="flex flex-col gap-8">

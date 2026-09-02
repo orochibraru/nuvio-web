@@ -1,31 +1,31 @@
 <script lang="ts">
-  import EyeIcon from "@lucide/svelte/icons/eye";
-  import EyeOffIcon from "@lucide/svelte/icons/eye-off";
-  import * as Card from "#lib/components/ui/card/index.js";
-  import * as Field from "#lib/components/ui/field/index.js";
-  import { Input } from "#lib/components/ui/input/index.js";
-  import { theme } from "#lib/settings/theme.svelte.js";
-  import type { UiSettings } from "#lib/settings/ui-settings.js";
+	import EyeIcon from "@lucide/svelte/icons/eye";
+	import EyeOffIcon from "@lucide/svelte/icons/eye-off";
+	import * as Card from "#lib/components/ui/card/index.js";
+	import * as Field from "#lib/components/ui/field/index.js";
+	import { Input } from "#lib/components/ui/input/index.js";
+	import { theme } from "#lib/settings/theme.svelte.js";
+	import type { UiSettings } from "#lib/settings/ui-settings.js";
 
-  let { update }: { update: (patch: Partial<UiSettings>) => Promise<void> } =
-    $props();
+	let { update }: { update: (patch: Partial<UiSettings>) => Promise<void> } =
+		$props();
 
-  // `draft` shadows `theme.current.introDbApiKey` while the field has an
-  // unsaved edit; `null` means "show the stored value" (the common case).
-  let draft = $state<string | null>(null);
-  let visible = $state(false);
-  const value = $derived(draft ?? theme.current.introDbApiKey);
+	// `draft` shadows `theme.current.introDbApiKey` while the field has an
+	// unsaved edit; `null` means "show the stored value" (the common case).
+	let draft = $state<string | null>(null);
+	let visible = $state(false);
+	const value = $derived(draft ?? theme.current.introDbApiKey);
 
-  function commit() {
-    if (draft === null) {
-      return;
-    }
-    const next = draft.trim();
-    draft = null;
-    if (next !== theme.current.introDbApiKey) {
-      void update({ introDbApiKey: next });
-    }
-  }
+	function commit() {
+		if (draft === null) {
+			return;
+		}
+		const next = draft.trim();
+		draft = null;
+		if (next !== theme.current.introDbApiKey) {
+			void update({ introDbApiKey: next });
+		}
+	}
 </script>
 
 <Card.Root class="border border-foreground/10">

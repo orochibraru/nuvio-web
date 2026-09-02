@@ -94,12 +94,12 @@ for (const shot of shots) {
 		// block the shot on it.
 		await page
 			.waitForLoadState("networkidle", { timeout: 8000 })
-			.catch(() => { });
+			.catch(() => {});
 
 		if (shot.prepare) {
 			await shot.prepare(page);
 		}
-		await waitForImages(page).catch(() => { });
+		await waitForImages(page).catch(() => {});
 		await page.waitForTimeout(1000 + (shot.settleMs ?? 0));
 
 		await page.screenshot({

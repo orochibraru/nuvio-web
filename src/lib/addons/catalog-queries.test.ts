@@ -137,13 +137,13 @@ describe("searchAllCatalogs", () => {
 				metas:
 					query.id === "s1"
 						? [
-							{ id: "m1", type: "movie" },
-							{ id: "m2", type: "movie" },
-						]
+								{ id: "m1", type: "movie" },
+								{ id: "m2", type: "movie" },
+							]
 						: [
-							{ id: "m2", type: "movie" },
-							{ id: "m3", type: "movie" },
-						],
+								{ id: "m2", type: "movie" },
+								{ id: "m3", type: "movie" },
+							],
 				from: { addon: { manifest: { id: "a", name: "A" } } },
 			})),
 		});
@@ -184,9 +184,9 @@ describe("similarToTitle", () => {
 				metas:
 					query.genre === "Drama"
 						? Array.from({ length: 8 }, (_, i) => ({
-							id: `m${i}`,
-							type: "movie",
-						}))
+								id: `m${i}`,
+								type: "movie",
+							}))
 						: [],
 				from: { addon: { manifest: { id: "a", name: "A" } } },
 			})),

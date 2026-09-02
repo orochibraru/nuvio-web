@@ -17,7 +17,7 @@ test("skip intro button seeks past the intro window", async ({ page }) => {
 		const v = document.querySelector("video");
 		if (v) {
 			v.currentTime = 3;
-			void v.play().catch(() => { });
+			void v.play().catch(() => {});
 		}
 	});
 
@@ -47,7 +47,7 @@ test("reaching the outro fires the handoff and minimizes the player", async ({
 	await page.evaluate(() => {
 		const v = document.querySelector("video");
 		if (v) {
-			void v.play().catch(() => { });
+			void v.play().catch(() => {});
 			v.currentTime = 4;
 		}
 	});

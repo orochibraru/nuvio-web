@@ -1,106 +1,106 @@
 <script lang="ts">
-  import CheckIcon from "@lucide/svelte/icons/check";
-  import EyeIcon from "@lucide/svelte/icons/eye";
-  import EyeOffIcon from "@lucide/svelte/icons/eye-off";
-  import ListChecksIcon from "@lucide/svelte/icons/list-checks";
-  import PlayIcon from "@lucide/svelte/icons/play";
-  import TvIcon from "@lucide/svelte/icons/tv";
-  import type { MetaVideo } from "#lib/addons/index.js";
-  import ImdbRating from "#lib/components/imdb-rating.svelte";
-  import ScrollRail from "#lib/components/scroll-rail.svelte";
-  import * as ContextMenu from "#lib/components/ui/context-menu/index.js";
-  import { cn } from "#lib/utils.js";
+	import CheckIcon from "@lucide/svelte/icons/check";
+	import EyeIcon from "@lucide/svelte/icons/eye";
+	import EyeOffIcon from "@lucide/svelte/icons/eye-off";
+	import ListChecksIcon from "@lucide/svelte/icons/list-checks";
+	import PlayIcon from "@lucide/svelte/icons/play";
+	import TvIcon from "@lucide/svelte/icons/tv";
+	import type { MetaVideo } from "#lib/addons/index.js";
+	import ImdbRating from "#lib/components/imdb-rating.svelte";
+	import ScrollRail from "#lib/components/scroll-rail.svelte";
+	import * as ContextMenu from "#lib/components/ui/context-menu/index.js";
+	import { cn } from "#lib/utils.js";
 
-  let {
-    videos,
-    seriesRuntime = null,
-    progress = {},
-    initialSeason = null,
-    onPlay,
-    onToggleWatched,
-    onPrefetch,
-    onMarkUpTo,
-    onMarkSeason,
-  }: {
-    videos: MetaVideo[];
-    seriesRuntime?: string | null;
-    progress?: Record<string, { fraction: number; completed: boolean }>;
-    initialSeason?: number | null;
-    onPlay: (videoId: string) => void;
-    onToggleWatched: (
-      videoId: string,
-      season: number | null,
-      episode: number | null,
-      watched: boolean,
-    ) => void;
-    /** Hover/focus intent on an episode : warm its streams in the background. */
-    onPrefetch?: (videoId: string) => void;
-    /** Mark every episode up to and including this one as watched. */
-    onMarkUpTo?: (videoId: string) => void;
-    /** Mark a whole season (optionally plus every earlier season) watched. */
-    onMarkSeason?: (season: number, includeEarlier: boolean) => void;
-  } = $props();
+	let {
+		videos,
+		seriesRuntime = null,
+		progress = {},
+		initialSeason = null,
+		onPlay,
+		onToggleWatched,
+		onPrefetch,
+		onMarkUpTo,
+		onMarkSeason,
+	}: {
+		videos: MetaVideo[];
+		seriesRuntime?: string | null;
+		progress?: Record<string, { fraction: number; completed: boolean }>;
+		initialSeason?: number | null;
+		onPlay: (videoId: string) => void;
+		onToggleWatched: (
+			videoId: string,
+			season: number | null,
+			episode: number | null,
+			watched: boolean,
+		) => void;
+		/** Hover/focus intent on an episode : warm its streams in the background. */
+		onPrefetch?: (videoId: string) => void;
+		/** Mark every episode up to and including this one as watched. */
+		onMarkUpTo?: (videoId: string) => void;
+		/** Mark a whole season (optionally plus every earlier season) watched. */
+		onMarkSeason?: (season: number, includeEarlier: boolean) => void;
+	} = $props();
 
-  const grouped = $derived.by(() => {
-    const bySeason = new Map<number, MetaVideo[]>();
-    for (const video of videos) {
-      if (video.season == null || video.season < 1) {
-        continue;
-      }
-      const bucket = bySeason.get(video.season);
-      if (bucket) {
-        bucket.push(video);
-      } else {
-        bySeason.set(video.season, [video]);
-      }
-    }
-    return [...bySeason.entries()]
-      .sort((a, b) => a[0] - b[0])
-      .map(([season, list]) => ({
-        season,
-        episodes: [...list].sort((a, b) => (a.episode ?? 0) - (b.episode ?? 0)),
-      }));
-  });
+	const grouped = $derived.by(() => {
+		const bySeason = new Map<number, MetaVideo[]>();
+		for (const video of videos) {
+			if (video.season == null || video.season < 1) {
+				continue;
+			}
+			const bucket = bySeason.get(video.season);
+			if (bucket) {
+				bucket.push(video);
+			} else {
+				bySeason.set(video.season, [video]);
+			}
+		}
+		return [...bySeason.entries()]
+			.sort((a, b) => a[0] - b[0])
+			.map(([season, list]) => ({
+				season,
+				episodes: [...list].sort((a, b) => (a.episode ?? 0) - (b.episode ?? 0)),
+			}));
+	});
 
-  let brokenThumbs = $state<Record<string, boolean>>({});
-  let activeSeason = $state<number | null>(null);
-  $effect(() => {
-    if (grouped.length === 0) {
-      return;
-    }
-    if (
-      activeSeason === null ||
-      !grouped.some((g) => g.season === activeSeason)
-    ) {
-      activeSeason = initialSeason ?? grouped[0].season;
-    }
-  });
+	let brokenThumbs = $state<Record<string, boolean>>({});
+	let activeSeason = $state<number | null>(null);
+	$effect(() => {
+		if (grouped.length === 0) {
+			return;
+		}
+		if (
+			activeSeason === null ||
+			!grouped.some((g) => g.season === activeSeason)
+		) {
+			activeSeason = initialSeason ?? grouped[0].season;
+		}
+	});
 
-  const current = $derived(
-    grouped.find((g) => g.season === activeSeason) ?? grouped[0],
-  );
-  const watchedCount = $derived(
-    current
-      ? current.episodes.filter((ep) => progress[ep.id]?.completed).length
-      : 0,
-  );
-  const totalEpisodes = $derived(
-    grouped.reduce((sum, group) => sum + group.episodes.length, 0),
-  );
+	const current = $derived(
+		grouped.find((g) => g.season === activeSeason) ?? grouped[0],
+	);
+	const watchedCount = $derived(
+		current
+			? current.episodes.filter((ep) => progress[ep.id]?.completed).length
+			: 0,
+	);
+	const totalEpisodes = $derived(
+		grouped.reduce((sum, group) => sum + group.episodes.length, 0),
+	);
 
-  function airDate(value: string | undefined): string | null {
-    if (!value) {
-      return null;
-    }
-    const date = new Date(value);
-    return Number.isNaN(date.getTime())
-      ? null
-      : date.toLocaleDateString(undefined, {
-          day: "numeric",
-          month: "short",
-          year: "numeric",
-        });
-  }
+	function airDate(value: string | undefined): string | null {
+		if (!value) {
+			return null;
+		}
+		const date = new Date(value);
+		return Number.isNaN(date.getTime())
+			? null
+			: date.toLocaleDateString(undefined, {
+					day: "numeric",
+					month: "short",
+					year: "numeric",
+				});
+	}
 </script>
 
 <div class="flex flex-col gap-4">

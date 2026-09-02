@@ -1,45 +1,45 @@
 <script lang="ts">
-  import ChartColumnIcon from "@lucide/svelte/icons/chart-column";
-  import CircleUserIcon from "@lucide/svelte/icons/circle-user";
-  import ClockIcon from "@lucide/svelte/icons/clock";
-  import HardDriveIcon from "@lucide/svelte/icons/hard-drive";
-  import * as Tabs from "#lib/components/ui/tabs/index.js";
-  import { pageTitle } from "#lib/stores/title.svelte.js";
-  import { goto } from "$app/navigation";
-  import { page } from "$app/state";
-  import AccountHistory from "./account-history.svelte";
-  import AccountOverview from "./account-overview.svelte";
-  import AccountStats from "./account-stats.svelte";
-  import AccountStorage from "./account-storage.svelte";
+	import ChartColumnIcon from "@lucide/svelte/icons/chart-column";
+	import CircleUserIcon from "@lucide/svelte/icons/circle-user";
+	import ClockIcon from "@lucide/svelte/icons/clock";
+	import HardDriveIcon from "@lucide/svelte/icons/hard-drive";
+	import * as Tabs from "#lib/components/ui/tabs/index.js";
+	import { pageTitle } from "#lib/stores/title.svelte.js";
+	import { goto } from "$app/navigation";
+	import { page } from "$app/state";
+	import AccountHistory from "./account-history.svelte";
+	import AccountOverview from "./account-overview.svelte";
+	import AccountStats from "./account-stats.svelte";
+	import AccountStorage from "./account-storage.svelte";
 
-  pageTitle.set("Account");
+	pageTitle.set("Account");
 
-  let { data } = $props();
+	let { data } = $props();
 
-  // Which section is showing lives in the URL so it survives back/forward
-  // and is shareable/deep-linkable (e.g. from the command palette).
-  const tabs = [
-    { value: "overview", label: "Overview", icon: CircleUserIcon },
-    { value: "history", label: "Watch history", icon: ClockIcon },
-    { value: "stats", label: "Stats", icon: ChartColumnIcon },
-    { value: "storage", label: "Storage & sync", icon: HardDriveIcon },
-  ] as const;
-  type Tab = (typeof tabs)[number]["value"];
-  const tab = $derived<Tab>(
-    (tabs.find((t) => t.value === page.url.searchParams.get("tab"))?.value ??
-      "overview") as Tab,
-  );
+	// Which section is showing lives in the URL so it survives back/forward
+	// and is shareable/deep-linkable (e.g. from the command palette).
+	const tabs = [
+		{ value: "overview", label: "Overview", icon: CircleUserIcon },
+		{ value: "history", label: "Watch history", icon: ClockIcon },
+		{ value: "stats", label: "Stats", icon: ChartColumnIcon },
+		{ value: "storage", label: "Storage & sync", icon: HardDriveIcon },
+	] as const;
+	type Tab = (typeof tabs)[number]["value"];
+	const tab = $derived<Tab>(
+		(tabs.find((t) => t.value === page.url.searchParams.get("tab"))?.value ??
+			"overview") as Tab,
+	);
 
-  function setTab(value: string) {
-    const params = new URLSearchParams(page.url.search);
-    if (value === "overview") {
-      params.delete("tab");
-    } else {
-      params.set("tab", value);
-    }
-    const query = params.toString();
-    void goto(query ? `?${query}` : "?", { reset: false });
-  }
+	function setTab(value: string) {
+		const params = new URLSearchParams(page.url.search);
+		if (value === "overview") {
+			params.delete("tab");
+		} else {
+			params.set("tab", value);
+		}
+		const query = params.toString();
+		void goto(query ? `?${query}` : "?", { reset: false });
+	}
 </script>
 
 <div class="mx-auto flex max-w-5xl flex-col gap-8">

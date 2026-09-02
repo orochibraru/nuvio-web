@@ -1,472 +1,472 @@
 <script lang="ts">
-  import ArrowLeftIcon from "@lucide/svelte/icons/arrow-left";
-  import CopyIcon from "@lucide/svelte/icons/copy";
-  import ExternalLinkIcon from "@lucide/svelte/icons/external-link";
-  import PlayIcon from "@lucide/svelte/icons/play";
-  import RotateCcwIcon from "@lucide/svelte/icons/rotate-ccw";
-  import TriangleAlertIcon from "@lucide/svelte/icons/triangle-alert";
-  import { toast } from "svelte-sonner";
-  import { similarTitles } from "#lib/addons/addons.remote.js";
-  import PlaybackLoading from "#lib/components/playback-loading.svelte";
-  import { Button } from "#lib/components/ui/button/index.js";
-  import VideoPlayer from "#lib/components/video-player/video-player.svelte";
-  import { saveUiSettings } from "#lib/settings/settings.remote.js";
-  import { theme } from "#lib/settings/theme.svelte.js";
-  import type { UiSettings } from "#lib/settings/ui-settings.js";
-  import { pageTitle } from "#lib/stores/title.svelte.js";
-  import { streamed } from "#lib/stream.svelte.js";
-  import { sync } from "#lib/sync/store.svelte.js";
-  import { browserCanPlayCodec } from "#lib/watch/codec-support.js";
-  import { externalPlayerHandoff } from "#lib/watch/external-player.js";
-  import {
-    forgetLink,
-    playbackHandoff,
-    recallLink,
-    rememberLink,
-  } from "#lib/watch/playback.svelte.js";
-  import PlayerEndPanel from "#lib/watch/player-end-panel.svelte";
-  import PlayerEpisodesPanel from "#lib/watch/player-episodes-panel.svelte";
-  import { mediaSegments } from "#lib/watch/segments.remote.js";
-  import { sourcesPanel } from "#lib/watch/sources-panel.svelte.js";
-  import {
-    audioSupport,
-    describeStream,
-    pickPreferredStream,
-    riskyVideoCodec,
-  } from "#lib/watch/stream-format.js";
-  import {
-    getSubtitles,
-    resolveStreams,
-    titleProgress,
-  } from "#lib/watch/watch.remote.js";
-  import { EMPTY_PROVIDERS } from "#lib/watch/watch-providers.js";
-  import { watchProviders } from "#lib/watch/watch-providers.remote.js";
-  import WatchProvidersList from "#lib/watch/watch-providers-list.svelte";
-  import { browser } from "$app/env";
-  import { goto } from "$app/navigation";
-  import { resolve } from "$app/paths";
-  import { page } from "$app/state";
+	import ArrowLeftIcon from "@lucide/svelte/icons/arrow-left";
+	import CopyIcon from "@lucide/svelte/icons/copy";
+	import ExternalLinkIcon from "@lucide/svelte/icons/external-link";
+	import PlayIcon from "@lucide/svelte/icons/play";
+	import RotateCcwIcon from "@lucide/svelte/icons/rotate-ccw";
+	import TriangleAlertIcon from "@lucide/svelte/icons/triangle-alert";
+	import { toast } from "svelte-sonner";
+	import { similarTitles } from "#lib/addons/addons.remote.js";
+	import PlaybackLoading from "#lib/components/playback-loading.svelte";
+	import { Button } from "#lib/components/ui/button/index.js";
+	import VideoPlayer from "#lib/components/video-player/video-player.svelte";
+	import { saveUiSettings } from "#lib/settings/settings.remote.js";
+	import { theme } from "#lib/settings/theme.svelte.js";
+	import type { UiSettings } from "#lib/settings/ui-settings.js";
+	import { pageTitle } from "#lib/stores/title.svelte.js";
+	import { streamed } from "#lib/stream.svelte.js";
+	import { sync } from "#lib/sync/store.svelte.js";
+	import { browserCanPlayCodec } from "#lib/watch/codec-support.js";
+	import { externalPlayerHandoff } from "#lib/watch/external-player.js";
+	import {
+		forgetLink,
+		playbackHandoff,
+		recallLink,
+		rememberLink,
+	} from "#lib/watch/playback.svelte.js";
+	import PlayerEndPanel from "#lib/watch/player-end-panel.svelte";
+	import PlayerEpisodesPanel from "#lib/watch/player-episodes-panel.svelte";
+	import { mediaSegments } from "#lib/watch/segments.remote.js";
+	import { sourcesPanel } from "#lib/watch/sources-panel.svelte.js";
+	import {
+		audioSupport,
+		describeStream,
+		pickPreferredStream,
+		riskyVideoCodec,
+	} from "#lib/watch/stream-format.js";
+	import {
+		getSubtitles,
+		resolveStreams,
+		titleProgress,
+	} from "#lib/watch/watch.remote.js";
+	import { EMPTY_PROVIDERS } from "#lib/watch/watch-providers.js";
+	import { watchProviders } from "#lib/watch/watch-providers.remote.js";
+	import WatchProvidersList from "#lib/watch/watch-providers-list.svelte";
+	import { browser } from "$app/env";
+	import { goto } from "$app/navigation";
+	import { resolve } from "$app/paths";
+	import { page } from "$app/state";
 
-  let { data } = $props();
+	let { data } = $props();
 
-  const type = $derived(page.params.type ?? "movie");
-  const id = $derived(page.params.id ?? "");
+	const type = $derived(page.params.type ?? "movie");
+	const id = $derived(page.params.id ?? "");
 
-  // Meta / resume / next-episode context comes from the load, streamed, so
-  // the player shell still paints on navigation but doesn't then pay for a
-  // client round trip to find out what it's playing.
-  const contextStream = streamed(
-    () => data.context,
-    null as Awaited<typeof data.context>,
-  );
-  type PlaybackCtx = NonNullable<Awaited<typeof data.context>>;
-  const contextReady = $derived(contextStream.ready);
-  const contextFallback = $derived({
-    metaType: type === "series" ? "series" : "movie",
-    contentId: id.split(":")[0] ?? id,
-    season: null,
-    episode: null,
-    videoId: id,
-    heading: "Loading…",
-    subheading: null,
-    background: null,
-    poster: null,
-    logo: null,
-    certification: null,
-    genres: [],
-    info: {
-      description: null,
-      imdbRating: null,
-      releaseInfo: null,
-      runtime: null,
-      status: null,
-      country: null,
-      awards: null,
-      cast: [],
-      director: [],
-      writer: [],
-      episodeTitle: null,
-      episodeOverview: null,
-    },
-    episodes: [],
-    next: null,
-    resume: null,
-  } satisfies PlaybackCtx);
-  const context = $derived<PlaybackCtx>(
-    contextStream.current ?? contextFallback,
-  );
+	// Meta / resume / next-episode context comes from the load, streamed, so
+	// the player shell still paints on navigation but doesn't then pay for a
+	// client round trip to find out what it's playing.
+	const contextStream = streamed(
+		() => data.context,
+		null as Awaited<typeof data.context>,
+	);
+	type PlaybackCtx = NonNullable<Awaited<typeof data.context>>;
+	const contextReady = $derived(contextStream.ready);
+	const contextFallback = $derived({
+		metaType: type === "series" ? "series" : "movie",
+		contentId: id.split(":")[0] ?? id,
+		season: null,
+		episode: null,
+		videoId: id,
+		heading: "Loading…",
+		subheading: null,
+		background: null,
+		poster: null,
+		logo: null,
+		certification: null,
+		genres: [],
+		info: {
+			description: null,
+			imdbRating: null,
+			releaseInfo: null,
+			runtime: null,
+			status: null,
+			country: null,
+			awards: null,
+			cast: [],
+			director: [],
+			writer: [],
+			episodeTitle: null,
+			episodeOverview: null,
+		},
+		episodes: [],
+		next: null,
+		resume: null,
+	} satisfies PlaybackCtx);
+	const context = $derived<PlaybackCtx>(
+		contextStream.current ?? contextFallback,
+	);
 
-  $effect(() => {
-    if (contextReady) {
-      pageTitle.set(context.heading);
-    }
-  });
+	$effect(() => {
+		if (contextReady) {
+			pageTitle.set(context.heading);
+		}
+	});
 
-  // The source drawer, shared with /detail through the (watch) layout.
-  function openSources() {
-    // Reaching for another source means the current link is no good : drop it
-    // so "reuse last link" doesn't hand it back next time.
-    forgetLink(id);
-    sourcesPanel.open(type, id);
-  }
+	// The source drawer, shared with /detail through the (watch) layout.
+	function openSources() {
+		// Reaching for another source means the current link is no good : drop it
+		// so "reuse last link" doesn't hand it back next time.
+		forgetLink(id);
+		sourcesPanel.open(type, id);
+	}
 
-  // In-player episode drawer (series only).
-  let episodesOpen = $state(false);
-  const isSeries = $derived(context.metaType === "series");
-  const hasEpisodes = $derived(isSeries && context.episodes.length > 0);
-  const nextVideoId = $derived(context.next?.videoId ?? null);
-  $effect(() => {
-    void page.params.id;
-    episodesOpen = false;
-  });
+	// In-player episode drawer (series only).
+	let episodesOpen = $state(false);
+	const isSeries = $derived(context.metaType === "series");
+	const hasEpisodes = $derived(isSeries && context.episodes.length > 0);
+	const nextVideoId = $derived(context.next?.videoId ?? null);
+	$effect(() => {
+		void page.params.id;
+		episodesOpen = false;
+	});
 
-  const episodeProgressQuery = $derived(
-    hasEpisodes ? titleProgress({ contentId: context.contentId }) : undefined,
-  );
-  const episodeProgress = $derived(
-    sync.authoritative
-      ? sync.titleProgress(context.contentId)
-      : (episodeProgressQuery?.current ?? {}),
-  );
+	const episodeProgressQuery = $derived(
+		hasEpisodes ? titleProgress({ contentId: context.contentId }) : undefined,
+	);
+	const episodeProgress = $derived(
+		sync.authoritative
+			? sync.titleProgress(context.contentId)
+			: (episodeProgressQuery?.current ?? {}),
+	);
 
-  function playVideo(videoId: string) {
-    episodesOpen = false;
-    void goto(playerHref(videoId));
-  }
+	function playVideo(videoId: string) {
+		episodesOpen = false;
+		void goto(playerHref(videoId));
+	}
 
-  // The stream picked on /streams; else a remembered link (if "reuse last link"
-  // is on and it's still fresh); else resolve one here on a cold load.
-  const handed = $derived(
-    playbackHandoff.take(id) ??
-      (theme.current.reuseLastLink
-        ? recallLink(id, theme.current.linkCacheDays)
-        : null),
-  );
-  const streamsQuery = $derived(
-    handed ? undefined : resolveStreams({ type, id }),
-  );
-  const autoStream = $derived(
-    pickPreferredStream(
-      streamsQuery?.current?.streams ?? [],
-      theme.current.preferredQuality,
-    ),
-  );
+	// The stream picked on /streams; else a remembered link (if "reuse last link"
+	// is on and it's still fresh); else resolve one here on a cold load.
+	const handed = $derived(
+		playbackHandoff.take(id) ??
+			(theme.current.reuseLastLink
+				? recallLink(id, theme.current.linkCacheDays)
+				: null),
+	);
+	const streamsQuery = $derived(
+		handed ? undefined : resolveStreams({ type, id }),
+	);
+	const autoStream = $derived(
+		pickPreferredStream(
+			streamsQuery?.current?.streams ?? [],
+			theme.current.preferredQuality,
+		),
+	);
 
-  const active = $derived.by(() => {
-    if (handed) {
-      return handed;
-    }
-    if (autoStream) {
-      return {
-        url: autoStream.url,
-        externalUrl: autoStream.externalUrl,
-        notWebReady: autoStream.notWebReady,
-        label: describeStream(autoStream).title,
-        addonName: autoStream.addonName,
-        infoHash: autoStream.infoHash,
-      };
-    }
-    return null;
-  });
+	const active = $derived.by(() => {
+		if (handed) {
+			return handed;
+		}
+		if (autoStream) {
+			return {
+				url: autoStream.url,
+				externalUrl: autoStream.externalUrl,
+				notWebReady: autoStream.notWebReady,
+				label: describeStream(autoStream).title,
+				addonName: autoStream.addonName,
+				infoHash: autoStream.infoHash,
+			};
+		}
+		return null;
+	});
 
-  // The chosen stream's label names a video codec (HEVC / AV1 / Xvid); ask the
-  // browser whether it can actually decode it before we bother mounting <video>.
-  const videoCodec = $derived(
-    handed
-      ? handed.videoCodec
-      : autoStream
-        ? riskyVideoCodec(autoStream)
-        : null,
-  );
-  const codecBlocked = $derived(
-    browserCanPlayCodec(videoCodec) === "unsupported",
-  );
+	// The chosen stream's label names a video codec (HEVC / AV1 / Xvid); ask the
+	// browser whether it can actually decode it before we bother mounting <video>.
+	const videoCodec = $derived(
+		handed
+			? handed.videoCodec
+			: autoStream
+				? riskyVideoCodec(autoStream)
+				: null,
+	);
+	const codecBlocked = $derived(
+		browserCanPlayCodec(videoCodec) === "unsupported",
+	);
 
-  const playableSrc = $derived(
-    active && !active.notWebReady && !codecBlocked
-      ? (active.url ?? null)
-      : null,
-  );
-  // The stream fan-out rejected (addon host down, CORS, network) : a distinct
-  // state from "still loading" so the shell can offer a retry instead of
-  // spinning forever.
-  const streamsError = $derived(!handed && streamsQuery?.error != null);
-  const resolving = $derived(
-    !(handed || streamsQuery?.current || streamsError),
-  );
+	const playableSrc = $derived(
+		active && !active.notWebReady && !codecBlocked
+			? (active.url ?? null)
+			: null,
+	);
+	// The stream fan-out rejected (addon host down, CORS, network) : a distinct
+	// state from "still loading" so the shell can offer a retry instead of
+	// spinning forever.
+	const streamsError = $derived(!handed && streamsQuery?.error != null);
+	const resolving = $derived(
+		!(handed || streamsQuery?.current || streamsError),
+	);
 
-  // Official "where to watch" : the fallback when no addon stream plays here.
-  const providersQuery = $derived(
-    contextReady
-      ? watchProviders({
-          title: context.heading,
-          year: Number((context.info.releaseInfo ?? "").slice(0, 4)) || null,
-          imdbId: /^tt\d+$/.test(context.contentId) ? context.contentId : null,
-          region: theme.current.watchRegion,
-        })
-      : undefined,
-  );
-  const providers = $derived(providersQuery?.current ?? EMPTY_PROVIDERS);
-  const officialCta = $derived(providers.stream[0] ?? null);
+	// Official "where to watch" : the fallback when no addon stream plays here.
+	const providersQuery = $derived(
+		contextReady
+			? watchProviders({
+					title: context.heading,
+					year: Number((context.info.releaseInfo ?? "").slice(0, 4)) || null,
+					imdbId: /^tt\d+$/.test(context.contentId) ? context.contentId : null,
+					region: theme.current.watchRegion,
+				})
+			: undefined,
+	);
+	const providers = $derived(providersQuery?.current ?? EMPTY_PROVIDERS);
+	const officialCta = $derived(providers.stream[0] ?? null);
 
-  // The chosen stream's label hints at a codec the browser can't decode for
-  // audio : used to make the player's no-sound detection more eager.
-  const audioRisky = $derived(
-    handed
-      ? handed.audioRisky
-      : autoStream
-        ? audioSupport(autoStream) === "risky"
-        : false,
-  );
+	// The chosen stream's label hints at a codec the browser can't decode for
+	// audio : used to make the player's no-sound detection more eager.
+	const audioRisky = $derived(
+		handed
+			? handed.audioRisky
+			: autoStream
+				? audioSupport(autoStream) === "risky"
+				: false,
+	);
 
-  // Bumped by "Watch again" to remount the player and replay from the start.
-  let replayNonce = $state(0);
+	// Bumped by "Watch again" to remount the player and replay from the start.
+	let replayNonce = $state(0);
 
-  // Always pick up where the viewer left off : no "resume vs start over" prompt.
-  // "Watch again" (replayNonce > 0) restarts from the top.
-  const startTime = $derived(
-    replayNonce === 0 && context.resume ? context.resume.position / 1000 : 0,
-  );
+	// Always pick up where the viewer left off : no "resume vs start over" prompt.
+	// "Watch again" (replayNonce > 0) restarts from the top.
+	const startTime = $derived(
+		replayNonce === 0 && context.resume ? context.resume.position / 1000 : 0,
+	);
 
-  const subtitlesQuery = $derived(
-    playableSrc
-      ? getSubtitles({ type: context.metaType, id: context.videoId })
-      : undefined,
-  );
+	const subtitlesQuery = $derived(
+		playableSrc
+			? getSubtitles({ type: context.metaType, id: context.videoId })
+			: undefined,
+	);
 
-  function saveSubtitleAppearance(patch: Partial<UiSettings>) {
-    const next = { ...theme.current, ...patch };
-    theme.preview(next);
-    void saveUiSettings(next);
-  }
+	function saveSubtitleAppearance(patch: Partial<UiSettings>) {
+		const next = { ...theme.current, ...patch };
+		theme.preview(next);
+		void saveUiSettings(next);
+	}
 
-  let linkRemembered = false;
+	let linkRemembered = false;
 
-  function report(position: number, duration: number) {
-    // First progress tick means the stream actually played : remember its URL
-    // for "reuse last link".
-    if (!linkRemembered && position > 2 && active?.url) {
-      linkRemembered = true;
-      rememberLink({
-        videoId: id,
-        url: active.url,
-        externalUrl: active.externalUrl ?? null,
-        notWebReady: Boolean(active.notWebReady),
-        label: active.label ?? context.heading,
-        addonName: active.addonName ?? "",
-        infoHash: active.infoHash ?? null,
-        audioRisky,
-        videoRisky: videoCodec !== null,
-        videoCodec,
-      });
-    }
-    if (!contextReady) {
-      return;
-    }
-    sync.saveProgress({
-      contentId: context.contentId,
-      contentType: context.metaType,
-      videoId: context.videoId,
-      season: context.season,
-      episode: context.episode,
-      position: position * 1000,
-      duration: duration * 1000,
-    });
-  }
+	function report(position: number, duration: number) {
+		// First progress tick means the stream actually played : remember its URL
+		// for "reuse last link".
+		if (!linkRemembered && position > 2 && active?.url) {
+			linkRemembered = true;
+			rememberLink({
+				videoId: id,
+				url: active.url,
+				externalUrl: active.externalUrl ?? null,
+				notWebReady: Boolean(active.notWebReady),
+				label: active.label ?? context.heading,
+				addonName: active.addonName ?? "",
+				infoHash: active.infoHash ?? null,
+				audioRisky,
+				videoRisky: videoCodec !== null,
+				videoCodec,
+			});
+		}
+		if (!contextReady) {
+			return;
+		}
+		sync.saveProgress({
+			contentId: context.contentId,
+			contentType: context.metaType,
+			videoId: context.videoId,
+			season: context.season,
+			episode: context.episode,
+			position: position * 1000,
+			duration: duration * 1000,
+		});
+	}
 
-  function playerHref(videoId: string): string {
-    return resolve(`player/series/${encodeURIComponent(videoId)}`);
-  }
+	function playerHref(videoId: string): string {
+		return resolve(`player/series/${encodeURIComponent(videoId)}`);
+	}
 
-  // Detail page keys on the base content id, not an episode's `video_id`.
-  const detailHref = $derived(
-    resolve(`detail/${type}/${encodeURIComponent(context.contentId)}`),
-  );
+	// Detail page keys on the base content id, not an episode's `video_id`.
+	const detailHref = $derived(
+		resolve(`detail/${type}/${encodeURIComponent(context.contentId)}`),
+	);
 
-  // Intro / outro timestamps (TheIntroDB) : power "Skip intro" and the
-  // outro handoff (next-episode card / end-of-show panel).
-  const segmentsQuery = $derived(
-    playableSrc && contextReady
-      ? mediaSegments({
-          contentId: context.contentId,
-          season: context.season,
-          episode: context.episode,
-          apiKey: theme.current.introDbApiKey,
-        })
-      : undefined,
-  );
-  const segments = $derived(segmentsQuery?.current ?? null);
+	// Intro / outro timestamps (TheIntroDB) : power "Skip intro" and the
+	// outro handoff (next-episode card / end-of-show panel).
+	const segmentsQuery = $derived(
+		playableSrc && contextReady
+			? mediaSegments({
+					contentId: context.contentId,
+					season: context.season,
+					episode: context.episode,
+					apiKey: theme.current.introDbApiKey,
+				})
+			: undefined,
+	);
+	const segments = $derived(segmentsQuery?.current ?? null);
 
-  // Two end states: "up next" (there is a next episode) and "end of show"
-  // (there isn't : shrink the player, show suggestions).
-  let upNextVisible = $state(false);
-  let upNextCountdown = $state<number | null>(null);
-  let countdownTimer: ReturnType<typeof setInterval> | undefined;
-  let endOfShow = $state(false);
+	// Two end states: "up next" (there is a next episode) and "end of show"
+	// (there isn't : shrink the player, show suggestions).
+	let upNextVisible = $state(false);
+	let upNextCountdown = $state<number | null>(null);
+	let countdownTimer: ReturnType<typeof setInterval> | undefined;
+	let endOfShow = $state(false);
 
-  const suggestionsQuery = $derived(
-    endOfShow
-      ? similarTitles({
-          type: context.metaType,
-          id: context.contentId,
-          genres: context.genres,
-        })
-      : undefined,
-  );
+	const suggestionsQuery = $derived(
+		endOfShow
+			? similarTitles({
+					type: context.metaType,
+					id: context.contentId,
+					genres: context.genres,
+				})
+			: undefined,
+	);
 
-  const suggestions = $derived(
-    (suggestionsQuery?.current?.metas ?? []).slice(0, 12),
-  );
+	const suggestions = $derived(
+		(suggestionsQuery?.current?.metas ?? []).slice(0, 12),
+	);
 
-  function cancelUpNext() {
-    clearInterval(countdownTimer);
-    upNextCountdown = null;
-    upNextVisible = false;
-  }
+	function cancelUpNext() {
+		clearInterval(countdownTimer);
+		upNextCountdown = null;
+		upNextVisible = false;
+	}
 
-  function goToNext() {
-    const target = context.next;
-    cancelUpNext();
-    if (target) {
-      void goto(playerHref(target.videoId));
-    }
-  }
+	function goToNext() {
+		const target = context.next;
+		cancelUpNext();
+		if (target) {
+			void goto(playerHref(target.videoId));
+		}
+	}
 
-  function openUpNext() {
-    if (!context.next || upNextVisible) {
-      return;
-    }
-    upNextVisible = true;
-    if (theme.current.autoPlayNext) {
-      upNextCountdown = 10;
-      countdownTimer = setInterval(() => {
-        upNextCountdown = (upNextCountdown ?? 1) - 1;
-        if (upNextCountdown <= 0) {
-          goToNext();
-        }
-      }, 1000);
-    }
-  }
+	function openUpNext() {
+		if (!context.next || upNextVisible) {
+			return;
+		}
+		upNextVisible = true;
+		if (theme.current.autoPlayNext) {
+			upNextCountdown = 10;
+			countdownTimer = setInterval(() => {
+				upNextCountdown = (upNextCountdown ?? 1) - 1;
+				if (upNextCountdown <= 0) {
+					goToNext();
+				}
+			}, 1000);
+		}
+	}
 
-  // True once the video element actually fired `ended` (vs. just crossing the
-  // outro timestamp mid-credits) : gates the "Back to video" affordance.
-  let trueEnd = $state(false);
+	// True once the video element actually fired `ended` (vs. just crossing the
+	// outro timestamp mid-credits) : gates the "Back to video" affordance.
+	let trueEnd = $state(false);
 
-  // Fired once when playback reaches the credits, and again on the real `ended`
-  // event as a fallback (when there's no outro timestamp).
-  function reachedEnd(ended = false) {
-    if (ended) {
-      trueEnd = true;
-    }
-    if (context.next) {
-      openUpNext();
-    } else {
-      endOfShow = true;
-    }
-  }
+	// Fired once when playback reaches the credits, and again on the real `ended`
+	// event as a fallback (when there's no outro timestamp).
+	function reachedEnd(ended = false) {
+		if (ended) {
+			trueEnd = true;
+		}
+		if (context.next) {
+			openUpNext();
+		} else {
+			endOfShow = true;
+		}
+	}
 
-  // The end-of-show takeover shouldn't leave the credits blaring under it.
-  $effect(() => {
-    if (endOfShow) {
-      document.querySelector("video")?.pause();
-    }
-  });
+	// The end-of-show takeover shouldn't leave the credits blaring under it.
+	$effect(() => {
+		if (endOfShow) {
+			document.querySelector("video")?.pause();
+		}
+	});
 
-  // Dismiss the takeover and keep watching from where we are (post-credits
-  // scene, or just finishing the credits).
-  function backToVideo() {
-    endOfShow = false;
-    cancelUpNext();
-    queueMicrotask(() => void document.querySelector("video")?.play());
-  }
+	// Dismiss the takeover and keep watching from where we are (post-credits
+	// scene, or just finishing the credits).
+	function backToVideo() {
+		endOfShow = false;
+		cancelUpNext();
+		queueMicrotask(() => void document.querySelector("video")?.play());
+	}
 
-  function watchAgain() {
-    endOfShow = false;
-    trueEnd = false;
-    cancelUpNext();
-    replayNonce += 1;
-  }
+	function watchAgain() {
+		endOfShow = false;
+		trueEnd = false;
+		cancelUpNext();
+		replayNonce += 1;
+	}
 
-  $effect(() => {
-    void page.params.id;
-    endOfShow = false;
-    replayNonce = 0;
-    trueEnd = false;
-    linkRemembered = false;
-    return cancelUpNext;
-  });
+	$effect(() => {
+		void page.params.id;
+		endOfShow = false;
+		replayNonce = 0;
+		trueEnd = false;
+		linkRemembered = false;
+		return cancelUpNext;
+	});
 
-  // Leaving the player always lands on this title's detail page. `history.back()`
-  // is a guess : it can bounce to whatever was open before, or out of the app
-  // when the player was opened directly : and the old fallback used the *video*
-  // id, so an episode (`tt0903747:1:1`) built a detail URL for a title that
-  // doesn't exist. `replaceState` so the player doesn't sit in the history for
-  // the browser's own back button to return to.
-  function goBack() {
-    void goto(
-      resolve(
-        `detail/${context.metaType}/${encodeURIComponent(context.contentId)}`,
-      ),
-      { replaceState: true },
-    );
-  }
+	// Leaving the player always lands on this title's detail page. `history.back()`
+	// is a guess : it can bounce to whatever was open before, or out of the app
+	// when the player was opened directly : and the old fallback used the *video*
+	// id, so an episode (`tt0903747:1:1`) built a detail URL for a title that
+	// doesn't exist. `replaceState` so the player doesn't sit in the history for
+	// the browser's own back button to return to.
+	function goBack() {
+		void goto(
+			resolve(
+				`detail/${context.metaType}/${encodeURIComponent(context.contentId)}`,
+			),
+			{ replaceState: true },
+		);
+	}
 
-  // A stream that can't play here (P2P-only, or a codec this browser lacks) but
-  // has a direct URL : hand it to an external player, or let the viewer copy
-  // it. `playerLink` is null on desktop, where no player registers a URL
-  // scheme, so there the copy button is the handoff.
-  const externalLink = $derived(
-    active && (active.notWebReady || codecBlocked)
-      ? (active.url ?? active.externalUrl)
-      : null,
-  );
-  // What "play in an external player" can actually do here: a deep link
-  // (mobile), a `magnet:` (P2P sources : the OS's torrent app, and the only
-  // thing a magnet-only stream *can* hand over), or copying the URL on
-  // desktop, where no player registers a scheme. Never nothing while the
-  // copy above promises one.
-  const handoff = $derived(
-    browser && active
-      ? externalPlayerHandoff(
-          {
-            url: active.url,
-            externalUrl: active.externalUrl,
-            infoHash: active.infoHash,
-            name: active.label ?? context.heading,
-          },
-          navigator.userAgent,
-        )
-      : null,
-  );
+	// A stream that can't play here (P2P-only, or a codec this browser lacks) but
+	// has a direct URL : hand it to an external player, or let the viewer copy
+	// it. `playerLink` is null on desktop, where no player registers a URL
+	// scheme, so there the copy button is the handoff.
+	const externalLink = $derived(
+		active && (active.notWebReady || codecBlocked)
+			? (active.url ?? active.externalUrl)
+			: null,
+	);
+	// What "play in an external player" can actually do here: a deep link
+	// (mobile), a `magnet:` (P2P sources : the OS's torrent app, and the only
+	// thing a magnet-only stream *can* hand over), or copying the URL on
+	// desktop, where no player registers a scheme. Never nothing while the
+	// copy above promises one.
+	const handoff = $derived(
+		browser && active
+			? externalPlayerHandoff(
+					{
+						url: active.url,
+						externalUrl: active.externalUrl,
+						infoHash: active.infoHash,
+						name: active.label ?? context.heading,
+					},
+					navigator.userAgent,
+				)
+			: null,
+	);
 
-  async function playExternally() {
-    if (handoff?.kind !== "copy") {
-      return;
-    }
-    try {
-      await navigator.clipboard.writeText(handoff.url);
-      copied = true;
-      toast.success("Link copied : paste it into your player");
-      setTimeout(() => (copied = false), 2000);
-    } catch {
-      toast.error("Couldn't copy the link");
-    }
-  }
+	async function playExternally() {
+		if (handoff?.kind !== "copy") {
+			return;
+		}
+		try {
+			await navigator.clipboard.writeText(handoff.url);
+			copied = true;
+			toast.success("Link copied : paste it into your player");
+			setTimeout(() => (copied = false), 2000);
+		} catch {
+			toast.error("Couldn't copy the link");
+		}
+	}
 
-  let copied = $state(false);
-  async function copyStreamLink() {
-    if (!externalLink) {
-      return;
-    }
-    try {
-      await navigator.clipboard.writeText(externalLink);
-      copied = true;
-      toast.success("Stream link copied");
-      setTimeout(() => (copied = false), 2000);
-    } catch {
-      toast.error("Couldn't copy the link");
-    }
-  }
+	let copied = $state(false);
+	async function copyStreamLink() {
+		if (!externalLink) {
+			return;
+		}
+		try {
+			await navigator.clipboard.writeText(externalLink);
+			copied = true;
+			toast.success("Stream link copied");
+			setTimeout(() => (copied = false), 2000);
+		} catch {
+			toast.error("Couldn't copy the link");
+		}
+	}
 </script>
 
 <div

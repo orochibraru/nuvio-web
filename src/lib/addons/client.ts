@@ -52,12 +52,12 @@ function normalizeAddonCatalogEntry(raw: unknown): AddonCatalogEntry | null {
 	}
 	const manifest = entry.manifest as
 		| {
-			id?: unknown;
-			name?: unknown;
-			description?: unknown;
-			logo?: unknown;
-			types?: unknown;
-		}
+				id?: unknown;
+				name?: unknown;
+				description?: unknown;
+				logo?: unknown;
+				types?: unknown;
+		  }
 		| null
 		| undefined;
 	if (
@@ -96,9 +96,9 @@ function buildResourceUrl(baseUrl: string, ref: ResourceRef): string {
 	const base = `${baseUrl}/${ref.resource}/${encodeURIComponent(ref.type)}/${encodeURIComponent(ref.id)}`;
 	const segment = ref.extra
 		? Object.entries(ref.extra)
-			.filter(([, value]) => value !== undefined && value !== "")
-			.map(([key, value]) => `${key}=${encodeURIComponent(String(value))}`)
-			.join("&")
+				.filter(([, value]) => value !== undefined && value !== "")
+				.map(([key, value]) => `${key}=${encodeURIComponent(String(value))}`)
+				.join("&")
 		: "";
 	return segment ? `${base}/${segment}.json` : `${base}.json`;
 }
@@ -193,7 +193,7 @@ export class AddonClient {
 		private readonly registry: AddonRegistry,
 		private readonly fetchImpl: typeof fetch,
 		private readonly timeoutMs = 15_000,
-	) { }
+	) {}
 
 	async getCatalog(
 		query: CatalogQuery,
@@ -202,12 +202,12 @@ export class AddonClient {
 		const ref = addonId
 			? this.registry.findCatalog(addonId, query.type, query.id)
 			: this.registry
-				.catalogs()
-				.find(
-					(entry) =>
-						entry.catalog.type === query.type &&
-						entry.catalog.id === query.id,
-				);
+					.catalogs()
+					.find(
+						(entry) =>
+							entry.catalog.type === query.type &&
+							entry.catalog.id === query.id,
+					);
 		if (!ref) {
 			return null;
 		}

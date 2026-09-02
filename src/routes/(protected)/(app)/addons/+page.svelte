@@ -1,274 +1,274 @@
 <script lang="ts">
-  import ArrowDownIcon from "@lucide/svelte/icons/arrow-down";
-  import ArrowUpIcon from "@lucide/svelte/icons/arrow-up";
-  import CompassIcon from "@lucide/svelte/icons/compass";
-  import GripVerticalIcon from "@lucide/svelte/icons/grip-vertical";
-  import InfoIcon from "@lucide/svelte/icons/info";
-  import PlusIcon from "@lucide/svelte/icons/plus";
-  import PowerIcon from "@lucide/svelte/icons/power";
-  import PowerOffIcon from "@lucide/svelte/icons/power-off";
-  import PuzzleIcon from "@lucide/svelte/icons/puzzle";
-  import SettingsIcon from "@lucide/svelte/icons/settings";
-  import Trash2Icon from "@lucide/svelte/icons/trash-2";
-  import TriangleAlertIcon from "@lucide/svelte/icons/triangle-alert";
-  import { toast } from "svelte-sonner";
-  import {
-    addonCatalogSources,
-    browseAddonCatalog,
-    installedAddons,
-    previewAddon,
-    saveAddons,
-  } from "#lib/addons/addons.remote.js";
-  import * as Alert from "#lib/components/ui/alert/index.js";
-  import { Badge } from "#lib/components/ui/badge/index.js";
-  import { Button } from "#lib/components/ui/button/index.js";
-  import * as Card from "#lib/components/ui/card/index.js";
-  import * as Dialog from "#lib/components/ui/dialog/index.js";
-  import * as Field from "#lib/components/ui/field/index.js";
-  import { Input } from "#lib/components/ui/input/index.js";
-  import { Spinner } from "#lib/components/ui/spinner/index.js";
-  import { pageTitle } from "#lib/stores/title.svelte.js";
-  import { cn } from "#lib/utils.js";
+	import ArrowDownIcon from "@lucide/svelte/icons/arrow-down";
+	import ArrowUpIcon from "@lucide/svelte/icons/arrow-up";
+	import CompassIcon from "@lucide/svelte/icons/compass";
+	import GripVerticalIcon from "@lucide/svelte/icons/grip-vertical";
+	import InfoIcon from "@lucide/svelte/icons/info";
+	import PlusIcon from "@lucide/svelte/icons/plus";
+	import PowerIcon from "@lucide/svelte/icons/power";
+	import PowerOffIcon from "@lucide/svelte/icons/power-off";
+	import PuzzleIcon from "@lucide/svelte/icons/puzzle";
+	import SettingsIcon from "@lucide/svelte/icons/settings";
+	import Trash2Icon from "@lucide/svelte/icons/trash-2";
+	import TriangleAlertIcon from "@lucide/svelte/icons/triangle-alert";
+	import { toast } from "svelte-sonner";
+	import {
+		addonCatalogSources,
+		browseAddonCatalog,
+		installedAddons,
+		previewAddon,
+		saveAddons,
+	} from "#lib/addons/addons.remote.js";
+	import * as Alert from "#lib/components/ui/alert/index.js";
+	import { Badge } from "#lib/components/ui/badge/index.js";
+	import { Button } from "#lib/components/ui/button/index.js";
+	import * as Card from "#lib/components/ui/card/index.js";
+	import * as Dialog from "#lib/components/ui/dialog/index.js";
+	import * as Field from "#lib/components/ui/field/index.js";
+	import { Input } from "#lib/components/ui/input/index.js";
+	import { Spinner } from "#lib/components/ui/spinner/index.js";
+	import { pageTitle } from "#lib/stores/title.svelte.js";
+	import { cn } from "#lib/utils.js";
 
-  pageTitle.set("Addons");
+	pageTitle.set("Addons");
 
-  interface Row {
-    url: string;
-    name: string;
-    enabled: boolean;
-  }
+	interface Row {
+		url: string;
+		name: string;
+		enabled: boolean;
+	}
 
-  const addonsQuery = installedAddons();
-  const catalogSourcesQuery = addonCatalogSources();
+	const addonsQuery = installedAddons();
+	const catalogSourcesQuery = addonCatalogSources();
 
-  let saving = $state(false);
-  let dialogOpen = $state(false);
-  let addUrl = $state("");
-  let previewing = $state(false);
-  let preview = $state<Awaited<ReturnType<typeof previewAddon>> | null>(null);
+	let saving = $state(false);
+	let dialogOpen = $state(false);
+	let addUrl = $state("");
+	let previewing = $state(false);
+	let preview = $state<Awaited<ReturnType<typeof previewAddon>> | null>(null);
 
-  // While any addon can't be reached, re-poll every 5s so the list reflects a
-  // recovery without a manual reload (the server registry retries on the same
-  // cadence).
-  const anyUnreachable = $derived(
-    Boolean(addonsQuery.current) &&
-      ((addonsQuery.current?.errors.length ?? 0) > 0 ||
-        (addonsQuery.current?.addons ?? []).some((addon) => !addon.reachable)),
-  );
-  $effect(() => {
-    if (!anyUnreachable || saving) {
-      return;
-    }
-    const timer = setInterval(() => void addonsQuery.refresh(), 5000);
-    return () => clearInterval(timer);
-  });
+	// While any addon can't be reached, re-poll every 5s so the list reflects a
+	// recovery without a manual reload (the server registry retries on the same
+	// cadence).
+	const anyUnreachable = $derived(
+		Boolean(addonsQuery.current) &&
+			((addonsQuery.current?.errors.length ?? 0) > 0 ||
+				(addonsQuery.current?.addons ?? []).some((addon) => !addon.reachable)),
+	);
+	$effect(() => {
+		if (!anyUnreachable || saving) {
+			return;
+		}
+		const timer = setInterval(() => void addonsQuery.refresh(), 5000);
+		return () => clearInterval(timer);
+	});
 
-  function toRows(): Row[] {
-    return (addonsQuery.current?.addons ?? []).map((addon) => ({
-      url: addon.url,
-      name: addon.name,
-      enabled: addon.enabled,
-    }));
-  }
+	function toRows(): Row[] {
+		return (addonsQuery.current?.addons ?? []).map((addon) => ({
+			url: addon.url,
+			name: addon.name,
+			enabled: addon.enabled,
+		}));
+	}
 
-  async function persist(rows: Row[]) {
-    saving = true;
-    try {
-      await saveAddons(rows);
-      await addonsQuery.refresh();
-    } catch {
-      toast.error("Couldn't save addon changes.");
-    } finally {
-      saving = false;
-    }
-  }
+	async function persist(rows: Row[]) {
+		saving = true;
+		try {
+			await saveAddons(rows);
+			await addonsQuery.refresh();
+		} catch {
+			toast.error("Couldn't save addon changes.");
+		} finally {
+			saving = false;
+		}
+	}
 
-  function setEnabled(url: string, enabled: boolean) {
-    void persist(
-      toRows().map((row) => (row.url === url ? { ...row, enabled } : row)),
-    );
-  }
+	function setEnabled(url: string, enabled: boolean) {
+		void persist(
+			toRows().map((row) => (row.url === url ? { ...row, enabled } : row)),
+		);
+	}
 
-  let confirmRemove = $state<{ url: string; name: string } | null>(null);
+	let confirmRemove = $state<{ url: string; name: string } | null>(null);
 
-  function removeAddon(url: string) {
-    confirmRemove = null;
-    void persist(toRows().filter((row) => row.url !== url));
-    toast.success("Addon removed");
-  }
+	function removeAddon(url: string) {
+		confirmRemove = null;
+		void persist(toRows().filter((row) => row.url !== url));
+		toast.success("Addon removed");
+	}
 
-  function move(url: string, delta: number) {
-    const rows = toRows();
-    const index = rows.findIndex((row) => row.url === url);
-    const target = index + delta;
-    if (index < 0 || target < 0 || target >= rows.length) {
-      return;
-    }
-    [rows[index], rows[target]] = [rows[target], rows[index]];
-    void persist(rows);
-  }
+	function move(url: string, delta: number) {
+		const rows = toRows();
+		const index = rows.findIndex((row) => row.url === url);
+		const target = index + delta;
+		if (index < 0 || target < 0 || target >= rows.length) {
+			return;
+		}
+		[rows[index], rows[target]] = [rows[target], rows[index]];
+		void persist(rows);
+	}
 
-  // Drag reorder. `dragUrl` is the row being dragged, `dropUrl` the row it is
-  // hovering over (for the drop indicator).
-  let dragUrl = $state<string | null>(null);
-  let dropUrl = $state<string | null>(null);
+	// Drag reorder. `dragUrl` is the row being dragged, `dropUrl` the row it is
+	// hovering over (for the drop indicator).
+	let dragUrl = $state<string | null>(null);
+	let dropUrl = $state<string | null>(null);
 
-  function onDrop() {
-    const from = dragUrl;
-    const to = dropUrl;
-    dragUrl = null;
-    dropUrl = null;
-    if (!(from && to) || from === to) {
-      return;
-    }
-    const rows = toRows();
-    const fromIndex = rows.findIndex((row) => row.url === from);
-    const toIndex = rows.findIndex((row) => row.url === to);
-    if (fromIndex < 0 || toIndex < 0) {
-      return;
-    }
-    const [moved] = rows.splice(fromIndex, 1);
-    rows.splice(toIndex, 0, moved);
-    void persist(rows);
-  }
+	function onDrop() {
+		const from = dragUrl;
+		const to = dropUrl;
+		dragUrl = null;
+		dropUrl = null;
+		if (!(from && to) || from === to) {
+			return;
+		}
+		const rows = toRows();
+		const fromIndex = rows.findIndex((row) => row.url === from);
+		const toIndex = rows.findIndex((row) => row.url === to);
+		if (fromIndex < 0 || toIndex < 0) {
+			return;
+		}
+		const [moved] = rows.splice(fromIndex, 1);
+		rows.splice(toIndex, 0, moved);
+		void persist(rows);
+	}
 
-  // One button: resolve the manifest, then install it. The preview card renders
-  // while it resolves; on success the dialog closes.
-  async function addAddon() {
-    if (!addUrl || previewing || saving) {
-      return;
-    }
-    previewing = true;
-    preview = null;
-    try {
-      preview = await previewAddon(addUrl);
-    } catch {
-      preview = { ok: false, message: "Enter a valid addon URL." };
-    } finally {
-      previewing = false;
-    }
-    const current = preview;
-    if (!current?.ok) {
-      return;
-    }
-    const rows = toRows();
-    if (rows.some((row) => row.url === current.baseUrl)) {
-      toast.info("That addon is already installed.");
-      dialogOpen = false;
-      return;
-    }
-    await persist([
-      ...rows,
-      { url: current.baseUrl, name: current.manifest.name, enabled: true },
-    ]);
-    toast.success(`Added ${current.manifest.name}.`);
-    dialogOpen = false;
-    addUrl = "";
-    preview = null;
-  }
+	// One button: resolve the manifest, then install it. The preview card renders
+	// while it resolves; on success the dialog closes.
+	async function addAddon() {
+		if (!addUrl || previewing || saving) {
+			return;
+		}
+		previewing = true;
+		preview = null;
+		try {
+			preview = await previewAddon(addUrl);
+		} catch {
+			preview = { ok: false, message: "Enter a valid addon URL." };
+		} finally {
+			previewing = false;
+		}
+		const current = preview;
+		if (!current?.ok) {
+			return;
+		}
+		const rows = toRows();
+		if (rows.some((row) => row.url === current.baseUrl)) {
+			toast.info("That addon is already installed.");
+			dialogOpen = false;
+			return;
+		}
+		await persist([
+			...rows,
+			{ url: current.baseUrl, name: current.manifest.name, enabled: true },
+		]);
+		toast.success(`Added ${current.manifest.name}.`);
+		dialogOpen = false;
+		addUrl = "";
+		preview = null;
+	}
 
-  // Metadata-only providers : safe to suggest (no scraper / torrent sources).
-  const SUGGESTED = [
-    {
-      name: "Cinemeta",
-      url: "https://v3-cinemeta.strem.io/manifest.json",
-      blurb: "Catalogs, posters and metadata for films and TV (IMDb ids).",
-    },
-    {
-      name: "TMDB",
-      url: "https://94c8cb9f702d-tmdb-addon.baby-beamup.club/manifest.json",
-      blurb: "The Movie Database catalogs and artwork, many languages.",
-    },
-  ];
+	// Metadata-only providers : safe to suggest (no scraper / torrent sources).
+	const SUGGESTED = [
+		{
+			name: "Cinemeta",
+			url: "https://v3-cinemeta.strem.io/manifest.json",
+			blurb: "Catalogs, posters and metadata for films and TV (IMDb ids).",
+		},
+		{
+			name: "TMDB",
+			url: "https://94c8cb9f702d-tmdb-addon.baby-beamup.club/manifest.json",
+			blurb: "The Movie Database catalogs and artwork, many languages.",
+		},
+	];
 
-  let addingSuggested = $state<string | null>(null);
+	let addingSuggested = $state<string | null>(null);
 
-  async function addSuggested(entry: (typeof SUGGESTED)[number]) {
-    if (addingSuggested) {
-      return;
-    }
-    const rows = toRows();
-    if (rows.some((row) => `${row.url}/manifest.json` === entry.url)) {
-      toast.info("That addon is already installed.");
-      return;
-    }
-    addingSuggested = entry.url;
-    try {
-      await doAddSuggested(entry, rows);
-    } finally {
-      addingSuggested = null;
-    }
-  }
+	async function addSuggested(entry: (typeof SUGGESTED)[number]) {
+		if (addingSuggested) {
+			return;
+		}
+		const rows = toRows();
+		if (rows.some((row) => `${row.url}/manifest.json` === entry.url)) {
+			toast.info("That addon is already installed.");
+			return;
+		}
+		addingSuggested = entry.url;
+		try {
+			await doAddSuggested(entry, rows);
+		} finally {
+			addingSuggested = null;
+		}
+	}
 
-  async function doAddSuggested(
-    entry: (typeof SUGGESTED)[number],
-    rows: ReturnType<typeof toRows>,
-  ) {
-    const result = await previewAddon(entry.url).catch(() => null);
-    if (!result?.ok) {
-      toast.error(`Couldn't reach ${entry.name}.`);
-      return;
-    }
-    await persist([
-      ...rows,
-      { url: result.baseUrl, name: result.manifest.name, enabled: true },
-    ]);
-    toast.success(`Added ${result.manifest.name}.`);
-  }
+	async function doAddSuggested(
+		entry: (typeof SUGGESTED)[number],
+		rows: ReturnType<typeof toRows>,
+	) {
+		const result = await previewAddon(entry.url).catch(() => null);
+		if (!result?.ok) {
+			toast.error(`Couldn't reach ${entry.name}.`);
+			return;
+		}
+		await persist([
+			...rows,
+			{ url: result.baseUrl, name: result.manifest.name, enabled: true },
+		]);
+		toast.success(`Added ${result.manifest.name}.`);
+	}
 
-  // "Discover more addons" : addons that themselves advertise an
-  // `addon_catalog` (a community directory of other addons). Browsing one
-  // lazily fetches its listing; installing one re-verifies the manifest via
-  // `previewAddon` rather than trusting the directory's own copy of it.
-  type CatalogSource = Awaited<ReturnType<typeof addonCatalogSources>>[number];
-  type CatalogEntry = Awaited<
-    ReturnType<typeof browseAddonCatalog>
-  >["addons"][number];
+	// "Discover more addons" : addons that themselves advertise an
+	// `addon_catalog` (a community directory of other addons). Browsing one
+	// lazily fetches its listing; installing one re-verifies the manifest via
+	// `previewAddon` rather than trusting the directory's own copy of it.
+	type CatalogSource = Awaited<ReturnType<typeof addonCatalogSources>>[number];
+	type CatalogEntry = Awaited<
+		ReturnType<typeof browseAddonCatalog>
+	>["addons"][number];
 
-  let browseOpen = $state(false);
-  let browseSource = $state<CatalogSource | null>(null);
-  const browseQuery = $derived(
-    browseSource
-      ? browseAddonCatalog({
-          addonId: browseSource.addonId,
-          type: browseSource.type,
-          id: browseSource.id,
-        })
-      : undefined,
-  );
+	let browseOpen = $state(false);
+	let browseSource = $state<CatalogSource | null>(null);
+	const browseQuery = $derived(
+		browseSource
+			? browseAddonCatalog({
+					addonId: browseSource.addonId,
+					type: browseSource.type,
+					id: browseSource.id,
+				})
+			: undefined,
+	);
 
-  function openBrowse(source: CatalogSource) {
-    browseSource = source;
-    browseOpen = true;
-  }
+	function openBrowse(source: CatalogSource) {
+		browseSource = source;
+		browseOpen = true;
+	}
 
-  let installingUrl = $state<string | null>(null);
+	let installingUrl = $state<string | null>(null);
 
-  async function installFromCatalog(entry: CatalogEntry) {
-    if (installingUrl) {
-      return;
-    }
-    const rows = toRows();
-    if (rows.some((row) => row.url === entry.transportUrl)) {
-      toast.info("That addon is already installed.");
-      return;
-    }
-    installingUrl = entry.transportUrl;
-    try {
-      const result = await previewAddon(entry.transportUrl).catch(() => null);
-      if (!result?.ok) {
-        toast.error(`Couldn't reach ${entry.manifest.name}.`);
-        return;
-      }
-      await persist([
-        ...rows,
-        { url: result.baseUrl, name: result.manifest.name, enabled: true },
-      ]);
-      toast.success(`Added ${result.manifest.name}.`);
-    } finally {
-      installingUrl = null;
-    }
-  }
+	async function installFromCatalog(entry: CatalogEntry) {
+		if (installingUrl) {
+			return;
+		}
+		const rows = toRows();
+		if (rows.some((row) => row.url === entry.transportUrl)) {
+			toast.info("That addon is already installed.");
+			return;
+		}
+		installingUrl = entry.transportUrl;
+		try {
+			const result = await previewAddon(entry.transportUrl).catch(() => null);
+			if (!result?.ok) {
+				toast.error(`Couldn't reach ${entry.manifest.name}.`);
+				return;
+			}
+			await persist([
+				...rows,
+				{ url: result.baseUrl, name: result.manifest.name, enabled: true },
+			]);
+			toast.success(`Added ${result.manifest.name}.`);
+		} finally {
+			installingUrl = null;
+		}
+	}
 </script>
 
 <div class="flex flex-col gap-6">

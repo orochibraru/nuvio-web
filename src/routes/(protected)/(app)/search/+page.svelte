@@ -1,132 +1,132 @@
 <script lang="ts">
-  import ClockIcon from "@lucide/svelte/icons/clock";
-  import SearchIcon from "@lucide/svelte/icons/search";
-  import XIcon from "@lucide/svelte/icons/x";
-  import { untrack } from "svelte";
-  import MediaGrid from "#lib/components/media-grid.svelte";
-  import MediaRow from "#lib/components/media-row.svelte";
-  import QueryError from "#lib/components/query-error.svelte";
-  import { Input } from "#lib/components/ui/input/index.js";
-  import { searchHistory } from "#lib/search-history.svelte.js";
-  import { pageTitle } from "#lib/stores/title.svelte.js";
-  import { streamed } from "#lib/stream.svelte.js";
-  import { browser } from "$app/env";
-  import {
-    afterNavigate,
-    beforeNavigate,
-    goto,
-    invalidateAll,
-  } from "$app/navigation";
-  import { resolve } from "$app/paths";
-  import { page } from "$app/state";
+	import ClockIcon from "@lucide/svelte/icons/clock";
+	import SearchIcon from "@lucide/svelte/icons/search";
+	import XIcon from "@lucide/svelte/icons/x";
+	import { untrack } from "svelte";
+	import MediaGrid from "#lib/components/media-grid.svelte";
+	import MediaRow from "#lib/components/media-row.svelte";
+	import QueryError from "#lib/components/query-error.svelte";
+	import { Input } from "#lib/components/ui/input/index.js";
+	import { searchHistory } from "#lib/search-history.svelte.js";
+	import { pageTitle } from "#lib/stores/title.svelte.js";
+	import { streamed } from "#lib/stream.svelte.js";
+	import { browser } from "$app/env";
+	import {
+		afterNavigate,
+		beforeNavigate,
+		goto,
+		invalidateAll,
+	} from "$app/navigation";
+	import { resolve } from "$app/paths";
+	import { page } from "$app/state";
 
-  let { data } = $props();
+	let { data } = $props();
 
-  // A native `autofocus` pops the on-screen keyboard the instant a touch
-  // device paints this page, before the viewer has asked to type : only
-  // steal focus where a keyboard doesn't cost anything.
-  let searchInput = $state<HTMLInputElement | null>(null);
-  $effect(() => {
-    if (browser && !window.matchMedia("(pointer: coarse)").matches) {
-      searchInput?.focus();
-    }
-  });
+	// A native `autofocus` pops the on-screen keyboard the instant a touch
+	// device paints this page, before the viewer has asked to type : only
+	// steal focus where a keyboard doesn't cost anything.
+	let searchInput = $state<HTMLInputElement | null>(null);
+	$effect(() => {
+		if (browser && !window.matchMedia("(pointer: coarse)").matches) {
+			searchInput?.focus();
+		}
+	});
 
-  const term = $derived((page.url.searchParams.get("q") ?? "").trim());
+	const term = $derived((page.url.searchParams.get("q") ?? "").trim());
 
-  let input = $state((page.url.searchParams.get("q") ?? "").trim());
-  $effect(() => {
-    pageTitle.set(term ? `Search: ${term}` : "Search");
-  });
+	let input = $state((page.url.searchParams.get("q") ?? "").trim());
+	$effect(() => {
+		pageTitle.set(term ? `Search: ${term}` : "Search");
+	});
 
-  function runSearch(value: string, replace: boolean) {
-    const query = value.trim();
-    if (query === term) {
-      return;
-    }
-    void goto(
-      query
-        ? resolve(`search?q=${encodeURIComponent(query)}`)
-        : resolve("search"),
-      { reset: false, replace },
-    );
-  }
+	function runSearch(value: string, replace: boolean) {
+		const query = value.trim();
+		if (query === term) {
+			return;
+		}
+		void goto(
+			query
+				? resolve(`search?q=${encodeURIComponent(query)}`)
+				: resolve("search"),
+			{ reset: false, replace },
+		);
+	}
 
-  // Auto-search while typing (debounced); Enter still searches immediately.
-  let debounceTimer: ReturnType<typeof setTimeout> | undefined;
-  $effect(() => {
-    const value = input;
-    if (value.trim() === term) {
-      return;
-    }
-    debounceTimer = setTimeout(() => runSearch(value, true), 450);
-    return () => clearTimeout(debounceTimer);
-  });
+	// Auto-search while typing (debounced); Enter still searches immediately.
+	let debounceTimer: ReturnType<typeof setTimeout> | undefined;
+	$effect(() => {
+		const value = input;
+		if (value.trim() === term) {
+			return;
+		}
+		debounceTimer = setTimeout(() => runSearch(value, true), 450);
+		return () => clearTimeout(debounceTimer);
+	});
 
-  // A navigation away (e.g. clicking another nav link) must win outright : the
-  // effect cleanup above only clears the timer once this component actually
-  // unmounts, which happens after the destination finishes loading. On a slow
-  // navigation the debounce can still fire in that window and its `goto` to
-  // `/search?q=…` overrides the one already in flight. Cancel eagerly instead.
-  beforeNavigate(() => {
-    clearTimeout(debounceTimer);
-  });
+	// A navigation away (e.g. clicking another nav link) must win outright : the
+	// effect cleanup above only clears the timer once this component actually
+	// unmounts, which happens after the destination finishes loading. On a slow
+	// navigation the debounce can still fire in that window and its `goto` to
+	// `/search?q=…` overrides the one already in flight. Cancel eagerly instead.
+	beforeNavigate(() => {
+		clearTimeout(debounceTimer);
+	});
 
-  // Keep the box in sync with back / forward navigation.
-  afterNavigate(({ shallow }) => {
-    if (shallow) {
-      return;
-    }
+	// Keep the box in sync with back / forward navigation.
+	afterNavigate(({ shallow }) => {
+		if (shallow) {
+			return;
+		}
 
-    const q = (page.url.searchParams.get("q") ?? "").trim();
-    if (q !== input.trim()) {
-      input = q;
-    }
-  });
+		const q = (page.url.searchParams.get("q") ?? "").trim();
+		if (q !== input.trim()) {
+			input = q;
+		}
+	});
 
-  // Results are resolved by the load from `?q=` and streamed down with the
-  // page, so they don't wait on hydration plus a round trip. `null` once
-  // ready means the addons couldn't be reached (as opposed to no matches).
-  const resultsStream = streamed(
-    () => data.results ?? undefined,
-    null as Awaited<typeof data.results>,
-  );
-  const results = $derived(resultsStream.current);
-  const resultsLoading = $derived(Boolean(term) && !resultsStream.ready);
-  const resultsFailed = $derived(
-    Boolean(term) && resultsStream.ready && results === null,
-  );
+	// Results are resolved by the load from `?q=` and streamed down with the
+	// page, so they don't wait on hydration plus a round trip. `null` once
+	// ready means the addons couldn't be reached (as opposed to no matches).
+	const resultsStream = streamed(
+		() => data.results ?? undefined,
+		null as Awaited<typeof data.results>,
+	);
+	const results = $derived(resultsStream.current);
+	const resultsLoading = $derived(Boolean(term) && !resultsStream.ready);
+	const resultsFailed = $derived(
+		Boolean(term) && resultsStream.ready && results === null,
+	);
 
-  // Record a term once its results come back non-empty (local-only history).
-  $effect(() => {
-    if (term && (results?.metas.length ?? 0) > 0) {
-      untrack(() => searchHistory.record(term));
-    }
-  });
+	// Record a term once its results come back non-empty (local-only history).
+	$effect(() => {
+		if (term && (results?.metas.length ?? 0) > 0) {
+			untrack(() => searchHistory.record(term));
+		}
+	});
 
-  const groups = $derived.by(() => {
-    const metas = results?.metas ?? [];
-    const movies = metas.filter((meta) => meta.type === "movie");
-    const series = metas.filter((meta) => meta.type === "series");
-    const other = metas.filter(
-      (meta) => meta.type !== "movie" && meta.type !== "series",
-    );
-    return { movies, series, other };
-  });
+	const groups = $derived.by(() => {
+		const metas = results?.metas ?? [];
+		const movies = metas.filter((meta) => meta.type === "movie");
+		const series = metas.filter((meta) => meta.type === "series");
+		const other = metas.filter(
+			(meta) => meta.type !== "movie" && meta.type !== "series",
+		);
+		return { movies, series, other };
+	});
 
-  function submit(event: SubmitEvent) {
-    event.preventDefault();
-    runSearch(input, false);
-  }
+	function submit(event: SubmitEvent) {
+		event.preventDefault();
+		runSearch(input, false);
+	}
 
-  // Discover fallback : shown when there's no query, or when a query returned
-  // nothing. Same catalog rows as the home feed, fetched by this page's load.
-  const browseStream = streamed(
-    () => data.browseRows,
-    [] as Awaited<typeof data.browseRows>,
-  );
-  const browseRows = $derived(browseStream.current.slice(0, 8));
-  const browseLoading = $derived(!browseStream.ready);
+	// Discover fallback : shown when there's no query, or when a query returned
+	// nothing. Same catalog rows as the home feed, fetched by this page's load.
+	const browseStream = streamed(
+		() => data.browseRows,
+		[] as Awaited<typeof data.browseRows>,
+	);
+	const browseRows = $derived(browseStream.current.slice(0, 8));
+	const browseLoading = $derived(!browseStream.ready);
 </script>
 
 {#snippet discoverRows()}

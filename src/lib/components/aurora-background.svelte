@@ -1,11 +1,11 @@
 <script lang="ts">
-  // Ambient colour wash : slowly drifting, heavily blurred blobs in the brand
-  // gradient (indigo → violet → cyan). Purely decorative. Sits above the
-  // parent's background paint but below `relative` content, so no z-index games.
-  let {
-    fixed = false,
-    class: className = "",
-  }: { fixed?: boolean; class?: string } = $props();
+	// Ambient colour wash : slowly drifting, heavily blurred blobs in the brand
+	// gradient (indigo → violet → cyan). Purely decorative. Sits above the
+	// parent's background paint but below `relative` content, so no z-index games.
+	let {
+		fixed = false,
+		class: className = "",
+	}: { fixed?: boolean; class?: string } = $props();
 </script>
 
 <div

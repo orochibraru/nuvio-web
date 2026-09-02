@@ -2,7 +2,7 @@
 export class TtlCache<T> {
 	private readonly store = new Map<string, { value: T; expiresAt: number }>();
 
-	constructor(private readonly defaultTtlMs: number) { }
+	constructor(private readonly defaultTtlMs: number) {}
 
 	get(key: string): T | undefined {
 		const hit = this.store.get(key);

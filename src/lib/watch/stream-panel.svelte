@@ -1,224 +1,224 @@
 <script lang="ts">
-  import CheckIcon from "@lucide/svelte/icons/check";
-  import ExternalLinkIcon from "@lucide/svelte/icons/external-link";
-  import FilmIcon from "@lucide/svelte/icons/film";
-  import PlayIcon from "@lucide/svelte/icons/play";
-  import PuzzleIcon from "@lucide/svelte/icons/puzzle";
-  import RefreshCwIcon from "@lucide/svelte/icons/refresh-cw";
-  import SlidersHorizontalIcon from "@lucide/svelte/icons/sliders-horizontal";
-  import UsersIcon from "@lucide/svelte/icons/users";
-  import VolumeXIcon from "@lucide/svelte/icons/volume-x";
-  import XIcon from "@lucide/svelte/icons/x";
-  import { cubicOut } from "svelte/easing";
-  import { fade, fly } from "svelte/transition";
-  import { Separator } from "#lib/components/ui/separator/index.js";
-  import { reduced } from "#lib/motion.js";
-  import { theme } from "#lib/settings/theme.svelte.js";
-  import { cn } from "#lib/utils.js";
-  import { goto } from "$app/navigation";
-  import { resolve } from "$app/paths";
-  import { playbackHandoff } from "./playback.svelte.js";
-  import {
-    isPlayable,
-    type ResolvedStream,
-    type StreamKind,
-    streamKind,
-    streamMeta,
-  } from "./stream-format.ts";
-  import { playbackContext, resolveStreams } from "./watch.remote.ts";
-  import { watchProviders } from "./watch-providers.remote.ts";
-  import { EMPTY_PROVIDERS } from "./watch-providers.ts";
-  import WatchProvidersList from "./watch-providers-list.svelte";
+	import CheckIcon from "@lucide/svelte/icons/check";
+	import ExternalLinkIcon from "@lucide/svelte/icons/external-link";
+	import FilmIcon from "@lucide/svelte/icons/film";
+	import PlayIcon from "@lucide/svelte/icons/play";
+	import PuzzleIcon from "@lucide/svelte/icons/puzzle";
+	import RefreshCwIcon from "@lucide/svelte/icons/refresh-cw";
+	import SlidersHorizontalIcon from "@lucide/svelte/icons/sliders-horizontal";
+	import UsersIcon from "@lucide/svelte/icons/users";
+	import VolumeXIcon from "@lucide/svelte/icons/volume-x";
+	import XIcon from "@lucide/svelte/icons/x";
+	import { cubicOut } from "svelte/easing";
+	import { fade, fly } from "svelte/transition";
+	import { Separator } from "#lib/components/ui/separator/index.js";
+	import { reduced } from "#lib/motion.js";
+	import { theme } from "#lib/settings/theme.svelte.js";
+	import { cn } from "#lib/utils.js";
+	import { goto } from "$app/navigation";
+	import { resolve } from "$app/paths";
+	import { playbackHandoff } from "./playback.svelte.js";
+	import {
+		isPlayable,
+		type ResolvedStream,
+		type StreamKind,
+		streamKind,
+		streamMeta,
+	} from "./stream-format.ts";
+	import { playbackContext, resolveStreams } from "./watch.remote.ts";
+	import { watchProviders } from "./watch-providers.remote.ts";
+	import { EMPTY_PROVIDERS } from "./watch-providers.ts";
+	import WatchProvidersList from "./watch-providers-list.svelte";
 
-  let {
-    type,
-    videoId,
-    onClose,
-  }: {
-    type: string;
-    videoId: string;
-    onClose: () => void;
-  } = $props();
+	let {
+		type,
+		videoId,
+		onClose,
+	}: {
+		type: string;
+		videoId: string;
+		onClose: () => void;
+	} = $props();
 
-  const contextQuery = $derived(playbackContext({ type, id: videoId }));
-  const heading = $derived(contextQuery.current?.heading ?? "Sources");
-  const subheading = $derived(contextQuery.current?.subheading ?? null);
+	const contextQuery = $derived(playbackContext({ type, id: videoId }));
+	const heading = $derived(contextQuery.current?.heading ?? "Sources");
+	const subheading = $derived(contextQuery.current?.subheading ?? null);
 
-  // Official "where to watch" : shown prominently when no addon returns a
-  // stream, and as a footer otherwise.
-  const providersQuery = $derived.by(() => {
-    const ctx = contextQuery.current;
-    if (!ctx) {
-      return;
-    }
-    return watchProviders({
-      title: ctx.heading,
-      year: Number((ctx.info?.releaseInfo ?? "").slice(0, 4)) || null,
-      imdbId: /^tt\d+$/.test(ctx.contentId) ? ctx.contentId : null,
-      region: theme.current.watchRegion,
-    });
-  });
-  const providers = $derived(providersQuery?.current ?? EMPTY_PROVIDERS);
-  const hasOfficial = $derived(
-    providers.stream.length + providers.rent.length + providers.buy.length > 0,
-  );
+	// Official "where to watch" : shown prominently when no addon returns a
+	// stream, and as a footer otherwise.
+	const providersQuery = $derived.by(() => {
+		const ctx = contextQuery.current;
+		if (!ctx) {
+			return;
+		}
+		return watchProviders({
+			title: ctx.heading,
+			year: Number((ctx.info?.releaseInfo ?? "").slice(0, 4)) || null,
+			imdbId: /^tt\d+$/.test(ctx.contentId) ? ctx.contentId : null,
+			region: theme.current.watchRegion,
+		});
+	});
+	const providers = $derived(providersQuery?.current ?? EMPTY_PROVIDERS);
+	const hasOfficial = $derived(
+		providers.stream.length + providers.rent.length + providers.buy.length > 0,
+	);
 
-  const streamsQuery = $derived(resolveStreams({ type, id: videoId }));
-  const result = $derived(streamsQuery.current);
+	const streamsQuery = $derived(resolveStreams({ type, id: videoId }));
+	const result = $derived(streamsQuery.current);
 
-  let refreshing = $state(false);
-  let filtersOpen = $state(false);
+	let refreshing = $state(false);
+	let filtersOpen = $state(false);
 
-  // Filters. Default: direct sources only, likely-silent hidden.
-  let kinds = $state<Set<StreamKind>>(new Set(["direct"]));
-  let quality = $state<string | null>(null);
-  let addonFilter = $state<string | null>(null);
-  let showSilent = $state(false);
+	// Filters. Default: direct sources only, likely-silent hidden.
+	let kinds = $state<Set<StreamKind>>(new Set(["direct"]));
+	let quality = $state<string | null>(null);
+	let addonFilter = $state<string | null>(null);
+	let showSilent = $state(false);
 
-  function resetFilters() {
-    kinds = new Set(["direct"]);
-    quality = null;
-    addonFilter = null;
-    showSilent = false;
-  }
+	function resetFilters() {
+		kinds = new Set(["direct"]);
+		quality = null;
+		addonFilter = null;
+		showSilent = false;
+	}
 
-  // Reset whenever the target video changes.
-  $effect(() => {
-    void videoId;
-    resetFilters();
-    filtersOpen = false;
-  });
+	// Reset whenever the target video changes.
+	$effect(() => {
+		void videoId;
+		resetFilters();
+		filtersOpen = false;
+	});
 
-  function toggleKind(kind: StreamKind) {
-    const next = new Set(kinds);
-    if (next.has(kind)) {
-      next.delete(kind);
-    } else {
-      next.add(kind);
-    }
-    kinds = next;
-  }
+	function toggleKind(kind: StreamKind) {
+		const next = new Set(kinds);
+		if (next.has(kind)) {
+			next.delete(kind);
+		} else {
+			next.add(kind);
+		}
+		kinds = next;
+	}
 
-  type Row = ResolvedStream & {
-    info: ReturnType<typeof streamMeta>;
-    kind: StreamKind;
-  };
+	type Row = ResolvedStream & {
+		info: ReturnType<typeof streamMeta>;
+		kind: StreamKind;
+	};
 
-  const rows = $derived<Row[]>(
-    (result?.streams ?? []).map((stream) => ({
-      ...stream,
-      info: streamMeta(stream),
-      kind: streamKind(stream),
-    })),
-  );
+	const rows = $derived<Row[]>(
+		(result?.streams ?? []).map((stream) => ({
+			...stream,
+			info: streamMeta(stream),
+			kind: streamKind(stream),
+		})),
+	);
 
-  const kindsPresent = $derived(new Set(rows.map((row) => row.kind)));
-  const addons = $derived(
-    [...new Set(rows.map((row) => row.addonName))].sort(),
-  );
-  const qualities = $derived(
-    ["4K", "1440p", "1080p", "720p", "480p", "360p"].filter((q) =>
-      rows.some((row) => row.info.tags.includes(q)),
-    ),
-  );
-  const silentCount = $derived(
-    rows.filter((row) => row.info.audio === "risky").length,
-  );
+	const kindsPresent = $derived(new Set(rows.map((row) => row.kind)));
+	const addons = $derived(
+		[...new Set(rows.map((row) => row.addonName))].sort(),
+	);
+	const qualities = $derived(
+		["4K", "1440p", "1080p", "720p", "480p", "360p"].filter((q) =>
+			rows.some((row) => row.info.tags.includes(q)),
+		),
+	);
+	const silentCount = $derived(
+		rows.filter((row) => row.info.audio === "risky").length,
+	);
 
-  // Filter, then sink likely-silent sources (unsupported audio codec) to the
-  // bottom : stable, so addon order is otherwise preserved.
-  const shown = $derived(
-    rows
-      .filter(
-        (row) =>
-          (kinds.size === 0 || kinds.has(row.kind)) &&
-          (!quality || row.info.tags.includes(quality)) &&
-          (!addonFilter || row.addonName === addonFilter) &&
-          (showSilent || row.info.audio !== "risky"),
-      )
-      .map((row, order) => ({ row, order }))
-      .sort(
-        (a, b) =>
-          Number(a.row.info.audio === "risky") -
-            Number(b.row.info.audio === "risky") || a.order - b.order,
-      )
-      .map((entry) => entry.row),
-  );
+	// Filter, then sink likely-silent sources (unsupported audio codec) to the
+	// bottom : stable, so addon order is otherwise preserved.
+	const shown = $derived(
+		rows
+			.filter(
+				(row) =>
+					(kinds.size === 0 || kinds.has(row.kind)) &&
+					(!quality || row.info.tags.includes(quality)) &&
+					(!addonFilter || row.addonName === addonFilter) &&
+					(showSilent || row.info.audio !== "risky"),
+			)
+			.map((row, order) => ({ row, order }))
+			.sort(
+				(a, b) =>
+					Number(a.row.info.audio === "risky") -
+						Number(b.row.info.audio === "risky") || a.order - b.order,
+			)
+			.map((entry) => entry.row),
+	);
 
-  const activeFilters = $derived(
-    Number(!(kinds.size === 1 && kinds.has("direct"))) +
-      Number(quality !== null) +
-      Number(addonFilter !== null) +
-      Number(showSilent),
-  );
+	const activeFilters = $derived(
+		Number(!(kinds.size === 1 && kinds.has("direct"))) +
+			Number(quality !== null) +
+			Number(addonFilter !== null) +
+			Number(showSilent),
+	);
 
-  async function refresh() {
-    refreshing = true;
-    try {
-      await streamsQuery.refresh();
-    } finally {
-      refreshing = false;
-    }
-  }
+	async function refresh() {
+		refreshing = true;
+		try {
+			await streamsQuery.refresh();
+		} finally {
+			refreshing = false;
+		}
+	}
 
-  function pick(row: Row) {
-    if (isPlayable(row)) {
-      playbackHandoff.select(videoId, row, row.info.title);
-      // The (watch) layout closes the drawer on `afterNavigate`.
-      void goto(resolve(`player/${type}/${encodeURIComponent(videoId)}`));
-    } else if (row.externalUrl) {
-      window.open(row.externalUrl, "_blank", "noopener");
-    }
-  }
+	function pick(row: Row) {
+		if (isPlayable(row)) {
+			playbackHandoff.select(videoId, row, row.info.title);
+			// The (watch) layout closes the drawer on `afterNavigate`.
+			void goto(resolve(`player/${type}/${encodeURIComponent(videoId)}`));
+		} else if (row.externalUrl) {
+			window.open(row.externalUrl, "_blank", "noopener");
+		}
+	}
 
-  function onKeydown(event: KeyboardEvent) {
-    if (event.key !== "Escape") {
-      return;
-    }
-    if (filtersOpen) {
-      filtersOpen = false;
-    } else {
-      onClose();
-    }
-  }
+	function onKeydown(event: KeyboardEvent) {
+		if (event.key !== "Escape") {
+			return;
+		}
+		if (filtersOpen) {
+			filtersOpen = false;
+		} else {
+			onClose();
+		}
+	}
 
-  // Modal behaviour: move focus in on mount, trap Tab, restore on close.
-  function modal(node: HTMLElement) {
-    const previous = document.activeElement as HTMLElement | null;
-    const focusables = () =>
-      [
-        ...node.querySelectorAll<HTMLElement>(
-          'a[href],button:not([disabled]),input,select,textarea,[tabindex]:not([tabindex="-1"])',
-        ),
-      ].filter((el) => el.offsetParent !== null);
-    focusables()[0]?.focus();
+	// Modal behaviour: move focus in on mount, trap Tab, restore on close.
+	function modal(node: HTMLElement) {
+		const previous = document.activeElement as HTMLElement | null;
+		const focusables = () =>
+			[
+				...node.querySelectorAll<HTMLElement>(
+					'a[href],button:not([disabled]),input,select,textarea,[tabindex]:not([tabindex="-1"])',
+				),
+			].filter((el) => el.offsetParent !== null);
+		focusables()[0]?.focus();
 
-    function onTab(event: KeyboardEvent) {
-      if (event.key !== "Tab") {
-        return;
-      }
-      const items = focusables();
-      if (items.length === 0) {
-        return;
-      }
-      const first = items[0];
-      const last = items[items.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    }
-    node.addEventListener("keydown", onTab);
-    return {
-      destroy() {
-        node.removeEventListener("keydown", onTab);
-        previous?.focus?.();
-      },
-    };
-  }
+		function onTab(event: KeyboardEvent) {
+			if (event.key !== "Tab") {
+				return;
+			}
+			const items = focusables();
+			if (items.length === 0) {
+				return;
+			}
+			const first = items[0];
+			const last = items[items.length - 1];
+			if (event.shiftKey && document.activeElement === first) {
+				event.preventDefault();
+				last.focus();
+			} else if (!event.shiftKey && document.activeElement === last) {
+				event.preventDefault();
+				first.focus();
+			}
+		}
+		node.addEventListener("keydown", onTab);
+		return {
+			destroy() {
+				node.removeEventListener("keydown", onTab);
+				previous?.focus?.();
+			},
+		};
+	}
 </script>
 
 <svelte:window onkeydown={onKeydown} />

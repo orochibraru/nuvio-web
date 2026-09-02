@@ -66,7 +66,7 @@ test("detail page warms the stream fan-out before the drawer opens", async ({
 	});
 
 	await page.goto("/detail/movie/tt1375666");
-	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => { });
+	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
 
 	// The preload kicks off ~700ms after meta loads : never touching the drawer.
 	await expect
@@ -107,7 +107,7 @@ test("player page with no resolvable stream renders cleanly", async ({
 	const errors = collectRuntimeErrors(page);
 	// tt0000001 : an 1894 short; addons have at most a non-web-playable source.
 	await page.goto("/player/movie/tt0000001");
-	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => { });
+	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
 	// Either "No playable stream" or "This source can't play in the browser".
 	await expect(
 		page.getByRole("button", { name: "Choose a source" }),
@@ -165,7 +165,7 @@ test("detail page shows official watch providers (JustWatch)", async ({
 
 	// Reacher : a Prime Video original, stable availability.
 	await page.goto("/detail/series/tt9288030");
-	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => { });
+	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
 
 	const available = page.getByText("Available on", { exact: false });
 	// JustWatch can rate-limit / miss : don't hard-fail the suite on a flaky
@@ -248,7 +248,7 @@ test("player fatal screen offers an external-player handoff", async ({
 	}).toString()}`;
 
 	await page.goto(fatal);
-	await page.waitForLoadState("networkidle").catch(() => { });
+	await page.waitForLoadState("networkidle").catch(() => {});
 
 	const player = page.getByRole("region", { name: "Video player" });
 	// Desktop registers no player URL scheme, so the button copies the link
@@ -281,7 +281,7 @@ test("external-player handoff hands Android's OS chooser a real Intent URL", asy
 			external: "https://cdn.example/movie.mkv",
 		}).toString()}`,
 	);
-	await page.waitForLoadState("networkidle").catch(() => { });
+	await page.waitForLoadState("networkidle").catch(() => {});
 
 	const open = page
 		.getByRole("region", { name: "Video player" })
@@ -401,7 +401,7 @@ test("player Back goes to the title's detail page, not wherever history points",
 	// `history.back()` had nothing to do here. An episode also proves the
 	// destination uses the *content* id, not the video id (`tt0903747:1:1`).
 	await page.goto("/player/series/tt0903747:1:1");
-	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => { });
+	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
 
 	await page.getByRole("button", { name: "Back" }).first().click();
 	await expect(page).toHaveURL(/\/detail\/series\/tt0903747$/);
@@ -421,7 +421,7 @@ test("player episode drawer: season switcher + jump to another episode", async (
 	const errors = collectRuntimeErrors(page);
 
 	await page.goto("/player/series/tt0903747:1:1");
-	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => { });
+	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
 
 	const episodesButton = page.getByRole("button", { name: "Episodes" });
 	// Needs a browser-playable stream from the test account's addons : skip if none.
@@ -523,8 +523,8 @@ test("player: the cast button shows only when a device is available", async ({
 						return Promise.resolve(1);
 					},
 					cancelWatchAvailability: () => Promise.resolve(),
-					addEventListener: () => { },
-					removeEventListener: () => { },
+					addEventListener: () => {},
+					removeEventListener: () => {},
 				};
 			},
 		});

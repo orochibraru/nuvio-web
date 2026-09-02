@@ -1,39 +1,39 @@
 <script lang="ts">
-  import CheckIcon from "@lucide/svelte/icons/check";
-  import * as Card from "#lib/components/ui/card/index.js";
-  import { theme } from "#lib/settings/theme.svelte.js";
-  import type { Accent, UiSettings } from "#lib/settings/ui-settings.js";
-  import { cn } from "#lib/utils.js";
+	import CheckIcon from "@lucide/svelte/icons/check";
+	import * as Card from "#lib/components/ui/card/index.js";
+	import { theme } from "#lib/settings/theme.svelte.js";
+	import type { Accent, UiSettings } from "#lib/settings/ui-settings.js";
+	import { cn } from "#lib/utils.js";
 
-  let { update }: { update: (patch: Partial<UiSettings>) => Promise<void> } =
-    $props();
+	let { update }: { update: (patch: Partial<UiSettings>) => Promise<void> } =
+		$props();
 
-  const modes: Array<{ value: UiSettings["mode"]; label: string }> = [
-    { value: "system", label: "System" },
-    { value: "light", label: "Light" },
-    { value: "dark", label: "Dark" },
-  ];
+	const modes: Array<{ value: UiSettings["mode"]; label: string }> = [
+		{ value: "system", label: "System" },
+		{ value: "light", label: "Light" },
+		{ value: "dark", label: "Dark" },
+	];
 
-  const darkStyles: Array<{
-    value: UiSettings["darkStyle"];
-    label: string;
-    hint: string;
-  }> = [
-    { value: "dim", label: "Dim", hint: "Soft dark grey" },
-    { value: "amoled", label: "AMOLED", hint: "Pure black" },
-  ];
+	const darkStyles: Array<{
+		value: UiSettings["darkStyle"];
+		label: string;
+		hint: string;
+	}> = [
+		{ value: "dim", label: "Dim", hint: "Soft dark grey" },
+		{ value: "amoled", label: "AMOLED", hint: "Pure black" },
+	];
 
-  // Swatch colour comes from `--primary` under each `[data-accent]` scope
-  // (layout.css) : no second copy of the ramp to keep in sync.
-  const accents: Array<{ value: Accent }> = [
-    { value: "blue" },
-    { value: "violet" },
-    { value: "green" },
-    { value: "rose" },
-    { value: "amber" },
-    { value: "cyan" },
-    { value: "neutral" },
-  ];
+	// Swatch colour comes from `--primary` under each `[data-accent]` scope
+	// (layout.css) : no second copy of the ramp to keep in sync.
+	const accents: Array<{ value: Accent }> = [
+		{ value: "blue" },
+		{ value: "violet" },
+		{ value: "green" },
+		{ value: "rose" },
+		{ value: "amber" },
+		{ value: "cyan" },
+		{ value: "neutral" },
+	];
 </script>
 
 <Card.Root class="border border-foreground/10">

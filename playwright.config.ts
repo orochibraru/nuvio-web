@@ -1,9 +1,11 @@
 import process from "node:process";
 import { defineConfig, devices } from "@playwright/test";
 
-// Reuse the dev server you already have running (`bun run dev` → :5173); only
-// spins one up when nothing is listening (e.g. CI).
+// Tests run against a *production* build (`bun run build && bun run start`),
+// not `vite dev` : the dev server's cold-start compile made CI flaky and timed
+// the whole run out. Locally an already-running server on :3000 is reused.
 const PORT = 3000;
+const ORIGIN = `http://localhost:${PORT}`;
 
 export default defineConfig({
 	testDir: "e2e",
@@ -19,7 +21,7 @@ export default defineConfig({
 	timeout: 60_000,
 	reporter: "list",
 	use: {
-		baseURL: `http://localhost:${PORT}`,
+		baseURL: ORIGIN,
 		trace: "retain-on-failure",
 		navigationTimeout: 45_000,
 	},
@@ -40,8 +42,21 @@ export default defineConfig({
 	],
 	webServer: {
 		command: "bun run build && bun run start",
-		url: `http://localhost:${PORT}`,
+		url: ORIGIN,
 		reuseExistingServer: !process.env.CI,
-		timeout: 60_000,
+		// A cold `vite build` plus compiling the ~65 MB standalone binary is well
+		// over a minute on a CI runner.
+		timeout: 240_000,
+		env: {
+			// The adapter derives the request origin from the Host header and
+			// assumes `https://` unless told otherwise, so SvelteKit's CSRF check
+			// saw `https://localhost:3000` against the browser's
+			// `Origin: http://localhost:3000` and rejected every remote function
+			// with 403 "Cross-site remote requests are forbidden".
+			ORIGIN,
+			// Unlocks the `/dev/player` harness on a production build. Only ever
+			// set here : see `src/routes/dev/player/+page.server.ts`.
+			NUVIO_E2E: "1",
+		},
 	},
 });

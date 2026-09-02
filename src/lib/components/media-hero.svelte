@@ -1,86 +1,86 @@
 <script lang="ts">
-  import { mode } from "mode-watcher";
-  import type { Snippet } from "svelte";
-  import ImdbRating from "#lib/components/imdb-rating.svelte";
-  import { backdropSrcset } from "#lib/images.js";
-  import { theme } from "#lib/settings/theme.svelte.js";
+	import { mode } from "mode-watcher";
+	import type { Snippet } from "svelte";
+	import ImdbRating from "#lib/components/imdb-rating.svelte";
+	import { backdropSrcset } from "#lib/images.js";
+	import { theme } from "#lib/settings/theme.svelte.js";
 
-  let {
-    title,
-    logo = null,
-    background = null,
-    poster = null,
-    eyebrow = null,
-    description = null,
-    rating = null,
-    year = null,
-    runtime = null,
-    genres = [],
-    flag = null,
-    network = null,
-    showPoster = false,
-    headingLevel = 1,
-    actions,
-    overlay,
-  }: {
-    title: string;
-    logo?: string | null;
-    background?: string | null;
-    poster?: string | null;
-    eyebrow?: string | null;
-    description?: string | null;
-    rating?: string | null;
-    year?: string | null;
-    runtime?: string | null;
-    genres?: string[];
-    /** Small status pill shown before the meta line (e.g. "Watched"). */
-    flag?: string | null;
-    /** Official streaming home, e.g. "Prime Video" : shown as an accent chip. */
-    network?: string | null;
-    showPoster?: boolean;
-    /** Heading level for the title. Home demotes it to 2 (a stable `sr-only`
-     *  "Home" `h1` owns the page heading there). */
-    headingLevel?: 1 | 2;
-    actions?: Snippet;
-    /** Rendered inside the hero `<section>` : e.g. carousel dots. */
-    overlay?: Snippet;
-  } = $props();
+	let {
+		title,
+		logo = null,
+		background = null,
+		poster = null,
+		eyebrow = null,
+		description = null,
+		rating = null,
+		year = null,
+		runtime = null,
+		genres = [],
+		flag = null,
+		network = null,
+		showPoster = false,
+		headingLevel = 1,
+		actions,
+		overlay,
+	}: {
+		title: string;
+		logo?: string | null;
+		background?: string | null;
+		poster?: string | null;
+		eyebrow?: string | null;
+		description?: string | null;
+		rating?: string | null;
+		year?: string | null;
+		runtime?: string | null;
+		genres?: string[];
+		/** Small status pill shown before the meta line (e.g. "Watched"). */
+		flag?: string | null;
+		/** Official streaming home, e.g. "Prime Video" : shown as an accent chip. */
+		network?: string | null;
+		showPoster?: boolean;
+		/** Heading level for the title. Home demotes it to 2 (a stable `sr-only`
+		 *  "Home" `h1` owns the page heading there). */
+		headingLevel?: 1 | 2;
+		actions?: Snippet;
+		/** Rendered inside the hero `<section>` : e.g. carousel dots. */
+		overlay?: Snippet;
+	} = $props();
 
-  const headingTag = $derived(`h${headingLevel}` as "h1" | "h2");
+	const headingTag = $derived(`h${headingLevel}` as "h1" | "h2");
 
-  // The `.dark` scope below re-declares every dark-palette token : including
-  // `--background` (shadowing the AMOLED override) and `--primary`/`--ring`
-  // (shadowing the chosen accent colour) : because both of those overrides
-  // are plain attribute selectors that only re-match an element that itself
-  // carries the attribute. Mirror both here so the hero doesn't silently
-  // fall back to dim dark-grey backgrounds and a neutral (grey/white)
-  // accent instead of the real ones.
-  const amoled = $derived(theme.current.darkStyle === "amoled");
-  const accent = $derived(theme.current.accent);
-  // Bleeding the hero's fade into the *real* page colour only reads well
-  // when that colour is already dark-ish (dark / AMOLED) : against a light
-  // page it's a much bigger jump and a gradient there looks muddy, not
-  // seamless. Light mode keeps a clean, deliberate cut instead.
-  const bleedIntoPage = $derived(mode.current === "dark");
+	// The `.dark` scope below re-declares every dark-palette token : including
+	// `--background` (shadowing the AMOLED override) and `--primary`/`--ring`
+	// (shadowing the chosen accent colour) : because both of those overrides
+	// are plain attribute selectors that only re-match an element that itself
+	// carries the attribute. Mirror both here so the hero doesn't silently
+	// fall back to dim dark-grey backgrounds and a neutral (grey/white)
+	// accent instead of the real ones.
+	const amoled = $derived(theme.current.darkStyle === "amoled");
+	const accent = $derived(theme.current.accent);
+	// Bleeding the hero's fade into the *real* page colour only reads well
+	// when that colour is already dark-ish (dark / AMOLED) : against a light
+	// page it's a much bigger jump and a gradient there looks muddy, not
+	// seamless. Light mode keeps a clean, deliberate cut instead.
+	const bleedIntoPage = $derived(mode.current === "dark");
 
-  let logoBroken = $state(false);
-  $effect(() => {
-    void logo;
-    logoBroken = false;
-  });
+	let logoBroken = $state(false);
+	$effect(() => {
+		void logo;
+		logoBroken = false;
+	});
 
-  // Blur-up: the poster (small, usually already cached) shows blurred until the
-  // full backdrop paints, then the backdrop fades in over it. Sync the flag from
-  // the element : a reused `<img>` whose `src` didn't change fires no new `load`
-  // event, which would otherwise leave the backdrop stuck at `opacity-0`.
-  let backdropEl = $state<HTMLImageElement>();
-  let backdropLoaded = $state(false);
-  $effect(() => {
-    void background;
-    backdropLoaded = Boolean(
-      backdropEl?.complete && backdropEl.naturalWidth > 0,
-    );
-  });
+	// Blur-up: the poster (small, usually already cached) shows blurred until the
+	// full backdrop paints, then the backdrop fades in over it. Sync the flag from
+	// the element : a reused `<img>` whose `src` didn't change fires no new `load`
+	// event, which would otherwise leave the backdrop stuck at `opacity-0`.
+	let backdropEl = $state<HTMLImageElement>();
+	let backdropLoaded = $state(false);
+	$effect(() => {
+		void background;
+		backdropLoaded = Boolean(
+			backdropEl?.complete && backdropEl.naturalWidth > 0,
+		);
+	});
 </script>
 
 <!-- `dark` scopes the scrims + copy to the dark palette regardless of the app

@@ -1,56 +1,56 @@
 <script lang="ts">
-  import CheckIcon from "@lucide/svelte/icons/check";
-  import CopyIcon from "@lucide/svelte/icons/copy";
-  import ExternalLinkIcon from "@lucide/svelte/icons/external-link";
-  import LayersIcon from "@lucide/svelte/icons/layers";
-  import TriangleAlertIcon from "@lucide/svelte/icons/triangle-alert";
-  import { Button } from "#lib/components/ui/button/index.js";
-  import { externalPlayerHandoff } from "#lib/watch/external-player.js";
-  import { browser } from "$app/env";
+	import CheckIcon from "@lucide/svelte/icons/check";
+	import CopyIcon from "@lucide/svelte/icons/copy";
+	import ExternalLinkIcon from "@lucide/svelte/icons/external-link";
+	import LayersIcon from "@lucide/svelte/icons/layers";
+	import TriangleAlertIcon from "@lucide/svelte/icons/triangle-alert";
+	import { Button } from "#lib/components/ui/button/index.js";
+	import { externalPlayerHandoff } from "#lib/watch/external-player.js";
+	import { browser } from "$app/env";
 
-  let {
-    message,
-    externalUrl = null,
-    onSources,
-    onBack,
-  }: {
-    message: string;
-    /** Direct stream URL for the external-player handoff. */
-    externalUrl?: string | null;
-    onSources?: () => void;
-    onBack?: () => void;
-  } = $props();
+	let {
+		message,
+		externalUrl = null,
+		onSources,
+		onBack,
+	}: {
+		message: string;
+		/** Direct stream URL for the external-player handoff. */
+		externalUrl?: string | null;
+		onSources?: () => void;
+		onBack?: () => void;
+	} = $props();
 
-  // A deep link where the OS has one (mobile), otherwise copying the URL —
-  // desktop registers no player scheme.
-  const handoff = $derived(
-    browser
-      ? externalPlayerHandoff({ url: externalUrl }, navigator.userAgent)
-      : null,
-  );
+	// A deep link where the OS has one (mobile), otherwise copying the URL —
+	// desktop registers no player scheme.
+	const handoff = $derived(
+		browser
+			? externalPlayerHandoff({ url: externalUrl }, navigator.userAgent)
+			: null,
+	);
 
-  async function playExternally() {
-    if (handoff?.kind !== "copy") {
-      return;
-    }
-    await copyExternal();
-  }
+	async function playExternally() {
+		if (handoff?.kind !== "copy") {
+			return;
+		}
+		await copyExternal();
+	}
 
-  let linkCopied = $state(false);
-  async function copyExternal() {
-    if (!externalUrl) {
-      return;
-    }
-    try {
-      await navigator.clipboard.writeText(externalUrl);
-      linkCopied = true;
-      setTimeout(() => {
-        linkCopied = false;
-      }, 2000);
-    } catch {
-      // clipboard blocked : the deep link (where there is one) still is
-    }
-  }
+	let linkCopied = $state(false);
+	async function copyExternal() {
+		if (!externalUrl) {
+			return;
+		}
+		try {
+			await navigator.clipboard.writeText(externalUrl);
+			linkCopied = true;
+			setTimeout(() => {
+				linkCopied = false;
+			}, 2000);
+		} catch {
+			// clipboard blocked : the deep link (where there is one) still is
+		}
+	}
 </script>
 
 <div

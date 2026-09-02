@@ -1,31 +1,31 @@
 <script lang="ts">
-  import { Button } from "#lib/components/ui/button/index.js";
-  import * as Dialog from "#lib/components/ui/dialog/index.js";
-  import { browser } from "$app/env";
+	import { Button } from "#lib/components/ui/button/index.js";
+	import * as Dialog from "#lib/components/ui/dialog/index.js";
+	import { browser } from "$app/env";
 
-  const KEY = "nuvio:disclaimer-ack:v1";
+	const KEY = "nuvio:disclaimer-ack:v1";
 
-  let open = $state(false);
+	let open = $state(false);
 
-  $effect(() => {
-    if (!browser) {
-      return;
-    }
-    try {
-      open = localStorage.getItem(KEY) !== "1";
-    } catch {
-      open = false;
-    }
-  });
+	$effect(() => {
+		if (!browser) {
+			return;
+		}
+		try {
+			open = localStorage.getItem(KEY) !== "1";
+		} catch {
+			open = false;
+		}
+	});
 
-  function acknowledge() {
-    try {
-      localStorage.setItem(KEY, "1");
-    } catch {
-      // storage unavailable : the notice just shows again next load
-    }
-    open = false;
-  }
+	function acknowledge() {
+		try {
+			localStorage.setItem(KEY, "1");
+		} catch {
+			// storage unavailable : the notice just shows again next load
+		}
+		open = false;
+	}
 </script>
 
 <Dialog.Root bind:open>

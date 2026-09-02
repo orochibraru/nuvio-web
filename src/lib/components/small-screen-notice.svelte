@@ -1,36 +1,36 @@
 <script lang="ts">
-  import SmartphoneIcon from "@lucide/svelte/icons/smartphone";
-  import XIcon from "@lucide/svelte/icons/x";
-  import { NUVIO_WEBSITE_URL } from "#lib/nuvio/index.js";
-  import { browser } from "$app/env";
-  import { page } from "$app/state";
+	import SmartphoneIcon from "@lucide/svelte/icons/smartphone";
+	import XIcon from "@lucide/svelte/icons/x";
+	import { NUVIO_WEBSITE_URL } from "#lib/nuvio/index.js";
+	import { browser } from "$app/env";
+	import { page } from "$app/state";
 
-  const KEY = "nuvio:mobile-banner-dismissed";
-  let dismissed = $state(true);
+	const KEY = "nuvio:mobile-banner-dismissed";
+	let dismissed = $state(true);
 
-  // The player is a full-screen surface : a fixed bottom bar would land on the
-  // transport controls.
-  const onPlayer = $derived(page.url.pathname.includes("/player"));
+	// The player is a full-screen surface : a fixed bottom bar would land on the
+	// transport controls.
+	const onPlayer = $derived(page.url.pathname.includes("/player"));
 
-  $effect(() => {
-    if (!browser) {
-      return;
-    }
-    try {
-      dismissed = localStorage.getItem(KEY) === "1";
-    } catch {
-      dismissed = false;
-    }
-  });
+	$effect(() => {
+		if (!browser) {
+			return;
+		}
+		try {
+			dismissed = localStorage.getItem(KEY) === "1";
+		} catch {
+			dismissed = false;
+		}
+	});
 
-  function dismiss() {
-    dismissed = true;
-    try {
-      localStorage.setItem(KEY, "1");
-    } catch {
-      // storage unavailable : banner re-shows next load
-    }
-  }
+	function dismiss() {
+		dismissed = true;
+		try {
+			localStorage.setItem(KEY, "1");
+		} catch {
+			// storage unavailable : banner re-shows next load
+		}
+	}
 </script>
 
 {#if !dismissed && !onPlayer}

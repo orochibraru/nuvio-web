@@ -23,11 +23,11 @@ export const load: PageServerLoad = ({ url }) => {
 				) ?? list[0];
 			return selected
 				? catalogPage({
-					addonId: selected.addonId,
-					type: selected.type,
-					id: selected.id,
-					genre: genre || undefined,
-				})
+						addonId: selected.addonId,
+						type: selected.type,
+						id: selected.id,
+						genre: genre || undefined,
+					})
 				: null;
 		})
 		.catch(() => null);

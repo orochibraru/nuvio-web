@@ -61,7 +61,7 @@ function addonServes(
 }
 
 export class AddonRegistry {
-	constructor(readonly addons: InstalledAddon[]) { }
+	constructor(readonly addons: InstalledAddon[]) {}
 
 	get isEmpty(): boolean {
 		return this.addons.length === 0;

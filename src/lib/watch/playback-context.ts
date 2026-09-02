@@ -86,10 +86,10 @@ export function nextCard(
 	const candidate = index >= 0 ? ordered[index + 1] : undefined;
 	return candidate
 		? {
-			videoId: candidate.id,
-			label: `S${candidate.season}E${candidate.episode} · ${candidate.title}`,
-			thumbnail: candidate.thumbnail ?? null,
-		}
+				videoId: candidate.id,
+				label: `S${candidate.season}E${candidate.episode} · ${candidate.title}`,
+				thumbnail: candidate.thumbnail ?? null,
+			}
 		: null;
 }
 

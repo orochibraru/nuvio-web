@@ -37,7 +37,7 @@ for (const route of routes) {
 		// A playing <video> keeps the network busy : bound the idle wait.
 		await page
 			.waitForLoadState("networkidle", { timeout: 8000 })
-			.catch(() => { });
+			.catch(() => {});
 		await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 		// Give late / async errors a beat to surface before we assert.
 		await page.waitForTimeout(1000);
@@ -52,7 +52,7 @@ test("settings: TheIntroDB key saves on blur and survives a reload", async ({
 	const errors = collectRuntimeErrors(page);
 
 	await page.goto("/settings?tab=integrations");
-	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => { });
+	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
 
 	const input = page.locator("#introdb-key");
 	await expect(input).toBeVisible();
@@ -67,7 +67,7 @@ test("settings: TheIntroDB key saves on blur and survives a reload", async ({
 	await expect(page.getByText("Saved")).toBeVisible({ timeout: 5000 });
 
 	await page.reload();
-	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => { });
+	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
 	await expect(page.locator("#introdb-key")).toHaveValue("e2e-test-key");
 
 	// Restore: clear what this test wrote.
@@ -143,7 +143,7 @@ test("below md the nav collapses into a burger menu", async ({ page }) => {
 
 	await page.setViewportSize({ width: 390, height: 844 });
 	await page.goto("/");
-	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => { });
+	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
 
 	// The inline nav links are hidden; the burger is the way through.
 	await expect(
@@ -190,7 +190,7 @@ test("search auto-runs while typing (debounced)", async ({ page }) => {
 	const errors = collectRuntimeErrors(page);
 
 	await page.goto("/search");
-	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => { });
+	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
 
 	await page.getByPlaceholder("Search movies and series").fill("breaking bad");
 	// No Enter : the debounced effect pushes the query into the URL itself.
@@ -314,7 +314,7 @@ test("home hero carousel: manual step changes the featured title", async ({
 	const errors = collectRuntimeErrors(page);
 
 	await page.goto("/");
-	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => { });
+	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
 
 	const next = page.getByRole("button", { name: "Next featured title" });
 	// Only present when the load found >1 backdropped title : skip otherwise.
@@ -334,7 +334,7 @@ test("continue-watching card: right-click menu + play/details targets", async ({
 	const errors = collectRuntimeErrors(page);
 
 	await page.goto("/");
-	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => { });
+	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
 
 	const row = page.getByRole("heading", { name: "Continue watching" });
 	if (!(await row.isVisible().catch(() => false))) {

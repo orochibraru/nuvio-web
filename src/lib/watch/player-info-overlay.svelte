@@ -1,68 +1,68 @@
 <script lang="ts">
-  import InfoIcon from "@lucide/svelte/icons/info";
-  import PlayIcon from "@lucide/svelte/icons/play";
-  import XIcon from "@lucide/svelte/icons/x";
-  import { Dialog as DialogPrimitive } from "bits-ui";
-  import { fade, fly } from "svelte/transition";
-  import ImdbRating from "#lib/components/imdb-rating.svelte";
-  import { Button } from "#lib/components/ui/button/index.js";
-  import { reduced } from "#lib/motion.js";
-  import type { PlayerInfo } from "./player-info.ts";
+	import InfoIcon from "@lucide/svelte/icons/info";
+	import PlayIcon from "@lucide/svelte/icons/play";
+	import XIcon from "@lucide/svelte/icons/x";
+	import { Dialog as DialogPrimitive } from "bits-ui";
+	import { fade, fly } from "svelte/transition";
+	import ImdbRating from "#lib/components/imdb-rating.svelte";
+	import { Button } from "#lib/components/ui/button/index.js";
+	import { reduced } from "#lib/motion.js";
+	import type { PlayerInfo } from "./player-info.ts";
 
-  let {
-    title,
-    subheading = null,
-    logo = null,
-    poster = null,
-    certification = null,
-    genres = [],
-    info,
-    detailHref,
-    autoOpened = false,
-    onResume,
-    onClose,
-  }: {
-    title: string;
-    subheading?: string | null;
-    logo?: string | null;
-    background?: string | null;
-    poster?: string | null;
-    certification?: string | null;
-    genres?: string[];
-    info: PlayerInfo;
-    detailHref: string;
-    /** Surfaced by a pause rather than the Info button : offer a Resume CTA. */
-    autoOpened?: boolean;
-    onResume?: () => void;
-    onClose: () => void;
-  } = $props();
+	let {
+		title,
+		subheading = null,
+		logo = null,
+		poster = null,
+		certification = null,
+		genres = [],
+		info,
+		detailHref,
+		autoOpened = false,
+		onResume,
+		onClose,
+	}: {
+		title: string;
+		subheading?: string | null;
+		logo?: string | null;
+		background?: string | null;
+		poster?: string | null;
+		certification?: string | null;
+		genres?: string[];
+		info: PlayerInfo;
+		detailHref: string;
+		/** Surfaced by a pause rather than the Info button : offer a Resume CTA. */
+		autoOpened?: boolean;
+		onResume?: () => void;
+		onClose: () => void;
+	} = $props();
 
-  let logoBroken = $state(false);
+	let logoBroken = $state(false);
 
-  const headline = $derived(info.episodeTitle ?? title);
-  const synopsis = $derived(
-    info.episodeOverview ?? info.description ?? "No synopsis available.",
-  );
-  const metaBits = $derived(
-    [info.releaseInfo, info.runtime, certification, info.status].filter(
-      (bit): bit is string => Boolean(bit),
-    ),
-  );
-  const facts = $derived(
-    [
-      ["Cast", info.cast.join(", ")],
-      ["Director", info.director.join(", ")],
-      ["Writer", info.writer.join(", ")],
-      ["Country", info.country ?? ""],
-      ["Awards", info.awards ?? ""],
-    ].filter(([, value]) => value.length > 0) as Array<[string, string]>,
-  );
+	const headline = $derived(info.episodeTitle ?? title);
+	const synopsis = $derived(
+		info.episodeOverview ?? info.description ?? "No synopsis available.",
+	);
+	const metaBits = $derived(
+		[info.releaseInfo, info.runtime, certification, info.status].filter(
+			(bit): bit is string => Boolean(bit),
+		),
+	);
+	const facts = $derived(
+		[
+			["Cast", info.cast.join(", ")],
+			["Director", info.director.join(", ")],
+			["Writer", info.writer.join(", ")],
+			["Country", info.country ?? ""],
+			["Awards", info.awards ?? ""],
+		].filter(([, value]) => value.length > 0) as Array<[string, string]>,
+	);
 
-  function onOpenChange(open: boolean) {
-    if (!open) {
-      onClose();
-    }
-  }
+	function onOpenChange(open: boolean) {
+		if (!open) {
+			onClose();
+		}
+	}
 </script>
 
 <!-- Dims the whole player and lays the info over it. Sits BELOW the transport
