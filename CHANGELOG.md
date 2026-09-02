@@ -1,3 +1,10 @@
+## [1.0.2](https://github.com/orochibraru/nuvio-web/compare/v1.0.1...v1.0.2) (2026-09-02)
+
+### Bug Fixes
+
+- ui consistencyt
+  ([0f663b8](https://github.com/orochibraru/nuvio-web/commit/0f663b80dee37193de67608c2e63c18cebc06c26))
+
 ## [1.0.1](https://github.com/orochibraru/nuvio-web/compare/v1.0.0...v1.0.1) (2026-09-02)
 
 ### Features
