@@ -28,7 +28,7 @@ jobs:
     with:
       image_tag: pr-${{ github.event.pull_request.number }}
       image_name: orochibraru/nuvio-web
-      registry_name: hub.docker.com
+      registry_name: docker.io
       registry_username: orochibraru
       bake_target: app-ci
     secrets:
