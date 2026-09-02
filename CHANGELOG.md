@@ -1,3 +1,16 @@
+## [1.0.4](https://github.com/orochibraru/nuvio-web/compare/v1.0.3...v1.0.4) (2026-09-02)
+
+### Bug Fixes
+
+- docs
+  ([6ccb9eb](https://github.com/orochibraru/nuvio-web/commit/6ccb9eb12dffd914758c400bfddb9475757e7d4f))
+- e2E
+  ([f521f86](https://github.com/orochibraru/nuvio-web/commit/f521f86a42e6a2242cd67f079846d1520d576410))
+- performance & media reconciliation
+  ([c721a61](https://github.com/orochibraru/nuvio-web/commit/c721a6149ac703b099c4afdca9521ede3f044ba5))
+- tests & readme
+  ([562d2cb](https://github.com/orochibraru/nuvio-web/commit/562d2cbd0c1da2db9415a244b06d73db11d7a830))
+
 ## [1.0.3](https://github.com/orochibraru/nuvio-web/compare/v1.0.2...v1.0.3) (2026-09-02)
 
 ### Features
