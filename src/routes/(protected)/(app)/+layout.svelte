@@ -37,15 +37,19 @@
 	let mainEl = $state<HTMLElement | null>(null);
 
 	// On a client navigation SvelteKit resets focus to <body> (or an `autofocus`
-	// element) and announces the new page title. Upgrade the <body> case to
-	// <main> so keyboard tab order resumes at the page content rather than back
-	// at the skip link. `type === "enter"` is the initial SSR load — leave it be.
+	// element) and announces the new page title. The nav links live in this
+	// persistent header though, so clicking one leaves the browser's focus right
+	// there instead — the clicked <a> never left the DOM for SvelteKit's own
+	// reset to kick in. Move focus into <main> whenever it lands outside it, so
+	// keyboard tab order resumes at the page content rather than the skip link
+	// or a stale nav link. An `autofocus` element on the new page still wins —
+	// it renders inside <main>, so this is a no-op there. `type === "enter"` is
+	// the initial SSR load — leave it be.
 	afterNavigate(({ type }) => {
 		if (type === "enter") {
 			return;
 		}
-		const focused = document.activeElement;
-		if (!focused || focused === document.body) {
+		if (!mainEl?.contains(document.activeElement)) {
 			mainEl?.focus({ preventScroll: true });
 		}
 	});

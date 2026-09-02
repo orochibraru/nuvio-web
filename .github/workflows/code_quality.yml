@@ -1,10 +1,8 @@
-name: CI
+name: Code Quality
+description: Runs linters, test suites & formatters
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-  workflow_dispatch:
+  workflow_call:
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -15,7 +13,7 @@ jobs:
     name: check · lint · unit · build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: oven-sh/setup-bun@v2
         with:
@@ -26,7 +24,10 @@ jobs:
       - name: Type + Svelte check
         run: bun run check
 
-      - name: Lint + format (biome + tailwint)
+      - name: Format (md)
+        run: bun run format
+
+      - name: Lint + format (ts)
         run: bun run lint
 
       - name: Unit tests + coverage (server / remote layer)
@@ -38,13 +39,11 @@ jobs:
   e2e:
     name: playwright e2e
     runs-on: ubuntu-latest
-    # Needs the shared test-account credentials; skipped on forks / when unset.
-    if: ${{ vars.RUN_E2E == 'true' }}
     env:
       NUVIO_TEST_EMAIL: ${{ secrets.NUVIO_TEST_EMAIL }}
       NUVIO_TEST_PASSWORD: ${{ secrets.NUVIO_TEST_PASSWORD }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: oven-sh/setup-bun@v2
         with:
@@ -58,7 +57,7 @@ jobs:
       - name: Run e2e
         run: bun run test:e2e
 
-      - uses: actions/upload-artifact@v4
+      - uses: orochibraru/upload-artifact@v8
         if: failure()
         with:
           name: playwright-report

@@ -1,0 +1,190 @@
+name: Docker
+description: Builds docker images for this app via the Bake conf
+
+on:
+  workflow_call:
+    inputs:
+      image_name:
+        required: true
+        description: "Subpath and image to push to, example myorg/myimage"
+        type: string
+      image_tag:
+        required: true
+        description:
+          "Tag to apply to the built image, e.g. pr-123 or a commit SHA"
+        type: string
+      registry_name:
+        required: true
+        description:
+          "Docker registry target to authenticate against and push to"
+        type: string
+      registry_username:
+        required: true
+        description: "Docker registry username"
+        type: string
+      bake_target:
+        required: true
+        description:
+          "Target (family) to build from the root docker-bake.hcl, e.g. app or
+          agent"
+        type: string
+    secrets:
+      registry_password:
+        required: true
+    outputs:
+      image-tag:
+        description: "The primary image tag that was built"
+        value: ${{ jobs.merge.outputs.image-tag }}
+
+permissions:
+  contents: read
+
+env:
+  IMAGE: ${{ inputs.registry_name }}/${{ inputs.image_name }}
+  TZ: Europe/Paris
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  CI: true
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    name: "Matrix & Metadata"
+    outputs:
+      matrix: '["linux/amd64", "linux/arm64"]'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=raw,value=${{ inputs.image_tag }}
+            type=raw,value=latest,enable=${{ github.event_name != 'pull_request' }}
+
+      - name: Rename meta bake definition file
+        run: |
+          mv "${{ steps.meta.outputs.bake-file }}" "${{ runner.temp }}/bake-meta.json"
+
+      - name: Upload meta bake definition
+        uses: orochibraru/upload-artifact@v8
+        with:
+          name: bake-meta-${{ inputs.bake_target }}
+          path: ${{ runner.temp }}/bake-meta.json
+          if-no-files-found: error
+          retention-days: 1
+
+  # ===========================================
+  # Docker: Build & push per-platform digests
+  # ===========================================
+  build:
+    name: Build Images
+    runs-on:
+      ${{ matrix.platform == 'linux/arm64' && 'ubuntu-24.04-arm' ||
+      'ubuntu-latest' }}
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ${{ fromJson(needs.prepare.outputs.matrix) }}
+    steps:
+      - name: Prepare
+        run: |
+          platform=${{ matrix.platform }}
+          echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV
+
+      - name: Download meta bake definition
+        uses: orochibraru/download-artifact@v8
+        with:
+          name: bake-meta-${{ inputs.bake_target }}
+          path: ${{ runner.temp }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - uses: actions/checkout@v7
+
+      - name: Login to Container registry
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ inputs.registry_name }}
+          username: ${{ inputs.registry_username }}
+          password: ${{ secrets.registry_password }}
+
+      - name: Build
+        id: bake
+        uses: docker/bake-action@v7
+        with:
+          files: |
+            ./docker-bake.hcl
+            cwd://${{ runner.temp }}/bake-meta.json
+          targets: ${{ inputs.bake_target }}
+          set: |
+            *.tags=${{ env.IMAGE }}
+            *.platform=${{ matrix.platform }}
+            *.output=type=image,push-by-digest=true,name-canonical=true,push=true
+            ${{ inputs.bake_target }}.cache-from=type=gha,scope=${{ inputs.bake_target }}-${{ env.PLATFORM_PAIR }}-${{ github.ref_name }}
+            ${{ inputs.bake_target }}.cache-to=type=gha,mode=max,scope=${{ inputs.bake_target }}-${{ env.PLATFORM_PAIR }}-${{ github.ref_name }}
+
+      - name: Export digest
+        run: |
+          mkdir -p ${{ runner.temp }}/digests
+          digest="${{ fromJSON(steps.bake.outputs.metadata)[inputs.bake_target]['containerimage.digest'] }}"
+          touch "${{ runner.temp }}/digests/${digest#sha256:}"
+
+      - name: Upload digest
+        uses: orochibraru/upload-artifact@v8
+        with:
+          name: digests-${{ inputs.bake_target }}-${{ env.PLATFORM_PAIR }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  # ===========================================
+  # Merge per-platform digests into a manifest
+  # ===========================================
+  merge:
+    name: Create Manifest and Tag then Push
+    runs-on: ubuntu-latest
+    needs: [prepare, build]
+    outputs:
+      image-tag: ${{ steps.inspect.outputs.tag }}
+    steps:
+      - name: Download meta bake definition
+        uses: orochibraru/download-artifact@v8
+        with:
+          name: bake-meta-${{ inputs.bake_target }}
+          path: ${{ runner.temp }}
+
+      - name: Download digests
+        uses: orochibraru/download-artifact@v8
+        with:
+          path: ${{ runner.temp }}/digests
+          pattern: digests-${{ inputs.bake_target }}-*
+          merge-multiple: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Login to Container registry
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ inputs.registry_name }}
+          username: ${{ inputs.registry_username }}
+          password: ${{ secrets.registry_password }}
+
+      - name: Create manifest list and push
+        working-directory: ${{ runner.temp }}/digests
+        run: |
+          docker buildx imagetools create \
+            $(jq -cr '.target."docker-metadata-action".tags | map("-t " + .) | join(" ")' "$RUNNER_TEMP/bake-meta.json") \
+            $(printf '${{ env.IMAGE }}@sha256:%s ' *)
+
+      - name: Inspect image
+        id: inspect
+        run: |
+          tag=$(jq -r '.target."docker-metadata-action".args.DOCKER_META_VERSION' ${{ runner.temp }}/bake-meta.json)
+          echo "tag=$tag" >> $GITHUB_OUTPUT
+          docker buildx imagetools inspect ${{ env.IMAGE }}:$tag

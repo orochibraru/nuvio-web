@@ -3,7 +3,13 @@ import type {
 	WatchedItemDeltaEvent,
 	WatchProgressDeltaEvent,
 } from "#lib/nuvio/index.js";
-import type { HistoryRecord, LibraryRecord, ProgressRecord } from "./types.ts";
+import type {
+	ContentType,
+	HistoryRecord,
+	LibraryRecord,
+	PendingWrite,
+	ProgressRecord,
+} from "./types.ts";
 import {
 	historyRecordFromDelta,
 	libraryKey,
@@ -137,4 +143,60 @@ export function overlayPendingProgress(
 		}
 	}
 	return next;
+}
+
+/** Drops entries older than `graceMs`. Used to keep just-flushed writes around
+ *  briefly so a delta pull reading a stale server snapshot can't revert them —
+ *  the same overlay protection queued writes already get. */
+export function pruneStale<T>(
+	entries: Array<{ at: number } & T>,
+	graceMs: number,
+	now = Date.now(),
+): Array<{ at: number } & T> {
+	const cutoff = now - graceMs;
+	return entries.filter((entry) => entry.at > cutoff);
+}
+
+function libraryTarget(
+	write: PendingWrite,
+): { contentType: ContentType; contentId: string } | null {
+	if (write.kind === "library.upsert") {
+		return {
+			contentType: write.record.contentType,
+			contentId: write.record.contentId,
+		};
+	}
+	if (write.kind === "library.delete") {
+		return { contentType: write.contentType, contentId: write.contentId };
+	}
+	return null;
+}
+
+function progressKeyOf(write: PendingWrite): string | null {
+	if (write.kind === "progress.push") {
+		return write.record.progressKey;
+	}
+	if (write.kind === "progress.delete") {
+		return write.progressKey;
+	}
+	return null;
+}
+
+/** Whether two pending writes target the same record — a later one supersedes
+ *  an earlier one queued for the same target. */
+export function sameTarget(a: PendingWrite, b: PendingWrite): boolean {
+	const al = libraryTarget(a);
+	const bl = libraryTarget(b);
+	if (al && bl) {
+		return al.contentId === bl.contentId && al.contentType === bl.contentType;
+	}
+	const ap = progressKeyOf(a);
+	const bp = progressKeyOf(b);
+	if (ap && bp) {
+		return ap === bp;
+	}
+	if (a.kind === "history.delete" && b.kind === "history.delete") {
+		return a.record.id === b.record.id;
+	}
+	return false;
 }
