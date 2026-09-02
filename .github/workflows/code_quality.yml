@@ -13,7 +13,7 @@ jobs:
     name: check · lint · unit · build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: oven-sh/setup-bun@v2
         with:
@@ -43,7 +43,7 @@ jobs:
       NUVIO_TEST_EMAIL: ${{ secrets.NUVIO_TEST_EMAIL }}
       NUVIO_TEST_PASSWORD: ${{ secrets.NUVIO_TEST_PASSWORD }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: oven-sh/setup-bun@v2
         with:
@@ -57,7 +57,7 @@ jobs:
       - name: Run e2e
         run: bun run test:e2e
 
-      - uses: actions/upload-artifact@v4
+      - uses: orochibraru/upload-artifact@v8
         if: failure()
         with:
           name: playwright-report
