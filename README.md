@@ -100,7 +100,8 @@ The docker image is available
 ### Docker run
 
 ```bash
-docker run -p 3000:3000 orochibraru/nuvio-web:latest
+docker run -p 3000:3000 -e ORIGIN=http://localhost:3000 \
+  orochibraru/nuvio-web:latest
 ```
 
 ### Docker Compose
@@ -112,6 +113,9 @@ services:
     restart: unless-stopped
     ports:
       - 3000:3000
+    environment:
+      # The URL you actually browse to : see Configuration below.
+      ORIGIN: http://localhost:3000
     healthcheck:
       interval: 30s
       retries: 3
@@ -125,11 +129,42 @@ from **Settings → Addons** if your account has none yet.
 
 ### Configuration
 
-There is nothing to configure server-side: no environment variables, no
-database, no volume. The container serves the app on port `3000` and every piece
-of state : account, profiles, addons, library, settings : lives on your Nuvio
-account. `/app/dist/healthcheck` is a self-contained binary suitable for
-`HEALTHCHECK` and for orchestrator probes.
+There is no database and no volume : every piece of state : account, profiles,
+addons, library, settings : lives on your Nuvio account. The container serves
+the app on port `3000`, and `/app/dist/healthcheck` is a self-contained binary
+suitable for `HEALTHCHECK` and for orchestrator probes.
+
+One environment variable matters: **`ORIGIN`**, the URL you actually browse to.
+
+| Variable          | Default           | When you need it                                |
+| ----------------- | ----------------- | ----------------------------------------------- |
+| `ORIGIN`          | _(unset)_         | Always, unless the proxy headers below cover it |
+| `PROTOCOL_HEADER` | assumes `https`   | Behind a reverse proxy                          |
+| `HOST_HEADER`     | the `Host` header | Behind a proxy that rewrites it                 |
+| `PORT`            | `3000`            | To listen on another port                       |
+
+Without `ORIGIN` the server reconstructs its own origin from the request's
+`Host` header and **assumes `https://`**. Browse to a plain-HTTP address and
+that guess disagrees with the browser's `Origin` header, so SvelteKit's
+cross-site check rejects every write the app makes with
+`403 Cross-site remote requests are forbidden`. Only non-`GET` requests are
+checked, so the app still renders and reads fine : but nothing saves. Settings
+snap back, library toggles revert, progress never sticks. Set `ORIGIN` to
+exactly what's in the address bar (scheme, host and port, no trailing slash) and
+it goes away.
+
+Behind a reverse proxy, either set `ORIGIN` to the public URL or let the proxy's
+headers speak for it:
+
+```bash
+docker run -p 3000:3000 \
+  -e PROTOCOL_HEADER=x-forwarded-proto \
+  -e HOST_HEADER=x-forwarded-host \
+  orochibraru/nuvio-web:latest
+```
+
+Serving over HTTPS on the default port needs none of this : the assumed
+`https://` already matches.
 
 Running it on the public internet is on you: put it behind HTTPS and whatever
 access control you would give any other self-hosted app.
