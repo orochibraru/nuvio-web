@@ -7,7 +7,12 @@
 			"line_length": 80,
 			"tables": false
 		},
-		"MD028": false
+		"MD028": false,
+		// Screenshots need a width markdown syntax can't express, so `<img>` is
+		// allowed; every other inline HTML element stays off.
+		"MD033": {
+			"allowed_elements": ["img"]
+		}
 	},
 	"fix": true,
 	"ignores": [

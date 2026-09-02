@@ -25,6 +25,11 @@ export default defineConfig({
 				"src/lib/sync/**/*.ts",
 				"src/lib/addons/*.ts",
 				"src/lib/watch/*.ts",
+				// Page-load data helpers. These used to live in `*.remote.ts` and were
+				// measured by the glob above; the loads call them directly now, so the
+				// globs follow the code rather than quietly dropping the domain.
+				"src/lib/history/*.ts",
+				"src/lib/stats/*.ts",
 				"src/lib/pool.ts",
 				"src/lib/images.ts",
 				"src/hooks.server.ts",
@@ -40,10 +45,10 @@ export default defineConfig({
 			// Ratchet upward as tests land — do not lower. Target is 100% for the
 			// server / remote-function layer (see TODO "CI/CD").
 			thresholds: {
-				lines: 77,
-				functions: 72,
-				branches: 72,
-				statements: 76,
+				lines: 79,
+				functions: 73,
+				branches: 73,
+				statements: 78,
 			},
 		},
 	},

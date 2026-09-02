@@ -3,9 +3,13 @@ import { getAddonClient, titleMeta } from "#lib/addons/server.js";
 import { requireProfile } from "#lib/server/guards.js";
 import { httpUrlOrNull } from "#lib/utils.js";
 import { query } from "$app/server";
-import { pullContinueWatching, pullPlaybackContext } from "./watch-data.ts";
+import { pullPlaybackContext } from "./watch-data.ts";
 
-/** Kept for parity; the player load calls `pullPlaybackContext` directly. */
+/**
+ * The player page gets its context from the load; this is the client-initiated
+ * path — the detail page's stream panel and its hover prefetch, which ask for
+ * another video's context than the one the load resolved.
+ */
 export const playbackContext = query(
 	v.object({ type: v.string(), id: v.string() }),
 	({ type, id }) => {
@@ -50,16 +54,6 @@ export const resolveStreams = query(
 		};
 	},
 );
-
-/** Kept for parity; the home load calls `pullContinueWatching` directly. */
-export const continueWatching = query(() => {
-	const { nuvio, profileId } = requireProfile();
-	return pullContinueWatching(
-		nuvio,
-		profileId,
-		async (type, id) => (await titleMeta(type, id))?.meta ?? null,
-	);
-});
 
 /** Progress for every video of one title, keyed by `video_id`. Powers resume bars. */
 export const titleProgress = query(

@@ -69,6 +69,12 @@
 			keywords: ["appearance", "theme", "playback"],
 		},
 		{
+			label: "Addons",
+			href: resolve("addons"),
+			icon: BlocksIcon,
+			keywords: ["sources", "providers"],
+		},
+		{
 			label: "Account",
 			href: resolve("account"),
 			icon: CircleUserIcon,

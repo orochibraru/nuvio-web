@@ -94,11 +94,31 @@ test("skip link jumps focus to main content", async ({ page }) => {
 
 test("client navigation moves focus to main content", async ({ page }) => {
 	await page.goto("/");
+	// The nav links are in the SSR'd HTML, so they're clickable long before the
+	// router hydrates — and a pre-hydration click is a *full page load*, which
+	// the layout deliberately leaves alone (`type === "enter"`). Wait for the
+	// app to go interactive first, or this silently stops testing client nav.
+	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
+
 	const link = page
 		.getByRole("navigation")
 		.getByRole("link", { name: "Discover" });
 	await link.waitFor();
+
+	// A full page load wipes this; surviving it proves the router handled the
+	// click, so a regression fails here rather than looking like a focus bug.
+	await page.evaluate(() => {
+		(window as unknown as { __hydrated?: true }).__hydrated = true;
+	});
 	await link.click();
 	await page.waitForURL("**/discover");
+	await expect
+		.poll(() =>
+			page.evaluate(
+				() => (window as unknown as { __hydrated?: true }).__hydrated === true,
+			),
+		)
+		.toBe(true);
+
 	await expect(page.locator("#main-content")).toBeFocused();
 });

@@ -6,11 +6,17 @@ Unofficial implementation of the [Nuvio](https://nuvio.tv/) API in a web UI
 ## Disclaimer
 
 Nuvio Web hosts no media. All catalogs, metadata, streams and subtitles come
-from **addons** — the Stremio addon protocol — which **you install and are
+from **addons** (the Stremio addon protocol) which **you install and are
 responsible for**. The app is a shell around whatever those addons return; it
 does not endorse, index, or verify any addon or its content. Use only addons you
 have the right to use in your jurisdiction. Not affiliated with or endorsed by
 Nuvio.
+
+## What it looks like
+
+<img src="./gallery/home.png" width="900" alt="Home Screen">
+
+[View more](./gallery/index.md)
 
 ## Getting Started
 
