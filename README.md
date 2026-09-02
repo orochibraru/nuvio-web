@@ -14,6 +14,9 @@ Nuvio.
 
 ## Getting Started
 
+The docker image is available
+[at Docker Hub](https://hub.docker.com/r/orochibraru/nuvio-web).
+
 ### Docker run
 
 ```bash
