@@ -217,16 +217,6 @@
               </DropdownMenu.Item>
               <DropdownMenu.Item>
                 {#snippet child({ props })}
-                  <a href={resolve('history')} {...props}>Watch history</a>
-                {/snippet}
-              </DropdownMenu.Item>
-              <DropdownMenu.Item>
-                {#snippet child({ props })}
-                  <a href={resolve('stats')} {...props}>Your stats</a>
-                {/snippet}
-              </DropdownMenu.Item>
-              <DropdownMenu.Item>
-                {#snippet child({ props })}
                   <a href={resolve('addons')} {...props}>Addons</a>
                 {/snippet}
               </DropdownMenu.Item>
@@ -242,7 +232,7 @@
               </DropdownMenu.Item>
             </DropdownMenu.Group>
             <DropdownMenu.Separator />
-            <form {...signOut}>
+            <form {...signOut.for("header")}>
               <DropdownMenu.Item variant="destructive">
                 {#snippet child({ props })}
                   <button type="submit" class="w-full text-left" {...props}

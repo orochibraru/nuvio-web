@@ -9,16 +9,13 @@
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { watchHistory } from "#lib/history/history.remote.js";
 	import type { HistoryRow } from "#lib/history/history-data.js";
-	import { pageTitle } from "#lib/stores/title.svelte.js";
 	import { streamed } from "#lib/stream.svelte.js";
 	import { sync } from "#lib/sync/store.svelte.js";
 	import { resolve } from "$app/paths";
 
-	pageTitle.set("Watch history");
+	let { items }: { items: Promise<HistoryRow[]> } = $props();
 
-	let { data } = $props();
-
-	const rowsStream = streamed(() => data.items, [] as HistoryRow[]);
+	const rowsStream = streamed(() => items, [] as HistoryRow[]);
 	const ssrItems = $derived(rowsStream.current);
 
 	// Posters + clean titles: the local library mirror first, then the client-side
@@ -55,7 +52,7 @@
 		watchedAt: number;
 	}
 
-	const items = $derived<Row[]>(
+	const rows = $derived<Row[]>(
 		sync.authoritative
 			? sync.history.map((record) => ({
 					id: record.id,
@@ -97,7 +94,7 @@
 
 	const groups = $derived.by(() => {
 		const map = new Map<string, Row[]>();
-		for (const item of items) {
+		for (const item of rows) {
 			const label = dayLabel(item.watchedAt);
 			const bucket = map.get(label);
 			if (bucket) {
@@ -148,13 +145,10 @@
 	}
 </script>
 
-<div class="mx-auto flex max-w-3xl flex-col gap-8">
-	<div class="flex flex-col gap-1">
-		<h1 class="text-3xl font-bold tracking-tight">Watch history</h1>
-		<p class="text-sm text-muted-foreground">
-			{items.length} title{items.length === 1 ? "" : "s"} watched, newest first
-		</p>
-	</div>
+<div class="flex flex-col gap-8">
+	<p class="text-sm text-muted-foreground">
+		{rows.length} title{rows.length === 1 ? "" : "s"} watched, newest first
+	</p>
 
 	{#if groups.length === 0 && !rowsStream.ready && !sync.authoritative}
 		<div class="grid gap-3 sm:grid-cols-2">
@@ -173,13 +167,13 @@
 			{/snippet}
 		</EmptyState>
 	{:else}
-		{#each groups as [label, rows] (label)}
+		{#each groups as [label, groupRows] (label)}
 			<section class="flex flex-col gap-3">
 				<h2 class="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
 					{label}
 				</h2>
 				<div class="grid gap-3 sm:grid-cols-2">
-					{#each rows as item (item.id)}
+					{#each groupRows as item (item.id)}
 						<div
 							class="group/row relative flex gap-3 overflow-hidden rounded-xl border border-border bg-card p-2.5 transition-colors hover:border-primary/40 hover:bg-card"
 						>

@@ -6,12 +6,16 @@ const routes = [
 	"/",
 	"/discover",
 	"/library",
-	"/history",
-	"/stats",
 	"/collections",
 	"/settings",
+	"/settings?tab=playback",
+	"/settings?tab=sync",
+	"/settings?tab=addons",
 	"/addons",
 	"/account",
+	"/account?tab=history",
+	"/account?tab=stats",
+	"/account?tab=storage",
 	"/search?q=breaking%20bad",
 	"/detail/movie/tt0137523",
 	"/detail/series/tt0903747",
@@ -60,12 +64,11 @@ test("client-side navigation through the whole shell", async ({ page }) => {
 	}
 
 	await page.getByRole("button", { name: "Profile menu" }).click();
-	await page.getByRole("menuitem", { name: "Watch history" }).click();
+	await page.getByRole("menuitem", { name: "Account" }).click();
 	await page.waitForLoadState("networkidle");
-	await expect(
-		page.getByRole("heading", { name: "Watch history" }),
-	).toBeVisible();
-	await expect(page).toHaveTitle("Nuvio · Watch history");
+	await expect(page).toHaveTitle("Nuvio · Account");
+	await page.getByRole("tab", { name: "Watch history" }).click();
+	await expect(page).toHaveURL(/tab=history/);
 
 	expect(errors, "runtime errors during client navigation").toEqual([]);
 });

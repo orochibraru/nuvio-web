@@ -6,10 +6,7 @@
 	import QueryError from "#lib/components/query-error.svelte";
 	import * as Card from "#lib/components/ui/card/index.js";
 	import { watchStats } from "#lib/stats/stats.remote.js";
-	import { pageTitle } from "#lib/stores/title.svelte.js";
 	import { resolve } from "$app/paths";
-
-	pageTitle.set("Stats");
 
 	const statsQuery = watchStats();
 	const stats = $derived(statsQuery.current);
@@ -31,14 +28,7 @@
 	}
 </script>
 
-<div class="mx-auto flex max-w-3xl flex-col gap-6">
-	<div class="flex flex-col gap-1">
-		<h1 class="text-3xl font-bold tracking-tight">Your stats</h1>
-		<p class="text-sm text-muted-foreground">
-			Everything you've watched on this Nuvio account, this profile.
-		</p>
-	</div>
-
+<div class="flex flex-col gap-6">
 	{#if statsQuery.error}
 		<QueryError
 			message="Couldn't load your stats."

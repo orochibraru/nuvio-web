@@ -52,13 +52,13 @@
 		},
 		{
 			label: "Watch history",
-			href: resolve("history"),
+			href: resolve("account?tab=history"),
 			icon: ClockIcon,
 			keywords: ["recent", "watched"],
 		},
 		{
 			label: "Your stats",
-			href: resolve("stats"),
+			href: resolve("account?tab=stats"),
 			icon: ChartColumnIcon,
 			keywords: ["minutes", "insights"],
 		},

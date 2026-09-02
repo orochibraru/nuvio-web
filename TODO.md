@@ -2,7 +2,7 @@
 
 ## Medium
 
-- [ ] Split the account page in tabs for each category. In the user dropdown
+- [x] Split the account page in tabs for each category. In the user dropdown
       menu remove stats and watch history to add them to tabs in the account
       page instead.
 - [ ] TheIntroDB: check whether an OAuth client id keeps the keyless endpoint
@@ -34,8 +34,6 @@
 - [ ] Global client request budget.
 - [ ] Unit coverage: `sync/store.svelte.ts` (needs a Svelte test env or a pure
       extraction of the queue/merge logic) + `account.remote.ts`.
-- [ ] Release: release-please + Docker image publish workflow + README
-      screenshots.
 
 ## Large
 
