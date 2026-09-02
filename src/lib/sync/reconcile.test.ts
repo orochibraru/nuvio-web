@@ -6,6 +6,8 @@ import type {
 } from "#lib/nuvio/index.js";
 import {
 	buildFlushPayload,
+	libraryHas,
+	libraryProgressMap,
 	overlayPendingLibrary,
 	overlayPendingProgress,
 	pendingLibraryWrites,
@@ -16,8 +18,9 @@ import {
 	reconcileProgress,
 	sameTarget,
 	splitPendingWrites,
+	titleProgressMap,
 } from "./reconcile.ts";
-import type { PendingWrite, ProgressRecord } from "./types.ts";
+import type { LibraryRecord, PendingWrite, ProgressRecord } from "./types.ts";
 
 function libEvent(
 	over: Partial<LibraryDeltaEvent> & Pick<LibraryDeltaEvent, "event_id">,
@@ -560,5 +563,126 @@ describe("buildFlushPayload", () => {
 		expect(payload.historyDeletes).toEqual([
 			{ content_id: "tt5", season: undefined, episode: undefined },
 		]);
+	});
+});
+
+function progressRow(over: Partial<ProgressRecord>): ProgressRecord {
+	return {
+		progressKey: "tt1",
+		contentId: "tt1",
+		contentType: "movie",
+		videoId: "tt1",
+		season: null,
+		episode: null,
+		position: 0,
+		duration: 1000,
+		lastWatched: 0,
+		...over,
+	};
+}
+
+describe("libraryProgressMap", () => {
+	it("keys by content id and clamps to a fraction of the total duration", () => {
+		const map = libraryProgressMap([
+			progressRow({ contentId: "tt1", position: 500, duration: 1000 }),
+		]);
+		expect(map.tt1).toBe(0.5);
+	});
+
+	it("skips a row that hasn't really started or is essentially finished", () => {
+		const map = libraryProgressMap([
+			progressRow({ contentId: "barely", position: 1, duration: 1000 }),
+			progressRow({ contentId: "done", position: 950, duration: 1000 }),
+		]);
+		expect(map.barely).toBeUndefined();
+		expect(map.done).toBeUndefined();
+	});
+
+	it("skips a row with no duration to avoid dividing by zero", () => {
+		const map = libraryProgressMap([
+			progressRow({ contentId: "tt1", position: 10, duration: 0 }),
+		]);
+		expect(map.tt1).toBeUndefined();
+	});
+
+	it("keeps the furthest fraction across multiple episodes of one title", () => {
+		const map = libraryProgressMap([
+			progressRow({
+				contentId: "tt1",
+				videoId: "e1",
+				position: 200,
+				duration: 1000,
+			}),
+			progressRow({
+				contentId: "tt1",
+				videoId: "e2",
+				position: 700,
+				duration: 1000,
+			}),
+		]);
+		expect(map.tt1).toBe(0.7);
+	});
+});
+
+describe("titleProgressMap", () => {
+	it("keys by video id and marks a row completed past 90% of a long-enough duration", () => {
+		const map = titleProgressMap(
+			[
+				progressRow({
+					contentId: "tt1",
+					videoId: "e1",
+					position: 95_000,
+					duration: 100_000,
+				}),
+			],
+			"tt1",
+		);
+		expect(map.e1).toEqual({ fraction: 0.95, completed: true });
+	});
+
+	it("does not mark a short clip completed even past 90%", () => {
+		const map = titleProgressMap(
+			[
+				progressRow({
+					contentId: "tt1",
+					videoId: "e1",
+					position: 55_000,
+					duration: 59_000,
+				}),
+			],
+			"tt1",
+		);
+		expect(map.e1.completed).toBe(false);
+	});
+
+	it("ignores rows for a different title", () => {
+		const map = titleProgressMap(
+			[progressRow({ contentId: "other", videoId: "e1" })],
+			"tt1",
+		);
+		expect(map).toEqual({});
+	});
+});
+
+describe("libraryHas", () => {
+	const record = (over: Partial<LibraryRecord>): LibraryRecord => ({
+		contentId: "tt1",
+		contentType: "movie",
+		name: "One",
+		poster: null,
+		background: null,
+		description: null,
+		releaseInfo: null,
+		imdbRating: null,
+		genres: [],
+		addedAt: 0,
+		...over,
+	});
+
+	it("matches on both content id and type", () => {
+		const library = [record({ contentId: "tt1", contentType: "movie" })];
+		expect(libraryHas(library, "movie", "tt1")).toBe(true);
+		expect(libraryHas(library, "series", "tt1")).toBe(false);
+		expect(libraryHas(library, "movie", "tt2")).toBe(false);
 	});
 });

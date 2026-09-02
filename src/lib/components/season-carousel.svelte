@@ -1,7 +1,5 @@
 <script lang="ts">
 	import CheckIcon from "@lucide/svelte/icons/check";
-	import ChevronLeftIcon from "@lucide/svelte/icons/chevron-left";
-	import ChevronRightIcon from "@lucide/svelte/icons/chevron-right";
 	import EyeIcon from "@lucide/svelte/icons/eye";
 	import EyeOffIcon from "@lucide/svelte/icons/eye-off";
 	import ListChecksIcon from "@lucide/svelte/icons/list-checks";
@@ -9,6 +7,7 @@
 	import TvIcon from "@lucide/svelte/icons/tv";
 	import type { MetaVideo } from "#lib/addons/index.js";
 	import ImdbRating from "#lib/components/imdb-rating.svelte";
+	import ScrollRail from "#lib/components/scroll-rail.svelte";
 	import * as ContextMenu from "#lib/components/ui/context-menu/index.js";
 	import { cn } from "#lib/utils.js";
 
@@ -89,34 +88,6 @@
 		grouped.reduce((sum, group) => sum + group.episodes.length, 0),
 	);
 
-	let track = $state<HTMLDivElement | null>(null);
-	let atStart = $state(true);
-	let atEnd = $state(false);
-
-	function syncEdges() {
-		if (!track) {
-			return;
-		}
-		atStart = track.scrollLeft <= 8;
-		atEnd = track.scrollLeft + track.clientWidth >= track.scrollWidth - 8;
-	}
-
-	function nudge(direction: 1 | -1) {
-		track?.scrollBy({
-			left: direction * track.clientWidth * 0.85,
-			behavior: "smooth",
-		});
-	}
-
-	$effect(() => {
-		// Reset scroll + edge state whenever the season changes.
-		void activeSeason;
-		if (track) {
-			track.scrollLeft = 0;
-		}
-		syncEdges();
-	});
-
 	function airDate(value: string | undefined): string | null {
 		if (!value) {
 			return null;
@@ -150,7 +121,12 @@
 		</div>
 
 		{#if grouped.length > 1}
-			<div class="no-scrollbar -mx-1 flex max-w-full gap-1.5 overflow-x-auto px-1">
+			<ScrollRail
+				label="Seasons"
+				class="-mx-1 max-w-full"
+				trackClass="gap-1.5 px-1"
+				arrows={false}
+			>
 				{#each grouped as group (group.season)}
 					<ContextMenu.Root>
 						<ContextMenu.Trigger class="contents">
@@ -185,18 +161,18 @@
 						{/if}
 					</ContextMenu.Root>
 				{/each}
-			</div>
+			</ScrollRail>
 		{/if}
 	</div>
 
 	{#if current}
-		<div class="group/row relative -mx-2">
-			<div
-				bind:this={track}
-				onscroll={syncEdges}
-				class="no-scrollbar flex snap-x scroll-px-2 gap-4 overflow-x-auto scroll-smooth px-2 pt-1 pb-2"
-			>
-				{#each current.episodes as episode (episode.id)}
+		<ScrollRail
+			label="Episodes"
+			resetKey={activeSeason}
+			arrowTop="top-1/3"
+			trackClass="snap-x scroll-px-2 gap-4 pt-1 pb-2"
+		>
+			{#each current.episodes as episode (episode.id)}
 					{@const ep = progress[episode.id]}
 					{@const date = airDate(episode.released)}
 					<ContextMenu.Root>
@@ -326,26 +302,6 @@
 					</ContextMenu.Content>
 					</ContextMenu.Root>
 				{/each}
-			</div>
-
-			<button
-				type="button"
-				aria-label="Scroll episodes left"
-				disabled={atStart}
-				onclick={() => nudge(-1)}
-				class="absolute top-1/3 left-1 hidden size-9 -translate-y-1/2 items-center justify-center rounded-full bg-background/80 text-foreground opacity-0 ring-1 ring-border backdrop-blur-md transition group-hover/row:opacity-100 hover:bg-background focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none disabled:opacity-0! sm:flex"
-			>
-				<ChevronLeftIcon class="size-5" />
-			</button>
-			<button
-				type="button"
-				aria-label="Scroll episodes right"
-				disabled={atEnd}
-				onclick={() => nudge(1)}
-				class="absolute top-1/3 right-1 hidden size-9 -translate-y-1/2 items-center justify-center rounded-full bg-background/80 text-foreground opacity-0 ring-1 ring-border backdrop-blur-md transition group-hover/row:opacity-100 hover:bg-background focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none disabled:opacity-0! sm:flex"
-			>
-				<ChevronRightIcon class="size-5" />
-			</button>
-		</div>
+		</ScrollRail>
 	{/if}
 </div>

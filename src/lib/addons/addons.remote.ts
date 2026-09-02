@@ -161,6 +161,30 @@ export const browseCatalog = query(
 	},
 );
 
+/** Every `addon_catalog` an installed addon advertises — a directory of other addons. */
+export const addonCatalogSources = query(async () => {
+	const { registry } = await getAddonClient();
+	return registry.addonCatalogs().map(({ addon, catalog }) => ({
+		addonId: addon.manifest.id,
+		addonName: addon.manifest.name,
+		type: catalog.type,
+		id: catalog.id,
+		name: catalog.name ?? addon.manifest.name,
+	}));
+});
+
+export const browseAddonCatalog = query(
+	v.object({ addonId: v.string(), type: v.string(), id: v.string() }),
+	async ({ addonId, type, id }) => {
+		const { client } = await getAddonClient();
+		const result = await client.getAddonCatalog(addonId, type, id);
+		if (!result) {
+			error(404, "Addon catalog not found");
+		}
+		return result;
+	},
+);
+
 export const getMeta = query(
 	v.object({ type: v.string(), id: v.string() }),
 	async ({ type, id }) => {

@@ -205,6 +205,37 @@ test("poster right-click menu: mark a movie watched, then unwatch", async ({
 	expect(errors, "runtime errors").toEqual([]);
 });
 
+test("series poster + detail page offer a 'mark all watched' action", async ({
+	page,
+}) => {
+	const errors = collectRuntimeErrors(page);
+
+	// Search results always show Breaking Bad regardless of the account's own
+	// library/watch state. Don't actually invoke the action — marking all ~62
+	// episodes watched on the shared test account has no simple undo (unlike
+	// the movie toggle above), so this only checks the affordance renders.
+	await page.goto("/search?q=breaking%20bad");
+	// Several movie results also contain "Breaking Bad" as a substring — match
+	// the series card specifically via its aria-label's `(series)` suffix.
+	const poster = page
+		.getByRole("link", { name: /^Breaking Bad \(series\)/ })
+		.first();
+	await expect(poster).toBeVisible({ timeout: 8000 });
+
+	await poster.click({ button: "right" });
+	await expect(
+		page.getByRole("menuitem", { name: "Mark all watched" }),
+	).toBeVisible();
+	await page.keyboard.press("Escape");
+
+	await page.goto("/detail/series/tt0903747");
+	await expect(
+		page.getByRole("button", { name: "Mark all watched" }),
+	).toBeVisible({ timeout: 15_000 });
+
+	expect(errors, "runtime errors").toEqual([]);
+});
+
 test("library posters stay painted across a sync re-publish", async ({
 	page,
 }) => {

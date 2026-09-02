@@ -21,6 +21,7 @@
 	import CastRow from "#lib/components/cast-row.svelte";
 	import MediaHero from "#lib/components/media-hero.svelte";
 	import MediaRow from "#lib/components/media-row.svelte";
+	import ScrollRail from "#lib/components/scroll-rail.svelte";
 	import SeasonCarousel from "#lib/components/season-carousel.svelte";
 	import TrailerModal from "#lib/components/trailer-modal.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
@@ -345,6 +346,20 @@
 		);
 	}
 
+	function markAllWatched() {
+		const added = orderedEpisodes.filter(
+			(v) => !progress[v.id]?.completed,
+		).length;
+		for (const video of orderedEpisodes) {
+			markEpisode(video);
+		}
+		toast.success(
+			added > 0
+				? `Marked ${added} episode${added === 1 ? "" : "s"} watched`
+				: "Already watched",
+		);
+	}
+
 	function toggle() {
 		if (!meta) {
 			return;
@@ -539,6 +554,17 @@
               Mark watched
             {/if}
           </Button>
+        {:else if orderedEpisodes.length > 0}
+          <Button
+            size="lg"
+            variant="outline"
+            class="group"
+            onclick={markAllWatched}
+          >
+            <EyeIcon class="hidden group-hover:block" data-icon="inline-start" />
+            <EyeDashedIcon class="block group-hover:hidden" data-icon="inline-start" />
+            Mark all watched
+          </Button>
         {/if}
       {/snippet}
     </MediaHero>
@@ -587,7 +613,7 @@
       {#if trailers.length > 0}
         <div class="flex flex-col gap-3">
           <h2 class="text-xl font-semibold tracking-tight">Trailers</h2>
-          <div class="no-scrollbar -mx-2 flex gap-4 overflow-x-auto px-2 pb-2">
+          <ScrollRail label="Trailers" trackClass="gap-4 pb-2">
             {#each trailers.slice(0, 8) as trailer, i (trailer.ytId)}
               <button
                 type="button"
@@ -616,7 +642,7 @@
                 </span>
               </button>
             {/each}
-          </div>
+          </ScrollRail>
         </div>
       {/if}
 

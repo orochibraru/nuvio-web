@@ -28,6 +28,62 @@ export interface SubtitleWithSource extends Subtitle {
 	addonName: string;
 }
 
+/** One addon listed by an `addon_catalog` response — enough to preview + install it. */
+export interface AddonCatalogEntry {
+	transportUrl: string;
+	manifest: {
+		id: string;
+		name: string;
+		description?: string;
+		logo?: string;
+		types: string[];
+	};
+}
+
+/** Addon-supplied data — never trust the shape. Drops an entry missing what
+ *  installing it needs (a URL) or showing it needs (an id + name). */
+function normalizeAddonCatalogEntry(raw: unknown): AddonCatalogEntry | null {
+	if (!raw || typeof raw !== "object") {
+		return null;
+	}
+	const entry = raw as { transportUrl?: unknown; manifest?: unknown };
+	if (typeof entry.transportUrl !== "string" || !entry.transportUrl) {
+		return null;
+	}
+	const manifest = entry.manifest as
+		| {
+				id?: unknown;
+				name?: unknown;
+				description?: unknown;
+				logo?: unknown;
+				types?: unknown;
+		  }
+		| null
+		| undefined;
+	if (
+		!manifest ||
+		typeof manifest.id !== "string" ||
+		typeof manifest.name !== "string"
+	) {
+		return null;
+	}
+	return {
+		transportUrl: entry.transportUrl,
+		manifest: {
+			id: manifest.id,
+			name: manifest.name,
+			description:
+				typeof manifest.description === "string"
+					? manifest.description
+					: undefined,
+			logo: typeof manifest.logo === "string" ? manifest.logo : undefined,
+			types: Array.isArray(manifest.types)
+				? manifest.types.filter((t): t is string => typeof t === "string")
+				: [],
+		},
+	};
+}
+
 /** Addon resource request coordinates — everything but which addon serves it. */
 interface ResourceRef {
 	resource: AddonResourceName;
@@ -240,6 +296,33 @@ export class AddonClient {
 				})),
 		);
 		return { subtitles: items, errors };
+	}
+
+	/**
+	 * One `addon_catalog` — an addon-hosted directory of *other* addons (a
+	 * community repository, say). Unlike `getCatalog` / `fanOut`, this targets
+	 * one specific addon's specific catalog; the caller already knows which
+	 * one from `AddonRegistry.addonCatalogs()`.
+	 */
+	async getAddonCatalog(
+		addonId: string,
+		type: string,
+		id: string,
+	): Promise<{ addons: AddonCatalogEntry[] } | null> {
+		const ref = this.registry.findAddonCatalog(addonId, type, id);
+		if (!ref) {
+			return null;
+		}
+		const data = await this.request(ref.addon, {
+			resource: "addon_catalog",
+			type,
+			id,
+		});
+		return {
+			addons: asArray<unknown>((data as { addons?: unknown } | null)?.addons)
+				.map(normalizeAddonCatalogEntry)
+				.filter((entry): entry is AddonCatalogEntry => entry !== null),
+		};
 	}
 
 	private async fanOut<T>(

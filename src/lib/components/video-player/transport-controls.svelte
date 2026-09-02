@@ -29,8 +29,7 @@
 		hasSubtitles,
 		activeCaption,
 		onToggleSubtitles,
-		onToggleSettings,
-		onCloseSettings,
+		onSettingsOpenChange,
 	}: {
 		transport: PlayerTransportState;
 		player: ReturnType<typeof createPlayerTransportActions>;
@@ -57,8 +56,7 @@
 		hasSubtitles: boolean;
 		activeCaption: string | null;
 		onToggleSubtitles: () => void;
-		onToggleSettings: () => void;
-		onCloseSettings: () => void;
+		onSettingsOpenChange: (open: boolean) => void;
 	} = $props();
 </script>
 
@@ -95,8 +93,7 @@
       {subtitlesOpen}
       {onToggleSubtitles}
       {settingsOpen}
-      {onToggleSettings}
-      {onCloseSettings}
+      {onSettingsOpenChange}
     />
   </div>
 </div>

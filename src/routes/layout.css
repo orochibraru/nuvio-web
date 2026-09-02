@@ -311,6 +311,16 @@
 	}
 }
 
+/* Skips layout/paint/render for off-screen grid items — a virtual-list-grade
+   win for long catalogs without a windowing library, since these pages scroll
+   the window rather than a fixed-height viewport. `contain-intrinsic-size` is
+   only a first-paint guess for a never-shown card (2:3 poster + title lines);
+   the browser remembers the real size once it has actually been rendered. */
+@utility content-auto {
+	content-visibility: auto;
+	contain-intrinsic-size: auto 340px;
+}
+
 /* Shimmering loading placeholder — replaces bare animate-pulse. */
 @utility skeleton {
 	position: relative;

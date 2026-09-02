@@ -146,7 +146,8 @@ test("video player: autoplay, keyboard seek, speed menu", async ({ page }) => {
 	await expect.poll(() => currentTime(page)).toBeLessThan(1);
 
 	await player.getByRole("button", { name: "Settings" }).click();
-	await player.getByRole("button", { name: "1.5×" }).click();
+	// The settings menu portals to the document body, outside the player region.
+	await page.getByRole("menuitemradio", { name: "1.5×" }).click();
 	const rate = await page.evaluate(
 		() => document.querySelector("video")?.playbackRate ?? 0,
 	);

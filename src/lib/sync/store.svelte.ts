@@ -4,6 +4,8 @@ import { clearProfile, readAll, readOne, replaceAll, writeOne } from "./idb.ts";
 import type { PendingLibraryWrite } from "./reconcile.ts";
 import {
 	buildFlushPayload,
+	libraryHas,
+	libraryProgressMap,
 	overlayPendingLibrary,
 	overlayPendingProgress,
 	pendingLibraryWrites,
@@ -13,6 +15,7 @@ import {
 	reconcileProgress,
 	sameTarget,
 	splitPendingWrites,
+	titleProgressMap,
 } from "./reconcile.ts";
 import { flushWrites, syncDeltas, syncSnapshot } from "./sync.remote.js";
 import type {
@@ -30,6 +33,7 @@ import {
 	historyRecordFromItem,
 	libraryKey,
 	libraryRecordFromItem,
+	progressKeyFor,
 	progressRecordFromRow,
 } from "./types.ts";
 
@@ -93,47 +97,19 @@ class SyncStore {
 
 	/** `content_id` → furthest incomplete fraction, for resume bars on cards. */
 	get libraryProgress(): Record<string, number> {
-		const out: Record<string, number> = {};
-		for (const row of this.progress) {
-			if (row.duration <= 0) {
-				continue;
-			}
-			const fraction = row.position / row.duration;
-			if (fraction >= 0.9 || fraction <= 0.02) {
-				continue;
-			}
-			out[row.contentId] = Math.max(
-				out[row.contentId] ?? 0,
-				Math.min(1, fraction),
-			);
-		}
-		return out;
+		return libraryProgressMap(this.progress);
 	}
 
 	/** All progress rows for one title, keyed by `video_id`. */
 	titleProgress(
 		contentId: string,
 	): Record<string, { fraction: number; completed: boolean }> {
-		const out: Record<string, { fraction: number; completed: boolean }> = {};
-		for (const row of this.progress) {
-			if (row.contentId !== contentId || row.duration <= 0) {
-				continue;
-			}
-			const fraction = Math.min(1, row.position / row.duration);
-			out[row.videoId] = {
-				fraction,
-				completed: fraction >= 0.9 && row.duration >= 60_000,
-			};
-		}
-		return out;
+		return titleProgressMap(this.progress, contentId);
 	}
 
 	/** Whether a title is in the library (reactive). */
 	isInLibrary(contentType: ContentType, contentId: string): boolean {
-		return this.library.some(
-			(record) =>
-				record.contentId === contentId && record.contentType === contentType,
-		);
+		return libraryHas(this.library, contentType, contentId);
 	}
 
 	async attach(profileId: number): Promise<void> {
@@ -373,10 +349,11 @@ class SyncStore {
 		if (input.duration <= 0) {
 			return;
 		}
-		const progressKey =
-			input.season != null && input.episode != null
-				? `${input.contentId}_s${input.season}e${input.episode}`
-				: input.contentId;
+		const progressKey = progressKeyFor(
+			input.contentId,
+			input.season,
+			input.episode,
+		);
 		const record: ProgressRecord = {
 			progressKey,
 			contentId: input.contentId,
@@ -424,10 +401,11 @@ class SyncStore {
 		season: number | null;
 		episode: number | null;
 	}): void {
-		const progressKey =
-			input.season != null && input.episode != null
-				? `${input.contentId}_s${input.season}e${input.episode}`
-				: input.contentId;
+		const progressKey = progressKeyFor(
+			input.contentId,
+			input.season,
+			input.episode,
+		);
 		if (!this.#progress.has(progressKey)) {
 			return;
 		}

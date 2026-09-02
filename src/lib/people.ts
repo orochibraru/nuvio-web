@@ -1,8 +1,11 @@
+import { budgeted } from "#lib/client-request-budget.js";
+
 /**
  * Cast/crew details, sourced from Wikipedia's public REST summary API. Fetched
  * from the browser (Wikipedia sends `Access-Control-Allow-Origin: *`) so no
  * third-party biography text ever transits our server; results are memoised per
- * name for the session.
+ * name for the session. Actual fetches are `budgeted` — a title with an
+ * 18-person cast row shouldn't open 18 simultaneous Wikipedia requests.
  */
 export interface Person {
 	name: string;
@@ -32,12 +35,14 @@ function stripTracking(url: string | null | undefined): string | null {
 async function fetchPerson(name: string): Promise<Person> {
 	const empty: Person = { name, photo: null, bio: null, born: null };
 	try {
-		const response = await fetch(
-			`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(name)}?redirect=true`,
-			{
-				headers: { accept: "application/json" },
-				signal: AbortSignal.timeout(6000),
-			},
+		const response = await budgeted(() =>
+			fetch(
+				`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(name)}?redirect=true`,
+				{
+					headers: { accept: "application/json" },
+					signal: AbortSignal.timeout(6000),
+				},
+			),
 		);
 		if (!response.ok) {
 			return empty;

@@ -69,12 +69,6 @@
 			keywords: ["appearance", "theme", "playback"],
 		},
 		{
-			label: "Addons",
-			href: resolve("addons"),
-			icon: BlocksIcon,
-			keywords: ["sources", "providers"],
-		},
-		{
 			label: "Account",
 			href: resolve("account"),
 			icon: CircleUserIcon,
@@ -125,103 +119,103 @@
 	});
 </script>
 
-<svelte:window onkeydown={onWindowKeydown}></svelte:window>
+<svelte:window onkeydown={onWindowKeydown} />
 
 <Dialog.Root bind:open={commandPalette.open}>
-	<Dialog.Portal>
-		<Dialog.Overlay
-			class="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0"
-		/>
-		<Dialog.Content
-			class="fixed top-[10%] left-1/2 z-50 w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 overflow-hidden rounded-xl bg-popover text-popover-foreground shadow-2xl ring-1 ring-foreground/10 outline-none data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95"
-		>
-			<Dialog.Title class="sr-only">Command palette</Dialog.Title>
-			<Dialog.Description class="sr-only">
-				Jump to a page or search for a title.
-			</Dialog.Description>
+  <Dialog.Portal>
+    <Dialog.Overlay
+      class="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0"
+    />
+    <Dialog.Content
+      class="fixed top-[10%] left-1/2 z-50 w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 overflow-hidden rounded-xl bg-popover text-popover-foreground shadow-2xl ring-1 ring-foreground/10 outline-none data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95"
+    >
+      <Dialog.Title class="sr-only">Command palette</Dialog.Title>
+      <Dialog.Description class="sr-only">
+        Jump to a page or search for a title.
+      </Dialog.Description>
 
-			<Command.Root class="flex flex-col" loop>
-				<div class="flex items-center gap-2.5 border-b border-border px-4">
-					<SearchIcon class="size-4 shrink-0 text-muted-foreground" />
-					<Command.Input
-						bind:value={query}
-						placeholder="Jump to a page or search titles…"
-						aria-controls="command-palette-results"
-						class="h-12 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-					/>
-				</div>
+      <Command.Root class="flex flex-col" loop>
+        <div class="flex items-center gap-2.5 border-b border-border px-4">
+          <SearchIcon class="size-4 shrink-0 text-muted-foreground" />
+          <Command.Input
+            bind:value={query}
+            placeholder="Jump to a page or search titles…"
+            aria-controls="command-palette-results"
+            class="h-12 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+          />
+        </div>
 
-				<Command.List
-					id="command-palette-results"
-					tabindex={0}
-					class="max-h-80 overflow-y-auto p-2 outline-none"
-				>
-					<Command.Group>
-						<Command.GroupHeading
-							class="px-3 py-1.5 text-xs font-medium text-muted-foreground"
-						>
-							Go to
-						</Command.GroupHeading>
-						<Command.GroupItems>
-							{#each destinations as dest (dest.href)}
-								<Command.Item
-									value={dest.label}
-									keywords={dest.keywords}
-									onSelect={() => go(dest.href)}
-									class="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2 text-sm outline-none data-selected:bg-primary/20 data-selected:text-foreground"
-								>
-									<dest.icon class="size-4 text-muted-foreground" />
-									{dest.label}
-								</Command.Item>
-							{/each}
-						</Command.GroupItems>
-					</Command.Group>
+        <Command.List
+          id="command-palette-results"
+          tabindex={0}
+          class="max-h-80 overflow-y-auto p-2 outline-none"
+        >
+          <Command.Group>
+            <Command.GroupHeading
+              class="px-3 py-1.5 text-xs font-medium text-muted-foreground"
+            >
+              Go to
+            </Command.GroupHeading>
+            <Command.GroupItems>
+              {#each destinations as dest (dest.href)}
+                <Command.Item
+                  value={dest.label}
+                  keywords={dest.keywords}
+                  onSelect={() => go(dest.href)}
+                  class="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2 text-sm outline-none data-selected:bg-primary/20 data-selected:text-foreground"
+                >
+                  <dest.icon class="size-4 text-muted-foreground" />
+                  {dest.label}
+                </Command.Item>
+              {/each}
+            </Command.GroupItems>
+          </Command.Group>
 
-					<Command.Group>
-						<Command.GroupHeading
-							class="px-3 py-1.5 text-xs font-medium text-muted-foreground"
-						>
-							Actions
-						</Command.GroupHeading>
-						<Command.GroupItems>
-							<Command.Item
-								value="Search all titles"
-								keywords={["find", "query"]}
-								onSelect={() => go(resolve("search"))}
-								class="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2 text-sm outline-none data-selected:bg-primary/20 data-selected:text-foreground"
-							>
-								<SearchIcon class="size-4 text-muted-foreground" />
-								Search all titles
-							</Command.Item>
-							<Command.Item
-								value="Toggle light / dark"
-								keywords={["theme", "appearance", "mode"]}
-								onSelect={() => runAction(toggleMode)}
-								class="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2 text-sm outline-none data-selected:bg-primary/20 data-selected:text-foreground"
-							>
-								<SunMoonIcon class="size-4 text-muted-foreground" />
-								Toggle light / dark
-							</Command.Item>
-						</Command.GroupItems>
-					</Command.Group>
+          <Command.Group>
+            <Command.GroupHeading
+              class="px-3 py-1.5 text-xs font-medium text-muted-foreground"
+            >
+              Actions
+            </Command.GroupHeading>
+            <Command.GroupItems>
+              <Command.Item
+                value="Search all titles"
+                keywords={["find", "query"]}
+                onSelect={() => go(resolve("search"))}
+                class="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2 text-sm outline-none data-selected:bg-primary/20 data-selected:text-foreground"
+              >
+                <SearchIcon class="size-4 text-muted-foreground" />
+                Search all titles
+              </Command.Item>
+              <Command.Item
+                value="Toggle light / dark"
+                keywords={["theme", "appearance", "mode"]}
+                onSelect={() => runAction(toggleMode)}
+                class="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2 text-sm outline-none data-selected:bg-primary/20 data-selected:text-foreground"
+              >
+                <SunMoonIcon class="size-4 text-muted-foreground" />
+                Toggle light / dark
+              </Command.Item>
+            </Command.GroupItems>
+          </Command.Group>
 
-					{#if trimmed}
-						<Command.Group forceMount>
-							<Command.GroupItems>
-								<Command.Item
-									value={`search ${trimmed}`}
-									forceMount
-									onSelect={runSearch}
-									class="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2 text-sm outline-none data-selected:bg-primary/20 data-selected:text-foreground"
-								>
-									<SearchIcon class="size-4 text-muted-foreground" />
-									Search for “{trimmed}”
-								</Command.Item>
-							</Command.GroupItems>
-						</Command.Group>
-					{/if}
-				</Command.List>
-			</Command.Root>
-		</Dialog.Content>
-	</Dialog.Portal>
+          {#if trimmed}
+            <Command.Group forceMount>
+              <Command.GroupItems>
+                <Command.Item
+                  value={`search ${trimmed}`}
+                  forceMount
+                  onSelect={runSearch}
+                  class="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2 text-sm outline-none data-selected:bg-primary/20 data-selected:text-foreground"
+                >
+                  <SearchIcon class="size-4 text-muted-foreground" />
+                  Search for “{trimmed}”
+                </Command.Item>
+              </Command.GroupItems>
+            </Command.Group>
+          {/if}
+        </Command.List>
+      </Command.Root>
+    </Dialog.Content>
+  </Dialog.Portal>
 </Dialog.Root>

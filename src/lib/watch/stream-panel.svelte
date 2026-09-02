@@ -11,6 +11,7 @@
 	import XIcon from "@lucide/svelte/icons/x";
 	import { cubicOut } from "svelte/easing";
 	import { fade, fly } from "svelte/transition";
+	import { Separator } from "#lib/components/ui/separator/index.js";
 	import { reduced } from "#lib/motion.js";
 	import { theme } from "#lib/settings/theme.svelte.js";
 	import { cn } from "#lib/utils.js";
@@ -599,7 +600,10 @@
 			{/if}
 
 			{#if hasOfficial}
-				<div class="mt-5 border-t border-border/60 pt-4"><WatchProvidersList providers={providers} /></div>
+				<div class="mt-5 pt-4">
+					<Separator class="mb-4 bg-border/60" />
+					<WatchProvidersList providers={providers} />
+				</div>
 			{/if}
 		{/if}
 	</div>

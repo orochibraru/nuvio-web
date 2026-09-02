@@ -9,6 +9,7 @@
 	import PlusIcon from "@lucide/svelte/icons/plus";
 	import TvIcon from "@lucide/svelte/icons/tv";
 	import { toast } from "svelte-sonner";
+	import { getMeta } from "#lib/addons/addons.remote.js";
 	import type { MetaPreview } from "#lib/addons/index.js";
 	import ImdbRating from "#lib/components/imdb-rating.svelte";
 	import * as ContextMenu from "#lib/components/ui/context-menu/index.js";
@@ -128,6 +129,42 @@
 				durationMs: parseRuntimeMs(null),
 			});
 			toast.success(`Marked ${item.name} watched`);
+		}
+	}
+
+	// A poster only has the catalog preview — no episode list — so marking a
+	// whole series watched needs an on-demand meta fetch, unlike the movie
+	// toggle above which needs nothing but the id.
+	let markingAllWatched = $state(false);
+
+	async function markAllWatched() {
+		if (markingAllWatched) {
+			return;
+		}
+		markingAllWatched = true;
+		try {
+			const result = await getMeta({ type: item.type, id: item.id }).catch(
+				() => null,
+			);
+			const videos = result?.meta.videos ?? [];
+			if (videos.length === 0) {
+				toast.error(`Couldn't load episodes for ${item.name}.`);
+				return;
+			}
+			const durationMs = parseRuntimeMs(result?.meta.runtime ?? null);
+			for (const video of videos) {
+				sync.markWatched({
+					contentId: item.id,
+					contentType: "series",
+					videoId: video.id,
+					season: video.season ?? null,
+					episode: video.episode ?? null,
+					durationMs,
+				});
+			}
+			toast.success(`Marked ${item.name} watched`);
+		} finally {
+			markingAllWatched = false;
 		}
 	}
 </script>
@@ -263,6 +300,13 @@
         {:else}
           <EyeIcon /> Mark as watched
         {/if}
+      </ContextMenu.Item>
+    {:else}
+      <ContextMenu.Item
+        disabled={markingAllWatched}
+        onSelect={markAllWatched}
+      >
+        <EyeIcon /> Mark all watched
       </ContextMenu.Item>
     {/if}
     <ContextMenu.Separator />

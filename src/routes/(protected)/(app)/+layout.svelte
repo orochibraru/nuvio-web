@@ -7,6 +7,7 @@
 	import HealthBanner from "#lib/components/health-banner.svelte";
 	import ProfileAvatar from "#lib/components/profile-avatar.svelte";
 	import * as DropdownMenu from "#lib/components/ui/dropdown-menu/index.js";
+	import { Separator } from "#lib/components/ui/separator/index.js";
 	import { theme } from "#lib/settings/theme.svelte.js";
 	import { sync } from "#lib/sync/store.svelte.js";
 	import { cn } from "#lib/utils.js";
@@ -89,7 +90,7 @@
 	});
 </script>
 
-<svelte:window onscroll={() => scrolled = window.scrollY > 12}></svelte:window>
+<svelte:window onscroll={() => (scrolled = window.scrollY > 12)} />
 
 <CommandPalette />
 <FirstRunNotice />
@@ -161,7 +162,11 @@
         <DropdownMenu.Content align="start" class="w-44">
           <DropdownMenu.Group>
             {#each nav as item (item.href)}
-              <DropdownMenu.Item class={isActive(item.href, item.exact) ? "font-medium text-foreground" : ""}>
+              <DropdownMenu.Item
+                class={isActive(item.href, item.exact)
+                  ? "font-medium text-foreground"
+                  : ""}
+              >
                 {#snippet child({ props })}
                   <a href={item.href} {...props}>{item.label}</a>
                 {/snippet}
@@ -173,7 +178,7 @@
 
       <div class="ml-auto flex items-center gap-3">
         <a
-          href={resolve('search')}
+          href={resolve("search")}
           aria-current={isActive("/search") ? "page" : undefined}
           onclick={(e) => {
             if (e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey) {
@@ -212,22 +217,17 @@
             <DropdownMenu.Group>
               <DropdownMenu.Item>
                 {#snippet child({ props })}
-                  <a href={resolve('profiles')} {...props}>Switch profile</a>
+                  <a href={resolve("profiles")} {...props}>Switch profile</a>
                 {/snippet}
               </DropdownMenu.Item>
               <DropdownMenu.Item>
                 {#snippet child({ props })}
-                  <a href={resolve('addons')} {...props}>Addons</a>
+                  <a href={resolve("settings")} {...props}>Settings</a>
                 {/snippet}
               </DropdownMenu.Item>
               <DropdownMenu.Item>
                 {#snippet child({ props })}
-                  <a href={resolve('settings')} {...props}>Settings</a>
-                {/snippet}
-              </DropdownMenu.Item>
-              <DropdownMenu.Item>
-                {#snippet child({ props })}
-                  <a href={resolve('account')} {...props}>Account</a>
+                  <a href={resolve("account")} {...props}>Account</a>
                 {/snippet}
               </DropdownMenu.Item>
             </DropdownMenu.Group>
@@ -265,10 +265,11 @@
 
     <footer
       class={cn(
-        "mt-16 flex flex-col items-center gap-2 border-t border-border/60 pt-6 text-center text-xs text-muted-foreground",
+        "mt-16 flex flex-col items-center gap-2 pt-6 text-center text-xs text-muted-foreground",
         immersive && "hidden",
       )}
     >
+      <Separator class="mb-4 bg-border/60" />
       <span class="font-medium text-foreground/70">Nuvio</span>
       <span>A web client for your Nuvio library, addons and streams.</span>
       <div class="flex items-center gap-4">
@@ -276,18 +277,16 @@
           href="https://nuvio.tv/support"
           target="_blank"
           rel="noopener noreferrer"
-          class="transition hover:text-foreground"
-        >Support Nuvio</a>
+          class="transition hover:text-foreground">Support Nuvio</a
+        >
 
-        <a
-          href={resolve('settings')}
-          class="transition hover:text-foreground"
-        >Appearance</a>
+        <a href={resolve("settings")} class="transition hover:text-foreground"
+          >Appearance</a
+        >
 
-        <a
-          href={resolve('addons')}
-          class="transition hover:text-foreground"
-        >Addons</a>
+        <a href={resolve("addons")} class="transition hover:text-foreground"
+          >Addons</a
+        >
       </div>
     </footer>
   </main>

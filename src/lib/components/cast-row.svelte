@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { type Person, personInfo } from "#lib/people.js";
-	import { cn } from "#lib/utils.js";
 	import { browser } from "$app/env";
 	import { resolve } from "$app/paths";
+	import ScrollRail from "./scroll-rail.svelte";
 
 	let { names, class: className }: { names: string[]; class?: string } =
 		$props();
@@ -33,12 +33,7 @@
 	}
 </script>
 
-<div
-	class={cn(
-		"no-scrollbar -mx-2 flex gap-3 overflow-x-auto px-2 pb-2",
-		className,
-	)}
->
+<ScrollRail label="Cast" class={className} trackClass="gap-3 pb-2">
 	{#each names as name (name)}
 		{@const person = people[name]}
 		<a
@@ -76,4 +71,4 @@
 			</div>
 		</a>
 	{/each}
-</div>
+</ScrollRail>

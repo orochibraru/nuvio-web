@@ -31,10 +31,13 @@ export function createPanelToggles(deps: {
 		deps.infoOverlay.closeSilently();
 	}
 
-	function toggleSettings() {
-		settingsOpen = !settingsOpen;
-		subtitlesOpen = false;
-		deps.infoOverlay.closeSilently();
+	/** `DropdownMenu.Root`'s `onOpenChange` — opening it closes the other panels. */
+	function setSettingsOpen(open: boolean) {
+		settingsOpen = open;
+		if (open) {
+			subtitlesOpen = false;
+			deps.infoOverlay.closeSilently();
+		}
 	}
 
 	// Keyboard shortcut: drop both without touching the info overlay.
@@ -47,9 +50,6 @@ export function createPanelToggles(deps: {
 		get settingsOpen() {
 			return settingsOpen;
 		},
-		set settingsOpen(value) {
-			settingsOpen = value;
-		},
 		get subtitlesOpen() {
 			return subtitlesOpen;
 		},
@@ -61,7 +61,7 @@ export function createPanelToggles(deps: {
 		},
 		toggleInfo,
 		toggleSubtitles,
-		toggleSettings,
+		setSettingsOpen,
 		closeMenus,
 	};
 }

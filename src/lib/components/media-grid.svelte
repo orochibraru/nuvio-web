@@ -1,5 +1,7 @@
 <script lang="ts">
+	import { fly } from "svelte/transition";
 	import type { MetaPreview } from "#lib/addons/index.js";
+	import { reduced } from "#lib/motion.js";
 	import MediaPoster from "./media-poster.svelte";
 
 	let {
@@ -16,8 +18,12 @@
 <div
 	class="grid grid-cols-2 gap-x-4 gap-y-7 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7"
 >
-	{#each items as item (`${item.type}:${item.id}`)}
-		<MediaPoster {item} />
+	{#each items as item, i (`${item.type}:${item.id}`)}
+		<div
+			in:fly={reduced({ y: 10, duration: 240, delay: Math.min(i, 17) * 20 })}
+		>
+			<MediaPoster {item} class="content-auto" />
+		</div>
 	{/each}
 	{#if loading}
 		{#each { length: skeletonCount } as _skeleton, index (index)}

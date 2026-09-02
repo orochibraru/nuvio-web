@@ -296,3 +296,58 @@ export function sameTarget(a: PendingWrite, b: PendingWrite): boolean {
 	}
 	return false;
 }
+
+/**
+ * `content_id` → furthest incomplete fraction, for resume bars on cards. A
+ * title barely started (≤2%) or basically finished (≥90%) doesn't get a bar.
+ */
+export function libraryProgressMap(
+	progress: readonly ProgressRecord[],
+): Record<string, number> {
+	const out: Record<string, number> = {};
+	for (const row of progress) {
+		if (row.duration <= 0) {
+			continue;
+		}
+		const fraction = row.position / row.duration;
+		if (fraction >= 0.9 || fraction <= 0.02) {
+			continue;
+		}
+		out[row.contentId] = Math.max(
+			out[row.contentId] ?? 0,
+			Math.min(1, fraction),
+		);
+	}
+	return out;
+}
+
+/** All progress rows for one title, keyed by `video_id`. */
+export function titleProgressMap(
+	progress: readonly ProgressRecord[],
+	contentId: string,
+): Record<string, { fraction: number; completed: boolean }> {
+	const out: Record<string, { fraction: number; completed: boolean }> = {};
+	for (const row of progress) {
+		if (row.contentId !== contentId || row.duration <= 0) {
+			continue;
+		}
+		const fraction = Math.min(1, row.position / row.duration);
+		out[row.videoId] = {
+			fraction,
+			completed: fraction >= 0.9 && row.duration >= 60_000,
+		};
+	}
+	return out;
+}
+
+/** Whether a title is already in the library. */
+export function libraryHas(
+	library: readonly LibraryRecord[],
+	contentType: ContentType,
+	contentId: string,
+): boolean {
+	return library.some(
+		(record) =>
+			record.contentId === contentId && record.contentType === contentType,
+	);
+}

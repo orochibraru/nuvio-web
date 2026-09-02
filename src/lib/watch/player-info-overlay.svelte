@@ -2,6 +2,7 @@
 	import InfoIcon from "@lucide/svelte/icons/info";
 	import PlayIcon from "@lucide/svelte/icons/play";
 	import XIcon from "@lucide/svelte/icons/x";
+	import { Dialog as DialogPrimitive } from "bits-ui";
 	import { fade, fly } from "svelte/transition";
 	import ImdbRating from "#lib/components/imdb-rating.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
@@ -57,29 +58,34 @@
 		].filter(([, value]) => value.length > 0) as Array<[string, string]>,
 	);
 
-	function onKeydown(event: KeyboardEvent) {
-		if (event.key === "Escape") {
-			event.stopPropagation();
+	function onOpenChange(open: boolean) {
+		if (!open) {
 			onClose();
 		}
 	}
 </script>
 
-<svelte:window onkeydown={onKeydown} />
-
 <!-- Dims the whole player and lays the info over it. Sits BELOW the transport
      controls (z-30) whose bars stay click-through, so the Back button and bottom
      bar remain live. Dismiss with the ✕, the Info button, Escape or a CTA —
-     never by clicking the body. -->
-<div class="absolute inset-0 z-20 overflow-hidden" transition:fade={reduced({ duration: 150 })}>
-	<div class="absolute inset-0 bg-black/85"></div>
+     never by clicking the body. `DialogPrimitive` gives us focus-trap + restore
+     for free; the `child` snippet keeps our own markup and Svelte transitions. -->
+<DialogPrimitive.Root open {onOpenChange}>
+	<DialogPrimitive.Content>
+		{#snippet child({ props })}
+			<div
+				{...props}
+				class="absolute inset-0 z-20 overflow-hidden outline-none"
+				transition:fade={reduced({ duration: 150 })}
+			>
+				<div class="absolute inset-0 bg-black/85"></div>
 
-	<!-- Confined between the player's top bar and its bottom control bar;
-	     vertically centred, left-aligned. Scrolls inside its box when too tall. -->
-	<div
-		class="absolute inset-x-0 top-16 bottom-20 flex items-center justify-start px-6 pb-6 sm:top-20 sm:bottom-24 sm:px-12"
-		transition:fly={reduced({ y: 16, duration: 220 })}
-	>
+				<!-- Confined between the player's top bar and its bottom control bar;
+				     vertically centred, left-aligned. Scrolls inside its box when too tall. -->
+				<div
+					class="absolute inset-x-0 top-16 bottom-20 flex items-center justify-start px-6 pb-6 sm:top-20 sm:bottom-24 sm:px-12"
+					transition:fly={reduced({ y: 16, duration: 220 })}
+				>
 		<div class="flex max-h-full w-full max-w-4xl flex-col gap-4 text-white">
 			<div class="flex shrink-0 items-center gap-3">
 				<span class="flex flex-1 items-center gap-1.5 text-xs font-semibold tracking-[0.2em] text-white/50 uppercase">
@@ -189,4 +195,7 @@
 			</div>
 		</div>
 	</div>
-</div>
+			</div>
+		{/snippet}
+	</DialogPrimitive.Content>
+</DialogPrimitive.Root>

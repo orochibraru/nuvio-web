@@ -3,6 +3,7 @@
 	import PlayIcon from "@lucide/svelte/icons/play";
 	import TvIcon from "@lucide/svelte/icons/tv";
 	import XIcon from "@lucide/svelte/icons/x";
+	import { Dialog as DialogPrimitive } from "bits-ui";
 	import ImdbRating from "#lib/components/imdb-rating.svelte";
 	import { cn } from "#lib/utils.js";
 
@@ -66,118 +67,119 @@
 				});
 	}
 
-	function onKeydown(event: KeyboardEvent) {
-		if (event.key === "Escape") {
+	function onOpenChange(open: boolean) {
+		if (!open) {
 			onClose();
 		}
 	}
 </script>
 
-<svelte:window onkeydown={onKeydown} />
-
-<button
-	type="button"
-	aria-label="Close episodes"
-	onclick={onClose}
-	class="fixed inset-0 z-40 bg-black/50 backdrop-blur-[2px]"
-></button>
-
-<aside
-	aria-label="Episodes"
-	class="fixed inset-y-0 right-0 z-50 flex w-full max-w-105 flex-col border-l border-white/10 bg-neutral-950 text-white"
->
-	<header class="flex items-center justify-between border-b border-white/10 p-4">
-		<p class="text-sm font-semibold">Episodes</p>
-		<button
-			type="button"
-			aria-label="Close"
-			onclick={onClose}
-			class="flex size-8 items-center justify-center rounded-full transition hover:bg-white/10"
-		>
-			<XIcon class="size-4" />
-		</button>
-	</header>
-
-	{#if seasons.length > 1}
-		<div class="no-scrollbar flex gap-1.5 overflow-x-auto border-b border-white/10 p-3">
-			{#each seasons as season (season)}
-				<button
-					type="button"
-					onclick={() => (activeSeason = season)}
-					class={cn(
-						"shrink-0 rounded-full px-3 py-1 text-xs font-medium transition",
-						activeSeason === season
-							? "bg-primary text-primary-foreground"
-							: "bg-white/5 text-white/70 hover:text-white",
-					)}
-				>
-					Season {season}
-				</button>
-			{/each}
-		</div>
-	{/if}
-
-	<div class="min-h-0 flex-1 overflow-y-auto p-2 scrollbar-thin">
-		{#each shown as entry (entry.videoId)}
-			{@const isCurrent = entry.videoId === currentVideoId}
-			{@const p = progress[entry.videoId]}
-			{@const date = airDate(entry.released)}
-			<button
-				type="button"
-				onclick={() => onSelect(entry.videoId)}
-				class={cn(
-					"group/ep flex w-full gap-3 rounded-lg p-2 text-left transition",
-					isCurrent ? "bg-white/10" : "hover:bg-white/5",
-				)}
+<!-- `DialogPrimitive` gives the drawer focus-trap + restore, Escape-to-close
+     and outside-click for free; the `child` snippet keeps our own markup. -->
+<DialogPrimitive.Root open {onOpenChange}>
+	<DialogPrimitive.Overlay class="fixed inset-0 z-40 bg-black/50 backdrop-blur-[2px]" />
+	<DialogPrimitive.Content>
+		{#snippet child({ props })}
+			<aside
+				{...props}
+				aria-label="Episodes"
+				class="fixed inset-y-0 right-0 z-50 flex w-full max-w-105 flex-col border-l border-white/10 bg-neutral-950 text-white outline-none"
 			>
-				<div class="relative aspect-video w-28 shrink-0 overflow-hidden rounded-md bg-white/5">
-					<span class="absolute inset-0 flex items-center justify-center">
-						<TvIcon class="size-5 text-white/20" />
-					</span>
-					{#if entry.thumbnail}
-						<img
-							src={entry.thumbnail}
-							alt=""
-							loading="lazy"
-							class="relative size-full object-cover"
-						/>
-					{/if}
-					<span
-						class="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 transition-opacity group-hover/ep:opacity-100"
+				<header class="flex items-center justify-between border-b border-white/10 p-4">
+					<p class="text-sm font-semibold">Episodes</p>
+					<button
+						type="button"
+						aria-label="Close"
+						onclick={onClose}
+						class="flex size-8 items-center justify-center rounded-full transition hover:bg-white/10"
 					>
-						<PlayIcon class="size-6 fill-white" />
-					</span>
-					{#if p && p.fraction > 0.02 && !p.completed}
-						<span class="absolute inset-x-0 bottom-0 h-0.5 bg-white/25">
-							<span
-								class="block h-full bg-primary"
-								style={`width: ${Math.min(100, p.fraction * 100)}%`}
-							></span>
-						</span>
-					{/if}
-				</div>
-				<div class="min-w-0 flex-1">
-					<p class="flex items-center gap-1.5 text-sm font-medium">
-						<span class="text-white/50">{entry.episode}.</span>
-						<span class="truncate">{entry.title}</span>
-						{#if p?.completed}
-							<CheckIcon class="size-3.5 shrink-0 text-primary" />
-						{/if}
-						{#if isCurrent}
-							<span class="shrink-0 rounded bg-primary/20 px-1 text-[10px] font-semibold text-primary">
-								Now
-							</span>
-						{/if}
-					</p>
-					<div class="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-white/50">
-						{#if entry.rating}<ImdbRating rating={entry.rating} class="text-white/70" />{/if}
-						{#if date}<span>{date}</span>{/if}
+						<XIcon class="size-4" />
+					</button>
+				</header>
+
+				{#if seasons.length > 1}
+					<div class="no-scrollbar flex gap-1.5 overflow-x-auto border-b border-white/10 p-3">
+						{#each seasons as season (season)}
+							<button
+								type="button"
+								onclick={() => (activeSeason = season)}
+								class={cn(
+									"shrink-0 rounded-full px-3 py-1 text-xs font-medium transition",
+									activeSeason === season
+										? "bg-primary text-primary-foreground"
+										: "bg-white/5 text-white/70 hover:text-white",
+								)}
+							>
+								Season {season}
+							</button>
+						{/each}
 					</div>
-					{#if entry.overview}
-						<p class="mt-1 line-clamp-2 text-xs text-white/60">{entry.overview}</p>
-					{/if}
+				{/if}
+
+				<div class="min-h-0 flex-1 overflow-y-auto p-2 scrollbar-thin">
+					{#each shown as entry (entry.videoId)}
+						{@const isCurrent = entry.videoId === currentVideoId}
+						{@const p = progress[entry.videoId]}
+						{@const date = airDate(entry.released)}
+						<button
+							type="button"
+							onclick={() => onSelect(entry.videoId)}
+							class={cn(
+								"group/ep flex w-full gap-3 rounded-lg p-2 text-left transition",
+								isCurrent ? "bg-white/10" : "hover:bg-white/5",
+							)}
+						>
+							<div class="relative aspect-video w-28 shrink-0 overflow-hidden rounded-md bg-white/5">
+								<span class="absolute inset-0 flex items-center justify-center">
+									<TvIcon class="size-5 text-white/20" />
+								</span>
+								{#if entry.thumbnail}
+									<img
+										src={entry.thumbnail}
+										alt=""
+										loading="lazy"
+										class="relative size-full object-cover"
+									/>
+								{/if}
+								<span
+									class="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 transition-opacity group-hover/ep:opacity-100"
+								>
+									<PlayIcon class="size-6 fill-white" />
+								</span>
+								{#if p && p.fraction > 0.02 && !p.completed}
+									<span class="absolute inset-x-0 bottom-0 h-0.5 bg-white/25">
+										<span
+											class="block h-full bg-primary"
+											style={`width: ${Math.min(100, p.fraction * 100)}%`}
+										></span>
+									</span>
+								{/if}
+							</div>
+							<div class="min-w-0 flex-1">
+								<p class="flex items-center gap-1.5 text-sm font-medium">
+									<span class="text-white/50">{entry.episode}.</span>
+									<span class="truncate">{entry.title}</span>
+									{#if p?.completed}
+										<CheckIcon class="size-3.5 shrink-0 text-primary" />
+									{/if}
+									{#if isCurrent}
+										<span class="shrink-0 rounded bg-primary/20 px-1 text-[10px] font-semibold text-primary">
+											Now
+										</span>
+									{/if}
+								</p>
+								<div class="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-white/50">
+									{#if entry.rating}<ImdbRating rating={entry.rating} class="text-white/70" />{/if}
+									{#if date}<span>{date}</span>{/if}
+								</div>
+								{#if entry.overview}
+									<p class="mt-1 line-clamp-2 text-xs text-white/60">{entry.overview}</p>
+								{/if}
+							</div>
+						</button>
+					{/each}
 				</div>
-			</button>
-		{/each}
-	</div>
-</aside>
+			</aside>
+		{/snippet}
+	</DialogPrimitive.Content>
+</DialogPrimitive.Root>

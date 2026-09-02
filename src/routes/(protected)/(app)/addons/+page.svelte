@@ -1,6 +1,7 @@
 <script lang="ts">
 	import ArrowDownIcon from "@lucide/svelte/icons/arrow-down";
 	import ArrowUpIcon from "@lucide/svelte/icons/arrow-up";
+	import CompassIcon from "@lucide/svelte/icons/compass";
 	import GripVerticalIcon from "@lucide/svelte/icons/grip-vertical";
 	import InfoIcon from "@lucide/svelte/icons/info";
 	import PlusIcon from "@lucide/svelte/icons/plus";
@@ -12,6 +13,8 @@
 	import TriangleAlertIcon from "@lucide/svelte/icons/triangle-alert";
 	import { toast } from "svelte-sonner";
 	import {
+		addonCatalogSources,
+		browseAddonCatalog,
 		installedAddons,
 		previewAddon,
 		saveAddons,
@@ -36,6 +39,7 @@
 	}
 
 	const addonsQuery = installedAddons();
+	const catalogSourcesQuery = addonCatalogSources();
 
 	let saving = $state(false);
 	let dialogOpen = $state(false);
@@ -210,6 +214,60 @@
 			{ url: result.baseUrl, name: result.manifest.name, enabled: true },
 		]);
 		toast.success(`Added ${result.manifest.name}.`);
+	}
+
+	// "Discover more addons" — addons that themselves advertise an
+	// `addon_catalog` (a community directory of other addons). Browsing one
+	// lazily fetches its listing; installing one re-verifies the manifest via
+	// `previewAddon` rather than trusting the directory's own copy of it.
+	type CatalogSource = Awaited<ReturnType<typeof addonCatalogSources>>[number];
+	type CatalogEntry = Awaited<
+		ReturnType<typeof browseAddonCatalog>
+	>["addons"][number];
+
+	let browseOpen = $state(false);
+	let browseSource = $state<CatalogSource | null>(null);
+	const browseQuery = $derived(
+		browseSource
+			? browseAddonCatalog({
+					addonId: browseSource.addonId,
+					type: browseSource.type,
+					id: browseSource.id,
+				})
+			: undefined,
+	);
+
+	function openBrowse(source: CatalogSource) {
+		browseSource = source;
+		browseOpen = true;
+	}
+
+	let installingUrl = $state<string | null>(null);
+
+	async function installFromCatalog(entry: CatalogEntry) {
+		if (installingUrl) {
+			return;
+		}
+		const rows = toRows();
+		if (rows.some((row) => row.url === entry.transportUrl)) {
+			toast.info("That addon is already installed.");
+			return;
+		}
+		installingUrl = entry.transportUrl;
+		try {
+			const result = await previewAddon(entry.transportUrl).catch(() => null);
+			if (!result?.ok) {
+				toast.error(`Couldn't reach ${entry.manifest.name}.`);
+				return;
+			}
+			await persist([
+				...rows,
+				{ url: result.baseUrl, name: result.manifest.name, enabled: true },
+			]);
+			toast.success(`Added ${result.manifest.name}.`);
+		} finally {
+			installingUrl = null;
+		}
 	}
 </script>
 
@@ -426,6 +484,35 @@
 			</div>
 		{/if}
 	{/if}
+
+	{#if (catalogSourcesQuery.current?.length ?? 0) > 0}
+		<Card.Root>
+			<Card.Header>
+				<Card.Title>Discover more addons</Card.Title>
+				<Card.Description>
+					These addons list other addons — browse each directory and install
+					what you want.
+				</Card.Description>
+			</Card.Header>
+			<Card.Content class="flex flex-col gap-2">
+				{#each catalogSourcesQuery.current ?? [] as source (`${source.addonId}|${source.type}|${source.id}`)}
+					<div
+						class="flex items-center gap-3 rounded-lg border border-border/60 p-3"
+					>
+						<div class="min-w-0 flex-1">
+							<p class="text-sm font-medium">{source.name}</p>
+							<p class="truncate text-xs text-muted-foreground">
+								From {source.addonName}
+							</p>
+						</div>
+						<Button size="sm" variant="outline" onclick={() => openBrowse(source)}>
+							<CompassIcon data-icon="inline-start" /> Browse
+						</Button>
+					</div>
+				{/each}
+			</Card.Content>
+		</Card.Root>
+	{/if}
 </div>
 
 <Dialog.Root bind:open={dialogOpen}>
@@ -528,6 +615,76 @@
 			>
 				Remove
 			</Button>
+		</Dialog.Footer>
+	</Dialog.Content>
+</Dialog.Root>
+
+<Dialog.Root bind:open={browseOpen}>
+	<Dialog.Content class="sm:max-w-lg">
+		<Dialog.Header>
+			<Dialog.Title>{browseSource?.name ?? "Browse addons"}</Dialog.Title>
+			<Dialog.Description>
+				From {browseSource?.addonName}. Installing re-checks each manifest
+				before adding it.
+			</Dialog.Description>
+		</Dialog.Header>
+
+		{#if browseQuery?.error}
+			<Alert.Root variant="destructive">
+				<TriangleAlertIcon />
+				<Alert.Description>Couldn't load this directory.</Alert.Description>
+			</Alert.Root>
+		{:else if !browseQuery?.current}
+			<div class="flex flex-col gap-2">
+				{#each { length: 3 } as _, i (i)}
+					<div class="skeleton h-16 rounded-lg"></div>
+				{/each}
+			</div>
+		{:else if browseQuery.current.addons.length === 0}
+			<p class="py-6 text-center text-sm text-muted-foreground">
+				This directory is empty right now.
+			</p>
+		{:else}
+			<div class="flex max-h-96 flex-col gap-2 overflow-y-auto">
+				{#each browseQuery.current.addons as entry (entry.transportUrl)}
+					<div
+						class="flex items-center gap-3 rounded-lg border border-border/60 p-3"
+					>
+						<div class="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted">
+							{#if entry.manifest.logo}
+								<img src={entry.manifest.logo} alt="" class="size-full object-cover" />
+							{:else}
+								<PuzzleIcon class="size-5 text-muted-foreground" />
+							{/if}
+						</div>
+						<div class="min-w-0 flex-1">
+							<p class="truncate text-sm font-medium">{entry.manifest.name}</p>
+							{#if entry.manifest.description}
+								<p class="truncate text-xs text-muted-foreground">
+									{entry.manifest.description}
+								</p>
+							{/if}
+						</div>
+						<Button
+							size="sm"
+							variant="outline"
+							disabled={installingUrl !== null}
+							onclick={() => installFromCatalog(entry)}
+						>
+							{#if installingUrl === entry.transportUrl}
+								<Spinner data-icon="inline-start" />
+							{:else}
+								<PlusIcon data-icon="inline-start" />
+							{/if}
+							Install
+						</Button>
+					</div>
+				{/each}
+			</div>
+		{/if}
+
+		<Dialog.Footer class="mt-4">
+			<Button variant="ghost" onclick={() => (browseOpen = false)}>Close</Button>
 		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>

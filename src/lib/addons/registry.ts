@@ -85,6 +85,28 @@ export class AddonRegistry {
 		return addon && catalog ? { addon, catalog } : undefined;
 	}
 
+	/** `addon_catalog` catalogs — addons that advertise other addons. */
+	addonCatalogs(): CatalogRef[] {
+		return this.addons.flatMap((addon) =>
+			(addon.manifest.addonCatalogs ?? []).map((catalog) => ({
+				addon,
+				catalog,
+			})),
+		);
+	}
+
+	findAddonCatalog(
+		addonId: string,
+		type: string,
+		catalogId: string,
+	): CatalogRef | undefined {
+		const addon = this.addons.find((entry) => entry.manifest.id === addonId);
+		const catalog = addon?.manifest.addonCatalogs?.find(
+			(entry) => entry.type === type && entry.id === catalogId,
+		);
+		return addon && catalog ? { addon, catalog } : undefined;
+	}
+
 	/** Addons that serve `resource` for this `type`/`id`, in profile sort order. */
 	providersFor(
 		resource: AddonResourceName,

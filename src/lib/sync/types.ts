@@ -102,6 +102,18 @@ export function historyKey(
 	return `${contentId}:${season ?? ""}:${episode ?? ""}`;
 }
 
+/** A bare movie/series progress row is keyed by its `content_id`; an episode
+ *  row is namespaced by season/episode so each one tracks separately. */
+export function progressKeyFor(
+	contentId: string,
+	season: number | null,
+	episode: number | null,
+): string {
+	return season != null && episode != null
+		? `${contentId}_s${season}e${episode}`
+		: contentId;
+}
+
 export function libraryRecordFromDelta(
 	event: LibraryDeltaEvent,
 ): LibraryRecord {

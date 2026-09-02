@@ -14,6 +14,7 @@
 	import Volume2Icon from "@lucide/svelte/icons/volume-2";
 	import VolumeXIcon from "@lucide/svelte/icons/volume-x";
 	import { Button } from "#lib/components/ui/button/index.js";
+	import * as DropdownMenu from "#lib/components/ui/dropdown-menu/index.js";
 	import { cn } from "#lib/utils.js";
 	import { formatTime } from "#lib/watch/player-format.js";
 	import type { createPlayerTransportActions } from "./player-transport-actions.svelte.js";
@@ -31,8 +32,7 @@
 		subtitlesOpen,
 		onToggleSubtitles,
 		settingsOpen,
-		onToggleSettings,
-		onCloseSettings,
+		onSettingsOpenChange,
 	}: {
 		transport: PlayerTransportState;
 		player: Pick<
@@ -51,8 +51,7 @@
 		subtitlesOpen: boolean;
 		onToggleSubtitles: () => void;
 		settingsOpen: boolean;
-		onToggleSettings: () => void;
-		onCloseSettings: () => void;
+		onSettingsOpenChange: (open: boolean) => void;
 	} = $props();
 </script>
 
@@ -150,33 +149,28 @@
       </Button>
     {/if}
 
-    <div class="relative">
-      <Button
-        variant="ghost"
-        size="icon"
-        aria-label="Settings"
-        aria-pressed={settingsOpen}
-        onclick={onToggleSettings}
-        class="rounded-full [&_svg]:size-5"
-      >
-        <SettingsIcon />
-      </Button>
-      {#if settingsOpen}
-        <SettingsMenu
-          rate={transport.rate}
-          audioTracks={media.audioTracks}
-          activeAudioTrack={media.activeAudioTrack}
-          onRateSelect={(value) => {
-            transport.rate = value;
-            onCloseSettings();
-          }}
-          onAudioTrackSelect={(id) => {
-            media.selectAudioTrack(id);
-            onCloseSettings();
-          }}
-        />
-      {/if}
-    </div>
+    <DropdownMenu.Root open={settingsOpen} onOpenChange={onSettingsOpenChange}>
+      <DropdownMenu.Trigger>
+        {#snippet child({ props })}
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Settings"
+            class="rounded-full [&_svg]:size-5"
+            {...props}
+          >
+            <SettingsIcon />
+          </Button>
+        {/snippet}
+      </DropdownMenu.Trigger>
+      <SettingsMenu
+        rate={transport.rate}
+        audioTracks={media.audioTracks}
+        activeAudioTrack={media.activeAudioTrack}
+        onRateSelect={(value) => (transport.rate = value)}
+        onAudioTrackSelect={(id) => media.selectAudioTrack(id)}
+      />
+    </DropdownMenu.Root>
 
     {#if typeof document !== "undefined" && document.pictureInPictureEnabled}
       <Button

@@ -5,12 +5,13 @@
 	import EmptyState from "#lib/components/empty-state.svelte";
 	import MediaGrid from "#lib/components/media-grid.svelte";
 	import QueryError from "#lib/components/query-error.svelte";
+	import ScrollRail from "#lib/components/scroll-rail.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { QUERY_TTL, ttlPrime } from "#lib/query-cache.js";
 	import { pageTitle } from "#lib/stores/title.svelte.js";
 	import { streamed } from "#lib/stream.svelte.js";
 	import { cn } from "#lib/utils.js";
-	import { goto } from "$app/navigation";
+	import { goto, refreshAll } from "$app/navigation";
 	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
 
@@ -121,25 +122,25 @@
 
 	const items = $derived([...(firstPage?.metas ?? []), ...more]);
 
-	function navigate(params: URLSearchParams) {
-		goto(`?${params}`, { reset: false });
+	async function navigate(params: URLSearchParams) {
+		await goto(`?${params}`, { reset: false, refreshAll: true });
 	}
 
-	function selectCatalog(key: string) {
+	async function selectCatalog(key: string) {
 		const params = new URLSearchParams(page.url.search);
 		params.set("c", key);
 		params.delete("g");
-		navigate(params);
+		await navigate(params);
 	}
 
-	function setGenre(value: string) {
+	async function setGenre(value: string) {
 		const params = new URLSearchParams(page.url.search);
 		if (value) {
 			params.set("g", value);
 		} else {
 			params.delete("g");
 		}
-		navigate(params);
+		await navigate(params);
 	}
 
 	async function loadMore() {
@@ -166,120 +167,121 @@
 </script>
 
 <div class="flex flex-col gap-6">
-	<div class="flex flex-col gap-1">
-		<h1 class="text-3xl font-bold tracking-tight">Discover</h1>
-		<p class="text-sm text-muted-foreground">Browse every catalog your addons provide.</p>
-	</div>
+  <div class="flex flex-col gap-1">
+    <h1 class="text-3xl font-bold tracking-tight">Discover</h1>
+    <p class="text-sm text-muted-foreground">
+      Browse every catalog your addons provide.
+    </p>
+  </div>
 
-	{#if !catalogsReady && catalogs.length === 0}
-		<div class="no-scrollbar -mx-2 flex gap-2 overflow-x-auto px-2 py-1">
-			{#each { length: 6 } as _skeleton, i (i)}
-				<div class="skeleton h-8 w-24 shrink-0 rounded-full"></div>
-			{/each}
-		</div>
-		<MediaGrid items={[]} loading skeletonCount={12} />
-	{:else if catalogs.length === 0}
-		<EmptyState
-			icon={CompassIcon}
-			title="No catalogs available"
-			description="Add a catalog addon to start browsing movies and series."
-		>
-			{#snippet actions()}
-				<Button href={resolve('addons')} variant="outline">Manage addons</Button>
-			{/snippet}
-		</EmptyState>
-	{:else if selected}
-		<div class="no-scrollbar -mx-2 flex gap-2 overflow-x-auto px-2 py-1">
-			{#each catalogs as entry (`${entry.addonId}|${entry.type}|${entry.id}`)}
-				{@const key = `${entry.addonId}|${entry.type}|${entry.id}`}
-				<button
-					type="button"
-					onclick={() => selectCatalog(key)}
-					class={cn(
-						"shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium whitespace-nowrap transition",
-						key === activeKey
-							? "bg-primary text-primary-foreground shadow-sm"
-							: "bg-foreground/5 text-muted-foreground hover:bg-foreground/10 hover:text-foreground",
-					)}
-				>
-					{catalogLabels.get(key) ?? entry.name}
-					{#if multipleAddons}
-						<span class="text-xs opacity-60">· {entry.addonName}</span>
-					{/if}
-				</button>
-			{/each}
-		</div>
+  {#if !catalogsReady && catalogs.length === 0}
+    <div class="no-scrollbar -mx-2 flex gap-2 overflow-x-auto px-2 py-1">
+      {#each { length: 6 } as _skeleton, i (i)}
+        <div class="skeleton h-8 w-24 shrink-0 rounded-full"></div>
+      {/each}
+    </div>
+    <MediaGrid items={[]} loading skeletonCount={12} />
+  {:else if catalogs.length === 0}
+    <EmptyState
+      icon={CompassIcon}
+      title="No catalogs available"
+      description="Add a catalog addon to start browsing movies and series."
+    >
+      {#snippet actions()}
+        <Button href={resolve("addons")} variant="outline">Manage addons</Button
+        >
+      {/snippet}
+    </EmptyState>
+  {:else if selected}
+    <ScrollRail label="Catalogs" arrows={false} trackClass="gap-2 py-1">
+      {#each catalogs as entry (`${entry.addonId}|${entry.type}|${entry.id}`)}
+        {@const key = `${entry.addonId}|${entry.type}|${entry.id}`}
+        <button
+          type="button"
+          onclick={() => selectCatalog(key)}
+          class={cn(
+            "shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium whitespace-nowrap transition",
+            key === activeKey
+              ? "bg-primary text-primary-foreground shadow-sm"
+              : "bg-foreground/5 text-muted-foreground hover:bg-foreground/10 hover:text-foreground",
+          )}
+        >
+          {catalogLabels.get(key) ?? entry.name}
+          {#if multipleAddons}
+            <span class="text-xs opacity-60">· {entry.addonName}</span>
+          {/if}
+        </button>
+      {/each}
+    </ScrollRail>
 
-		{#if selected.genres.length > 0}
-			<div class="no-scrollbar -mx-2 flex gap-1.5 overflow-x-auto px-2 pb-1">
-				<button
-					type="button"
-					onclick={() => setGenre("")}
-					class={cn(
-						"shrink-0 rounded-full px-2.5 py-1 text-xs font-medium transition",
-						!genre
-							? "bg-secondary text-secondary-foreground"
-							: "text-muted-foreground hover:bg-foreground/5 hover:text-foreground",
-					)}
-				>
-					All
-				</button>
-				{#each selected.genres as option (option)}
-					<button
-						type="button"
-						onclick={() => setGenre(option)}
-						class={cn(
-							"shrink-0 rounded-full px-2.5 py-1 text-xs font-medium whitespace-nowrap transition",
-							genre === option
-								? "bg-secondary text-secondary-foreground"
-								: "text-muted-foreground hover:bg-foreground/5 hover:text-foreground",
-						)}
-					>
-						{option}
-					</button>
-				{/each}
-			</div>
-		{/if}
+    {#if selected.genres.length > 0}
+      <ScrollRail label="Genres" arrows={false} trackClass="gap-1.5 pb-1">
+        <button
+          type="button"
+          onclick={() => setGenre("")}
+          class={cn(
+            "shrink-0 rounded-full px-2.5 py-1 text-xs font-medium transition",
+            !genre
+              ? "bg-secondary text-secondary-foreground"
+              : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground",
+          )}
+        >
+          All
+        </button>
+        {#each selected.genres as option (option)}
+          <button
+            type="button"
+            onclick={() => setGenre(option)}
+            class={cn(
+              "shrink-0 rounded-full px-2.5 py-1 text-xs font-medium whitespace-nowrap transition",
+              genre === option
+                ? "bg-secondary text-secondary-foreground"
+                : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground",
+            )}
+          >
+            {option}
+          </button>
+        {/each}
+      </ScrollRail>
+    {/if}
 
-		{#if loadingFirst}
-			<MediaGrid items={[]} loading skeletonCount={12} />
-		{:else if firstPageQuery?.error}
-			<QueryError
-				message="Couldn't load this catalog."
-				onRetry={() => firstPageQuery?.refresh()}
-			/>
-		{:else if items.length === 0}
-			<EmptyState
-				icon={CompassIcon}
-				title="Nothing in this catalog"
-				description={genre
-					? `No "${genre}" titles here.`
-					: "This catalog came back empty."}
-			>
-				{#snippet actions()}
-					{#if genre}
-						<Button variant="outline" onclick={() => setGenre("")}>
-							Clear genre filter
-						</Button>
-					{:else}
-						<Button href={resolve('addons')} variant="outline">Manage addons</Button>
-					{/if}
-				{/snippet}
-			</EmptyState>
-		{:else}
-			<MediaGrid
-				items={items}
-				loading={loadingMore}
-				skeletonCount={6}
-			/>
+    {#if loadingFirst}
+      <MediaGrid items={[]} loading skeletonCount={12} />
+    {:else if firstPageQuery?.error}
+      <QueryError
+        message="Couldn't load this catalog."
+        onRetry={() => firstPageQuery?.refresh()}
+      />
+    {:else if items.length === 0}
+      <EmptyState
+        icon={CompassIcon}
+        title="Nothing in this catalog"
+        description={genre
+          ? `No "${genre}" titles here.`
+          : "This catalog came back empty."}
+      >
+        {#snippet actions()}
+          {#if genre}
+            <Button variant="outline" onclick={() => setGenre("")}>
+              Clear genre filter
+            </Button>
+          {:else}
+            <Button href={resolve("addons")} variant="outline"
+              >Manage addons</Button
+            >
+          {/if}
+        {/snippet}
+      </EmptyState>
+    {:else}
+      <MediaGrid {items} loading={loadingMore} skeletonCount={6} />
 
-			{#if !exhausted && (firstPage?.metas.length ?? 0) > 0}
-				<div class="flex justify-center pt-2">
-					<Button variant="outline" disabled={loadingMore} onclick={loadMore}>
-						{loadingMore ? "Loading…" : "Load more"}
-					</Button>
-				</div>
-			{/if}
-		{/if}
-	{/if}
+      {#if !exhausted && (firstPage?.metas.length ?? 0) > 0}
+        <div class="flex justify-center pt-2">
+          <Button variant="outline" disabled={loadingMore} onclick={loadMore}>
+            {loadingMore ? "Loading…" : "Load more"}
+          </Button>
+        </div>
+      {/if}
+    {/if}
+  {/if}
 </div>

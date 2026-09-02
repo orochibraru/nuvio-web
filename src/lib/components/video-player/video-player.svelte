@@ -294,8 +294,7 @@
     hasSubtitles={captions.options.length > 0}
     activeCaption={captions.activeCaption}
     onToggleSubtitles={panels.toggleSubtitles}
-    onToggleSettings={panels.toggleSettings}
-    onCloseSettings={() => (panels.settingsOpen = false)}
+    onSettingsOpenChange={panels.setSettingsOpen}
   />
 
   <SubtitlePanel

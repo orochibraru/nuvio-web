@@ -1,42 +1,16 @@
 <script lang="ts">
-	import ChevronLeftIcon from "@lucide/svelte/icons/chevron-left";
 	import ChevronRightIcon from "@lucide/svelte/icons/chevron-right";
+	import { fly } from "svelte/transition";
 	import type { MetaPreview } from "#lib/addons/index.js";
-	import { cn } from "#lib/utils.js";
+	import { reduced } from "#lib/motion.js";
 	import MediaPoster from "./media-poster.svelte";
+	import ScrollRail from "./scroll-rail.svelte";
 
 	let {
 		title,
 		items,
 		href,
 	}: { title: string; items: MetaPreview[]; href?: string } = $props();
-
-	let track = $state<HTMLDivElement | null>(null);
-	let atStart = $state(true);
-	let atEnd = $state(false);
-
-	function sync() {
-		if (!track) {
-			return;
-		}
-		atStart = track.scrollLeft <= 8;
-		atEnd = track.scrollLeft + track.clientWidth >= track.scrollWidth - 8;
-	}
-
-	function nudge(direction: 1 | -1) {
-		if (!track) {
-			return;
-		}
-		track.scrollBy({
-			left: direction * track.clientWidth * 0.8,
-			behavior: "smooth",
-		});
-	}
-
-	$effect(() => {
-		void items;
-		sync();
-	});
 </script>
 
 {#if items.length > 0}
@@ -54,50 +28,19 @@
 			{/if}
 		</div>
 
-		<div class="relative -mx-2">
-			<div
-				bind:this={track}
-				role="group"
-				aria-label={title}
-				onscroll={sync}
-				class="no-scrollbar flex snap-x scroll-px-2 gap-4 overflow-x-auto scroll-smooth px-2 pt-1 pb-2"
-			>
-				{#each items as item (`${item.type}:${item.id}`)}
-					<MediaPoster {item} class="w-40 shrink-0 snap-start sm:w-44" />
-				{/each}
-			</div>
-
-			<div
-				class={cn(
-					"pointer-events-none absolute inset-y-0 left-0 w-16 bg-linear-to-r from-background to-transparent transition-opacity duration-200",
-					atStart && "opacity-0",
-				)}
-			></div>
-			<div
-				class={cn(
-					"pointer-events-none absolute inset-y-0 right-0 w-16 bg-linear-to-l from-background to-transparent transition-opacity duration-200",
-					atEnd && "opacity-0",
-				)}
-			></div>
-
-			<button
-				type="button"
-				aria-label={`Scroll ${title} left`}
-				disabled={atStart}
-				onclick={() => nudge(-1)}
-				class="absolute top-1/2 left-1 hidden size-9 -translate-y-1/2 items-center justify-center rounded-full bg-background/80 text-foreground opacity-0 ring-1 ring-border backdrop-blur-md transition-opacity duration-200 group-hover/row:opacity-100 hover:bg-background focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none disabled:opacity-0! sm:flex"
-			>
-				<ChevronLeftIcon class="size-5" />
-			</button>
-			<button
-				type="button"
-				aria-label={`Scroll ${title} right`}
-				disabled={atEnd}
-				onclick={() => nudge(1)}
-				class="absolute top-1/2 right-1 hidden size-9 -translate-y-1/2 items-center justify-center rounded-full bg-background/80 text-foreground opacity-0 ring-1 ring-border backdrop-blur-md transition-opacity duration-200 group-hover/row:opacity-100 hover:bg-background focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none disabled:opacity-0! sm:flex"
-			>
-				<ChevronRightIcon class="size-5" />
-			</button>
-		</div>
+		<ScrollRail label={title} trackClass="snap-x scroll-px-2 gap-4 pt-1 pb-2">
+			{#each items as item, i (`${item.type}:${item.id}`)}
+				<div
+					class="w-40 shrink-0 snap-start sm:w-44"
+					in:fly={reduced({
+						y: 10,
+						duration: 240,
+						delay: Math.min(i, 10) * 30,
+					})}
+				>
+					<MediaPoster {item} class="w-full" />
+				</div>
+			{/each}
+		</ScrollRail>
 	</section>
 {/if}

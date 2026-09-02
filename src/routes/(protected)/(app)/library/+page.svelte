@@ -2,11 +2,13 @@
 	import BookmarkIcon from "@lucide/svelte/icons/bookmark";
 	import ChevronDownIcon from "@lucide/svelte/icons/chevron-down";
 	import XIcon from "@lucide/svelte/icons/x";
+	import { fly } from "svelte/transition";
 	import { toast } from "svelte-sonner";
 	import EmptyState from "#lib/components/empty-state.svelte";
 	import MediaPoster from "#lib/components/media-poster.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import * as DropdownMenu from "#lib/components/ui/dropdown-menu/index.js";
+	import { reduced } from "#lib/motion.js";
 	import { pageTitle } from "#lib/stores/title.svelte.js";
 	import { streamed } from "#lib/stream.svelte.js";
 	import { sync } from "#lib/sync/store.svelte.js";
@@ -209,8 +211,11 @@
 		<div
 			class="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7"
 		>
-			{#each shown as item (`${item.type}:${item.id}`)}
-				<div class="group relative">
+			{#each shown as item, i (`${item.type}:${item.id}`)}
+				<div
+					class="group relative content-auto"
+					in:fly={reduced({ y: 10, duration: 240, delay: Math.min(i, 17) * 20 })}
+				>
 					<MediaPoster item={item} progress={progress[item.id]} />
 					<button
 						type="button"
