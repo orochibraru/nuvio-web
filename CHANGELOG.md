@@ -1,3 +1,5 @@
+## [1.0.5](https://github.com/orochibraru/nuvio-web/compare/v1.0.4...v1.0.5) (2026-09-02)
+
 ## [1.0.4](https://github.com/orochibraru/nuvio-web/compare/v1.0.3...v1.0.4) (2026-09-02)
 
 ### Bug Fixes
