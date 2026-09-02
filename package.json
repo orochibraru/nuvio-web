@@ -51,7 +51,7 @@
 		"axe-core": "^4.13.0",
 		"bits-ui": "^2.19.0",
 		"clsx": "^2.1.1",
-		"conventional-changelog-conventionalcommits": "^9.3.1",
+		"conventional-changelog-conventionalcommits": "^10.0.0",
 		"husky": "^9.1.7",
 		"markdownlint-cli2": "^0.23.2",
 		"mode-watcher": "^1.1.0",
