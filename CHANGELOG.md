@@ -1,3 +1,10 @@
+## [1.0.1](https://github.com/orochibraru/nuvio-web/compare/v1.0.0...v1.0.1) (2026-09-02)
+
+### Features
+
+- settings & account tabs
+  ([48c5326](https://github.com/orochibraru/nuvio-web/commit/48c53263010993cfc4a2500f9c33096c164f1982))
+
 ## 1.0.0 (2026-09-02)
 
 ### Features
