@@ -85,10 +85,19 @@ jobs:
       - build-app
     permissions:
       contents: write
+      issues: write
+      pull-requests: write
     steps:
+      # RELEASE_TOKEN (a fine-grained PAT scoped to just this repo, Contents +
+      # Issues + Pull requests: write) is required, not the default
+      # GITHUB_TOKEN: the `main` ruleset blocks direct pushes from anyone but
+      # a repo admin, and the default token's actor (github-actions[bot]) isn't
+      # on the bypass list. Used both for git's push auth here and as GH_TOKEN
+      # below for @semantic-release/github's API calls.
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          token: ${{ secrets.RELEASE_TOKEN }}
 
       - name: Setup bun
         uses: oven-sh/setup-bun@v2
@@ -109,4 +118,6 @@ jobs:
           merge-multiple: true
 
       - name: Release
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
         run: bun run release
