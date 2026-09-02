@@ -53,13 +53,13 @@ describe("handleError", () => {
 		).toBeUndefined();
 	});
 
-	it("returns an errorId + message for real errors", () => {
+	it("returns an errorId, hiding the real message from the client outside dev", () => {
 		const result = handleError({
 			kind: "unknown",
 			event: { request: { method: "GET" }, url: { pathname: "/x" } },
 			error: new Error("boom"),
 		} as any) as { errorId: string; message: string };
 		expect(result.errorId).toMatch(/^[a-f0-9]{24}$/);
-		expect(result.message).toBe("boom");
+		expect(result.message).toBe("An unknown error occurred.");
 	});
 });
