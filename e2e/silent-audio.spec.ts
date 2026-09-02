@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { collectRuntimeErrors } from "./errors.ts";
 
-// The webm harness clip has working Vorbis audio — the silent-media detector
+// The webm harness clip has working Vorbis audio : the silent-media detector
 // must not false-flag it, and the rework must not throw.
 test("silent-media detector does not false-flag a normal clip", async ({
 	page,
@@ -15,7 +15,7 @@ test("silent-media detector does not false-flag a normal clip", async ({
 		const v = document.querySelector("video");
 		if (v) {
 			v.loop = true;
-			void v.play().catch(() => {});
+			void v.play().catch(() => { });
 		}
 	});
 

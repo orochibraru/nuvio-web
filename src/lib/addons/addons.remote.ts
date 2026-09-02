@@ -134,7 +134,7 @@ const catalogSchema = v.object({
 });
 
 /** Client-initiated paging ("Load more"). The *first* page comes from the
- *  discover load instead — see `catalogPage` in `server.ts`. */
+ *  discover load instead : see `catalogPage` in `server.ts`. */
 export const browseCatalog = query(catalogSchema, async (selector) => {
 	const page = await catalogPage(selector);
 	if (!page) {
@@ -143,7 +143,7 @@ export const browseCatalog = query(catalogSchema, async (selector) => {
 	return page;
 });
 
-/** Every `addon_catalog` an installed addon advertises — a directory of other addons. */
+/** Every `addon_catalog` an installed addon advertises : a directory of other addons. */
 export const addonCatalogSources = query(async () => {
 	const { registry } = await getAddonClient();
 	return registry.addonCatalogs().map(({ addon, catalog }) => ({
@@ -189,7 +189,7 @@ export const getStreams = query(
 );
 
 /**
- * "More like this" — no catalog / meta provider exposes a real "similar" list, so
+ * "More like this" : no catalog / meta provider exposes a real "similar" list, so
  * approximate it: the biggest catalog of the right type, filtered to a shared
  * genre, minus the title itself.
  */

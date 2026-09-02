@@ -5,7 +5,7 @@ interface VideoDecodeDeps {
 	video: () => HTMLVideoElement | null;
 	/** The stream label named a video codec the browser may not decode. */
 	videoRisky: () => boolean;
-	/** True while a fatal error screen is already up — stop sampling. */
+	/** True while a fatal error screen is already up : stop sampling. */
 	blocked: () => boolean;
 }
 
@@ -19,7 +19,7 @@ function createSampler(el: HTMLVideoElement) {
 	const deltas: number[] = [];
 	let lastFrames: number | null = null;
 	let lastTime = 0;
-	/** Set once the decoder has clearly worked — sampling is then pointless. */
+	/** Set once the decoder has clearly worked : sampling is then pointless. */
 	let settledOk = false;
 
 	function sample(): boolean {
@@ -57,7 +57,7 @@ function createSampler(el: HTMLVideoElement) {
 }
 
 /**
- * Watch a playing `<video>` for "audio plays, picture never appears" — a video
+ * Watch a playing `<video>` for "audio plays, picture never appears" : a video
  * codec the browser can't decode. Only arms for a label-flagged codec. The
  * result is a **non-fatal, dismissible** signal (`issue` / `dismiss()`), like
  * the silent-audio watch.

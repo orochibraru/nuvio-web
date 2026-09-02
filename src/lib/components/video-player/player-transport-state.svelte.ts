@@ -16,7 +16,7 @@ export interface PlayerTransportState {
  * The raw `<video>` transport state: the six properties bound two-way off
  * the element itself, plus the few extras that ride along with them. A
  * single reactive object, so `bind:paused={state.paused}` and friends just
- * work on it directly — no getter/setter boilerplate per field, and any
+ * work on it directly : no getter/setter boilerplate per field, and any
  * consumer holding a reference to `state` sees the same live values.
  */
 export function createPlayerTransportState(deps: {

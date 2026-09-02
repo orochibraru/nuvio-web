@@ -16,7 +16,7 @@ export async function pullSettingsBlob(
 /**
  * UI settings for SSR / first paint. Gates every `(app)` page through the layout
  * load, so a slow / failed pull falls back to defaults rather than stalling or
- * 500-ing the shell — the client `theme` controller re-syncs once it's up.
+ * 500-ing the shell : the client `theme` controller re-syncs once it's up.
  */
 export async function pullUiSettings(
 	nuvio: NuvioClient,

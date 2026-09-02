@@ -14,7 +14,7 @@ interface ProgressDeps {
  * up to 15s and the unmount save never runs).
  */
 export function createProgressReporter(deps: ProgressDeps) {
-	// Furthest position reported for the current source — guards against a
+	// Furthest position reported for the current source : guards against a
 	// transient `currentTime` reset (e.g. right after a recovery `video.load()`)
 	// pushing `position: 0` over real progress. Cleared via `reset()`.
 	let furthest = 0;

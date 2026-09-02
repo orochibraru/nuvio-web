@@ -1,4 +1,4 @@
-# Builder — glibc Bun image so the compiled binary is glibc-linked and runs on
+# Builder : glibc Bun image so the compiled binary is glibc-linked and runs on
 # debian:slim below.
 FROM oven/bun:1 AS build
 
@@ -12,7 +12,7 @@ COPY . /app/
 
 RUN bun run build
 
-# Runtime — no Bun, no node_modules. @orochibraru/svelte-smol compiles the app
+# Runtime : no Bun, no node_modules. @orochibraru/svelte-smol compiles the app
 # (Bun runtime embedded) into the single self-contained /app/dist/server binary.
 FROM debian:bookworm-slim
 

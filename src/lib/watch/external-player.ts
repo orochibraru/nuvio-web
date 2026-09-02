@@ -2,17 +2,17 @@
  * Handing a stream to whatever plays video on this device.
  *
  * There is no web API for "open in the OS default player", and a scheme can't
- * simply be glued in front of a URL — `vlc://https://host/path` parses as
+ * simply be glued in front of a URL : `vlc://https://host/path` parses as
  * authority `https:` and the browser drops the colon, which is why the old
  * `vlc://` button produced `vlc://https//host/path` and did nothing. Each
  * platform needs its own correctly-encoded form:
  *
- * - **Android** — an Intent URL with `action=VIEW` + `type=video/*`, which is
+ * - **Android** : an Intent URL with `action=VIEW` + `type=video/*`, which is
  *   the one case where the OS really does offer the user's video apps (or
  *   goes straight to their default).
- * - **iOS / iPadOS** — no chooser exists, and VLC's documented x-callback
+ * - **iOS / iPadOS** : no chooser exists, and VLC's documented x-callback
  *   scheme is the realistic target.
- * - **Desktop** — nothing reliable: VLC doesn't register a URL scheme on
+ * - **Desktop** : nothing reliable: VLC doesn't register a URL scheme on
  *   install, so callers fall back to copying the link.
  */
 
@@ -26,7 +26,7 @@ export function isIos(userAgent: string): boolean {
 	return /iphone|ipad|ipod/i.test(userAgent);
 }
 
-/** An `intent://` URL — Android resolves it to the user's video app. */
+/** An `intent://` URL : Android resolves it to the user's video app. */
 function androidIntent(target: URL): string {
 	const scheme = target.protocol.replace(":", "");
 	// `#` and `;` delimit the Intent's own syntax, so only host + path +
@@ -44,7 +44,7 @@ function androidIntent(target: URL): string {
 /**
  * A deep link that hands `url` to an external player, or `null` when this
  * platform has none (desktop) or the URL isn't something a player can take
- * (a magnet link, say — `magnetLink` covers those).
+ * (a magnet link, say : `magnetLink` covers those).
  */
 export function externalPlayerLink(
 	url: string | null | undefined,
@@ -77,7 +77,7 @@ export function externalPlayerLink(
  * A `magnet:` URI for a P2P stream. Addons hand these back as an `infoHash`
  * (the `magnet:` url itself is dropped upstream, since it isn't an http URL),
  * and every desktop and mobile OS routes `magnet:` to whatever torrent app the
- * viewer has set as default — so this is the one handoff that works the same
+ * viewer has set as default : so this is the one handoff that works the same
  * everywhere.
  */
 export function magnetLink(
@@ -98,10 +98,10 @@ export function magnetLink(
  * What the "play in an external player" button should actually do for this
  * stream on this device:
  *
- * - `link` — navigate; the OS hands it to a player (or torrent app).
- * - `copy` — no scheme is registered here (desktop + a direct URL), so the
+ * - `link` : navigate; the OS hands it to a player (or torrent app).
+ * - `copy` : no scheme is registered here (desktop + a direct URL), so the
  *   best we can do is put the URL on the clipboard for the viewer to paste.
- * - `null` — there is genuinely nothing to hand over, and the caller should
+ * - `null` : there is genuinely nothing to hand over, and the caller should
  *   not promise one.
  */
 export type ExternalHandoff =

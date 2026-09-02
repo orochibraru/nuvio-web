@@ -8,7 +8,7 @@ const CATALOG_CONCURRENCY = 4;
 
 /**
  * Just the bits of `AddonClient` these need, so the orchestration below can
- * be exercised against a fake — the wrappers in `server.ts` pass the real
+ * be exercised against a fake : the wrappers in `server.ts` pass the real
  * client, and nothing here reaches for a request context.
  */
 export interface CatalogSource {
@@ -136,7 +136,7 @@ export async function searchAllCatalogs(
 }
 
 /**
- * "More like this" — no catalog / meta provider exposes a real similar list,
+ * "More like this" : no catalog / meta provider exposes a real similar list,
  * so approximate it: the biggest catalogs of the right type, filtered to a
  * shared genre, minus the title itself. Probes genre-major, then catalog
  * order, and takes the first that yields enough titles.

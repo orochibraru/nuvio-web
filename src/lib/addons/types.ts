@@ -1,4 +1,4 @@
-// Stremio addon protocol — the subset Nuvio web consumes.
+// Stremio addon protocol : the subset Nuvio web consumes.
 // Reference: https://github.com/Stremio/stremio-addon-sdk/tree/master/docs/api
 
 export type ContentType = "movie" | "series" | (string & {});

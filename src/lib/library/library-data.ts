@@ -3,7 +3,7 @@ import type { ContentType } from "#lib/sync/types.js";
 
 /**
  * SSR helpers for the home / library page loads. Every one degrades to an empty
- * result on a slow or failed pull — the local sync store is the real source on
+ * result on a slow or failed pull : the local sync store is the real source on
  * those screens and fills in once it's authoritative.
  */
 

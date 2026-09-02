@@ -7,7 +7,7 @@ import { pullPlaybackContext } from "./watch-data.ts";
 
 /**
  * The player page gets its context from the load; this is the client-initiated
- * path — the detail page's stream panel and its hover prefetch, which ask for
+ * path : the detail page's stream panel and its hover prefetch, which ask for
  * another video's context than the one the load resolved.
  */
 export const playbackContext = query(
@@ -25,7 +25,7 @@ export const playbackContext = query(
 );
 
 /**
- * Fan out to every stream provider for this title. Slow and best-effort — called
+ * Fan out to every stream provider for this title. Slow and best-effort : called
  * from the client with `.current` (skeleton) and re-run by a "Refresh" button.
  */
 export const resolveStreams = query(
@@ -88,7 +88,7 @@ export const getSubtitles = query(
 		const { client } = await getAddonClient();
 		const { subtitles } = await client.getSubtitles(type, id);
 
-		// Keep every option (one per source), not one per language — the overlay
+		// Keep every option (one per source), not one per language : the overlay
 		// lets the viewer pick the exact release. Drop only exact URL duplicates.
 		const seen = new Set<string>();
 		const options: Array<{

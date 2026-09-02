@@ -1,164 +1,164 @@
 <script lang="ts">
-	import CompassIcon from "@lucide/svelte/icons/compass";
-	import { browseCatalog } from "#lib/addons/addons.remote.js";
-	import type { MetaPreview } from "#lib/addons/index.js";
-	import EmptyState from "#lib/components/empty-state.svelte";
-	import MediaGrid from "#lib/components/media-grid.svelte";
-	import QueryError from "#lib/components/query-error.svelte";
-	import ScrollRail from "#lib/components/scroll-rail.svelte";
-	import { Button } from "#lib/components/ui/button/index.js";
-	import { pageTitle } from "#lib/stores/title.svelte.js";
-	import { streamed } from "#lib/stream.svelte.js";
-	import { cn } from "#lib/utils.js";
-	import { goto, invalidateAll } from "$app/navigation";
-	import { resolve } from "$app/paths";
-	import { page } from "$app/state";
+  import CompassIcon from "@lucide/svelte/icons/compass";
+  import { browseCatalog } from "#lib/addons/addons.remote.js";
+  import type { MetaPreview } from "#lib/addons/index.js";
+  import EmptyState from "#lib/components/empty-state.svelte";
+  import MediaGrid from "#lib/components/media-grid.svelte";
+  import QueryError from "#lib/components/query-error.svelte";
+  import ScrollRail from "#lib/components/scroll-rail.svelte";
+  import { Button } from "#lib/components/ui/button/index.js";
+  import { pageTitle } from "#lib/stores/title.svelte.js";
+  import { streamed } from "#lib/stream.svelte.js";
+  import { cn } from "#lib/utils.js";
+  import { goto, invalidateAll } from "$app/navigation";
+  import { resolve } from "$app/paths";
+  import { page } from "$app/state";
 
-	pageTitle.set("Discover");
+  pageTitle.set("Discover");
 
-	let { data } = $props();
+  let { data } = $props();
 
-	// The catalog list streams in from the load (unawaited) so nav isn't blocked;
-	// `selectedKey` / `genre` are read straight off the URL.
-	const catalogsStream = streamed(
-		() => data.catalogs,
-		[] as Awaited<typeof data.catalogs>,
-	);
-	const catalogs = $derived(catalogsStream.current);
-	const catalogsReady = $derived(catalogsStream.ready);
-	const selectedKey = $derived(data.selectedKey ?? null);
-	const genre = $derived(data.genre ?? "");
+  // The catalog list streams in from the load (unawaited) so nav isn't blocked;
+  // `selectedKey` / `genre` are read straight off the URL.
+  const catalogsStream = streamed(
+    () => data.catalogs,
+    [] as Awaited<typeof data.catalogs>,
+  );
+  const catalogs = $derived(catalogsStream.current);
+  const catalogsReady = $derived(catalogsStream.ready);
+  const selectedKey = $derived(data.selectedKey ?? null);
+  const genre = $derived(data.genre ?? "");
 
-	// The `?c=` catalog if it matches, else the first available one.
-	const selected = $derived(
-		catalogs.find(
-			(entry) => `${entry.addonId}|${entry.type}|${entry.id}` === selectedKey,
-		) ?? catalogs[0],
-	);
+  // The `?c=` catalog if it matches, else the first available one.
+  const selected = $derived(
+    catalogs.find(
+      (entry) => `${entry.addonId}|${entry.type}|${entry.id}` === selectedKey,
+    ) ?? catalogs[0],
+  );
 
-	const activeKey = $derived(
-		selected ? `${selected.addonId}|${selected.type}|${selected.id}` : null,
-	);
+  const activeKey = $derived(
+    selected ? `${selected.addonId}|${selected.type}|${selected.id}` : null,
+  );
 
-	// A stale `?c=` (an addon was removed, or the link is just wrong) silently
-	// falls back to the first catalog above — sync the URL to match so it
-	// doesn't keep naming a catalog that isn't showing.
-	$effect(() => {
-		if (
-			catalogsReady &&
-			selectedKey &&
-			activeKey &&
-			selectedKey !== activeKey
-		) {
-			const params = new URLSearchParams(page.url.search);
-			params.set("c", activeKey);
-			// Same superseded-navigation caveat as `navigate` below.
-			void goto(`?${params}`, { reset: false, replace: true }).catch(() => {
-				// A newer navigation won — this URL fixup no longer applies.
-			});
-		}
-	});
+  // A stale `?c=` (an addon was removed, or the link is just wrong) silently
+  // falls back to the first catalog above : sync the URL to match so it
+  // doesn't keep naming a catalog that isn't showing.
+  $effect(() => {
+    if (
+      catalogsReady &&
+      selectedKey &&
+      activeKey &&
+      selectedKey !== activeKey
+    ) {
+      const params = new URLSearchParams(page.url.search);
+      params.set("c", activeKey);
+      // Same superseded-navigation caveat as `navigate` below.
+      void goto(`?${params}`, { reset: false, replace: true }).catch(() => {
+        // A newer navigation won : this URL fixup no longer applies.
+      });
+    }
+  });
 
-	// Only disambiguate catalog pills by addon when more than one addon supplies them.
-	const multipleAddons = $derived(
-		new Set(catalogs.map((entry) => entry.addonId)).size > 1,
-	);
+  // Only disambiguate catalog pills by addon when more than one addon supplies them.
+  const multipleAddons = $derived(
+    new Set(catalogs.map((entry) => entry.addonId)).size > 1,
+  );
 
-	// Cinemeta reuses one catalog name ("Popular", "New"…) for both movie and
-	// series, so pill labels collide. Suffix the repeats with their type.
-	const catalogLabels = $derived.by(() => {
-		const counts = new Map<string, number>();
-		for (const entry of catalogs) {
-			counts.set(entry.name, (counts.get(entry.name) ?? 0) + 1);
-		}
-		return new Map(
-			catalogs.map((entry) => {
-				const key = `${entry.addonId}|${entry.type}|${entry.id}`;
-				if ((counts.get(entry.name) ?? 0) > 1) {
-					const noun = entry.type === "series" ? "Series" : "Movies";
-					return [key, `${entry.name} · ${noun}`];
-				}
-				return [key, entry.name];
-			}),
-		);
-	});
+  // Cinemeta reuses one catalog name ("Popular", "New"…) for both movie and
+  // series, so pill labels collide. Suffix the repeats with their type.
+  const catalogLabels = $derived.by(() => {
+    const counts = new Map<string, number>();
+    for (const entry of catalogs) {
+      counts.set(entry.name, (counts.get(entry.name) ?? 0) + 1);
+    }
+    return new Map(
+      catalogs.map((entry) => {
+        const key = `${entry.addonId}|${entry.type}|${entry.id}`;
+        if ((counts.get(entry.name) ?? 0) > 1) {
+          const noun = entry.type === "series" ? "Series" : "Movies";
+          return [key, `${entry.name} · ${noun}`];
+        }
+        return [key, entry.name];
+      }),
+    );
+  });
 
-	// The first page of catalog contents is fetched by the load from the URL's
-	// own `?c=`/`?g=` and streamed down with the page, so it doesn't cost a
-	// client round trip that can only start once the catalog list has landed
-	// and the selection has been derived here. `null` once ready means the
-	// catalog couldn't be read — the retry state below covers it.
-	const firstPageStream = streamed(
-		() => data.firstPage,
-		null as Awaited<typeof data.firstPage>,
-	);
-	const firstPage = $derived(firstPageStream.current);
-	const loadingFirst = $derived(!firstPageStream.ready);
-	const firstPageFailed = $derived(firstPageStream.ready && firstPage === null);
+  // The first page of catalog contents is fetched by the load from the URL's
+  // own `?c=`/`?g=` and streamed down with the page, so it doesn't cost a
+  // client round trip that can only start once the catalog list has landed
+  // and the selection has been derived here. `null` once ready means the
+  // catalog couldn't be read : the retry state below covers it.
+  const firstPageStream = streamed(
+    () => data.firstPage,
+    null as Awaited<typeof data.firstPage>,
+  );
+  const firstPage = $derived(firstPageStream.current);
+  const loadingFirst = $derived(!firstPageStream.ready);
+  const firstPageFailed = $derived(firstPageStream.ready && firstPage === null);
 
-	let more = $state<MetaPreview[]>([]);
-	let loadingMore = $state(false);
-	let exhausted = $state(false);
+  let more = $state<MetaPreview[]>([]);
+  let loadingMore = $state(false);
+  let exhausted = $state(false);
 
-	// reset appended pages whenever the catalog / genre changes
-	$effect(() => {
-		void selectedKey;
-		void genre;
-		more = [];
-		exhausted = false;
-	});
+  // reset appended pages whenever the catalog / genre changes
+  $effect(() => {
+    void selectedKey;
+    void genre;
+    more = [];
+    exhausted = false;
+  });
 
-	const items = $derived([...(firstPage?.metas ?? []), ...more]);
+  const items = $derived([...(firstPage?.metas ?? []), ...more]);
 
-	// `refreshAll` re-runs the load, which is what re-fetches the catalog page
-	// server-side for the new `?c=`/`?g=`. Clicking a second pill before the
-	// first navigation settles aborts it, and SvelteKit rejects the superseded
-	// `goto` — swallow that, or it surfaces as an uncaught "navigation
-	// aborted" page error.
-	function navigate(params: URLSearchParams) {
-		void goto(`?${params}`, { reset: false, refreshAll: true }).catch(() => {
-			// A newer pill click superseded this navigation — nothing to do.
-		});
-	}
+  // `refreshAll` re-runs the load, which is what re-fetches the catalog page
+  // server-side for the new `?c=`/`?g=`. Clicking a second pill before the
+  // first navigation settles aborts it, and SvelteKit rejects the superseded
+  // `goto` : swallow that, or it surfaces as an uncaught "navigation
+  // aborted" page error.
+  function navigate(params: URLSearchParams) {
+    void goto(`?${params}`, { reset: false, refreshAll: true }).catch(() => {
+      // A newer pill click superseded this navigation : nothing to do.
+    });
+  }
 
-	function selectCatalog(key: string) {
-		const params = new URLSearchParams(page.url.search);
-		params.set("c", key);
-		params.delete("g");
-		navigate(params);
-	}
+  function selectCatalog(key: string) {
+    const params = new URLSearchParams(page.url.search);
+    params.set("c", key);
+    params.delete("g");
+    navigate(params);
+  }
 
-	function setGenre(value: string) {
-		const params = new URLSearchParams(page.url.search);
-		if (value) {
-			params.set("g", value);
-		} else {
-			params.delete("g");
-		}
-		navigate(params);
-	}
+  function setGenre(value: string) {
+    const params = new URLSearchParams(page.url.search);
+    if (value) {
+      params.set("g", value);
+    } else {
+      params.delete("g");
+    }
+    navigate(params);
+  }
 
-	async function loadMore() {
-		if (!selected || loadingMore) {
-			return;
-		}
-		loadingMore = true;
-		try {
-			const next = await browseCatalog({
-				addonId: selected.addonId,
-				type: selected.type,
-				id: selected.id,
-				genre: genre || undefined,
-				skip: items.length,
-			});
-			if (next.metas.length === 0) {
-				exhausted = true;
-			}
-			more = [...more, ...next.metas];
-		} finally {
-			loadingMore = false;
-		}
-	}
+  async function loadMore() {
+    if (!selected || loadingMore) {
+      return;
+    }
+    loadingMore = true;
+    try {
+      const next = await browseCatalog({
+        addonId: selected.addonId,
+        type: selected.type,
+        id: selected.id,
+        genre: genre || undefined,
+        skip: items.length,
+      });
+      if (next.metas.length === 0) {
+        exhausted = true;
+      }
+      more = [...more, ...next.metas];
+    } finally {
+      loadingMore = false;
+    }
+  }
 </script>
 
 <div class="flex flex-col gap-6">

@@ -17,14 +17,14 @@ interface SilentAudioDeps {
 	hls: () => HlsLike | null;
 	/** The stream label hints at a codec the browser can't decode. */
 	audioRisky: () => boolean;
-	/** True while a fatal error screen is up — pause sampling. */
+	/** True while a fatal error screen is up : pause sampling. */
 	blocked: () => boolean;
 	/** Called when the watch flips to an alternate HLS audio track. */
 	onTrackSwitch: (index: number) => void;
 }
 
 /**
- * Watch a playing `<video>` for "picture plays, no sound" — an undecodable audio
+ * Watch a playing `<video>` for "picture plays, no sound" : an undecodable audio
  * codec (Dolby Digital / DTS / Atmos …) or a file with no audio track. Non-fatal:
  * `.issue` drives a dismissible banner. Re-arms whenever `src()` changes.
  *

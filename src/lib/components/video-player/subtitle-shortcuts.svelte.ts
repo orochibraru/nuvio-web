@@ -26,7 +26,7 @@ export function createSubtitleShortcuts(deps: {
 		deps.setCaption(keys[(index + 1) % keys.length]);
 	}
 
-	// Called once playback is ready — auto-picks a preferred-language track,
+	// Called once playback is ready : auto-picks a preferred-language track,
 	// once per source.
 	function trySelectPreferred() {
 		const preferredLanguage = deps.preferredLanguage();

@@ -159,7 +159,7 @@ Use `class="sr-only"` if visually hidden.
 
 ## Card structure
 
-Use full composition — don't dump everything into `Card.Content`:
+Use full composition : don't dump everything into `Card.Content`:
 
 ```svelte
 <script lang="ts">
@@ -201,7 +201,7 @@ Compose with `Spinner` inside `Button` + `disabled`:
 
 ## Tabs.Trigger must be inside Tabs.List
 
-Never render `Tabs.Trigger` directly inside `Tabs.Root` — always wrap in
+Never render `Tabs.Trigger` directly inside `Tabs.Root` : always wrap in
 `Tabs.List`:
 
 ```svelte

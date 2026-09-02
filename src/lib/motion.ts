@@ -11,7 +11,7 @@ export function prefersReducedMotion(): boolean {
 
 /**
  * Collapse a Svelte transition param set to instant when the viewer prefers
- * reduced motion — `transition:fly={reduced({ y: 16, duration: 220 })}`.
+ * reduced motion : `transition:fly={reduced({ y: 16, duration: 220 })}`.
  */
 export function reduced<T extends { duration?: number }>(params: T): T {
 	return prefersReducedMotion() ? { ...params, duration: 0 } : params;

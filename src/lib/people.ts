@@ -4,7 +4,7 @@ import { budgeted } from "#lib/client-request-budget.js";
  * Cast/crew details, sourced from Wikipedia's public REST summary API. Fetched
  * from the browser (Wikipedia sends `Access-Control-Allow-Origin: *`) so no
  * third-party biography text ever transits our server; results are memoised per
- * name for the session. Actual fetches are `budgeted` — a title with an
+ * name for the session. Actual fetches are `budgeted` : a title with an
  * 18-person cast row shouldn't open 18 simultaneous Wikipedia requests.
  */
 export interface Person {

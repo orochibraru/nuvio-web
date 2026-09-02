@@ -16,7 +16,7 @@ function video(over: Partial<MetaVideo>): MetaVideo {
 }
 
 // The app addresses series with a colon-free content id (IMDB `tt…`) plus
-// `:season:episode`, e.g. `tt0411008:1:2` — `parseVideoId` splits on `:`.
+// `:season:episode`, e.g. `tt0411008:1:2` : `parseVideoId` splits on `:`.
 const seriesMeta: Meta = {
 	id: "tt0411008",
 	type: "series",

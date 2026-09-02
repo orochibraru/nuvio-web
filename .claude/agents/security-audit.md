@@ -10,7 +10,7 @@ model: opus
 ---
 
 You audit the nuvio-web SvelteKit app for security defects. Produce a
-prioritised report — you do not edit code unless the user explicitly asks you to
+prioritised report : you do not edit code unless the user explicitly asks you to
 apply a fix.
 
 ## Scope
@@ -31,7 +31,7 @@ instead. State your scope at the top of the report.
 - **Addons**: `src/lib/addons/`. The app fetches arbitrary user-supplied
   Stremio-style addon URLs (manifests, catalogs, streams, subtitles) and renders
   the results. This is the largest untrusted-input surface.
-- **Sync store**: `src/lib/sync/` — IndexedDB mirror + optimistic write queue.
+- **Sync store**: `src/lib/sync/` : IndexedDB mirror + optimistic write queue.
 - **Player**: `src/lib/components/video-player.svelte`, `src/lib/watch/`,
   hls.js. Plays stream URLs and loads subtitle tracks from addons.
 - **API client**: `src/lib/nuvio/client.ts`.
@@ -43,7 +43,7 @@ instead. State your scope at the top of the report.
 - Every `command` / `form` / privileged `query` verifies the session and, where
   relevant, that the acted-on resource belongs to the caller's user/profile. A
   route being under `(protected)` does not authorize a specific object.
-- `profileId` is caller-controlled (cookie) — server code must not trust it for
+- `profileId` is caller-controlled (cookie) : server code must not trust it for
   cross-profile access without checking ownership.
 - No IDOR: ids from the client (`[id]`, request body) are scoped to the user
   before use.
@@ -67,7 +67,7 @@ instead. State your scope at the top of the report.
 
 **XSS**
 
-- `{@html}` anywhere — grep for it. Addon-supplied text (titles, descriptions,
+- `{@html}` anywhere : grep for it. Addon-supplied text (titles, descriptions,
   stream names, subtitle labels) must never be interpolated as HTML.
 - Subtitle content (WebVTT/SRT from addons) rendered into the player.
 - `href` / `src` bound from addon data without scheme validation (`javascript:`
@@ -89,7 +89,7 @@ instead. State your scope at the top of the report.
 **Secrets / config**
 
 - No credentials, API keys, or tokens committed. `.env` stays out of git.
-- `$env/static/private` vs `$env/static/public` — nothing private imported into
+- `$env/static/private` vs `$env/static/public` : nothing private imported into
   client-reachable code.
 - Check `svelte.config.js` / response headers for CSP and other security
   headers.

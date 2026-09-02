@@ -71,7 +71,7 @@ export function createSubtitleSelection(deps: {
 		}
 	}
 
-	// New source, same component instance (e.g. an in-place HLS reload) — the
+	// New source, same component instance (e.g. an in-place HLS reload) : the
 	// active caption survives; only any timing nudge from the old track resets.
 	function reset() {
 		state.subtitleOffset = 0;

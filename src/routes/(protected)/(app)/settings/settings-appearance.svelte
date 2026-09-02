@@ -1,119 +1,117 @@
 <script lang="ts">
-	import CheckIcon from "@lucide/svelte/icons/check";
-	import * as Card from "#lib/components/ui/card/index.js";
-	import { theme } from "#lib/settings/theme.svelte.js";
-	import type { Accent, UiSettings } from "#lib/settings/ui-settings.js";
-	import { cn } from "#lib/utils.js";
+  import CheckIcon from "@lucide/svelte/icons/check";
+  import * as Card from "#lib/components/ui/card/index.js";
+  import { theme } from "#lib/settings/theme.svelte.js";
+  import type { Accent, UiSettings } from "#lib/settings/ui-settings.js";
+  import { cn } from "#lib/utils.js";
 
-	let { update }: { update: (patch: Partial<UiSettings>) => Promise<void> } =
-		$props();
+  let { update }: { update: (patch: Partial<UiSettings>) => Promise<void> } =
+    $props();
 
-	const modes: Array<{ value: UiSettings["mode"]; label: string }> = [
-		{ value: "system", label: "System" },
-		{ value: "light", label: "Light" },
-		{ value: "dark", label: "Dark" },
-	];
+  const modes: Array<{ value: UiSettings["mode"]; label: string }> = [
+    { value: "system", label: "System" },
+    { value: "light", label: "Light" },
+    { value: "dark", label: "Dark" },
+  ];
 
-	const darkStyles: Array<{
-		value: UiSettings["darkStyle"];
-		label: string;
-		hint: string;
-	}> = [
-		{ value: "dim", label: "Dim", hint: "Soft dark grey" },
-		{ value: "amoled", label: "AMOLED", hint: "Pure black" },
-	];
+  const darkStyles: Array<{
+    value: UiSettings["darkStyle"];
+    label: string;
+    hint: string;
+  }> = [
+    { value: "dim", label: "Dim", hint: "Soft dark grey" },
+    { value: "amoled", label: "AMOLED", hint: "Pure black" },
+  ];
 
-	// Swatch colour comes from `--primary` under each `[data-accent]` scope
-	// (layout.css) — no second copy of the ramp to keep in sync.
-	const accents: Array<{ value: Accent }> = [
-		{ value: "blue" },
-		{ value: "violet" },
-		{ value: "green" },
-		{ value: "rose" },
-		{ value: "amber" },
-		{ value: "cyan" },
-		{ value: "neutral" },
-	];
+  // Swatch colour comes from `--primary` under each `[data-accent]` scope
+  // (layout.css) : no second copy of the ramp to keep in sync.
+  const accents: Array<{ value: Accent }> = [
+    { value: "blue" },
+    { value: "violet" },
+    { value: "green" },
+    { value: "rose" },
+    { value: "amber" },
+    { value: "cyan" },
+    { value: "neutral" },
+  ];
 </script>
 
 <Card.Root class="border border-foreground/10">
-	<Card.Header>
-		<Card.Title>Appearance</Card.Title>
-		<Card.Description
-			>Stored on your Nuvio account, per profile.</Card.Description
-		>
-	</Card.Header>
-	<Card.Content class="flex flex-col gap-7">
-		<div class="flex flex-col gap-2.5">
-			<span class="text-sm font-medium">Mode</span>
-			<div class="flex w-fit gap-1 rounded-full bg-foreground/5 p-1">
-				{#each modes as option (option.value)}
-					<button
-						type="button"
-						onclick={() => update({ mode: option.value })}
-						class={cn(
-							"rounded-full px-4 py-1.5 text-sm font-medium transition",
-							theme.current.mode === option.value
-								? "bg-primary text-primary-foreground shadow-sm"
-								: "text-muted-foreground hover:text-foreground",
-						)}
-					>
-						{option.label}
-					</button>
-				{/each}
-			</div>
-		</div>
+  <Card.Header>
+    <Card.Title>Appearance</Card.Title>
+    <Card.Description
+      >Stored on your Nuvio account, per profile.</Card.Description
+    >
+  </Card.Header>
+  <Card.Content class="flex flex-col gap-7">
+    <div class="flex flex-col gap-2.5">
+      <span class="text-sm font-medium">Mode</span>
+      <div class="flex w-fit gap-1 rounded-full bg-foreground/5 p-1">
+        {#each modes as option (option.value)}
+          <button
+            type="button"
+            onclick={() => update({ mode: option.value })}
+            class={cn(
+              "rounded-full px-4 py-1.5 text-sm font-medium transition",
+              theme.current.mode === option.value
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {option.label}
+          </button>
+        {/each}
+      </div>
+    </div>
 
-		<div class="flex flex-col gap-2.5">
-			<span class="text-sm font-medium">Dark style</span>
-			<div class="grid grid-cols-2 gap-2 sm:max-w-xs">
-				{#each darkStyles as option (option.value)}
-					<button
-						type="button"
-						onclick={() => update({ darkStyle: option.value })}
-						class={cn(
-							"flex flex-col items-start gap-0.5 rounded-xl border px-3.5 py-2.5 text-sm transition",
-							theme.current.darkStyle === option.value
-								? "border-primary bg-primary/10 ring-1 ring-primary"
-								: "border-border/60 hover:border-border",
-						)}
-					>
-						<span class="font-semibold">{option.label}</span>
-						<span class="text-xs text-muted-foreground">{option.hint}</span>
-					</button>
-				{/each}
-			</div>
-			<p class="text-xs text-muted-foreground">
-				Applies when the effective mode is dark.
-			</p>
-		</div>
+    <div class="flex flex-col gap-2.5">
+      <span class="text-sm font-medium">Dark style</span>
+      <div class="grid grid-cols-2 gap-2 sm:max-w-xs">
+        {#each darkStyles as option (option.value)}
+          <button
+            type="button"
+            onclick={() => update({ darkStyle: option.value })}
+            class={cn(
+              "flex flex-col items-start gap-0.5 rounded-xl border px-3.5 py-2.5 text-sm transition",
+              theme.current.darkStyle === option.value
+                ? "border-primary bg-primary/10 ring-1 ring-primary"
+                : "border-border/60 hover:border-border",
+            )}
+          >
+            <span class="font-semibold">{option.label}</span>
+            <span class="text-xs text-muted-foreground">{option.hint}</span>
+          </button>
+        {/each}
+      </div>
+      <p class="text-xs text-muted-foreground">
+        Applies when the effective mode is dark.
+      </p>
+    </div>
 
-		<div class="flex flex-col gap-2.5">
-			<span class="text-sm font-medium">Accent colour</span>
-			<div class="flex flex-wrap gap-3">
-				{#each accents as option (option.value)}
-					<button
-						type="button"
-						aria-label={option.value}
-						aria-pressed={theme.current.accent === option.value}
-						data-accent={option.value === "neutral"
-							? undefined
-							: option.value}
-						onclick={() => update({ accent: option.value })}
-						class={cn(
-							"flex size-9 items-center justify-center rounded-full ring-2 ring-offset-2 ring-offset-card transition",
-							option.value === "neutral" ? "bg-neutral-500" : "bg-primary",
-							theme.current.accent === option.value
-								? "ring-foreground"
-								: "ring-transparent",
-						)}
-					>
-						{#if theme.current.accent === option.value}
-							<CheckIcon class="size-4 text-white" />
-						{/if}
-					</button>
-				{/each}
-			</div>
-		</div>
-	</Card.Content>
+    <div class="flex flex-col gap-2.5">
+      <span class="text-sm font-medium">Accent colour</span>
+      <div class="flex flex-wrap gap-3">
+        {#each accents as option (option.value)}
+          <button
+            type="button"
+            aria-label={option.value}
+            aria-pressed={theme.current.accent === option.value}
+            data-accent={option.value === "neutral" ? undefined : option.value}
+            onclick={() => update({ accent: option.value })}
+            class={cn(
+              "flex size-9 items-center justify-center rounded-full ring-2 ring-offset-2 ring-offset-card transition",
+              option.value === "neutral" ? "bg-neutral-500" : "bg-primary",
+              theme.current.accent === option.value
+                ? "ring-foreground"
+                : "ring-transparent",
+            )}
+          >
+            {#if theme.current.accent === option.value}
+              <CheckIcon class="size-4 text-white" />
+            {/if}
+          </button>
+        {/each}
+      </div>
+    </div>
+  </Card.Content>
 </Card.Root>

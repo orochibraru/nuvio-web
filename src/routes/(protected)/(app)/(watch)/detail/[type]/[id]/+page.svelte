@@ -1,381 +1,381 @@
 <script lang="ts">
-	import {
-		BookmarkCheckIcon,
-		BookmarkIcon,
-		BookmarkOffIcon,
-		EyeDashedIcon,
-		XIcon,
-	} from "@lucide/svelte";
-	import ArrowLeftIcon from "@lucide/svelte/icons/arrow-left";
-	import CheckIcon from "@lucide/svelte/icons/check";
-	import ExternalLinkIcon from "@lucide/svelte/icons/external-link";
-	import EyeIcon from "@lucide/svelte/icons/eye";
-	import EyeOffIcon from "@lucide/svelte/icons/eye-off";
-	import FilmIcon from "@lucide/svelte/icons/film";
-	import ListVideoIcon from "@lucide/svelte/icons/list-video";
-	import PlayIcon from "@lucide/svelte/icons/play";
-	import PlayCircleIcon from "@lucide/svelte/icons/play-circle";
-	import PlusIcon from "@lucide/svelte/icons/plus";
-	import { toast } from "svelte-sonner";
-	import CastRow from "#lib/components/cast-row.svelte";
-	import MediaHero from "#lib/components/media-hero.svelte";
-	import MediaRow from "#lib/components/media-row.svelte";
-	import ScrollRail from "#lib/components/scroll-rail.svelte";
-	import SeasonCarousel from "#lib/components/season-carousel.svelte";
-	import TrailerModal from "#lib/components/trailer-modal.svelte";
-	import { Button } from "#lib/components/ui/button/index.js";
-	import { libraryIds } from "#lib/library/library.remote.js";
-	import { theme } from "#lib/settings/theme.svelte.js";
-	import { pageTitle } from "#lib/stores/title.svelte.js";
-	import { streamed } from "#lib/stream.svelte.js";
-	import { sync } from "#lib/sync/store.svelte.js";
-	import { cn } from "#lib/utils.js";
-	import { playOrder } from "#lib/watch/playback-context.js";
-	import { parseRuntimeMs } from "#lib/watch/runtime.js";
-	import { sourcesPanel } from "#lib/watch/sources-panel.svelte.js";
-	import {
-		playbackContext,
-		resolveStreams,
-		titleProgress,
-	} from "#lib/watch/watch.remote.js";
-	import { EMPTY_PROVIDERS } from "#lib/watch/watch-providers.js";
-	import { watchProviders } from "#lib/watch/watch-providers.remote.js";
-	import WatchProvidersList from "#lib/watch/watch-providers-list.svelte";
-	import { browser } from "$app/env";
-	import { goto } from "$app/navigation";
-	import { resolve } from "$app/paths";
-	import { page } from "$app/state";
+  import {
+    BookmarkCheckIcon,
+    BookmarkIcon,
+    BookmarkOffIcon,
+    EyeDashedIcon,
+    XIcon,
+  } from "@lucide/svelte";
+  import ArrowLeftIcon from "@lucide/svelte/icons/arrow-left";
+  import CheckIcon from "@lucide/svelte/icons/check";
+  import ExternalLinkIcon from "@lucide/svelte/icons/external-link";
+  import EyeIcon from "@lucide/svelte/icons/eye";
+  import EyeOffIcon from "@lucide/svelte/icons/eye-off";
+  import FilmIcon from "@lucide/svelte/icons/film";
+  import ListVideoIcon from "@lucide/svelte/icons/list-video";
+  import PlayIcon from "@lucide/svelte/icons/play";
+  import PlayCircleIcon from "@lucide/svelte/icons/play-circle";
+  import PlusIcon from "@lucide/svelte/icons/plus";
+  import { toast } from "svelte-sonner";
+  import CastRow from "#lib/components/cast-row.svelte";
+  import MediaHero from "#lib/components/media-hero.svelte";
+  import MediaRow from "#lib/components/media-row.svelte";
+  import ScrollRail from "#lib/components/scroll-rail.svelte";
+  import SeasonCarousel from "#lib/components/season-carousel.svelte";
+  import TrailerModal from "#lib/components/trailer-modal.svelte";
+  import { Button } from "#lib/components/ui/button/index.js";
+  import { libraryIds } from "#lib/library/library.remote.js";
+  import { theme } from "#lib/settings/theme.svelte.js";
+  import { pageTitle } from "#lib/stores/title.svelte.js";
+  import { streamed } from "#lib/stream.svelte.js";
+  import { sync } from "#lib/sync/store.svelte.js";
+  import { cn } from "#lib/utils.js";
+  import { playOrder } from "#lib/watch/playback-context.js";
+  import { parseRuntimeMs } from "#lib/watch/runtime.js";
+  import { sourcesPanel } from "#lib/watch/sources-panel.svelte.js";
+  import {
+    playbackContext,
+    resolveStreams,
+    titleProgress,
+  } from "#lib/watch/watch.remote.js";
+  import { EMPTY_PROVIDERS } from "#lib/watch/watch-providers.js";
+  import { watchProviders } from "#lib/watch/watch-providers.remote.js";
+  import WatchProvidersList from "#lib/watch/watch-providers-list.svelte";
+  import { browser } from "$app/env";
+  import { goto } from "$app/navigation";
+  import { resolve } from "$app/paths";
+  import { page } from "$app/state";
 
-	let { data } = $props();
+  let { data } = $props();
 
-	const type = $derived(page.params.type ?? "movie");
-	const id = $derived(page.params.id ?? "");
-	const contentType = $derived(type === "series" ? "series" : "movie");
-	// The source drawer itself lives in the (watch) layout, driven by module state.
-	function openSources(videoId: string) {
-		sourcesPanel.open(type, videoId);
-	}
+  const type = $derived(page.params.type ?? "movie");
+  const id = $derived(page.params.id ?? "");
+  const contentType = $derived(type === "series" ? "series" : "movie");
+  // The source drawer itself lives in the (watch) layout, driven by module state.
+  function openSources(videoId: string) {
+    sourcesPanel.open(type, videoId);
+  }
 
-	// Meta + "more like this" are resolved by the load from the route params and
-	// streamed down with the page, so the addon fetch starts server-side rather
-	// than after hydration and a second round trip. `null` once ready means no
-	// installed addon had this title.
-	const metaStream = streamed(
-		() => data.meta,
-		null as Awaited<typeof data.meta>,
-	);
-	const metaFailed = $derived(metaStream.ready && metaStream.current === null);
-	const libraryQuery = libraryIds();
-	const progressQuery = $derived(titleProgress({ contentId: id }));
-	const progress = $derived(
-		sync.authoritative ? sync.titleProgress(id) : (progressQuery.current ?? {}),
-	);
-	const meta = $derived(metaStream.current?.meta);
+  // Meta + "more like this" are resolved by the load from the route params and
+  // streamed down with the page, so the addon fetch starts server-side rather
+  // than after hydration and a second round trip. `null` once ready means no
+  // installed addon had this title.
+  const metaStream = streamed(
+    () => data.meta,
+    null as Awaited<typeof data.meta>,
+  );
+  const metaFailed = $derived(metaStream.ready && metaStream.current === null);
+  const libraryQuery = libraryIds();
+  const progressQuery = $derived(titleProgress({ contentId: id }));
+  const progress = $derived(
+    sync.authoritative ? sync.titleProgress(id) : (progressQuery.current ?? {}),
+  );
+  const meta = $derived(metaStream.current?.meta);
 
-	// A non-reactive-in-template mirror of `meta`: only ever set to a real object,
-	// cleared only when the query has no result. A `forkPreloads` speculative
-	// render can invalidate `meta` mid-branch, and reading `stableMeta.X` from
-	// the template must never see a half-torn-down value.
-	let stableMeta = $state<typeof meta>(undefined);
-	$effect(() => {
-		if (meta) {
-			stableMeta = meta;
-		} else if (metaStream.ready) {
-			stableMeta = undefined;
-		}
-	});
+  // A non-reactive-in-template mirror of `meta`: only ever set to a real object,
+  // cleared only when the query has no result. A `forkPreloads` speculative
+  // render can invalidate `meta` mid-branch, and reading `stableMeta.X` from
+  // the template must never see a half-torn-down value.
+  let stableMeta = $state<typeof meta>(undefined);
+  $effect(() => {
+    if (meta) {
+      stableMeta = meta;
+    } else if (metaStream.ready) {
+      stableMeta = undefined;
+    }
+  });
 
-	$effect(() => {
-		pageTitle.set(meta?.name);
-	});
+  $effect(() => {
+    pageTitle.set(meta?.name);
+  });
 
-	const inLibrary = $derived(
-		sync.authoritative
-			? sync.isInLibrary(contentType, id)
-			: (libraryQuery.current ?? []).includes(id),
-	);
+  const inLibrary = $derived(
+    sync.authoritative
+      ? sync.isInLibrary(contentType, id)
+      : (libraryQuery.current ?? []).includes(id),
+  );
 
-	const trailers = $derived(meta?.trailerStreams ?? []);
-	let trailerId = $state<string | null>(null);
-	// The hero's synopsis is `line-clamp-3` with no way to read the rest on
-	// mobile (no hover, no room) — this drives a "More"/"Less" disclosure below
-	// the hero on small screens.
-	let synopsisExpanded = $state(false);
+  const trailers = $derived(meta?.trailerStreams ?? []);
+  let trailerId = $state<string | null>(null);
+  // The hero's synopsis is `line-clamp-3` with no way to read the rest on
+  // mobile (no hover, no room) : this drives a "More"/"Less" disclosure below
+  // the hero on small screens.
+  let synopsisExpanded = $state(false);
 
-	const similarStream = streamed(() => data.similar, { metas: [] });
-	const similar = $derived(similarStream.current.metas);
+  const similarStream = streamed(() => data.similar, { metas: [] });
+  const similar = $derived(similarStream.current.metas);
 
-	const rating = $derived(
-		typeof meta?.imdbRating === "number"
-			? meta.imdbRating.toFixed(1)
-			: meta?.imdbRating || null,
-	);
+  const rating = $derived(
+    typeof meta?.imdbRating === "number"
+      ? meta.imdbRating.toFixed(1)
+      : meta?.imdbRating || null,
+  );
 
-	const seasons = $derived.by(() => {
-		const set = new Set<number>();
-		for (const video of meta?.videos ?? []) {
-			if (video.season != null && video.season > 0) {
-				set.add(video.season);
-			}
-		}
-		return [...set].sort((a, b) => a - b);
-	});
+  const seasons = $derived.by(() => {
+    const set = new Set<number>();
+    for (const video of meta?.videos ?? []) {
+      if (video.season != null && video.season > 0) {
+        set.add(video.season);
+      }
+    }
+    return [...set].sort((a, b) => a - b);
+  });
 
-	const orderedEpisodes = $derived(playOrder(meta?.videos));
-	const firstEpisode = $derived(orderedEpisodes[0] ?? null);
+  const orderedEpisodes = $derived(playOrder(meta?.videos));
+  const firstEpisode = $derived(orderedEpisodes[0] ?? null);
 
-	const watchedEpisodes = $derived(
-		orderedEpisodes.filter((episode) => progress[episode.id]?.completed).length,
-	);
-	const seriesFlag = $derived.by(() => {
-		if (contentType !== "series" || orderedEpisodes.length === 0) {
-			return null;
-		}
-		if (watchedEpisodes === 0) {
-			return null;
-		}
-		if (watchedEpisodes >= orderedEpisodes.length) {
-			return "Watched";
-		}
-		return `${watchedEpisodes}/${orderedEpisodes.length} watched`;
-	});
+  const watchedEpisodes = $derived(
+    orderedEpisodes.filter((episode) => progress[episode.id]?.completed).length,
+  );
+  const seriesFlag = $derived.by(() => {
+    if (contentType !== "series" || orderedEpisodes.length === 0) {
+      return null;
+    }
+    if (watchedEpisodes === 0) {
+      return null;
+    }
+    if (watchedEpisodes >= orderedEpisodes.length) {
+      return "Watched";
+    }
+    return `${watchedEpisodes}/${orderedEpisodes.length} watched`;
+  });
 
-	// Series CTA target. Priority: an episode actually mid-watch → the episode
-	// after the furthest one finished (in play order) → nothing (falls to the
-	// "start from episode 1" CTA).
-	const resumeEpisode = $derived.by(() => {
-		if (contentType !== "series" || orderedEpisodes.length === 0) {
-			return null;
-		}
+  // Series CTA target. Priority: an episode actually mid-watch → the episode
+  // after the furthest one finished (in play order) → nothing (falls to the
+  // "start from episode 1" CTA).
+  const resumeEpisode = $derived.by(() => {
+    if (contentType !== "series" || orderedEpisodes.length === 0) {
+      return null;
+    }
 
-		const tag = (episode: { season?: number; episode?: number }) =>
-			`S${episode.season ?? 1}E${episode.episode ?? 1}`;
+    const tag = (episode: { season?: number; episode?: number }) =>
+      `S${episode.season ?? 1}E${episode.episode ?? 1}`;
 
-		const inProgress = orderedEpisodes.find((episode) => {
-			const p = progress[episode.id];
-			return p && !p.completed && p.fraction > 0.02;
-		});
-		if (inProgress) {
-			return { id: inProgress.id, label: `Resume ${tag(inProgress)}` };
-		}
+    const inProgress = orderedEpisodes.find((episode) => {
+      const p = progress[episode.id];
+      return p && !p.completed && p.fraction > 0.02;
+    });
+    if (inProgress) {
+      return { id: inProgress.id, label: `Resume ${tag(inProgress)}` };
+    }
 
-		let lastFinished = -1;
-		orderedEpisodes.forEach((episode, index) => {
-			if (progress[episode.id]?.completed) {
-				lastFinished = index;
-			}
-		});
-		const upNext = orderedEpisodes[lastFinished + 1];
-		if (lastFinished >= 0 && upNext) {
-			return { id: upNext.id, label: `Continue ${tag(upNext)}` };
-		}
-		return null;
-	});
+    let lastFinished = -1;
+    orderedEpisodes.forEach((episode, index) => {
+      if (progress[episode.id]?.completed) {
+        lastFinished = index;
+      }
+    });
+    const upNext = orderedEpisodes[lastFinished + 1];
+    if (lastFinished >= 0 && upNext) {
+      return { id: upNext.id, label: `Continue ${tag(upNext)}` };
+    }
+    return null;
+  });
 
-	// Primary CTA: jump straight to the player, which auto-resolves the preferred
-	// stream (first available, browser-friendly audio) on a cold load.
-	function watch(videoId: string) {
-		void goto(resolve(`player/${type}/${encodeURIComponent(videoId)}`));
-	}
+  // Primary CTA: jump straight to the player, which auto-resolves the preferred
+  // stream (first available, browser-friendly audio) on a cold load.
+  function watch(videoId: string) {
+    void goto(resolve(`player/${type}/${encodeURIComponent(videoId)}`));
+  }
 
-	// Secondary CTA: let the viewer pick the exact source themselves.
-	function selectStream(videoId: string) {
-		openSources(videoId);
-	}
+  // Secondary CTA: let the viewer pick the exact source themselves.
+  function selectStream(videoId: string) {
+    openSources(videoId);
+  }
 
-	// Warm the stream fan-out (and playback context) in the background so opening
-	// the source drawer — or landing on the player — feels instant. Remote
-	// queries are client-cached by args, so the drawer/player reuse this result.
-	// One id at a time on purpose: a full episode-by-episode sweep would hammer
-	// the addons. `prefetch()` skips already-warmed and in-flight ids.
-	const warmed = new Set<string>();
-	function prefetch(videoId: string | null | undefined) {
-		if (!(browser && videoId) || warmed.has(videoId)) {
-			return;
-		}
-		warmed.add(videoId);
-		// `.catch` subscribes the resource, which kicks off the request; the
-		// result lands in the shared client cache for the drawer / player.
-		void resolveStreams({ type, id: videoId }).catch(() => undefined);
-		void playbackContext({ type, id: videoId }).catch(() => undefined);
-	}
+  // Warm the stream fan-out (and playback context) in the background so opening
+  // the source drawer : or landing on the player : feels instant. Remote
+  // queries are client-cached by args, so the drawer/player reuse this result.
+  // One id at a time on purpose: a full episode-by-episode sweep would hammer
+  // the addons. `prefetch()` skips already-warmed and in-flight ids.
+  const warmed = new Set<string>();
+  function prefetch(videoId: string | null | undefined) {
+    if (!(browser && videoId) || warmed.has(videoId)) {
+      return;
+    }
+    warmed.add(videoId);
+    // `.catch` subscribes the resource, which kicks off the request; the
+    // result lands in the shared client cache for the drawer / player.
+    void resolveStreams({ type, id: videoId }).catch(() => undefined);
+    void playbackContext({ type, id: videoId }).catch(() => undefined);
+  }
 
-	const ctaVideoId = $derived(
-		contentType === "movie"
-			? id
-			: (resumeEpisode?.id ?? firstEpisode?.id ?? null),
-	);
+  const ctaVideoId = $derived(
+    contentType === "movie"
+      ? id
+      : (resumeEpisode?.id ?? firstEpisode?.id ?? null),
+  );
 
-	// Flips once the CTA target's streams have been warmed — gates the reactive
-	// read below so we don't fan out to the addons before the debounce.
-	let ctaWarmed = $state(false);
-	$effect(() => {
-		void ctaVideoId;
-		ctaWarmed = false;
-	});
-	$effect(() => {
-		if (!(meta && ctaVideoId)) {
-			return;
-		}
-		const target = ctaVideoId;
-		const timer = setTimeout(() => {
-			prefetch(target);
-			ctaWarmed = true;
-		}, 700);
-		return () => clearTimeout(timer);
-	});
+  // Flips once the CTA target's streams have been warmed : gates the reactive
+  // read below so we don't fan out to the addons before the debounce.
+  let ctaWarmed = $state(false);
+  $effect(() => {
+    void ctaVideoId;
+    ctaWarmed = false;
+  });
+  $effect(() => {
+    if (!(meta && ctaVideoId)) {
+      return;
+    }
+    const target = ctaVideoId;
+    const timer = setTimeout(() => {
+      prefetch(target);
+      ctaWarmed = true;
+    }, 700);
+    return () => clearTimeout(timer);
+  });
 
-	const runtimeMs = $derived(parseRuntimeMs(meta?.runtime));
+  const runtimeMs = $derived(parseRuntimeMs(meta?.runtime));
 
-	// Official "where to watch" (JustWatch). Drives the hero network badge, the
-	// "Available on" section, and — when no addon returns a stream — the primary
-	// CTA.
-	const releaseYear = $derived(
-		Number((meta?.releaseInfo ?? "").slice(0, 4)) || null,
-	);
+  // Official "where to watch" (JustWatch). Drives the hero network badge, the
+  // "Available on" section, and : when no addon returns a stream : the primary
+  // CTA.
+  const releaseYear = $derived(
+    Number((meta?.releaseInfo ?? "").slice(0, 4)) || null,
+  );
 
-	const imdbId = $derived(/^tt\d+$/.test(id) ? id : null);
+  const imdbId = $derived(/^tt\d+$/.test(id) ? id : null);
 
-	const providersQuery = $derived(
-		meta
-			? watchProviders({
-					title: meta.name,
-					year: releaseYear,
-					imdbId,
-					region: theme.current.watchRegion,
-				})
-			: undefined,
-	);
-	const providers = $derived(providersQuery?.current ?? EMPTY_PROVIDERS);
+  const providersQuery = $derived(
+    meta
+      ? watchProviders({
+          title: meta.name,
+          year: releaseYear,
+          imdbId,
+          region: theme.current.watchRegion,
+        })
+      : undefined,
+  );
+  const providers = $derived(providersQuery?.current ?? EMPTY_PROVIDERS);
 
-	// Does any installed addon return a stream for the CTA target? `null` while
-	// the fan-out is still in flight (or not yet warmed).
-	const ctaStreamsResult = $derived(
-		ctaWarmed && ctaVideoId
-			? resolveStreams({ type, id: ctaVideoId })
-			: undefined,
-	);
-	const ctaStreamCount = $derived(
-		ctaStreamsResult?.current?.streams.length ?? null,
-	);
-	// Fall back to the official source only once we know the addons came back empty.
-	const useOfficialCta = $derived(
-		ctaStreamCount === 0 && providers.stream.length > 0,
-	);
-	const officialCta = $derived(providers.stream[0] ?? null);
-	// While `ctaStreamCount` is still `null` we don't yet know whether the
-	// primary CTA is "Watch" (an addon stream) or "Watch on <provider>" (an
-	// external hop) — hold the slot as a skeleton instead of showing one and
-	// silently swapping it a moment later.
-	const ctaPending = $derived(Boolean(ctaVideoId) && ctaStreamCount === null);
+  // Does any installed addon return a stream for the CTA target? `null` while
+  // the fan-out is still in flight (or not yet warmed).
+  const ctaStreamsResult = $derived(
+    ctaWarmed && ctaVideoId
+      ? resolveStreams({ type, id: ctaVideoId })
+      : undefined,
+  );
+  const ctaStreamCount = $derived(
+    ctaStreamsResult?.current?.streams.length ?? null,
+  );
+  // Fall back to the official source only once we know the addons came back empty.
+  const useOfficialCta = $derived(
+    ctaStreamCount === 0 && providers.stream.length > 0,
+  );
+  const officialCta = $derived(providers.stream[0] ?? null);
+  // While `ctaStreamCount` is still `null` we don't yet know whether the
+  // primary CTA is "Watch" (an addon stream) or "Watch on <provider>" (an
+  // external hop) : hold the slot as a skeleton instead of showing one and
+  // silently swapping it a moment later.
+  const ctaPending = $derived(Boolean(ctaVideoId) && ctaStreamCount === null);
 
-	function toggleWatched(
-		videoId: string,
-		season: number | null,
-		episode: number | null,
-		watched: boolean,
-	) {
-		if (watched) {
-			sync.clearProgress({ contentId: id, season, episode });
-		} else {
-			sync.markWatched({
-				contentId: id,
-				contentType,
-				videoId,
-				season,
-				episode,
-				durationMs: runtimeMs,
-			});
-		}
-	}
+  function toggleWatched(
+    videoId: string,
+    season: number | null,
+    episode: number | null,
+    watched: boolean,
+  ) {
+    if (watched) {
+      sync.clearProgress({ contentId: id, season, episode });
+    } else {
+      sync.markWatched({
+        contentId: id,
+        contentType,
+        videoId,
+        season,
+        episode,
+        durationMs: runtimeMs,
+      });
+    }
+  }
 
-	function markEpisode(video: (typeof orderedEpisodes)[number]) {
-		if (progress[video.id]?.completed) {
-			return;
-		}
-		sync.markWatched({
-			contentId: id,
-			contentType: "series",
-			videoId: video.id,
-			season: video.season ?? null,
-			episode: video.episode ?? null,
-			durationMs: runtimeMs,
-		});
-	}
+  function markEpisode(video: (typeof orderedEpisodes)[number]) {
+    if (progress[video.id]?.completed) {
+      return;
+    }
+    sync.markWatched({
+      contentId: id,
+      contentType: "series",
+      videoId: video.id,
+      season: video.season ?? null,
+      episode: video.episode ?? null,
+      durationMs: runtimeMs,
+    });
+  }
 
-	function markUpTo(videoId: string) {
-		const index = orderedEpisodes.findIndex((v) => v.id === videoId);
-		if (index < 0) {
-			return;
-		}
-		const targets = orderedEpisodes.slice(0, index + 1);
-		const added = targets.filter((v) => !progress[v.id]?.completed).length;
-		for (const video of targets) {
-			markEpisode(video);
-		}
-		toast.success(
-			added > 0
-				? `Marked ${added} episode${added === 1 ? "" : "s"} watched`
-				: "Those episodes are already watched",
-		);
-	}
+  function markUpTo(videoId: string) {
+    const index = orderedEpisodes.findIndex((v) => v.id === videoId);
+    if (index < 0) {
+      return;
+    }
+    const targets = orderedEpisodes.slice(0, index + 1);
+    const added = targets.filter((v) => !progress[v.id]?.completed).length;
+    for (const video of targets) {
+      markEpisode(video);
+    }
+    toast.success(
+      added > 0
+        ? `Marked ${added} episode${added === 1 ? "" : "s"} watched`
+        : "Those episodes are already watched",
+    );
+  }
 
-	function markSeason(season: number, includeEarlier: boolean) {
-		const targets = orderedEpisodes.filter((v) => {
-			const s = v.season ?? 0;
-			return includeEarlier ? s <= season : s === season;
-		});
-		const added = targets.filter((v) => !progress[v.id]?.completed).length;
-		for (const video of targets) {
-			markEpisode(video);
-		}
-		toast.success(
-			added > 0
-				? `Marked ${added} episode${added === 1 ? "" : "s"} watched`
-				: "Already watched",
-		);
-	}
+  function markSeason(season: number, includeEarlier: boolean) {
+    const targets = orderedEpisodes.filter((v) => {
+      const s = v.season ?? 0;
+      return includeEarlier ? s <= season : s === season;
+    });
+    const added = targets.filter((v) => !progress[v.id]?.completed).length;
+    for (const video of targets) {
+      markEpisode(video);
+    }
+    toast.success(
+      added > 0
+        ? `Marked ${added} episode${added === 1 ? "" : "s"} watched`
+        : "Already watched",
+    );
+  }
 
-	function markAllWatched() {
-		const added = orderedEpisodes.filter(
-			(v) => !progress[v.id]?.completed,
-		).length;
-		for (const video of orderedEpisodes) {
-			markEpisode(video);
-		}
-		toast.success(
-			added > 0
-				? `Marked ${added} episode${added === 1 ? "" : "s"} watched`
-				: "Already watched",
-		);
-	}
+  function markAllWatched() {
+    const added = orderedEpisodes.filter(
+      (v) => !progress[v.id]?.completed,
+    ).length;
+    for (const video of orderedEpisodes) {
+      markEpisode(video);
+    }
+    toast.success(
+      added > 0
+        ? `Marked ${added} episode${added === 1 ? "" : "s"} watched`
+        : "Already watched",
+    );
+  }
 
-	function toggle() {
-		if (!meta) {
-			return;
-		}
-		const removing = inLibrary;
-		sync.toggleLibrary({
-			contentId: id,
-			contentType,
-			remove: removing,
-			name: meta.name,
-			poster: meta.poster ?? null,
-			background: meta.background ?? null,
-			description: meta.description ?? null,
-			releaseInfo: meta.releaseInfo ?? null,
-			imdbRating:
-				typeof meta.imdbRating === "number"
-					? meta.imdbRating
-					: Number(meta.imdbRating) || null,
-			genres: meta.genres,
-		});
-		toast.success(
-			removing
-				? `Removed ${meta.name} from library`
-				: `Added ${meta.name} to library`,
-		);
-	}
+  function toggle() {
+    if (!meta) {
+      return;
+    }
+    const removing = inLibrary;
+    sync.toggleLibrary({
+      contentId: id,
+      contentType,
+      remove: removing,
+      name: meta.name,
+      poster: meta.poster ?? null,
+      background: meta.background ?? null,
+      description: meta.description ?? null,
+      releaseInfo: meta.releaseInfo ?? null,
+      imdbRating:
+        typeof meta.imdbRating === "number"
+          ? meta.imdbRating
+          : Number(meta.imdbRating) || null,
+      genres: meta.genres,
+    });
+    toast.success(
+      removing
+        ? `Removed ${meta.name} from library`
+        : `Added ${meta.name} to library`,
+    );
+  }
 </script>
 
 <div class="relative">
@@ -551,8 +551,14 @@
             class="group"
             onclick={markAllWatched}
           >
-            <EyeIcon class="hidden group-hover:block" data-icon="inline-start" />
-            <EyeDashedIcon class="block group-hover:hidden" data-icon="inline-start" />
+            <EyeIcon
+              class="hidden group-hover:block"
+              data-icon="inline-start"
+            />
+            <EyeDashedIcon
+              class="block group-hover:hidden"
+              data-icon="inline-start"
+            />
             Mark all watched
           </Button>
         {/if}

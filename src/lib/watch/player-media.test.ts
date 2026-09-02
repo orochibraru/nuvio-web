@@ -93,7 +93,7 @@ describe("attachNativeAudioTracks", () => {
 		const cleanup = attachNativeAudioTracks(el, onChange);
 		expect(list.addEventListener).toHaveBeenCalledTimes(3);
 
-		// A track was added behind the scenes — the list itself now reports two.
+		// A track was added behind the scenes : the list itself now reports two.
 		(list as unknown as { length: number }).length = 2;
 		(list as unknown as Record<number, unknown>)[1] = {
 			label: "French",

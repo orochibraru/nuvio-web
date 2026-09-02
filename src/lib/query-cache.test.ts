@@ -8,7 +8,7 @@ vi.mock("$app/env", () => ({
 	},
 }));
 
-// Node's test env has no `localStorage` — a plain in-memory shim is enough.
+// Node's test env has no `localStorage` : a plain in-memory shim is enough.
 class MemoryStorage {
 	readonly #map = new Map<string, string>();
 	getItem(key: string) {

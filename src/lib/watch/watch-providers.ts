@@ -1,5 +1,5 @@
 /**
- * "Where to watch officially" — JustWatch's keyless GraphQL API. Factual
+ * "Where to watch officially" : JustWatch's keyless GraphQL API. Factual
  * availability metadata; the links send viewers to the paid source, so this is
  * pro-rights (same footing as the cast / TheIntroDB lookups).
  */
@@ -19,7 +19,7 @@ export interface WatchOffer {
 }
 
 export interface WatchProviders {
-	/** Primary subscription provider — the hero "on Prime Video" badge. */
+	/** Primary subscription provider : the hero "on Prime Video" badge. */
 	network: string | null;
 	/** Subscription / free / ad-supported streaming, deduped by provider. */
 	stream: WatchOffer[];

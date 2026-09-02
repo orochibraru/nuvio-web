@@ -1,6 +1,6 @@
 /**
  * Casting to a TV, with no third-party SDK: the standard Remote Playback API
- * (`video.remote` — Chrome/Edge, which covers Chromecast) with WebKit's
+ * (`video.remote` : Chrome/Edge, which covers Chromecast) with WebKit's
  * AirPlay hooks as a fallback (Safari implements the vendor-prefixed pair
  * instead). Neither is in lib.dom's types, hence the shapes below.
  */
@@ -45,7 +45,7 @@ export function castKind(
 
 /**
  * Opens the device picker. Returns false when there's nothing to open, or
- * when the viewer dismissed the picker (a rejected `prompt()` — including
+ * when the viewer dismissed the picker (a rejected `prompt()` : including
  * `NotAllowedError` when it wasn't a user gesture), so the caller can decide
  * whether that's worth surfacing.
  */
@@ -64,7 +64,7 @@ export async function promptForDevice(
 		}
 		return true;
 	} catch {
-		// Dismissed, or no device was picked — not an error worth shouting about.
+		// Dismissed, or no device was picked : not an error worth shouting about.
 		return false;
 	}
 }
@@ -99,7 +99,7 @@ export function watchRemotePlayback(
 				watchId = id;
 			})
 			.catch(() => {
-				// Some builds reject when the media has no source yet — the
+				// Some builds reject when the media has no source yet : the
 				// connect/disconnect events below still keep `state` honest.
 			});
 		remote.addEventListener("connect", emit);
@@ -111,7 +111,7 @@ export function watchRemotePlayback(
 			remote.removeEventListener("connecting", emit);
 			remote.removeEventListener("disconnect", emit);
 			void remote.cancelWatchAvailability?.(watchId).catch(() => {
-				// Nothing to cancel — fine.
+				// Nothing to cancel : fine.
 			});
 		};
 	}

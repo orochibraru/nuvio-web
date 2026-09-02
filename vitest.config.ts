@@ -14,7 +14,7 @@ export default defineConfig({
 		include: ["src/**/*.{test,spec}.ts"],
 		environment: "node",
 		coverage: {
-			// istanbul, not v8 — `@bcoe/v8-coverage`'s merge step blows the stack
+			// istanbul, not v8 : `@bcoe/v8-coverage`'s merge step blows the stack
 			// on some of these files (bitwise-heavy `safe-fetch.ts`).
 			provider: "istanbul",
 			reporter: ["text", "html"],
@@ -42,7 +42,7 @@ export default defineConfig({
 				// they're covered by Playwright, not here.
 				"src/**/*.svelte.ts",
 			],
-			// Ratchet upward as tests land — do not lower. Target is 100% for the
+			// Ratchet upward as tests land : do not lower. Target is 100% for the
 			// server / remote-function layer (see TODO "CI/CD").
 			thresholds: {
 				lines: 79,

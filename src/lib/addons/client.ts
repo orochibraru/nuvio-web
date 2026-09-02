@@ -1,7 +1,7 @@
 import { pooledMap } from "#lib/pool.js";
 import { safeFetch } from "#lib/server/safe-fetch.js";
 
-// Cap on simultaneous upstream addon requests during a fan-out — keeps a
+// Cap on simultaneous upstream addon requests during a fan-out : keeps a
 // many-addon profile from bursting well past a sane per-user request rate.
 const FANOUT_CONCURRENCY = 6;
 
@@ -28,7 +28,7 @@ export interface SubtitleWithSource extends Subtitle {
 	addonName: string;
 }
 
-/** One addon listed by an `addon_catalog` response — enough to preview + install it. */
+/** One addon listed by an `addon_catalog` response : enough to preview + install it. */
 export interface AddonCatalogEntry {
 	transportUrl: string;
 	manifest: {
@@ -40,7 +40,7 @@ export interface AddonCatalogEntry {
 	};
 }
 
-/** Addon-supplied data — never trust the shape. Drops an entry missing what
+/** Addon-supplied data : never trust the shape. Drops an entry missing what
  *  installing it needs (a URL) or showing it needs (an id + name). */
 function normalizeAddonCatalogEntry(raw: unknown): AddonCatalogEntry | null {
 	if (!raw || typeof raw !== "object") {
@@ -52,12 +52,12 @@ function normalizeAddonCatalogEntry(raw: unknown): AddonCatalogEntry | null {
 	}
 	const manifest = entry.manifest as
 		| {
-				id?: unknown;
-				name?: unknown;
-				description?: unknown;
-				logo?: unknown;
-				types?: unknown;
-		  }
+			id?: unknown;
+			name?: unknown;
+			description?: unknown;
+			logo?: unknown;
+			types?: unknown;
+		}
 		| null
 		| undefined;
 	if (
@@ -84,7 +84,7 @@ function normalizeAddonCatalogEntry(raw: unknown): AddonCatalogEntry | null {
 	};
 }
 
-/** Addon resource request coordinates — everything but which addon serves it. */
+/** Addon resource request coordinates : everything but which addon serves it. */
 interface ResourceRef {
 	resource: AddonResourceName;
 	type: string;
@@ -96,9 +96,9 @@ function buildResourceUrl(baseUrl: string, ref: ResourceRef): string {
 	const base = `${baseUrl}/${ref.resource}/${encodeURIComponent(ref.type)}/${encodeURIComponent(ref.id)}`;
 	const segment = ref.extra
 		? Object.entries(ref.extra)
-				.filter(([, value]) => value !== undefined && value !== "")
-				.map(([key, value]) => `${key}=${encodeURIComponent(String(value))}`)
-				.join("&")
+			.filter(([, value]) => value !== undefined && value !== "")
+			.map(([key, value]) => `${key}=${encodeURIComponent(String(value))}`)
+			.join("&")
 		: "";
 	return segment ? `${base}/${segment}.json` : `${base}.json`;
 }
@@ -153,7 +153,7 @@ function normalizeVideo(
 
 /**
  * Pull people out of `meta.links` (Cinemeta's newer shape puts cast / crew
- * there — `{ name, category, url: "stremio:///search?search=..." }` — and leaves
+ * there : `{ name, category, url: "stremio:///search?search=..." }` : and leaves
  * the flat `cast` / `director` / `writer` fields empty).
  */
 function peopleFromLinks(links: Meta["links"], category: string): string[] {
@@ -193,7 +193,7 @@ export class AddonClient {
 		private readonly registry: AddonRegistry,
 		private readonly fetchImpl: typeof fetch,
 		private readonly timeoutMs = 15_000,
-	) {}
+	) { }
 
 	async getCatalog(
 		query: CatalogQuery,
@@ -202,12 +202,12 @@ export class AddonClient {
 		const ref = addonId
 			? this.registry.findCatalog(addonId, query.type, query.id)
 			: this.registry
-					.catalogs()
-					.find(
-						(entry) =>
-							entry.catalog.type === query.type &&
-							entry.catalog.id === query.id,
-					);
+				.catalogs()
+				.find(
+					(entry) =>
+						entry.catalog.type === query.type &&
+						entry.catalog.id === query.id,
+				);
 		if (!ref) {
 			return null;
 		}
@@ -299,7 +299,7 @@ export class AddonClient {
 	}
 
 	/**
-	 * One `addon_catalog` — an addon-hosted directory of *other* addons (a
+	 * One `addon_catalog` : an addon-hosted directory of *other* addons (a
 	 * community repository, say). Unlike `getCatalog` / `fanOut`, this targets
 	 * one specific addon's specific catalog; the caller already knows which
 	 * one from `AddonRegistry.addonCatalogs()`.
@@ -359,7 +359,7 @@ export class AddonClient {
 	}
 
 	/**
-	 * Addon responses are **never cached server-side** — catalog / meta / stream
+	 * Addon responses are **never cached server-side** : catalog / meta / stream
 	 * payloads point at third-party content and the server must not retain them.
 	 * The browser's HTTP cache still honours whatever the addon sends.
 	 */

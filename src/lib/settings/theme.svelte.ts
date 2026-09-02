@@ -23,7 +23,7 @@ function cache(settings: UiSettings) {
 			}),
 		);
 	} catch {
-		// storage unavailable — the effect in the app layout still applies it
+		// storage unavailable : the effect in the app layout still applies it
 	}
 }
 

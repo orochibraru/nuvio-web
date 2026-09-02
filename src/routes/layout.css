@@ -6,357 +6,357 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-	--radius: 0.625rem;
-	--background: oklch(1 0 0);
-	--foreground: oklch(0.145 0 0);
-	--card: oklch(1 0 0);
-	--card-foreground: oklch(0.145 0 0);
-	--popover: oklch(1 0 0);
-	--popover-foreground: oklch(0.145 0 0);
-	--primary: oklch(0.205 0 0);
-	--primary-foreground: oklch(0.985 0 0);
-	--secondary: oklch(0.97 0 0);
-	--secondary-foreground: oklch(0.205 0 0);
-	--muted: oklch(0.97 0 0);
-	--muted-foreground: oklch(0.556 0 0);
-	--accent: oklch(0.97 0 0);
-	--accent-foreground: oklch(0.205 0 0);
-	--destructive: oklch(0.577 0.245 27.325);
-	--warning: oklch(0.75 0.15 75);
-	--warning-foreground: oklch(0.47 0.11 60);
-	--border: oklch(0.922 0 0);
-	--input: oklch(0.922 0 0);
-	--ring: oklch(0.708 0 0);
-	--chart-1: oklch(0.646 0.222 41.116);
-	--chart-2: oklch(0.6 0.118 184.704);
-	--chart-3: oklch(0.398 0.07 227.392);
-	--chart-4: oklch(0.828 0.189 84.429);
-	--chart-5: oklch(0.769 0.188 70.08);
-	--sidebar: oklch(0.985 0 0);
-	--sidebar-foreground: oklch(0.145 0 0);
-	--sidebar-primary: oklch(0.205 0 0);
-	--sidebar-primary-foreground: oklch(0.985 0 0);
-	--sidebar-accent: oklch(0.97 0 0);
-	--sidebar-accent-foreground: oklch(0.205 0 0);
-	--sidebar-border: oklch(0.922 0 0);
-	--sidebar-ring: oklch(0.708 0 0);
+  --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --warning: oklch(0.75 0.15 75);
+  --warning-foreground: oklch(0.47 0.11 60);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
 }
 
 .dark {
-	--background: oklch(0.145 0 0);
-	--foreground: oklch(0.985 0 0);
-	--card: oklch(0.205 0 0);
-	--card-foreground: oklch(0.985 0 0);
-	--popover: oklch(0.269 0 0);
-	--popover-foreground: oklch(0.985 0 0);
-	--primary: oklch(0.922 0 0);
-	--primary-foreground: oklch(0.205 0 0);
-	--secondary: oklch(0.269 0 0);
-	--secondary-foreground: oklch(0.985 0 0);
-	--muted: oklch(0.269 0 0);
-	--muted-foreground: oklch(0.708 0 0);
-	--accent: oklch(0.371 0 0);
-	--accent-foreground: oklch(0.985 0 0);
-	--destructive: oklch(0.704 0.191 22.216);
-	--warning: oklch(0.75 0.15 75);
-	--warning-foreground: oklch(0.86 0.13 82);
-	--border: oklch(1 0 0 / 10%);
-	--input: oklch(1 0 0 / 15%);
-	--ring: oklch(0.556 0 0);
-	--chart-1: oklch(0.488 0.243 264.376);
-	--chart-2: oklch(0.696 0.17 162.48);
-	--chart-3: oklch(0.769 0.188 70.08);
-	--chart-4: oklch(0.627 0.265 303.9);
-	--chart-5: oklch(0.645 0.246 16.439);
-	--sidebar: oklch(0.205 0 0);
-	--sidebar-foreground: oklch(0.985 0 0);
-	--sidebar-primary: oklch(0.488 0.243 264.376);
-	--sidebar-primary-foreground: oklch(0.985 0 0);
-	--sidebar-accent: oklch(0.269 0 0);
-	--sidebar-accent-foreground: oklch(0.985 0 0);
-	--sidebar-border: oklch(1 0 0 / 10%);
-	--sidebar-ring: oklch(0.439 0 0);
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.269 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.371 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --warning: oklch(0.75 0.15 75);
+  --warning-foreground: oklch(0.86 0.13 82);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.439 0 0);
 }
 
-/* Accent colour — drives --primary / --ring in both light and dark.
+/* Accent colour : drives --primary / --ring in both light and dark.
    "neutral" needs no rule (inherits the grayscale default). */
 [data-accent="blue"] {
-	--primary: oklch(0.55 0.2 255);
-	--primary-foreground: oklch(0.985 0 0);
-	--ring: oklch(0.55 0.2 255);
-	--sidebar-primary: oklch(0.55 0.2 255);
-	--sidebar-ring: oklch(0.55 0.2 255);
+  --primary: oklch(0.55 0.2 255);
+  --primary-foreground: oklch(0.985 0 0);
+  --ring: oklch(0.55 0.2 255);
+  --sidebar-primary: oklch(0.55 0.2 255);
+  --sidebar-ring: oklch(0.55 0.2 255);
 }
 [data-accent="violet"] {
-	--primary: oklch(0.54 0.22 293);
-	--primary-foreground: oklch(0.985 0 0);
-	--ring: oklch(0.54 0.22 293);
-	--sidebar-primary: oklch(0.54 0.22 293);
-	--sidebar-ring: oklch(0.54 0.22 293);
+  --primary: oklch(0.54 0.22 293);
+  --primary-foreground: oklch(0.985 0 0);
+  --ring: oklch(0.54 0.22 293);
+  --sidebar-primary: oklch(0.54 0.22 293);
+  --sidebar-ring: oklch(0.54 0.22 293);
 }
 [data-accent="green"] {
-	--primary: oklch(0.6 0.15 155);
-	--primary-foreground: oklch(0.985 0 0);
-	--ring: oklch(0.6 0.15 155);
-	--sidebar-primary: oklch(0.6 0.15 155);
-	--sidebar-ring: oklch(0.6 0.15 155);
+  --primary: oklch(0.6 0.15 155);
+  --primary-foreground: oklch(0.985 0 0);
+  --ring: oklch(0.6 0.15 155);
+  --sidebar-primary: oklch(0.6 0.15 155);
+  --sidebar-ring: oklch(0.6 0.15 155);
 }
 [data-accent="rose"] {
-	--primary: oklch(0.58 0.22 12);
-	--primary-foreground: oklch(0.985 0 0);
-	--ring: oklch(0.58 0.22 12);
-	--sidebar-primary: oklch(0.58 0.22 12);
-	--sidebar-ring: oklch(0.58 0.22 12);
+  --primary: oklch(0.58 0.22 12);
+  --primary-foreground: oklch(0.985 0 0);
+  --ring: oklch(0.58 0.22 12);
+  --sidebar-primary: oklch(0.58 0.22 12);
+  --sidebar-ring: oklch(0.58 0.22 12);
 }
 [data-accent="amber"] {
-	--primary: oklch(0.75 0.15 75);
-	--primary-foreground: oklch(0.2 0.02 75);
-	--ring: oklch(0.75 0.15 75);
-	--sidebar-primary: oklch(0.75 0.15 75);
-	--sidebar-ring: oklch(0.75 0.15 75);
+  --primary: oklch(0.75 0.15 75);
+  --primary-foreground: oklch(0.2 0.02 75);
+  --ring: oklch(0.75 0.15 75);
+  --sidebar-primary: oklch(0.75 0.15 75);
+  --sidebar-ring: oklch(0.75 0.15 75);
 }
 [data-accent="cyan"] {
-	--primary: oklch(0.62 0.12 210);
-	--primary-foreground: oklch(0.15 0.02 210);
-	--ring: oklch(0.62 0.12 210);
-	--sidebar-primary: oklch(0.62 0.12 210);
-	--sidebar-ring: oklch(0.62 0.12 210);
+  --primary: oklch(0.62 0.12 210);
+  --primary-foreground: oklch(0.15 0.02 210);
+  --ring: oklch(0.62 0.12 210);
+  --sidebar-primary: oklch(0.62 0.12 210);
+  --sidebar-ring: oklch(0.62 0.12 210);
 }
 
-/* AMOLED — pure-black surfaces, only meaningful under .dark */
+/* AMOLED : pure-black surfaces, only meaningful under .dark */
 .dark[data-amoled="true"],
 .dark [data-amoled="true"] {
-	--background: oklch(0 0 0);
-	--card: oklch(0.045 0 0);
-	--popover: oklch(0.045 0 0);
-	--secondary: oklch(0.1 0 0);
-	--muted: oklch(0.1 0 0);
-	--accent: oklch(0.14 0 0);
-	--border: oklch(1 0 0 / 7%);
-	--input: oklch(1 0 0 / 10%);
-	--sidebar: oklch(0 0 0);
+  --background: oklch(0 0 0);
+  --card: oklch(0.045 0 0);
+  --popover: oklch(0.045 0 0);
+  --secondary: oklch(0.1 0 0);
+  --muted: oklch(0.1 0 0);
+  --accent: oklch(0.14 0 0);
+  --border: oklch(1 0 0 / 7%);
+  --input: oklch(1 0 0 / 10%);
+  --sidebar: oklch(0 0 0);
 }
 
 @theme inline {
-	--radius-sm: calc(var(--radius) - 4px);
-	--radius-md: calc(var(--radius) - 2px);
-	--radius-lg: var(--radius);
-	--radius-xl: calc(var(--radius) + 4px);
-	--color-background: var(--background);
-	--color-foreground: var(--foreground);
-	--color-card: var(--card);
-	--color-card-foreground: var(--card-foreground);
-	--color-popover: var(--popover);
-	--color-popover-foreground: var(--popover-foreground);
-	--color-primary: var(--primary);
-	--color-primary-foreground: var(--primary-foreground);
-	--color-secondary: var(--secondary);
-	--color-secondary-foreground: var(--secondary-foreground);
-	--color-muted: var(--muted);
-	--color-muted-foreground: var(--muted-foreground);
-	--color-accent: var(--accent);
-	--color-accent-foreground: var(--accent-foreground);
-	--color-destructive: var(--destructive);
-	--color-warning: var(--warning);
-	--color-warning-foreground: var(--warning-foreground);
-	--color-border: var(--border);
-	--color-input: var(--input);
-	--color-ring: var(--ring);
-	--color-chart-1: var(--chart-1);
-	--color-chart-2: var(--chart-2);
-	--color-chart-3: var(--chart-3);
-	--color-chart-4: var(--chart-4);
-	--color-chart-5: var(--chart-5);
-	--color-sidebar: var(--sidebar);
-	--color-sidebar-foreground: var(--sidebar-foreground);
-	--color-sidebar-primary: var(--sidebar-primary);
-	--color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-	--color-sidebar-accent: var(--sidebar-accent);
-	--color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-	--color-sidebar-border: var(--sidebar-border);
-	--color-sidebar-ring: var(--sidebar-ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
 }
 
 @utility scrollbar-thin {
-	scrollbar-width: thin;
+  scrollbar-width: thin;
 }
 
 @utility no-scrollbar {
-	scrollbar-width: none;
-	&::-webkit-scrollbar {
-		display: none;
-	}
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 /* Cinematic slow push-in for hero backdrops. */
 @utility animate-hero-zoom {
-	animation: nuvio-hero-zoom 24s ease-out forwards;
-	@media (prefers-reduced-motion: reduce) {
-		animation: none;
-	}
+  animation: nuvio-hero-zoom 24s ease-out forwards;
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
 }
 
 @keyframes nuvio-hero-zoom {
-	from {
-		transform: scale(1.09);
-	}
-	to {
-		transform: scale(1);
-	}
+  from {
+    transform: scale(1.09);
+  }
+  to {
+    transform: scale(1);
+  }
 }
 
 /* Slowly drifting colour clouds behind hero / auth surfaces. Three phases so the
    blobs never sync up. Motion off under prefers-reduced-motion. */
 @utility aurora-a {
-	animation: nuvio-aurora-a 28s ease-in-out infinite alternate;
-	@media (prefers-reduced-motion: reduce) {
-		animation: none;
-	}
+  animation: nuvio-aurora-a 28s ease-in-out infinite alternate;
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
 }
 @utility aurora-b {
-	animation: nuvio-aurora-b 34s ease-in-out infinite alternate;
-	@media (prefers-reduced-motion: reduce) {
-		animation: none;
-	}
+  animation: nuvio-aurora-b 34s ease-in-out infinite alternate;
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
 }
 @utility aurora-c {
-	animation: nuvio-aurora-c 40s ease-in-out infinite alternate;
-	@media (prefers-reduced-motion: reduce) {
-		animation: none;
-	}
+  animation: nuvio-aurora-c 40s ease-in-out infinite alternate;
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
 }
 
 @keyframes nuvio-aurora-a {
-	from {
-		transform: translate3d(0, 0, 0) scale(1);
-	}
-	to {
-		transform: translate3d(12%, 8%, 0) scale(1.15);
-	}
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(12%, 8%, 0) scale(1.15);
+  }
 }
 @keyframes nuvio-aurora-b {
-	from {
-		transform: translate3d(0, 0, 0) scale(1.1);
-	}
-	to {
-		transform: translate3d(-10%, -6%, 0) scale(1);
-	}
+  from {
+    transform: translate3d(0, 0, 0) scale(1.1);
+  }
+  to {
+    transform: translate3d(-10%, -6%, 0) scale(1);
+  }
 }
 @keyframes nuvio-aurora-c {
-	from {
-		transform: translate3d(0, 0, 0) scale(1);
-	}
-	to {
-		transform: translate3d(-8%, 10%, 0) scale(1.2);
-	}
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(-8%, 10%, 0) scale(1.2);
+  }
 }
 
 /* Gentle breathing pulse for a loading title treatment. */
 @utility animate-soft-pulse {
-	animation: nuvio-soft-pulse 1.9s ease-in-out infinite;
-	@media (prefers-reduced-motion: reduce) {
-		animation: none;
-	}
+  animation: nuvio-soft-pulse 1.9s ease-in-out infinite;
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
 }
 
 @keyframes nuvio-soft-pulse {
-	0%,
-	100% {
-		opacity: 1;
-	}
-	50% {
-		opacity: 0.35;
-	}
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
 }
 
-/* Player loading mark: the brand mark breathing — scale + opacity + a soft
+/* Player loading mark: the brand mark breathing : scale + opacity + a soft
    glow, all with a floor well above zero so it never dips to invisible and
    reads as a plain static button at a glance (the failure mode of the
    previous fade-to-nothing ring animation this replaced). */
 @utility animate-loading-mark {
-	animation: nuvio-loading-mark 1.8s ease-in-out infinite;
-	@media (prefers-reduced-motion: reduce) {
-		animation: none;
-	}
+  animation: nuvio-loading-mark 1.8s ease-in-out infinite;
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
 }
 
 @keyframes nuvio-loading-mark {
-	0%,
-	100% {
-		transform: scale(0.94);
-		opacity: 0.82;
-		filter: drop-shadow(0 0 0 transparent);
-	}
-	50% {
-		transform: scale(1.06);
-		opacity: 1;
-		filter: drop-shadow(
-			0 0 18px color-mix(in oklch, var(--primary) 55%, transparent)
-		);
-	}
+  0%,
+  100% {
+    transform: scale(0.94);
+    opacity: 0.82;
+    filter: drop-shadow(0 0 0 transparent);
+  }
+  50% {
+    transform: scale(1.06);
+    opacity: 1;
+    filter: drop-shadow(
+      0 0 18px color-mix(in oklch, var(--primary) 55%, transparent)
+    );
+  }
 }
 
-/* Skips layout/paint/render for off-screen grid items — a virtual-list-grade
+/* Skips layout/paint/render for off-screen grid items : a virtual-list-grade
    win for long catalogs without a windowing library, since these pages scroll
    the window rather than a fixed-height viewport. `contain-intrinsic-size` is
    only a first-paint guess for a never-shown card (2:3 poster + title lines);
    the browser remembers the real size once it has actually been rendered. */
 @utility content-auto {
-	content-visibility: auto;
-	contain-intrinsic-size: auto 340px;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 340px;
 }
 
-/* Shimmering loading placeholder — replaces bare animate-pulse. */
+/* Shimmering loading placeholder : replaces bare animate-pulse. */
 @utility skeleton {
-	position: relative;
-	overflow: hidden;
-	background-color: var(--muted);
-	&::after {
-		content: "";
-		position: absolute;
-		inset: 0;
-		transform: translateX(-100%);
-		background: linear-gradient(
-			90deg,
-			transparent,
-			color-mix(in oklch, var(--foreground) 9%, transparent),
-			transparent
-		);
-		animation: nuvio-shimmer 1.5s infinite;
-	}
-	@media (prefers-reduced-motion: reduce) {
-		&::after {
-			animation: none;
-		}
-	}
+  position: relative;
+  overflow: hidden;
+  background-color: var(--muted);
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+      90deg,
+      transparent,
+      color-mix(in oklch, var(--foreground) 9%, transparent),
+      transparent
+    );
+    animation: nuvio-shimmer 1.5s infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    &::after {
+      animation: none;
+    }
+  }
 }
 
 @keyframes nuvio-shimmer {
-	100% {
-		transform: translateX(100%);
-	}
+  100% {
+    transform: translateX(100%);
+  }
 }
 
 @layer base {
-	* {
-		@apply border-border outline-ring/50;
-	}
-	html {
-		scroll-behavior: smooth;
-		scrollbar-gutter: stable;
-	}
-	body {
-		@apply bg-background text-foreground;
-		-webkit-font-smoothing: antialiased;
-		text-rendering: optimizelegibility;
-	}
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    scroll-behavior: smooth;
+    scrollbar-gutter: stable;
+  }
+  body {
+    @apply bg-background text-foreground;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizelegibility;
+  }
 
-	::selection {
-		background-color: color-mix(in oklch, var(--primary) 40%, transparent);
-	}
+  ::selection {
+    background-color: color-mix(in oklch, var(--primary) 40%, transparent);
+  }
 
-	button,
-	input {
-		@apply cursor-pointer;
-	}
+  button,
+  input {
+    @apply cursor-pointer;
+  }
 }

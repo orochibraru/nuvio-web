@@ -1,11 +1,11 @@
 /**
- * Runtime detection of a video track that won't decode in this browser — an
+ * Runtime detection of a video track that won't decode in this browser : an
  * HEVC / AV1 stream where the pre-flight `MediaSource` probe was inconclusive
  * and `<video>` never fired an `error` (it just shows a black or frozen frame
  * while the audio clock keeps `currentTime` moving).
  *
- * Deliberately conservative — a false "can't play" over a stream that's actually
- * fine is worse than missing a real one — so it only runs for a label-flagged
+ * Deliberately conservative : a false "can't play" over a stream that's actually
+ * fine is worse than missing a real one : so it only runs for a label-flagged
  * codec, needs a long run of frameless playback, and surfaces a **dismissible
  * banner**, never a fatal takeover.
  */
@@ -14,7 +14,7 @@ export type DecodeVerdict = "ok" | "dead" | "unknown";
 
 /**
  * Classify a run of per-tick decoded-frame *deltas*, each taken while playback
- * position was advancing (so a network stall — position frozen — never counts).
+ * position was advancing (so a network stall : position frozen : never counts).
  *
  * `dead` only when **no frame ever decoded** across `needed` advancing ticks —
  * the unambiguous "all black, codec unsupported" case. A stream that showed

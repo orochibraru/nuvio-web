@@ -1,4 +1,4 @@
-/** The native multi-audio-track API — real in Chromium/Firefox for a file
+/** The native multi-audio-track API : real in Chromium/Firefox for a file
  *  that muxes more than one audio track, but missing from lib.dom's types. */
 export interface NativeAudioTrack {
 	label: string;
@@ -35,7 +35,7 @@ export function nativeAudioSnapshot(list: NativeAudioTrackList): {
 }
 
 /** Wires the native `audioTracks` list, if the browser exposes one for this
- *  element, to `onChange` — called once immediately, then on every list
+ *  element, to `onChange` : called once immediately, then on every list
  *  change. Returns a cleanup, or `undefined` when there's no such list
  *  (Safari, or a single-track file). */
 export function attachNativeAudioTracks(

@@ -121,7 +121,7 @@ describe("externalPlayerHandoff", () => {
 		).toEqual({ kind: "copy", url: "https://cdn.example/m.mkv" });
 	});
 
-	it("hands a P2P stream its magnet — on desktop too, where the OS has a torrent app", () => {
+	it("hands a P2P stream its magnet : on desktop too, where the OS has a torrent app", () => {
 		const hash = "7abf965bb56e64d96235ca6b7c49b593d707c3a2";
 		for (const ua of [MAC, ANDROID, IPHONE]) {
 			expect(

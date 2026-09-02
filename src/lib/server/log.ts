@@ -59,7 +59,7 @@ function write(level: Level, message: string, fields?: LogFields): void {
 }
 
 /** Pretty, leveled console logger for server-side code. Colorized single-line
- * output — meant to be read straight off `docker logs` / a terminal, not
+ * output : meant to be read straight off `docker logs` / a terminal, not
  * parsed by a log shipper. */
 export const log = {
 	debug: (message: string, fields?: LogFields) =>

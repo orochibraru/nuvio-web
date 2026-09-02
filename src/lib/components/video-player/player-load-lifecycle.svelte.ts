@@ -50,7 +50,7 @@ export function createPlayerLoadLifecycle(deps: {
 		const code = mediaError?.code;
 
 		// `SRC_NOT_SUPPORTED` (4) means the container/codec can't be played at
-		// all — no point retrying.
+		// all : no point retrying.
 		if (!mediaError || code === mediaError.MEDIA_ERR_SRC_NOT_SUPPORTED) {
 			deps.onFatal(
 				"This source can't play in the browser. Its container or codec isn't supported.",

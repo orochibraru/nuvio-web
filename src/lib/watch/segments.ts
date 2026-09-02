@@ -7,7 +7,7 @@ export const INTRODB_BASE = "https://api.theintrodb.org/v3";
 
 /** One media item's usable segments, in **seconds** (to match `video.currentTime`). */
 export interface MediaSegments {
-	/** Intro / opening titles — `[start, end]`. `start` is 0 when it opens the episode. */
+	/** Intro / opening titles : `[start, end]`. `start` is 0 when it opens the episode. */
 	intro: { start: number; end: number } | null;
 	/** Where the end credits / outro begin. */
 	credits: { start: number } | null;

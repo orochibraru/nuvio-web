@@ -8,7 +8,7 @@ export const load: PageServerLoad = ({ params }) => {
 	// fills in behind its skeleton. Resolving here rather than in a client
 	// query means the addon fetch starts on the server as soon as the URL is
 	// known, instead of after the page has shipped, hydrated, and made a
-	// second round trip. `null` marks "no addon had it" — the page shows its
+	// second round trip. `null` marks "no addon had it" : the page shows its
 	// own not-found state.
 	const meta = titleMeta(type, id).catch(() => null);
 

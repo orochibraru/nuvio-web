@@ -13,7 +13,7 @@
 
 ## Forms use Field.FieldGroup + Field.Field
 
-Always use `Field.FieldGroup` + `Field.Field` — never raw `div` with
+Always use `Field.FieldGroup` + `Field.Field` : never raw `div` with
 `space-y-*`:
 
 ```svelte
@@ -187,7 +187,7 @@ Combine with `Field` for labelled toggle groups:
 ## Field.FieldSet + Field.FieldLegend for grouping related fields
 
 Use `Field.FieldSet` + `Field.FieldLegend` for related checkboxes, radios, or
-switches — not `div` with a heading:
+switches : not `div` with a heading:
 
 ```svelte
 <script lang="ts">
@@ -213,7 +213,7 @@ switches — not `div` with a heading:
 
 ## Field validation and disabled states
 
-Both attributes are needed — `data-invalid`/`data-disabled` styles the field
+Both attributes are needed : `data-invalid`/`data-disabled` styles the field
 (label, description), while `aria-invalid`/`disabled` styles the control.
 
 ```svelte

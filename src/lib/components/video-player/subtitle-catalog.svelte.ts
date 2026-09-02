@@ -21,7 +21,7 @@ export function createSubtitleCatalog(deps: { tracks: () => SubtitleTrack[] }) {
 	);
 
 	// Subtitle files are fetched + converted to WebVTT in the browser, on
-	// demand — never proxied through the server.
+	// demand : never proxied through the server.
 	const subs = createSubtitleTracks(() => options);
 
 	return {

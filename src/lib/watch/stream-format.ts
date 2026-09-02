@@ -11,7 +11,7 @@ export interface ResolvedStream {
 	fileSize: number | null;
 	/** Torrent info hash, when the addon returned a P2P stream. */
 	infoHash: string | null;
-	/** `behaviorHints.filename` — the exact release file name, when the addon sends it. */
+	/** `behaviorHints.filename` : the exact release file name, when the addon sends it. */
 	filename: string | null;
 }
 
@@ -19,7 +19,7 @@ export type StreamKind = "direct" | "p2p";
 
 /**
  * `p2p` when the addon handed back a torrent (an `infoHash`, a `magnet:` url, or
- * a `notWebReady` link with no http url) — these stream over BitTorrent and
+ * a `notWebReady` link with no http url) : these stream over BitTorrent and
  * can't play directly in the browser. `direct` otherwise (an http(s) url,
  * including debrid-resolved torrents).
  */
@@ -87,7 +87,7 @@ const AUDIO_CODEC_TOKENS: Array<[RegExp, string]> = [
 	[/\b(pcm|lpcm)\b/i, "PCM"],
 ];
 
-// Audio codecs a browser `<video>` element usually can't decode — a stream
+// Audio codecs a browser `<video>` element usually can't decode : a stream
 // tagged with one of these tends to play with no sound in the browser. Chrome's
 // support for AC-3 / E-AC-3 is platform- and build-dependent, so this is a
 // "likely" signal, not a guarantee.
@@ -104,7 +104,7 @@ const SAFE_AUDIO = /\b(aac|opus|mp3|vorbis|e-ac-3 to aac|→\s?aac|to aac)\b/i;
 
 // Video codecs a browser `<video>` often can't decode from a progressive MP4 —
 // HEVC needs a hardware decoder (absent on many Linux/Windows Chrome builds) and
-// AV1 is missing from older Safari. "likely", not a guarantee — same framing as
+// AV1 is missing from older Safari. "likely", not a guarantee : same framing as
 // the audio list above.
 const RISKY_VIDEO_TOKENS: Array<[RegExp, string]> = [
 	[/\b(x265|hevc|h\.?265)\b/i, "HEVC"],
@@ -113,7 +113,7 @@ const RISKY_VIDEO_TOKENS: Array<[RegExp, string]> = [
 ];
 
 export type AudioSupport = "ok" | "risky";
-/** Same shape as {@link AudioSupport} — a label-derived "will this decode here" guess. */
+/** Same shape as {@link AudioSupport} : a label-derived "will this decode here" guess. */
 export type MediaSupport = AudioSupport;
 
 /** Everything from the addon's stream label + `behaviorHints`, structured. */
@@ -128,9 +128,9 @@ export interface StreamMeta {
 	audioCodec: string | null;
 	hdr: string | null;
 	tenBit: boolean;
-	/** Seeder count parsed from the label (`👤 N`) — P2P only. */
+	/** Seeder count parsed from the label (`👤 N`) : P2P only. */
 	seeders: number | null;
-	/** Human size — `behaviorHints.videoSize`, else parsed from the label. */
+	/** Human size : `behaviorHints.videoSize`, else parsed from the label. */
 	size: string | null;
 	/** Flag emojis + text markers (MULTI / Dual) found in the label. */
 	languages: string[];
@@ -150,7 +150,7 @@ function rawLabel(stream: ResolvedStream): string {
 
 /**
  * All label text collapsed to one line, for token matching. The
- * `behaviorHints.filename` is folded in — release tags (codec, source, HDR)
+ * `behaviorHints.filename` is folded in : release tags (codec, source, HDR)
  * often live only in the file name, not the human label.
  */
 function flatLabel(stream: ResolvedStream): string {

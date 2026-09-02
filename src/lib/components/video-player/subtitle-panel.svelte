@@ -1,60 +1,60 @@
 <script lang="ts">
-	import CaptionsIcon from "@lucide/svelte/icons/captions";
-	import CheckIcon from "@lucide/svelte/icons/check";
-	import LoaderIcon from "@lucide/svelte/icons/loader-circle";
-	import XIcon from "@lucide/svelte/icons/x";
-	import { fade, fly } from "svelte/transition";
-	import { Button } from "#lib/components/ui/button/index.js";
-	import { reduced } from "#lib/motion.js";
-	import {
-		SUBTITLE_COLORS,
-		SUBTITLE_SIZES,
-		type SubtitleSize,
-	} from "#lib/settings/ui-settings.js";
-	import { cn } from "#lib/utils.js";
-	import type { SubtitleAppearance, SubtitleOption } from "./types.js";
+  import CaptionsIcon from "@lucide/svelte/icons/captions";
+  import CheckIcon from "@lucide/svelte/icons/check";
+  import LoaderIcon from "@lucide/svelte/icons/loader-circle";
+  import XIcon from "@lucide/svelte/icons/x";
+  import { fade, fly } from "svelte/transition";
+  import { Button } from "#lib/components/ui/button/index.js";
+  import { reduced } from "#lib/motion.js";
+  import {
+    SUBTITLE_COLORS,
+    SUBTITLE_SIZES,
+    type SubtitleSize,
+  } from "#lib/settings/ui-settings.js";
+  import { cn } from "#lib/utils.js";
+  import type { SubtitleAppearance, SubtitleOption } from "./types.js";
 
-	const sizeLabels: Record<SubtitleSize, string> = {
-		small: "Small",
-		medium: "Medium",
-		large: "Large",
-	};
-	const swatches = SUBTITLE_COLORS;
+  const sizeLabels: Record<SubtitleSize, string> = {
+    small: "Small",
+    medium: "Medium",
+    large: "Large",
+  };
+  const swatches = SUBTITLE_COLORS;
 
-	let {
-		open,
-		options,
-		activeCaption,
-		pendingCaption,
-		failed,
-		subtitleSize,
-		subtitleColor,
-		subtitleBackground,
-		subtitleOffset,
-		onClose,
-		onSelect,
-		onAppearance,
-		onNudgeOffset,
-	}: {
-		open: boolean;
-		options: SubtitleOption[];
-		activeCaption: string | null;
-		pendingCaption: string | null;
-		failed: Record<string, true>;
-		subtitleSize: SubtitleSize;
-		subtitleColor: string;
-		subtitleBackground: boolean;
-		subtitleOffset: number;
-		onClose: () => void;
-		onSelect: (key: string | null) => void;
-		onAppearance: (patch: SubtitleAppearance) => void;
-		onNudgeOffset: (delta: number) => void;
-	} = $props();
+  let {
+    open,
+    options,
+    activeCaption,
+    pendingCaption,
+    failed,
+    subtitleSize,
+    subtitleColor,
+    subtitleBackground,
+    subtitleOffset,
+    onClose,
+    onSelect,
+    onAppearance,
+    onNudgeOffset,
+  }: {
+    open: boolean;
+    options: SubtitleOption[];
+    activeCaption: string | null;
+    pendingCaption: string | null;
+    failed: Record<string, true>;
+    subtitleSize: SubtitleSize;
+    subtitleColor: string;
+    subtitleBackground: boolean;
+    subtitleOffset: number;
+    onClose: () => void;
+    onSelect: (key: string | null) => void;
+    onAppearance: (patch: SubtitleAppearance) => void;
+    onNudgeOffset: (delta: number) => void;
+  } = $props();
 </script>
 
 <!-- Dims the whole player and lays the picker over it on the left, mirroring
      the info overlay's own treatment. Sits above the transport controls
-     (z-30) — it used to sit below them at z-20, which let the always-mounted
+     (z-30) : it used to sit below them at z-20, which let the always-mounted
      transport bar's pointer-events-auto strips swallow clicks meant for the
      picker's own buttons wherever the two visually overlapped. -->
 {#if open}
@@ -148,7 +148,9 @@
         </div>
 
         <div class="shrink-0 space-y-3 border-t border-white/10 pt-4">
-          <p class="text-xs font-semibold tracking-wide text-white/50 uppercase">
+          <p
+            class="text-xs font-semibold tracking-wide text-white/50 uppercase"
+          >
             Appearance
           </p>
           <div class="flex gap-1.5">

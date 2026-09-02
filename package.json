@@ -7,6 +7,7 @@
 	"scripts": {
 		"dev": "vite dev",
 		"build": "vite build",
+		"start": "./build/server",
 		"preview": "vite preview",
 		"prepare": "husky && svelte-kit sync || echo ''",
 		"lint": "tailwint && biome check .",

@@ -15,7 +15,7 @@ export interface SelectedStream {
 	notWebReady: boolean;
 	label: string;
 	addonName: string;
-	/** Torrent info hash, when this is a P2P stream — the player builds the
+	/** Torrent info hash, when this is a P2P stream : the player builds the
 	 *  `magnet:` handoff from it, since there's no http url to hand over. */
 	infoHash: string | null;
 	/** The label hints at an audio codec the browser probably can't decode. */
@@ -52,7 +52,7 @@ class PlaybackHandoff {
 			try {
 				sessionStorage.setItem(STORAGE_KEY, JSON.stringify(value));
 			} catch {
-				// storage unavailable — in-memory handoff still covers the common nav
+				// storage unavailable : in-memory handoff still covers the common nav
 			}
 		}
 	}
@@ -93,7 +93,7 @@ class PlaybackHandoff {
 export const playbackHandoff = new PlaybackHandoff();
 
 // ---------------------------------------------------------------------------
-// "Reuse last link" — persist the URL that actually played for a videoId so a
+// "Reuse last link" : persist the URL that actually played for a videoId so a
 // re-watch (`reuseLastLink` setting) can skip re-resolution. Debrid links
 // expire, so entries carry a timestamp and callers pass a max age.
 
@@ -125,7 +125,7 @@ function writeCache(map: Record<string, CachedLink>): void {
 			JSON.stringify(Object.fromEntries(entries.slice(0, MAX_ENTRIES))),
 		);
 	} catch {
-		// storage full / unavailable — reuse just won't kick in
+		// storage full / unavailable : reuse just won't kick in
 	}
 }
 
@@ -155,7 +155,7 @@ export function recallLink(
 	return stream;
 }
 
-/** Drop a remembered link — call when it turns out to be dead. */
+/** Drop a remembered link : call when it turns out to be dead. */
 export function forgetLink(videoId: string): void {
 	if (!browser) {
 		return;

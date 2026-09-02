@@ -49,7 +49,7 @@ function online(): boolean {
 	return !browser || navigator.onLine !== false;
 }
 
-/** Plain (structured-cloneable) entries for IndexedDB — see `#broadcast`. */
+/** Plain (structured-cloneable) entries for IndexedDB : see `#broadcast`. */
 function snapshotEntries(
 	map: Map<string, unknown>,
 ): Iterable<[string, unknown]> {
@@ -63,7 +63,7 @@ class SyncStore {
 	#cursors: SyncCursors = { ...EMPTY_CURSORS };
 	#bootstrapped = false;
 	#queue: PendingWrite[] = [];
-	// Just-flushed writes, kept briefly — see RECENTLY_FLUSHED_GRACE_MS.
+	// Just-flushed writes, kept briefly : see RECENTLY_FLUSHED_GRACE_MS.
 	#recentlyFlushed: Array<{ write: PendingWrite; at: number }> = [];
 	#library = new Map<string, LibraryRecord>();
 	#progress = new Map<string, ProgressRecord>();
@@ -84,12 +84,12 @@ class SyncStore {
 	#applyingBroadcast = false;
 
 	ready = $state(false);
-	// True once a full snapshot has landed — the store is now authoritative.
+	// True once a full snapshot has landed : the store is now authoritative.
 	// Until then, `synced` is false and pages should keep trusting their SSR data
 	// unless the user has made an optimistic change (`mutated`).
 	synced = $state(false);
 	mutated = $state(false);
-	// Two+ consecutive flush failures with writes still queued — the optimistic
+	// Two+ consecutive flush failures with writes still queued : the optimistic
 	// UI is claiming success for changes that aren't reaching the server.
 	stalled = $state(false);
 	#flushFailures = 0;
@@ -181,7 +181,7 @@ class SyncStore {
 			document.removeEventListener("visibilitychange", this.#onVisible);
 			this.#onVisible = undefined;
 		}
-		// Just close — the state we're about to clear is this tab's local view,
+		// Just close : the state we're about to clear is this tab's local view,
 		// not a real change other tabs on the same profile should adopt.
 		this.#channel?.close();
 		this.#channel = undefined;
@@ -205,7 +205,7 @@ class SyncStore {
 		}
 		this.#syncing = true;
 		try {
-			// biome-ignore lint/suspicious/noUnnecessaryConditions: #bootstrapped flips to true inside #bootstrap() / on hydrate — Biome's flow analysis doesn't cross those boundaries
+			// biome-ignore lint/suspicious/noUnnecessaryConditions: #bootstrapped flips to true inside #bootstrap() / on hydrate : Biome's flow analysis doesn't cross those boundaries
 			if (!this.#bootstrapped) {
 				await this.#bootstrap();
 			}
@@ -459,7 +459,7 @@ class SyncStore {
 		this.#scheduleFlush();
 	}
 
-	/** Undo `deleteHistory` (best-effort — no restore endpoint, so a delete
+	/** Undo `deleteHistory` (best-effort : no restore endpoint, so a delete
 	 *  that already flushed wins back on the next pull). */
 	restoreHistory(record: HistoryRecord): void {
 		this.#history.set(record.id, record);
@@ -522,7 +522,7 @@ class SyncStore {
 			return;
 		}
 		// `$state.snapshot` because both this and IndexedDB below go through
-		// structured clone, which throws on a `$state` proxy — and records can
+		// structured clone, which throws on a `$state` proxy : and records can
 		// arrive from a caller holding proxied data (anything a page read out
 		// of a streamed `load` promise, say).
 		this.#channel.postMessage(
@@ -563,7 +563,7 @@ class SyncStore {
 		this.#flushTimer = setTimeout(() => void this.#flush(), FLUSH_DEBOUNCE_MS);
 	}
 
-	/** Force an immediate flush attempt — the "Retry" on the sync-stalled banner. */
+	/** Force an immediate flush attempt : the "Retry" on the sync-stalled banner. */
 	async flushNow(): Promise<void> {
 		clearTimeout(this.#flushTimer);
 		await this.#flush();

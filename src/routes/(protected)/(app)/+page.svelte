@@ -1,362 +1,362 @@
 <script lang="ts">
-	import {
-		BookmarkCheckIcon,
-		BookmarkIcon,
-		BookmarkOffIcon,
-	} from "@lucide/svelte";
-	import ChevronLeftIcon from "@lucide/svelte/icons/chevron-left";
-	import ChevronRightIcon from "@lucide/svelte/icons/chevron-right";
-	import InfoIcon from "@lucide/svelte/icons/info";
-	import PlayIcon from "@lucide/svelte/icons/play";
-	import SparklesIcon from "@lucide/svelte/icons/sparkles";
-	import { cubicOut } from "svelte/easing";
-	import { fly } from "svelte/transition";
-	import { toast } from "svelte-sonner";
-	import type { MetaPreview } from "#lib/addons/index.js";
-	import AuroraBackground from "#lib/components/aurora-background.svelte";
-	import ContinueWatchingCard from "#lib/components/continue-watching-card.svelte";
-	import MediaHero from "#lib/components/media-hero.svelte";
-	import MediaRow from "#lib/components/media-row.svelte";
-	import QueryError from "#lib/components/query-error.svelte";
-	import { Button } from "#lib/components/ui/button/index.js";
-	import { reduced } from "#lib/motion.js";
-	import { streamed } from "#lib/stream.svelte.js";
-	import { sync } from "#lib/sync/store.svelte.js";
-	import { cn } from "#lib/utils.js";
-	import type { ResumeRow } from "#lib/watch/watch-data.js";
-	import { browser } from "$app/env";
-	import { invalidateAll } from "$app/navigation";
-	import { resolve } from "$app/paths";
+  import {
+    BookmarkCheckIcon,
+    BookmarkIcon,
+    BookmarkOffIcon,
+  } from "@lucide/svelte";
+  import ChevronLeftIcon from "@lucide/svelte/icons/chevron-left";
+  import ChevronRightIcon from "@lucide/svelte/icons/chevron-right";
+  import InfoIcon from "@lucide/svelte/icons/info";
+  import PlayIcon from "@lucide/svelte/icons/play";
+  import SparklesIcon from "@lucide/svelte/icons/sparkles";
+  import { cubicOut } from "svelte/easing";
+  import { fly } from "svelte/transition";
+  import { toast } from "svelte-sonner";
+  import type { MetaPreview } from "#lib/addons/index.js";
+  import AuroraBackground from "#lib/components/aurora-background.svelte";
+  import ContinueWatchingCard from "#lib/components/continue-watching-card.svelte";
+  import MediaHero from "#lib/components/media-hero.svelte";
+  import MediaRow from "#lib/components/media-row.svelte";
+  import QueryError from "#lib/components/query-error.svelte";
+  import { Button } from "#lib/components/ui/button/index.js";
+  import { reduced } from "#lib/motion.js";
+  import { streamed } from "#lib/stream.svelte.js";
+  import { sync } from "#lib/sync/store.svelte.js";
+  import { cn } from "#lib/utils.js";
+  import type { ResumeRow } from "#lib/watch/watch-data.js";
+  import { browser } from "$app/env";
+  import { invalidateAll } from "$app/navigation";
+  import { resolve } from "$app/paths";
 
-	let { data } = $props();
+  let { data } = $props();
 
-	// `data.*` can be briefly undefined during a `forkPreloads` speculative
-	// render — read every field defensively.
-	const profileName = $derived(data.profile?.name ?? "");
+  // `data.*` can be briefly undefined during a `forkPreloads` speculative
+  // render : read every field defensively.
+  const profileName = $derived(data.profile?.name ?? "");
 
-	// `data.library` / `data.resume` stream in from the server load (unawaited
-	// promises) so the shell paints instantly. The sync store takes over as the
-	// live source the moment it's authoritative, so a brief empty value is fine.
-	const libraryStream = streamed(() => data.library, []);
-	const resumeStream = streamed(() => data.resume, []);
-	const ssrLibrary = $derived(libraryStream.current);
-	const ssrResume = $derived(resumeStream.current);
+  // `data.library` / `data.resume` stream in from the server load (unawaited
+  // promises) so the shell paints instantly. The sync store takes over as the
+  // live source the moment it's authoritative, so a brief empty value is fine.
+  const libraryStream = streamed(() => data.library, []);
+  const resumeStream = streamed(() => data.resume, []);
+  const ssrLibrary = $derived(libraryStream.current);
+  const ssrResume = $derived(resumeStream.current);
 
-	// Titles the viewer removed from the row this session. `sync.clearProgress`
-	// drops the underlying API row, but the SSR / store snapshot still carries it
-	// until the next pull — filter those out here.
-	let dismissed = $state(new Set<string>());
-	function dismiss(id: string) {
-		dismissed = new Set(dismissed).add(id);
-	}
+  // Titles the viewer removed from the row this session. `sync.clearProgress`
+  // drops the underlying API row, but the SSR / store snapshot still carries it
+  // until the next pull : filter those out here.
+  let dismissed = $state(new Set<string>());
+  function dismiss(id: string) {
+    dismissed = new Set(dismissed).add(id);
+  }
 
-	// Continue-watching. The load ships rows already joined to addon meta (name
-	// / art, with a finished series episode rolled forward to the next one);
-	// the local store is the live source once authoritative. Meta falls back to
-	// the library mirror, then to the card's own fallback art.
-	const enrichedById = $derived(
-		new Map(ssrResume.map((item) => [item.id, item])),
-	);
+  // Continue-watching. The load ships rows already joined to addon meta (name
+  // / art, with a finished series episode rolled forward to the next one);
+  // the local store is the live source once authoritative. Meta falls back to
+  // the library mirror, then to the card's own fallback art.
+  const enrichedById = $derived(
+    new Map(ssrResume.map((item) => [item.id, item])),
+  );
 
-	interface ResumeBase {
-		id: string;
-		type: "movie" | "series";
-		videoId: string;
-		season: number | null;
-		episode: number | null;
-		progress: number;
-		remainingMs: number;
-		lastWatched: number;
-	}
+  interface ResumeBase {
+    id: string;
+    type: "movie" | "series";
+    videoId: string;
+    season: number | null;
+    episode: number | null;
+    progress: number;
+    remainingMs: number;
+    lastWatched: number;
+  }
 
-	// The in-progress rows before enrichment: the local store when it's
-	// authoritative, otherwise the SSR payload (ordered, so `-index` keeps order).
-	function baseResumeRows(): Map<string, ResumeBase> {
-		const base = new Map<string, ResumeBase>();
-		if (sync.authoritative) {
-			for (const row of sync.progress) {
-				if (row.duration <= 60_000 || row.position >= row.duration * 0.9) {
-					continue;
-				}
-				const existing = base.get(row.contentId);
-				if (existing && existing.lastWatched >= row.lastWatched) {
-					continue;
-				}
-				base.set(row.contentId, {
-					id: row.contentId,
-					type: row.contentType,
-					videoId: row.videoId,
-					season: row.season,
-					episode: row.episode,
-					progress: row.position / row.duration,
-					remainingMs: Math.max(0, row.duration - row.position),
-					lastWatched: row.lastWatched,
-				});
-			}
-			return base;
-		}
-		for (const [index, row] of (ssrResume ?? []).entries()) {
-			base.set(row.id, {
-				id: row.id,
-				type: row.type,
-				videoId: row.videoId,
-				season: row.season,
-				episode: row.episode,
-				progress: row.progress,
-				remainingMs: row.remainingMs,
-				lastWatched: -index,
-			});
-		}
-		return base;
-	}
+  // The in-progress rows before enrichment: the local store when it's
+  // authoritative, otherwise the SSR payload (ordered, so `-index` keeps order).
+  function baseResumeRows(): Map<string, ResumeBase> {
+    const base = new Map<string, ResumeBase>();
+    if (sync.authoritative) {
+      for (const row of sync.progress) {
+        if (row.duration <= 60_000 || row.position >= row.duration * 0.9) {
+          continue;
+        }
+        const existing = base.get(row.contentId);
+        if (existing && existing.lastWatched >= row.lastWatched) {
+          continue;
+        }
+        base.set(row.contentId, {
+          id: row.contentId,
+          type: row.contentType,
+          videoId: row.videoId,
+          season: row.season,
+          episode: row.episode,
+          progress: row.position / row.duration,
+          remainingMs: Math.max(0, row.duration - row.position),
+          lastWatched: row.lastWatched,
+        });
+      }
+      return base;
+    }
+    for (const [index, row] of (ssrResume ?? []).entries()) {
+      base.set(row.id, {
+        id: row.id,
+        type: row.type,
+        videoId: row.videoId,
+        season: row.season,
+        episode: row.episode,
+        progress: row.progress,
+        remainingMs: row.remainingMs,
+        lastWatched: -index,
+      });
+    }
+    return base;
+  }
 
-	// Merge a base row with the enriched-query hit and the library mirror, in that
-	// order of preference, down to the card's own fallback art.
-	function resumeCard(entry: ResumeBase): ResumeRow {
-		const rich = enrichedById.get(entry.id);
-		const lib = sync.library.find((record) => record.contentId === entry.id);
-		return {
-			id: entry.id,
-			type: entry.type,
-			name: rich?.name ?? lib?.name ?? entry.id,
-			poster: rich?.poster ?? lib?.poster ?? null,
-			background: rich?.background ?? lib?.background ?? lib?.poster ?? null,
-			logo: rich?.logo ?? null,
-			videoId: rich?.videoId ?? entry.videoId,
-			season: rich?.season ?? entry.season,
-			episode: rich?.episode ?? entry.episode,
-			progress: rich?.progress ?? entry.progress,
-			remainingMs: rich?.remainingMs ?? entry.remainingMs,
-		};
-	}
+  // Merge a base row with the enriched-query hit and the library mirror, in that
+  // order of preference, down to the card's own fallback art.
+  function resumeCard(entry: ResumeBase): ResumeRow {
+    const rich = enrichedById.get(entry.id);
+    const lib = sync.library.find((record) => record.contentId === entry.id);
+    return {
+      id: entry.id,
+      type: entry.type,
+      name: rich?.name ?? lib?.name ?? entry.id,
+      poster: rich?.poster ?? lib?.poster ?? null,
+      background: rich?.background ?? lib?.background ?? lib?.poster ?? null,
+      logo: rich?.logo ?? null,
+      videoId: rich?.videoId ?? entry.videoId,
+      season: rich?.season ?? entry.season,
+      episode: rich?.episode ?? entry.episode,
+      progress: rich?.progress ?? entry.progress,
+      remainingMs: rich?.remainingMs ?? entry.remainingMs,
+    };
+  }
 
-	const resume = $derived.by<ResumeRow[]>(() => {
-		const cards = new Map<string, ResumeRow>();
+  const resume = $derived.by<ResumeRow[]>(() => {
+    const cards = new Map<string, ResumeRow>();
 
-		for (const entry of [...baseResumeRows().values()].sort(
-			(a, b) => b.lastWatched - a.lastWatched,
-		)) {
-			if (!dismissed.has(entry.id)) {
-				cards.set(entry.id, resumeCard(entry));
-			}
-		}
+    for (const entry of [...baseResumeRows().values()].sort(
+      (a, b) => b.lastWatched - a.lastWatched,
+    )) {
+      if (!dismissed.has(entry.id)) {
+        cards.set(entry.id, resumeCard(entry));
+      }
+    }
 
-		// A finished series that rolled forward to its next episode: `progress` is
-		// now 0 so it isn't "in progress" locally — the load's resolved rows are
-		// its only source.
-		for (const item of ssrResume) {
-			if (!(cards.has(item.id) || dismissed.has(item.id))) {
-				cards.set(item.id, item);
-			}
-		}
+    // A finished series that rolled forward to its next episode: `progress` is
+    // now 0 so it isn't "in progress" locally : the load's resolved rows are
+    // its only source.
+    for (const item of ssrResume) {
+      if (!(cards.has(item.id) || dismissed.has(item.id))) {
+        cards.set(item.id, item);
+      }
+    }
 
-		return [...cards.values()]
-			.filter((item) => item.progress < 0.9)
-			.slice(0, 20);
-	});
+    return [...cards.values()]
+      .filter((item) => item.progress < 0.9)
+      .slice(0, 20);
+  });
 
-	// The "My library" row reads the local store once it's authoritative so an
-	// add/remove (incl. a right-click action on any poster) reflects instantly —
-	// unless the store is authoritative-but-empty over a non-empty SSR payload.
-	const library = $derived(
-		sync.authoritative &&
-			(sync.library.length > 0 || (ssrLibrary ?? []).length === 0)
-			? sync.library.map((record) => ({
-					id: record.contentId,
-					type: record.contentType,
-					name: record.name,
-					poster: record.poster ?? undefined,
-					releaseInfo: record.releaseInfo ?? undefined,
-					imdbRating: record.imdbRating ?? undefined,
-				}))
-			: (ssrLibrary ?? []),
-	);
+  // The "My library" row reads the local store once it's authoritative so an
+  // add/remove (incl. a right-click action on any poster) reflects instantly —
+  // unless the store is authoritative-but-empty over a non-empty SSR payload.
+  const library = $derived(
+    sync.authoritative &&
+      (sync.library.length > 0 || (ssrLibrary ?? []).length === 0)
+      ? sync.library.map((record) => ({
+          id: record.contentId,
+          type: record.contentType,
+          name: record.name,
+          poster: record.poster ?? undefined,
+          releaseInfo: record.releaseInfo ?? undefined,
+          imdbRating: record.imdbRating ?? undefined,
+        }))
+      : (ssrLibrary ?? []),
+  );
 
-	// Catalog rows are fetched by the load and streamed down with the page, so
-	// they don't wait on hydration plus a round trip. Still unawaited there, so
-	// a slow addon never stalls navigation — the skeletons below cover it.
-	const rowsStream = streamed(
-		() => data.rows,
-		null as Awaited<typeof data.rows>,
-	);
-	const rows = $derived(rowsStream.current ?? []);
-	const rowsLoading = $derived(!rowsStream.ready);
-	const rowsFailed = $derived(rowsStream.ready && rowsStream.current === null);
+  // Catalog rows are fetched by the load and streamed down with the page, so
+  // they don't wait on hydration plus a round trip. Still unawaited there, so
+  // a slow addon never stalls navigation : the skeletons below cover it.
+  const rowsStream = streamed(
+    () => data.rows,
+    null as Awaited<typeof data.rows>,
+  );
+  const rows = $derived(rowsStream.current ?? []);
+  const rowsLoading = $derived(!rowsStream.ready);
+  const rowsFailed = $derived(rowsStream.ready && rowsStream.current === null);
 
-	// Spotlight carousel: derived from the rows once, on first arrival, so the
-	// shuffle stays stable across re-renders.
-	let spotlights = $state<MetaPreview[]>([]);
-	$effect(() => {
-		if (spotlights.length > 0 || rows.length === 0) {
-			return;
-		}
-		const seen = new Set<string>();
-		const candidates = rows
-			.slice(0, 4)
-			.flatMap((row) => row.metas)
-			.filter((meta) => {
-				if (!meta.background || seen.has(meta.id)) {
-					return false;
-				}
-				seen.add(meta.id);
-				return true;
-			});
-		for (let i = candidates.length - 1; i > 0; i--) {
-			const j = Math.floor(Math.random() * (i + 1));
-			[candidates[i], candidates[j]] = [candidates[j], candidates[i]];
-		}
-		spotlights = candidates.slice(0, 6);
-	});
+  // Spotlight carousel: derived from the rows once, on first arrival, so the
+  // shuffle stays stable across re-renders.
+  let spotlights = $state<MetaPreview[]>([]);
+  $effect(() => {
+    if (spotlights.length > 0 || rows.length === 0) {
+      return;
+    }
+    const seen = new Set<string>();
+    const candidates = rows
+      .slice(0, 4)
+      .flatMap((row) => row.metas)
+      .filter((meta) => {
+        if (!meta.background || seen.has(meta.id)) {
+          return false;
+        }
+        seen.add(meta.id);
+        return true;
+      });
+    for (let i = candidates.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+    }
+    spotlights = candidates.slice(0, 6);
+  });
 
-	// Auto-advancing featured carousel. `heroDir` drives the slide direction of
-	// the transition (1 = new slide enters from the right, -1 = from the left).
-	let heroIndex = $state(0);
-	let heroDir = $state<1 | -1>(1);
-	let heroPaused = $state(false);
-	const HERO_SLIDE = 60;
+  // Auto-advancing featured carousel. `heroDir` drives the slide direction of
+  // the transition (1 = new slide enters from the right, -1 = from the left).
+  let heroIndex = $state(0);
+  let heroDir = $state<1 | -1>(1);
+  let heroPaused = $state(false);
+  const HERO_SLIDE = 60;
 
-	function goToHero(index: number) {
-		const count = spotlights.length;
-		if (count === 0) {
-			return;
-		}
-		heroDir = index === heroIndex ? heroDir : index > heroIndex ? 1 : -1;
-		heroIndex = ((index % count) + count) % count;
-	}
+  function goToHero(index: number) {
+    const count = spotlights.length;
+    if (count === 0) {
+      return;
+    }
+    heroDir = index === heroIndex ? heroDir : index > heroIndex ? 1 : -1;
+    heroIndex = ((index % count) + count) % count;
+  }
 
-	$effect(() => {
-		if (heroIndex >= spotlights.length) {
-			heroIndex = 0;
-		}
-	});
+  $effect(() => {
+    if (heroIndex >= spotlights.length) {
+      heroIndex = 0;
+    }
+  });
 
-	$effect(() => {
-		const count = spotlights.length;
-		if (!browser || count < 2 || heroPaused) {
-			return;
-		}
-		if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-			return;
-		}
-		const timer = setInterval(() => {
-			heroDir = 1;
-			heroIndex = (heroIndex + 1) % count;
-		}, 8000);
-		return () => clearInterval(timer);
-	});
+  $effect(() => {
+    const count = spotlights.length;
+    if (!browser || count < 2 || heroPaused) {
+      return;
+    }
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      return;
+    }
+    const timer = setInterval(() => {
+      heroDir = 1;
+      heroIndex = (heroIndex + 1) % count;
+    }, 8000);
+    return () => clearInterval(timer);
+  });
 
-	function stepHero(direction: 1 | -1) {
-		heroDir = direction;
-		const count = spotlights.length;
-		heroIndex = (heroIndex + direction + count) % count;
-	}
+  function stepHero(direction: 1 | -1) {
+    heroDir = direction;
+    const count = spotlights.length;
+    heroIndex = (heroIndex + direction + count) % count;
+  }
 
-	// Touch swipe — the arrow buttons are desktop-only (`hidden sm:flex`), so a
-	// touch viewer's only way to step the carousel is otherwise the dots.
-	let swipeStartX = 0;
-	let swipeStartY = 0;
-	let swiping = false;
-	const SWIPE_THRESHOLD = 40;
+  // Touch swipe : the arrow buttons are desktop-only (`hidden sm:flex`), so a
+  // touch viewer's only way to step the carousel is otherwise the dots.
+  let swipeStartX = 0;
+  let swipeStartY = 0;
+  let swiping = false;
+  const SWIPE_THRESHOLD = 40;
 
-	function onHeroPointerDown(event: PointerEvent) {
-		if (event.pointerType !== "touch") {
-			return;
-		}
-		swiping = true;
-		swipeStartX = event.clientX;
-		swipeStartY = event.clientY;
-	}
+  function onHeroPointerDown(event: PointerEvent) {
+    if (event.pointerType !== "touch") {
+      return;
+    }
+    swiping = true;
+    swipeStartX = event.clientX;
+    swipeStartY = event.clientY;
+  }
 
-	function onHeroPointerUp(event: PointerEvent) {
-		if (!swiping) {
-			return;
-		}
-		swiping = false;
-		const dx = event.clientX - swipeStartX;
-		const dy = event.clientY - swipeStartY;
-		// Mostly-vertical drags (scrolling the page) don't count as a swipe.
-		if (Math.abs(dx) < SWIPE_THRESHOLD || Math.abs(dx) < Math.abs(dy) * 1.5) {
-			return;
-		}
-		if (spotlights.length < 2) {
-			return;
-		}
-		stepHero(dx < 0 ? 1 : -1);
-	}
+  function onHeroPointerUp(event: PointerEvent) {
+    if (!swiping) {
+      return;
+    }
+    swiping = false;
+    const dx = event.clientX - swipeStartX;
+    const dy = event.clientY - swipeStartY;
+    // Mostly-vertical drags (scrolling the page) don't count as a swipe.
+    if (Math.abs(dx) < SWIPE_THRESHOLD || Math.abs(dx) < Math.abs(dy) * 1.5) {
+      return;
+    }
+    if (spotlights.length < 2) {
+      return;
+    }
+    stepHero(dx < 0 ? 1 : -1);
+  }
 
-	const spotlight = $derived(spotlights[heroIndex] ?? null);
+  const spotlight = $derived(spotlights[heroIndex] ?? null);
 
-	const spotlightHref = $derived(
-		spotlight
-			? resolve(`detail/${spotlight.type}/${encodeURIComponent(spotlight.id)}`)
-			: "",
-	);
+  const spotlightHref = $derived(
+    spotlight
+      ? resolve(`detail/${spotlight.type}/${encodeURIComponent(spotlight.id)}`)
+      : "",
+  );
 
-	const spotlightRating = $derived(
-		spotlight
-			? typeof spotlight.imdbRating === "number"
-				? spotlight.imdbRating.toFixed(1)
-				: spotlight.imdbRating || null
-			: null,
-	);
+  const spotlightRating = $derived(
+    spotlight
+      ? typeof spotlight.imdbRating === "number"
+        ? spotlight.imdbRating.toFixed(1)
+        : spotlight.imdbRating || null
+      : null,
+  );
 
-	const spotlightType = $derived(
-		spotlight?.type === "series" ? "series" : "movie",
-	);
-	const spotlightInLibrary = $derived(
-		Boolean(
-			spotlight &&
-				sync.authoritative &&
-				sync.isInLibrary(spotlightType, spotlight.id),
-		),
-	);
+  const spotlightType = $derived(
+    spotlight?.type === "series" ? "series" : "movie",
+  );
+  const spotlightInLibrary = $derived(
+    Boolean(
+      spotlight &&
+      sync.authoritative &&
+      sync.isInLibrary(spotlightType, spotlight.id),
+    ),
+  );
 
-	function toggleSpotlightLibrary() {
-		if (!spotlight) {
-			return;
-		}
-		const removing = spotlightInLibrary;
-		sync.toggleLibrary({
-			contentId: spotlight.id,
-			contentType: spotlightType,
-			remove: removing,
-			name: spotlight.name,
-			poster: spotlight.poster ?? null,
-			background: spotlight.background ?? null,
-			description: spotlight.description ?? null,
-			releaseInfo: spotlight.releaseInfo ?? null,
-			imdbRating:
-				typeof spotlight.imdbRating === "number"
-					? spotlight.imdbRating
-					: Number(spotlight.imdbRating) || null,
-			genres: spotlight.genres,
-		});
-		toast.success(
-			removing
-				? `Removed ${spotlight.name} from library`
-				: `Added ${spotlight.name} to library`,
-		);
-	}
+  function toggleSpotlightLibrary() {
+    if (!spotlight) {
+      return;
+    }
+    const removing = spotlightInLibrary;
+    sync.toggleLibrary({
+      contentId: spotlight.id,
+      contentType: spotlightType,
+      remove: removing,
+      name: spotlight.name,
+      poster: spotlight.poster ?? null,
+      background: spotlight.background ?? null,
+      description: spotlight.description ?? null,
+      releaseInfo: spotlight.releaseInfo ?? null,
+      imdbRating:
+        typeof spotlight.imdbRating === "number"
+          ? spotlight.imdbRating
+          : Number(spotlight.imdbRating) || null,
+      genres: spotlight.genres,
+    });
+    toast.success(
+      removing
+        ? `Removed ${spotlight.name} from library`
+        : `Added ${spotlight.name} to library`,
+    );
+  }
 
-	// Cinemeta exposes the same catalog id ("top" → "Popular") for both movie and
-	// series, so titles collide. Suffix the repeats with their type.
-	const rowTitles = $derived.by(() => {
-		const counts = new Map<string, number>();
-		for (const row of rows) {
-			counts.set(row.title, (counts.get(row.title) ?? 0) + 1);
-		}
-		return rows.map((row) => {
-			if ((counts.get(row.title) ?? 0) > 1) {
-				const noun = row.type === "series" ? "series" : "movies";
-				return `${row.title} ${noun}`;
-			}
-			return row.title;
-		});
-	});
+  // Cinemeta exposes the same catalog id ("top" → "Popular") for both movie and
+  // series, so titles collide. Suffix the repeats with their type.
+  const rowTitles = $derived.by(() => {
+    const counts = new Map<string, number>();
+    for (const row of rows) {
+      counts.set(row.title, (counts.get(row.title) ?? 0) + 1);
+    }
+    return rows.map((row) => {
+      if ((counts.get(row.title) ?? 0) > 1) {
+        const noun = row.type === "series" ? "series" : "movies";
+        return `${row.title} ${noun}`;
+      }
+      return row.title;
+    });
+  });
 </script>
 
 <div class="flex flex-col gap-12">
-  <!-- Stable page heading — the hero title rotates, so a screen reader must not
+  <!-- Stable page heading : the hero title rotates, so a screen reader must not
 	     hear a changing movie name as the `h1`. -->
   <h1 class="sr-only">Home</h1>
   {#if spotlight}

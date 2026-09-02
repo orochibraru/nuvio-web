@@ -21,7 +21,7 @@ export type MetaLookup = (type: string, id: string) => Promise<Meta | null>;
 // falls back to showing a bare content id.
 const HISTORY_META_CONCURRENCY = 4;
 
-/** Raw history rows — user data only, no addon calls. */
+/** Raw history rows : user data only, no addon calls. */
 export async function pullWatchHistory(
 	nuvio: NuvioClient,
 	profileId: number,
@@ -71,7 +71,7 @@ export async function pullEnrichedHistory(
 	return rows.map((row) => {
 		// `pullWatchHistory` already substitutes the content id for a row with
 		// no stored title, so "still just the id" is what "unnamed" looks like
-		// here — otherwise the addon's name could never win.
+		// here : otherwise the addon's name could never win.
 		const stored = row.title && row.title !== row.contentId ? row.title : null;
 		return {
 			...row,

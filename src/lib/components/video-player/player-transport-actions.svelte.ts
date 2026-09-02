@@ -2,7 +2,7 @@ import type { PlayerTransportState } from "./player-transport-state.svelte.js";
 
 /**
  * The transport actions the keyboard shortcuts and the transport controls
- * drive — play/pause, seek, volume, fullscreen, PiP, and the "hide the
+ * drive : play/pause, seek, volume, fullscreen, PiP, and the "hide the
  * controls after 3s idle" timer. Reads and writes the shared transport
  * state rather than owning any of its own.
  */

@@ -1,246 +1,259 @@
 <script lang="ts">
-	import ClockIcon from "@lucide/svelte/icons/clock";
-	import FilmIcon from "@lucide/svelte/icons/film";
-	import PlayIcon from "@lucide/svelte/icons/play";
-	import Trash2Icon from "@lucide/svelte/icons/trash-2";
-	import TvIcon from "@lucide/svelte/icons/tv";
-	import { toast } from "svelte-sonner";
-	import EmptyState from "#lib/components/empty-state.svelte";
-	import { Button } from "#lib/components/ui/button/index.js";
-	import type { HistoryRow } from "#lib/history/history-data.js";
-	import { streamed } from "#lib/stream.svelte.js";
-	import { sync } from "#lib/sync/store.svelte.js";
-	import { resolve } from "$app/paths";
+  import ClockIcon from "@lucide/svelte/icons/clock";
+  import FilmIcon from "@lucide/svelte/icons/film";
+  import PlayIcon from "@lucide/svelte/icons/play";
+  import Trash2Icon from "@lucide/svelte/icons/trash-2";
+  import TvIcon from "@lucide/svelte/icons/tv";
+  import { toast } from "svelte-sonner";
+  import EmptyState from "#lib/components/empty-state.svelte";
+  import { Button } from "#lib/components/ui/button/index.js";
+  import type { HistoryRow } from "#lib/history/history-data.js";
+  import { streamed } from "#lib/stream.svelte.js";
+  import { sync } from "#lib/sync/store.svelte.js";
+  import { resolve } from "$app/paths";
 
-	type EnrichedRow = HistoryRow & { poster: string | null };
+  type EnrichedRow = HistoryRow & { poster: string | null };
 
-	let { items }: { items: Promise<EnrichedRow[]> } = $props();
+  let { items }: { items: Promise<EnrichedRow[]> } = $props();
 
-	// The load already joined these to addon meta (poster + clean title), so
-	// rows arrive named rather than showing a raw content id until a client
-	// query lands. The local library mirror still wins where it has an entry —
-	// it reflects an add/remove made this session.
-	const rowsStream = streamed(() => items, [] as EnrichedRow[]);
-	const ssrItems = $derived(rowsStream.current);
+  // The load already joined these to addon meta (poster + clean title), so
+  // rows arrive named rather than showing a raw content id until a client
+  // query lands. The local library mirror still wins where it has an entry —
+  // it reflects an add/remove made this session.
+  const rowsStream = streamed(() => items, [] as EnrichedRow[]);
+  const ssrItems = $derived(rowsStream.current);
 
-	const posters = $derived(
-		new Map<string, string | null>([
-			...ssrItems.map((item) => [item.contentId, item.poster] as const),
-			...sync.library.map(
-				(entry) => [entry.contentId, entry.poster ?? null] as const,
-			),
-		]),
-	);
-	const names = $derived(
-		new Map<string, string>([
-			...ssrItems.map((item) => [item.contentId, item.title] as const),
-			...sync.library.map((entry) => [entry.contentId, entry.name] as const),
-		]),
-	);
+  const posters = $derived(
+    new Map<string, string | null>([
+      ...ssrItems.map((item) => [item.contentId, item.poster] as const),
+      ...sync.library.map(
+        (entry) => [entry.contentId, entry.poster ?? null] as const,
+      ),
+    ]),
+  );
+  const names = $derived(
+    new Map<string, string>([
+      ...ssrItems.map((item) => [item.contentId, item.title] as const),
+      ...sync.library.map((entry) => [entry.contentId, entry.name] as const),
+    ]),
+  );
 
-	interface Row {
-		id: string;
-		contentId: string;
-		type: "movie" | "series";
-		title: string;
-		season: number | null;
-		episode: number | null;
-		watchedAt: number;
-	}
+  interface Row {
+    id: string;
+    contentId: string;
+    type: "movie" | "series";
+    title: string;
+    season: number | null;
+    episode: number | null;
+    watchedAt: number;
+  }
 
-	const rows = $derived<Row[]>(
-		sync.authoritative
-			? sync.history.map((record) => ({
-					id: record.id,
-					contentId: record.contentId,
-					type: record.contentType,
-					title:
-						names.get(record.contentId) || record.title || record.contentId,
-					season: record.season,
-					episode: record.episode,
-					watchedAt: record.watchedAt,
-				}))
-			: ssrItems,
-	);
+  const rows = $derived<Row[]>(
+    sync.authoritative
+      ? sync.history.map((record) => ({
+          id: record.id,
+          contentId: record.contentId,
+          type: record.contentType,
+          title:
+            names.get(record.contentId) || record.title || record.contentId,
+          season: record.season,
+          episode: record.episode,
+          watchedAt: record.watchedAt,
+        }))
+      : ssrItems,
+  );
 
-	function dayLabel(ts: number): string {
-		const date = new Date(ts);
-		const now = new Date();
-		const startOfToday = new Date(
-			now.getFullYear(),
-			now.getMonth(),
-			now.getDate(),
-		).getTime();
-		const dayMs = 86_400_000;
-		if (ts >= startOfToday) {
-			return "Today";
-		}
-		if (ts >= startOfToday - dayMs) {
-			return "Yesterday";
-		}
-		if (ts >= startOfToday - 6 * dayMs) {
-			return date.toLocaleDateString(undefined, { weekday: "long" });
-		}
-		return date.toLocaleDateString(undefined, {
-			day: "numeric",
-			month: "long",
-			year: "numeric",
-		});
-	}
+  function dayLabel(ts: number): string {
+    const date = new Date(ts);
+    const now = new Date();
+    const startOfToday = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+    ).getTime();
+    const dayMs = 86_400_000;
+    if (ts >= startOfToday) {
+      return "Today";
+    }
+    if (ts >= startOfToday - dayMs) {
+      return "Yesterday";
+    }
+    if (ts >= startOfToday - 6 * dayMs) {
+      return date.toLocaleDateString(undefined, { weekday: "long" });
+    }
+    return date.toLocaleDateString(undefined, {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+  }
 
-	const groups = $derived.by(() => {
-		const map = new Map<string, Row[]>();
-		for (const item of rows) {
-			const label = dayLabel(item.watchedAt);
-			const bucket = map.get(label);
-			if (bucket) {
-				bucket.push(item);
-			} else {
-				map.set(label, [item]);
-			}
-		}
-		return [...map.entries()];
-	});
+  const groups = $derived.by(() => {
+    const map = new Map<string, Row[]>();
+    for (const item of rows) {
+      const label = dayLabel(item.watchedAt);
+      const bucket = map.get(label);
+      if (bucket) {
+        bucket.push(item);
+      } else {
+        map.set(label, [item]);
+      }
+    }
+    return [...map.entries()];
+  });
 
-	function episodeTag(season: number | null, episode: number | null): string {
-		if (season == null || episode == null) {
-			return "";
-		}
-		return `S${season}E${episode}`;
-	}
+  function episodeTag(season: number | null, episode: number | null): string {
+    if (season == null || episode == null) {
+      return "";
+    }
+    return `S${season}E${episode}`;
+  }
 
-	function watchHref(item: Row): string {
-		const videoId =
-			item.type === "series" && item.season != null && item.episode != null
-				? `${item.contentId}:${item.season}:${item.episode}`
-				: item.contentId;
-		return resolve(`player/${item.type}/${encodeURIComponent(videoId)}`);
-	}
+  function watchHref(item: Row): string {
+    const videoId =
+      item.type === "series" && item.season != null && item.episode != null
+        ? `${item.contentId}:${item.season}:${item.episode}`
+        : item.contentId;
+    return resolve(`player/${item.type}/${encodeURIComponent(videoId)}`);
+  }
 
-	function remove(item: Row) {
-		sync.deleteHistory({
-			contentId: item.contentId,
-			season: item.season,
-			episode: item.episode,
-		});
-		toast(`Removed ${item.title}`, {
-			action: {
-				label: "Undo",
-				onClick: () =>
-					sync.restoreHistory({
-						id: item.id,
-						contentId: item.contentId,
-						contentType: item.type,
-						title: item.title,
-						season: item.season,
-						episode: item.episode,
-						watchedAt: item.watchedAt,
-					}),
-			},
-		});
-	}
+  function remove(item: Row) {
+    sync.deleteHistory({
+      contentId: item.contentId,
+      season: item.season,
+      episode: item.episode,
+    });
+    toast(`Removed ${item.title}`, {
+      action: {
+        label: "Undo",
+        onClick: () =>
+          sync.restoreHistory({
+            id: item.id,
+            contentId: item.contentId,
+            contentType: item.type,
+            title: item.title,
+            season: item.season,
+            episode: item.episode,
+            watchedAt: item.watchedAt,
+          }),
+      },
+    });
+  }
 </script>
 
 <div class="flex flex-col gap-8">
-	<p class="text-sm text-muted-foreground">
-		{rows.length} title{rows.length === 1 ? "" : "s"} watched, newest first
-	</p>
+  <p class="text-sm text-muted-foreground">
+    {rows.length} title{rows.length === 1 ? "" : "s"} watched, newest first
+  </p>
 
-	{#if groups.length === 0 && !rowsStream.ready && !sync.authoritative}
-		<div class="grid gap-3 sm:grid-cols-2">
-			{#each { length: 8 } as _skeleton, i (i)}
-				<div class="skeleton h-24 rounded-xl"></div>
-			{/each}
-		</div>
-	{:else if groups.length === 0}
-		<EmptyState
-			icon={ClockIcon}
-			title="Nothing watched yet"
-			description="Titles you finish will be listed here, newest first."
-		>
-			{#snippet actions()}
-				<Button href={resolve('discover')} variant="outline">Find something to watch</Button>
-			{/snippet}
-		</EmptyState>
-	{:else}
-		{#each groups as [label, groupRows] (label)}
-			<section class="flex flex-col gap-3">
-				<h2 class="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-					{label}
-				</h2>
-				<div class="grid gap-3 sm:grid-cols-2">
-					{#each groupRows as item (item.id)}
-						<div
-							class="group/row relative flex gap-3 overflow-hidden rounded-xl border border-border bg-card p-2.5 transition-colors hover:border-primary/40 hover:bg-card"
-						>
-							<!-- Decorative twin of the title link below — hidden from AT so
+  {#if groups.length === 0 && !rowsStream.ready && !sync.authoritative}
+    <div class="grid gap-3 sm:grid-cols-2">
+      {#each { length: 8 } as _skeleton, i (i)}
+        <div class="skeleton h-24 rounded-xl"></div>
+      {/each}
+    </div>
+  {:else if groups.length === 0}
+    <EmptyState
+      icon={ClockIcon}
+      title="Nothing watched yet"
+      description="Titles you finish will be listed here, newest first."
+    >
+      {#snippet actions()}
+        <Button href={resolve("discover")} variant="outline"
+          >Find something to watch</Button
+        >
+      {/snippet}
+    </EmptyState>
+  {:else}
+    {#each groups as [label, groupRows] (label)}
+      <section class="flex flex-col gap-3">
+        <h2
+          class="text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+        >
+          {label}
+        </h2>
+        <div class="grid gap-3 sm:grid-cols-2">
+          {#each groupRows as item (item.id)}
+            <div
+              class="group/row relative flex gap-3 overflow-hidden rounded-xl border border-border bg-card p-2.5 transition-colors hover:border-primary/40 hover:bg-card"
+            >
+              <!-- Decorative twin of the title link below : hidden from AT so
 							     the row exposes one link to the detail page, not two. -->
-							<a
-								href={resolve(`detail/${item.type}/${encodeURIComponent(item.contentId)}`)}
-								aria-hidden="true"
-								tabindex="-1"
-								class="relative aspect-2/3 w-16 shrink-0 overflow-hidden rounded-lg bg-muted"
-							>
-								<span class="absolute inset-0 flex items-center justify-center bg-linear-to-br from-muted to-background">
-									{#if item.type === "series"}
-										<TvIcon class="size-5 text-muted-foreground/40" />
-									{:else}
-										<FilmIcon class="size-5 text-muted-foreground/40" />
-									{/if}
-								</span>
-								{#if posters.get(item.contentId)}
-									<img
-										src={posters.get(item.contentId)}
-										alt=""
-										loading="lazy"
-										decoding="async"
-										class="relative size-full object-cover"
-									/>
-								{/if}
-							</a>
+              <a
+                href={resolve(
+                  `detail/${item.type}/${encodeURIComponent(item.contentId)}`,
+                )}
+                aria-hidden="true"
+                tabindex="-1"
+                class="relative aspect-2/3 w-16 shrink-0 overflow-hidden rounded-lg bg-muted"
+              >
+                <span
+                  class="absolute inset-0 flex items-center justify-center bg-linear-to-br from-muted to-background"
+                >
+                  {#if item.type === "series"}
+                    <TvIcon class="size-5 text-muted-foreground/40" />
+                  {:else}
+                    <FilmIcon class="size-5 text-muted-foreground/40" />
+                  {/if}
+                </span>
+                {#if posters.get(item.contentId)}
+                  <img
+                    src={posters.get(item.contentId)}
+                    alt=""
+                    loading="lazy"
+                    decoding="async"
+                    class="relative size-full object-cover"
+                  />
+                {/if}
+              </a>
 
-							<div class="flex min-w-0 flex-1 flex-col justify-center gap-1">
-								<a
-									href={resolve(`detail/${item.type}/${encodeURIComponent(item.contentId)}`)}
-									class="line-clamp-2 text-sm font-semibold transition-colors hover:text-primary"
-								>{item.title}</a>
+              <div class="flex min-w-0 flex-1 flex-col justify-center gap-1">
+                <a
+                  href={resolve(
+                    `detail/${item.type}/${encodeURIComponent(item.contentId)}`,
+                  )}
+                  class="line-clamp-2 text-sm font-semibold transition-colors hover:text-primary"
+                  >{item.title}</a
+                >
 
-								<div
-									class="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground"
-								>
-									{#if episodeTag(item.season, item.episode)}
-										<span class="rounded bg-foreground/5 px-1 py-px font-medium text-foreground/70">
-											{episodeTag(item.season, item.episode)}
-										</span>
-									{/if}
-									<span>
-										{new Date(item.watchedAt).toLocaleTimeString(undefined, {
-											hour: "numeric",
-											minute: "2-digit",
-										})}
-									</span>
-								</div>
-								<a
-									href={watchHref(item)}
-									class="mt-1 inline-flex w-fit items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-xs font-medium text-foreground/80 transition hover:border-primary/40 hover:text-foreground"
-								>
-									<PlayIcon class="size-3 fill-primary" />
-									{item.type === "series" ? "Rewatch episode" : "Rewatch"}
-								</a>
-							</div>
+                <div
+                  class="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground"
+                >
+                  {#if episodeTag(item.season, item.episode)}
+                    <span
+                      class="rounded bg-foreground/5 px-1 py-px font-medium text-foreground/70"
+                    >
+                      {episodeTag(item.season, item.episode)}
+                    </span>
+                  {/if}
+                  <span>
+                    {new Date(item.watchedAt).toLocaleTimeString(undefined, {
+                      hour: "numeric",
+                      minute: "2-digit",
+                    })}
+                  </span>
+                </div>
+                <a
+                  href={watchHref(item)}
+                  class="mt-1 inline-flex w-fit items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-xs font-medium text-foreground/80 transition hover:border-primary/40 hover:text-foreground"
+                >
+                  <PlayIcon class="size-3 fill-primary" />
+                  {item.type === "series" ? "Rewatch episode" : "Rewatch"}
+                </a>
+              </div>
 
-							<button
-								type="button"
-								aria-label="Remove from history"
-								onclick={() => remove(item)}
-								class="absolute top-2 right-2 rounded-md p-2 text-muted-foreground transition sm:opacity-0 sm:group-hover/row:opacity-100 sm:group-focus-within/row:opacity-100 hover:bg-destructive/10 hover:text-destructive"
-							>
-								<Trash2Icon class="size-4" />
-							</button>
-						</div>
-					{/each}
-				</div>
-			</section>
-		{/each}
-	{/if}
+              <button
+                type="button"
+                aria-label="Remove from history"
+                onclick={() => remove(item)}
+                class="absolute top-2 right-2 rounded-md p-2 text-muted-foreground transition sm:opacity-0 sm:group-hover/row:opacity-100 sm:group-focus-within/row:opacity-100 hover:bg-destructive/10 hover:text-destructive"
+              >
+                <Trash2Icon class="size-4" />
+              </button>
+            </div>
+          {/each}
+        </div>
+      </section>
+    {/each}
+  {/if}
 </div>

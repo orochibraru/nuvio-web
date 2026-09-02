@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 import { signIn } from "./auth.ts";
 import { collectRuntimeErrors } from "./errors.ts";
 
-// Committed VP8/WebM sample (~7.8s) — Playwright's Chromium has no H.264, and a
+// Committed VP8/WebM sample (~7.8s) : Playwright's Chromium has no H.264, and a
 // local file keeps the test off the network.
 const SAMPLE = "/e2e/sample.webm";
 
@@ -33,7 +33,7 @@ test("detail source sidebar: opens, resolves async, refreshes, closes", async ({
 	const panel = page.getByRole("dialog", { name: "Sources" });
 	await expect(panel.getByText("Sources").first()).toBeVisible();
 	await expect(panel.getByRole("button", { name: "Refresh" })).toBeVisible();
-	// The drawer is module state, not a URL param — opening it must not navigate.
+	// The drawer is module state, not a URL param : opening it must not navigate.
 	expect(page.url()).toBe(url);
 
 	// Test account has only Cinemeta (no stream addon) → resolves to empty.
@@ -66,9 +66,9 @@ test("detail page warms the stream fan-out before the drawer opens", async ({
 	});
 
 	await page.goto("/detail/movie/tt1375666");
-	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
+	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => { });
 
-	// The preload kicks off ~700ms after meta loads — never touching the drawer.
+	// The preload kicks off ~700ms after meta loads : never touching the drawer.
 	await expect
 		.poll(() => resolvedStreamsRequested, { timeout: 6000 })
 		.toBe(true);
@@ -105,9 +105,9 @@ test("player page with no resolvable stream renders cleanly", async ({
 }) => {
 	await signIn(context);
 	const errors = collectRuntimeErrors(page);
-	// tt0000001 — an 1894 short; addons have at most a non-web-playable source.
+	// tt0000001 : an 1894 short; addons have at most a non-web-playable source.
 	await page.goto("/player/movie/tt0000001");
-	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
+	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => { });
 	// Either "No playable stream" or "This source can't play in the browser".
 	await expect(
 		page.getByRole("button", { name: "Choose a source" }),
@@ -133,7 +133,7 @@ test("video player: autoplay, keyboard seek, speed menu", async ({ page }) => {
 		.toBeGreaterThan(0.4);
 	await page.evaluate(() => document.querySelector("video")?.pause());
 
-	// keyboard nudge — the clip is short, so just confirm the direction of change
+	// keyboard nudge : the clip is short, so just confirm the direction of change
 	await page.evaluate(() => {
 		const video = document.querySelector("video");
 		if (video) {
@@ -163,12 +163,12 @@ test("detail page shows official watch providers (JustWatch)", async ({
 	await signIn(context);
 	const errors = collectRuntimeErrors(page);
 
-	// Reacher — a Prime Video original, stable availability.
+	// Reacher : a Prime Video original, stable availability.
 	await page.goto("/detail/series/tt9288030");
-	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
+	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => { });
 
 	const available = page.getByText("Available on", { exact: false });
-	// JustWatch can rate-limit / miss — don't hard-fail the suite on a flaky
+	// JustWatch can rate-limit / miss : don't hard-fail the suite on a flaky
 	// upstream, but when it does resolve it must render a Prime link + badge.
 	if (await available.isVisible({ timeout: 20_000 }).catch(() => false)) {
 		const prime = page.getByRole("link", { name: /Prime Video/i }).first();
@@ -248,11 +248,11 @@ test("player fatal screen offers an external-player handoff", async ({
 	}).toString()}`;
 
 	await page.goto(fatal);
-	await page.waitForLoadState("networkidle").catch(() => {});
+	await page.waitForLoadState("networkidle").catch(() => { });
 
 	const player = page.getByRole("region", { name: "Video player" });
 	// Desktop registers no player URL scheme, so the button copies the link
-	// rather than deep-linking — but it is always offered, because the screen
+	// rather than deep-linking : but it is always offered, because the screen
 	// says an external player is an option.
 	const play = player.getByRole("button", { name: "Play in external player" });
 	await expect(play).toBeVisible({ timeout: 10_000 });
@@ -281,7 +281,7 @@ test("external-player handoff hands Android's OS chooser a real Intent URL", asy
 			external: "https://cdn.example/movie.mkv",
 		}).toString()}`,
 	);
-	await page.waitForLoadState("networkidle").catch(() => {});
+	await page.waitForLoadState("networkidle").catch(() => { });
 
 	const open = page
 		.getByRole("region", { name: "Video player" })
@@ -335,7 +335,7 @@ test("player converts an SRT subtitle to WebVTT in the browser", async ({
 }) => {
 	const errors = collectRuntimeErrors(page);
 
-	// No /api/subtitle hop any more — the track is fetched + converted client-side.
+	// No /api/subtitle hop any more : the track is fetched + converted client-side.
 	let proxied = false;
 	page.on("request", (r) => {
 		if (r.url().includes("/api/subtitle")) {
@@ -397,11 +397,11 @@ test("player Back goes to the title's detail page, not wherever history points",
 	await signIn(context);
 	const errors = collectRuntimeErrors(page);
 
-	// Opened directly, so there is no history to go back to — the old
+	// Opened directly, so there is no history to go back to : the old
 	// `history.back()` had nothing to do here. An episode also proves the
 	// destination uses the *content* id, not the video id (`tt0903747:1:1`).
 	await page.goto("/player/series/tt0903747:1:1");
-	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
+	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => { });
 
 	await page.getByRole("button", { name: "Back" }).first().click();
 	await expect(page).toHaveURL(/\/detail\/series\/tt0903747$/);
@@ -421,10 +421,10 @@ test("player episode drawer: season switcher + jump to another episode", async (
 	const errors = collectRuntimeErrors(page);
 
 	await page.goto("/player/series/tt0903747:1:1");
-	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
+	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => { });
 
 	const episodesButton = page.getByRole("button", { name: "Episodes" });
-	// Needs a browser-playable stream from the test account's addons — skip if none.
+	// Needs a browser-playable stream from the test account's addons : skip if none.
 	if (!(await episodesButton.isVisible().catch(() => false))) {
 		test.skip(true, "no web-playable stream resolved for the drawer test");
 	}
@@ -463,7 +463,7 @@ test("sync: an optimistic write survives an immediate navigation", async ({
 		}
 	});
 
-	// Interstellar — not in the test account's baseline library.
+	// Interstellar : not in the test account's baseline library.
 	await page.goto("/detail/movie/tt0816692");
 	await page.waitForLoadState("networkidle");
 
@@ -523,8 +523,8 @@ test("player: the cast button shows only when a device is available", async ({
 						return Promise.resolve(1);
 					},
 					cancelWatchAvailability: () => Promise.resolve(),
-					addEventListener: () => {},
-					removeEventListener: () => {},
+					addEventListener: () => { },
+					removeEventListener: () => { },
 				};
 			},
 		});

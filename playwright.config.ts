@@ -3,7 +3,7 @@ import { defineConfig, devices } from "@playwright/test";
 
 // Reuse the dev server you already have running (`bun run dev` → :5173); only
 // spins one up when nothing is listening (e.g. CI).
-const PORT = 5173;
+const PORT = 3000;
 
 export default defineConfig({
 	testDir: "e2e",
@@ -29,7 +29,7 @@ export default defineConfig({
 			testIgnore: /showcase\.spec\.ts/,
 			use: { ...devices["Desktop Chrome"] },
 		},
-		// Dedicated showcase-screenshot sequence — deliberately excluded from the
+		// Dedicated showcase-screenshot sequence : deliberately excluded from the
 		// default `chromium` project (and so from `bun run test:e2e`). Run it on
 		// its own with `bun run screenshots`.
 		{
@@ -39,7 +39,7 @@ export default defineConfig({
 		},
 	],
 	webServer: {
-		command: "bun run dev",
+		command: "bun run build && bun run start",
 		url: `http://localhost:${PORT}`,
 		reuseExistingServer: !process.env.CI,
 		timeout: 60_000,

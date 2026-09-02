@@ -11,7 +11,7 @@ import {
 
 /**
  * Intro / credits timestamps for a movie or episode, from TheIntroDB. The
- * public tier is keyless — no server config needed (see TODO.md). `apiKey` is
+ * public tier is keyless : no server config needed (see TODO.md). `apiKey` is
  * the caller's own personal TheIntroDB key (Settings → Integrations, stored
  * per-profile in `ui.introDbApiKey`, never a server env var): it folds their
  * pending submissions into the result and raises their rate/usage limits.

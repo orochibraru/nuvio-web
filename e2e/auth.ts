@@ -14,7 +14,7 @@ interface TokenResponse {
 	user: unknown;
 }
 
-// One password grant per test run, shared by every test — the real auth endpoint
+// One password grant per test run, shared by every test : the real auth endpoint
 // rate-limits (429) and a full suite is dozens of `signIn` calls otherwise.
 let tokenPromise: Promise<TokenResponse> | null = null;
 let tokenExpiresAt = 0;

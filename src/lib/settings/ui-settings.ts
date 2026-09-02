@@ -17,7 +17,7 @@ export type Accent = (typeof ACCENTS)[number];
 export const SUBTITLE_SIZES = ["small", "medium", "large"] as const;
 export type SubtitleSize = (typeof SUBTITLE_SIZES)[number];
 
-/** Subtitle colour swatches — shared by Settings and the in-player panel. */
+/** Subtitle colour swatches : shared by Settings and the in-player panel. */
 export const SUBTITLE_COLORS = [
 	"#ffffff",
 	"#ffe14d",
@@ -38,7 +38,7 @@ export type StreamQuality = (typeof STREAM_QUALITIES)[number];
 
 /**
  * Where library / watch-progress data is read from and written to. Nuvio mobile
- * lets these be set independently. Only `nuvio` works today — `trakt` / `simkl`
+ * lets these be set independently. Only `nuvio` works today : `trakt` / `simkl`
  * need their own OAuth integration (Phase 5c); the API does not proxy them.
  */
 export const SYNC_SOURCES = ["nuvio", "trakt", "simkl"] as const;
@@ -106,12 +106,12 @@ export const uiSettingsSchema = v.object({
 	 *  handy for debrid addons where re-resolution is slow. */
 	reuseLastLink: v.fallback(v.boolean(), false),
 	/** How long a remembered stream URL stays valid, in days (debrid links
-	 *  expire — 3 days matches most providers). */
+	 *  expire : 3 days matches most providers). */
 	linkCacheDays: v.fallback(
 		v.pipe(v.number(), v.minValue(1), v.maxValue(30)),
 		3,
 	),
-	/** Personal TheIntroDB API key (https://theintrodb.org) — optional, folds
+	/** Personal TheIntroDB API key (https://theintrodb.org) : optional, folds
 	 *  the owner's own pending submissions into the skip-intro/outro lookup and
 	 *  raises their rate/usage limits. The public keyless tier works without it. */
 	introDbApiKey: v.fallback(v.string(), ""),

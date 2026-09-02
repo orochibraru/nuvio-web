@@ -18,10 +18,10 @@ export type AudioVerdict = "ok" | "no-track" | "codec" | "unknown";
  * Classify a rolling window of `webkit{Video,Audio}DecodedByteCount` readings
  * (one per ~1s of active playback).
  *
- * - `codec`  — audio decoded some bytes then stopped while video kept going.
- * - `no-track` — video decoded but audio never produced a single byte.
- * - `ok` — audio is decoding.
- * - `unknown` — not enough data yet.
+ * - `codec`  : audio decoded some bytes then stopped while video kept going.
+ * - `no-track` : video decoded but audio never produced a single byte.
+ * - `ok` : audio is decoding.
+ * - `unknown` : not enough data yet.
  *
  * `needed` consecutive silent intervals are required before a negative verdict,
  * so brief audio-buffer gaps don't trip it.
@@ -73,7 +73,7 @@ export type AudioTickAction =
 
 /**
  * Decide what one ~1s detection tick implies, given the browser signals the
- * player has collected. Pure — the player owns the timer, the sample buffer and
+ * player has collected. Pure : the player owns the timer, the sample buffer and
  * the HLS handle; this just says continue / flag / try-another-track.
  */
 export function evaluateAudioTick(input: {

@@ -13,7 +13,7 @@ export function createInfoOverlayController(deps: {
 	loading: () => boolean;
 	paused: () => boolean;
 	currentTime: () => number;
-	/** Fired whenever the overlay opens, sticky or auto — keep the transport up. */
+	/** Fired whenever the overlay opens, sticky or auto : keep the transport up. */
 	onOpen: () => void;
 }) {
 	let open = $state(false);
@@ -34,7 +34,7 @@ export function createInfoOverlayController(deps: {
 		}
 	}
 
-	// Another panel (subtitles, settings) is taking over the frame — drop the
+	// Another panel (subtitles, settings) is taking over the frame : drop the
 	// overlay without marking it "dismissed" (a pause-triggered auto-open can
 	// still surface it again once that other panel closes).
 	function closeSilently() {

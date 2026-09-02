@@ -8,5 +8,5 @@ services:
       interval: 30s
       retries: 3
       start_period: 5s
-      test: ["CMD", "/app/build/healthcheck"]
+      test: ["CMD", "/app/dist/healthcheck"]
       timeout: 30s

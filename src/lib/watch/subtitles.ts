@@ -12,7 +12,7 @@ export function isWebVtt(text: string): boolean {
 /**
  * Convert an SRT body to WebVTT: strip the BOM, normalise newlines, and turn
  * `,` millisecond separators into `.`. Cue index lines and blank lines are
- * left as-is — WebVTT tolerates both. A file that's already WebVTT is returned
+ * left as-is : WebVTT tolerates both. A file that's already WebVTT is returned
  * unchanged.
  */
 export function srtToVtt(input: string): string {

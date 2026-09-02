@@ -6,7 +6,7 @@ import type { PlayerTransportState } from "./player-transport-state.svelte.js";
 
 /**
  * Wires up the source-attachment, progress-reporting, and the two non-fatal
- * "this stream might be broken" watchers together — see each of those for
+ * "this stream might be broken" watchers together : see each of those for
  * what they actually own. Bundled here purely to keep the caller's script
  * short; there's no shared state between them beyond `video` / `src`.
  */
@@ -46,7 +46,7 @@ export function createPlaybackDiagnostics(deps: {
 		},
 	});
 
-	// Audio plays but the picture never appears — a video codec that dodged the
+	// Audio plays but the picture never appears : a video codec that dodged the
 	// pre-flight probe. Non-fatal + dismissible: a false alarm over a stream
 	// that's actually fine must be a shrug, not a wall.
 	const videoDecode = createVideoDecodeWatch({

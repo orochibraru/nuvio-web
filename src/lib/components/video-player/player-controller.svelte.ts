@@ -4,7 +4,7 @@ import { createPlayerTransportState } from "./player-transport-state.svelte.js";
 
 /**
  * Wires the transport state, transport actions, and load-lifecycle pieces
- * together — see each of those for what they actually own. `state` is the
+ * together : see each of those for what they actually own. `state` is the
  * shared reactive object all three read and write (and the one `bind:`
  * targets in the caller's template point at); everything else is a plain
  * function, safe to spread into one flat object.

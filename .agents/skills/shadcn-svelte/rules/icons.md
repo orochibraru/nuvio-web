@@ -51,7 +51,7 @@ the icon. No sizing classes on the icon.
 
 Components handle icon sizing via CSS. Don't add `size-4`, `w-4 h-4`, or other
 sizing classes to icons inside `<Button>`, `DropdownMenu.Item`, `Alert.Root`,
-`Sidebar.*`, or other shadcn-svelte components — unless the user explicitly asks
+`Sidebar.*`, or other shadcn-svelte components : unless the user explicitly asks
 for custom icon sizes.
 
 **Incorrect:**
@@ -83,7 +83,7 @@ for custom icon sizes.
 ```
 
 The same applies to icons inside `DropdownMenu.Item`, sidebar items, and other
-menu rows — no extra sizing classes on the icon component.
+menu rows : no extra sizing classes on the icon component.
 
 ---
 
@@ -94,7 +94,7 @@ Use a component reference, not a string key to a lookup map.
 **Incorrect:**
 
 ```svelte
-<!-- String key lookup — avoid -->
+<!-- String key lookup : avoid -->
 <DynamicIcon name="check" />
 ```
 

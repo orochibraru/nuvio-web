@@ -31,7 +31,7 @@ for (const { name, path } of pages) {
 		await page.goto(path);
 		await page
 			.waitForLoadState("networkidle", { timeout: 8000 })
-			.catch(() => {});
+			.catch(() => { });
 
 		const { violations } = await new AxeBuilder({ page })
 			.withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
@@ -60,7 +60,7 @@ async function expectNoViolations(page: import("@playwright/test").Page) {
 
 test("no violations: command palette open", async ({ page }) => {
 	await page.goto("/");
-	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
+	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => { });
 	await page.keyboard.press("ControlOrMeta+k");
 	await expect(page.getByPlaceholder(/Jump to a page/)).toBeVisible();
 	await expectNoViolations(page);
@@ -68,7 +68,7 @@ test("no violations: command palette open", async ({ page }) => {
 
 test("no violations: detail source drawer open", async ({ page }) => {
 	await page.goto("/detail/movie/tt1375666");
-	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
+	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => { });
 	await page.getByRole("button", { name: "Select stream" }).first().click();
 	await expect(page.getByRole("dialog", { name: "Sources" })).toBeVisible();
 	await expectNoViolations(page);
@@ -77,7 +77,7 @@ test("no violations: detail source drawer open", async ({ page }) => {
 test("no violations: mobile nav drawer open", async ({ page }) => {
 	await page.setViewportSize({ width: 390, height: 844 });
 	await page.goto("/");
-	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
+	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => { });
 	await page.getByRole("button", { name: "Menu", exact: true }).click();
 	await expect(page.getByRole("dialog", { name: "Menu" })).toBeVisible();
 	await expectNoViolations(page);
@@ -95,10 +95,10 @@ test("skip link jumps focus to main content", async ({ page }) => {
 test("client navigation moves focus to main content", async ({ page }) => {
 	await page.goto("/");
 	// The nav links are in the SSR'd HTML, so they're clickable long before the
-	// router hydrates — and a pre-hydration click is a *full page load*, which
+	// router hydrates : and a pre-hydration click is a *full page load*, which
 	// the layout deliberately leaves alone (`type === "enter"`). Wait for the
 	// app to go interactive first, or this silently stops testing client nav.
-	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
+	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => { });
 
 	const link = page
 		.getByRole("navigation")

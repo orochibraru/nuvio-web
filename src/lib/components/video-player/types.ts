@@ -23,7 +23,7 @@ export interface SubtitleAppearance {
 
 export interface VideoPlayerProps {
 	src: string;
-	/** Backdrop image — loading treatment, `<video poster>`, info-overlay bed. */
+	/** Backdrop image : loading treatment, `<video poster>`, info-overlay bed. */
 	poster?: string | null;
 	/** 2:3 poster shown in the info overlay. */
 	posterImage?: string | null;
@@ -50,10 +50,10 @@ export interface VideoPlayerProps {
 	videoRisky?: boolean;
 	/** Direct stream URL for the external-player handoff on a fatal error. */
 	externalUrl?: string | null;
-	/** Intro window in seconds (from TheIntroDB) — drives "Skip intro". */
+	/** Intro window in seconds (from TheIntroDB) : drives "Skip intro". */
 	introStart?: number | null;
 	introEnd?: number | null;
-	/** Seconds at which the end credits start — drives the outro handoff. */
+	/** Seconds at which the end credits start : drives the outro handoff. */
 	outroStart?: number | null;
 	/** Shrink to a corner PiP (the page's end-of-show takeover). */
 	minimized?: boolean;

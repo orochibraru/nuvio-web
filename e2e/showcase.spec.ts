@@ -5,11 +5,11 @@ import { waitForImages } from "./util.ts";
 
 /**
  * Dedicated screenshot sequence for showcasing the app (README, release
- * notes, marketing) — not a correctness suite. Run it on its own with
+ * notes, marketing) : not a correctness suite. Run it on its own with
  * `bun run screenshots`; `bun run test:e2e` never pulls this in (see the
  * `showcase` project in playwright.config.ts).
  *
- * Shots are numbered to read as one walkthrough — sign-in through playback —
+ * Shots are numbered to read as one walkthrough : sign-in through playback —
  * and land in `screens/` (gitignored; pick the ones worth committing /
  * embedding by hand). Each still asserts zero console errors: a cheap sanity
  * net, not a substitute for `test:e2e`.
@@ -90,16 +90,16 @@ for (const shot of shots) {
 		const errors = collectRuntimeErrors(page);
 
 		await page.goto(shot.path);
-		// A playing <video> (the player shot) never reaches network idle — don't
+		// A playing <video> (the player shot) never reaches network idle : don't
 		// block the shot on it.
 		await page
 			.waitForLoadState("networkidle", { timeout: 8000 })
-			.catch(() => {});
+			.catch(() => { });
 
 		if (shot.prepare) {
 			await shot.prepare(page);
 		}
-		await waitForImages(page).catch(() => {});
+		await waitForImages(page).catch(() => { });
 		await page.waitForTimeout(1000 + (shot.settleMs ?? 0));
 
 		await page.screenshot({

@@ -11,7 +11,7 @@ import { assemblePlaybackContext, parseVideoId } from "./playback-context.ts";
 const CONTINUE_WATCHING_CONCURRENCY = 4;
 
 /** Injected rather than imported so this module stays free of `$app/server`
- *  (and unit-testable) — the load passes `AddonClient`'s own lookup. */
+ *  (and unit-testable) : the load passes `AddonClient`'s own lookup. */
 export type MetaLookup = (type: string, id: string) => Promise<Meta | null>;
 
 /** A continue-watching card before any addon meta is attached. */
@@ -30,7 +30,7 @@ export interface ResumeRow {
 }
 
 /**
- * Raw in-progress rows for the home "continue watching" row — user data only, no
+ * Raw in-progress rows for the home "continue watching" row : user data only, no
  * addon calls, so the home page load never blocks on a slow provider. The page
  * enriches these (poster / name / next-episode roll-forward) from the local sync
  * store and the client-side `continueWatching` query.
@@ -82,12 +82,12 @@ export async function pullContinueWatching(
 	profileId: number,
 	lookupMeta: MetaLookup,
 ): Promise<ResumeRow[]> {
-	// A hiccup on the progress pull must not blank the whole home page — the
+	// A hiccup on the progress pull must not blank the whole home page : the
 	// local store still fills the row on the client.
 	const rows = await nuvio.watchProgress
 		.pull({ p_profile_id: profileId, p_limit: 30 })
 		.catch(() => [] as Awaited<ReturnType<typeof nuvio.watchProgress.pull>>);
-	// Most-recent row per title (completed or not — a finished episode of a
+	// Most-recent row per title (completed or not : a finished episode of a
 	// running show still points at the next one to watch).
 	const seen = new Set<string>();
 	const latestPerTitle = rows
@@ -106,7 +106,7 @@ export async function pullContinueWatching(
 		await pooledMap(
 			latestPerTitle,
 			// Each row itself fans out to every meta-providing addon inside
-			// `getMeta` — an unbounded outer `Promise.all` over up to 16 rows
+			// `getMeta` : an unbounded outer `Promise.all` over up to 16 rows
 			// could burst 30-50+ concurrent requests at a shared addon like
 			// Cinemeta, timing some out and silently falling back to the bare
 			// content id as the "name" (`row.content_id` below). Capped like
@@ -154,7 +154,7 @@ export async function pullContinueWatching(
 					}
 				}
 
-				// Finished movie, or last episode of the show — drop it.
+				// Finished movie, or last episode of the show : drop it.
 				return null;
 			},
 		)
@@ -164,7 +164,7 @@ export async function pullContinueWatching(
 }
 
 /**
- * Everything the player screen needs *except* the streams themselves — meta,
+ * Everything the player screen needs *except* the streams themselves : meta,
  * where to resume, what's next. Called from the player load (streamed), so
  * the shell paints immediately and this fills in behind it without costing a
  * second round trip. Both halves are best-effort: a missing addon or a hiccup

@@ -28,7 +28,7 @@ export function createSubtitleTracks(tracks: () => TrackSource[]) {
 	}
 
 	$effect(() => {
-		// New source / track list — drop the old blobs and start clean.
+		// New source / track list : drop the old blobs and start clean.
 		void tracks();
 		revokeAll();
 		ready = {};

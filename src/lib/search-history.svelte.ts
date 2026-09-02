@@ -1,7 +1,7 @@
 import { browser } from "$app/env";
 
 /**
- * Recent search terms, kept in `localStorage` only — never synced. Most-recent
+ * Recent search terms, kept in `localStorage` only : never synced. Most-recent
  * first, deduped, capped. All storage access is guarded (private windows /
  * blocked site data throw).
  */
@@ -40,7 +40,7 @@ class SearchHistory {
 		try {
 			localStorage.setItem(KEY, JSON.stringify(this.#entries));
 		} catch {
-			// no-op — storage unavailable
+			// no-op : storage unavailable
 		}
 	}
 

@@ -1,7 +1,7 @@
 ---
 name: shadcn-svelte
 description:
-  Manages shadcn-svelte components and projects — adding, updating, fixing,
+  Manages shadcn-svelte components and projects : adding, updating, fixing,
   debugging, styling, and composing UI. Provides project context, component
   docs, and usage examples. Applies when working with shadcn-svelte, the CLI,
   design-system presets, or any project with a components.json file. Also
@@ -19,7 +19,7 @@ Components are added as source to the user's project via the CLI.
 
 > **IMPORTANT:** Run all CLI commands using the project's package runner:
 > `npx shadcn-svelte@latest`, `pnpm dlx shadcn-svelte@latest`, or
-> `bunx --bun shadcn-svelte@latest` — based on the project's package manager.
+> `bunx --bun shadcn-svelte@latest` : based on the project's package manager.
 > Examples below use `npx shadcn-svelte@latest` but substitute the correct
 > runner for the project.
 
@@ -36,10 +36,10 @@ Each component lives in its own folder with an `index.ts` barrel. Match the
 
 - **Multi-part components** (dialog, select, card, field, tabs, …):
   `import * as Dialog from "$lib/components/ui/dialog"` then `Dialog.Content`,
-  `Dialog.Title`, `Card.Root`, `Card.Header`, etc. — whatever the barrel exports
+  `Dialog.Title`, `Card.Root`, `Card.Header`, etc. : whatever the barrel exports
   (short names and/or `Root as …` aliases).
 - **Single-component barrels** (only one meaningful component in the folder):
-  **named imports** — `import { Button } from "$lib/components/ui/button"` and
+  **named imports** : `import { Button } from "$lib/components/ui/button"` and
   `<Button>`, not `import * as Button` + `Button.Root`. Same pattern for
   `{ Input }`, `{ Badge }`, `{ Spinner }`, `{ Checkbox }`, `{ Separator }`,
   `{ Skeleton }`, etc.
@@ -63,7 +63,7 @@ not hardcoded paths.
    Dashboard = Sidebar + Card + Chart + Table.
 3. **Use built-in variants before custom styles.** `variant="outline"`,
    `size="sm"`, etc.
-4. **Use semantic colors.** `bg-primary`, `text-muted-foreground` — never raw
+4. **Use semantic colors.** `bg-primary`, `text-muted-foreground` : never raw
    values like `bg-blue-500`.
 
 ## Critical Rules
@@ -145,7 +145,7 @@ code pairs.
 
 ### CLI
 
-- **Presets** — copy the encoded string from the design-system builder on
+- **Presets** : copy the encoded string from the design-system builder on
   [shadcn-svelte.com](https://shadcn-svelte.com) and pass it to
   `npx shadcn-svelte@latest init --preset <code>`.
 
@@ -218,7 +218,7 @@ code. For edge cases, see the linked rule files above.
 
 ## Key Fields
 
-Use `components.json` and the filesystem — not a separate `info` command:
+Use `components.json` and the filesystem : not a separate `info` command:
 
 - **`aliases`** → use the actual alias prefix from config (e.g. `$lib/`), never
   hardcode unrelated projects.
@@ -244,24 +244,24 @@ official page first** so you follow the documented APIs.
 
 ## Workflow
 
-1. **Get project context** — read `components.json` and list the UI components
+1. **Get project context** : read `components.json` and list the UI components
    directory when needed.
-2. **Check installed components first** — before running `add`, list files under
+2. **Check installed components first** : before running `add`, list files under
    the resolved `ui` path. Don't import components that haven't been added, and
    don't re-add ones already present unless updating.
-3. **Discover components** — `npx shadcn-svelte@latest add` with no arguments
+3. **Discover components** : `npx shadcn-svelte@latest add` with no arguments
    (interactive list), or the docs site.
-4. **Install or update** — `npx shadcn-svelte@latest add <name>` or a registry
+4. **Install or update** : `npx shadcn-svelte@latest add <name>` or a registry
    **URL**. To refresh existing files from the registry, use
    `npx shadcn-svelte@latest update` (see [cli.md](./cli.md)).
-5. **Fix imports in third-party / URL-added items** — After adding from a custom
+5. **Fix imports in third-party / URL-added items** : After adding from a custom
    registry URL, check for hardcoded paths that don't match the project's
    `aliases`. Rewrite imports to use the project's `ui` / `lib` aliases from
    `components.json`.
-6. **Review added components** — After adding, **read the added files** and
+6. **Review added components** : After adding, **read the added files** and
    verify composition (groups, titles, validation attrs). Align icon imports
    with `iconLibrary`.
-7. **Remote registry items** — Adding by URL is explicit; if the user wants a
+7. **Remote registry items** : Adding by URL is explicit; if the user wants a
    component from an unknown source, confirm the registry URL or item before
    running `add`.
 
@@ -298,20 +298,20 @@ npx shadcn-svelte@latest update --all --yes
 npx shadcn-svelte@latest registry build
 ```
 
-**Registry:** default `https://shadcn-svelte.com/registry` — override in
+**Registry:** default `https://shadcn-svelte.com/registry` : override in
 `components.json` if needed.  
 **Docs:** [shadcn-svelte.com](https://shadcn-svelte.com)
 
 ## Detailed References
 
-- [rules/forms.md](./rules/forms.md) — Field.FieldGroup, Field.Field,
+- [rules/forms.md](./rules/forms.md) : Field.FieldGroup, Field.Field,
   InputGroup, ToggleGroup, Field.FieldSet, validation states
-- [rules/composition.md](./rules/composition.md) — Groups, overlays, Card, Tabs,
+- [rules/composition.md](./rules/composition.md) : Groups, overlays, Card, Tabs,
   Avatar, Alert, Empty, Toast, Separator, Skeleton, Badge, Button loading
-- [rules/icons.md](./rules/icons.md) — data-icon, icon sizing, passing icon
+- [rules/icons.md](./rules/icons.md) : data-icon, icon sizing, passing icon
   components
-- [rules/styling.md](./rules/styling.md) — Semantic colors, variants, class,
+- [rules/styling.md](./rules/styling.md) : Semantic colors, variants, class,
   spacing, size, truncate, dark mode, cn(), z-index
-- [cli.md](./cli.md) — Commands, flags, registry
-- [customization.md](./customization.md) — Theming, CSS variables, extending
+- [cli.md](./cli.md) : Commands, flags, registry
+- [customization.md](./customization.md) : Theming, CSS variables, extending
   components

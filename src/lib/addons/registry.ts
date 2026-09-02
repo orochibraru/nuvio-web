@@ -61,7 +61,7 @@ function addonServes(
 }
 
 export class AddonRegistry {
-	constructor(readonly addons: InstalledAddon[]) {}
+	constructor(readonly addons: InstalledAddon[]) { }
 
 	get isEmpty(): boolean {
 		return this.addons.length === 0;
@@ -85,7 +85,7 @@ export class AddonRegistry {
 		return addon && catalog ? { addon, catalog } : undefined;
 	}
 
-	/** `addon_catalog` catalogs — addons that advertise other addons. */
+	/** `addon_catalog` catalogs : addons that advertise other addons. */
 	addonCatalogs(): CatalogRef[] {
 		return this.addons.flatMap((addon) =>
 			(addon.manifest.addonCatalogs ?? []).map((catalog) => ({

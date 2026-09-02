@@ -1,8 +1,8 @@
-/** In-memory TTL cache. Per server instance / per tab — swap for IndexedDB in Phase 2 if needed. */
+/** In-memory TTL cache. Per server instance / per tab : swap for IndexedDB in Phase 2 if needed. */
 export class TtlCache<T> {
 	private readonly store = new Map<string, { value: T; expiresAt: number }>();
 
-	constructor(private readonly defaultTtlMs: number) {}
+	constructor(private readonly defaultTtlMs: number) { }
 
 	get(key: string): T | undefined {
 		const hit = this.store.get(key);

@@ -13,12 +13,12 @@ interface MediaDeps {
 }
 
 /**
- * Attach a source to the `<video>` — hls.js for `.m3u8`, a plain `src`
- * otherwise — and expose an audio-track list for the settings menu. HLS
+ * Attach a source to the `<video>` : hls.js for `.m3u8`, a plain `src`
+ * otherwise : and expose an audio-track list for the settings menu. HLS
  * multi-language streams come from hls.js's own track list; a direct file
  * (mp4/mkv/…) that muxes more than one audio track comes from the browser's
  * native `HTMLMediaElement.audioTracks` instead (see `attachNativeAudioTracks`
- * in `player-media.ts`) — Chromium and Firefox both populate it, Safari
+ * in `player-media.ts`) : Chromium and Firefox both populate it, Safari
  * doesn't, so a single-track or unsupported source just never grows past the
  * empty list and the settings menu hides that section. Tears the HLS
  * instance / native listeners down and clears the element `src` when the
@@ -94,7 +94,7 @@ export function createPlayerMedia(deps: MediaDeps) {
 		set activeAudioTrack(value: number) {
 			activeAudioTrack = value;
 		},
-		/** From the settings menu — switch and close is the caller's job. */
+		/** From the settings menu : switch and close is the caller's job. */
 		selectAudioTrack(id: number) {
 			if (hls) {
 				hls.audioTrack = id;

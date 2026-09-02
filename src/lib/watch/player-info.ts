@@ -1,4 +1,4 @@
-/** Meta shown by the in-player info overlay — populated by `playbackContext`. */
+/** Meta shown by the in-player info overlay : populated by `playbackContext`. */
 export interface PlayerInfo {
 	description: string | null;
 	imdbRating: string | null;

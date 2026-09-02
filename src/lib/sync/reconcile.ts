@@ -278,7 +278,7 @@ function progressKeyOf(write: PendingWrite): string | null {
 	return null;
 }
 
-/** Whether two pending writes target the same record — a later one supersedes
+/** Whether two pending writes target the same record : a later one supersedes
  *  an earlier one queued for the same target. */
 export function sameTarget(a: PendingWrite, b: PendingWrite): boolean {
 	const al = libraryTarget(a);

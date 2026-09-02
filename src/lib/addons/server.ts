@@ -43,7 +43,7 @@ export function invalidateRegistry(): void {
 	cache = null;
 }
 
-/** Every catalog across the enabled addons — for the discover / collection loads. */
+/** Every catalog across the enabled addons : for the discover / collection loads. */
 export async function listCatalogs(): Promise<
 	Array<{
 		addonId: string;

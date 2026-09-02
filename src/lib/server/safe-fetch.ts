@@ -107,7 +107,7 @@ export async function safeFetch(
 ): Promise<Response> {
 	let target = rawUrl;
 	for (let hop = 0; hop <= maxRedirects; hop += 1) {
-		// biome-ignore lint/performance/noAwaitInLoops: a redirect chain is inherently sequential — each hop's URL comes from the previous response's Location header
+		// biome-ignore lint/performance/noAwaitInLoops: a redirect chain is inherently sequential : each hop's URL comes from the previous response's Location header
 		await assertPublicHost(target, allowHttp);
 		const response = await fetchImpl(target, { ...init, redirect: "manual" });
 		const location = response.headers.get("location");

@@ -5,7 +5,7 @@
  * navigation). Read `.current`; it holds `initial` until the promise settles and
  * stays at the last value on rejection.
  *
- * `get()` may return `undefined` — a `forkPreloads` speculative render can
+ * `get()` may return `undefined` : a `forkPreloads` speculative render can
  * instantiate the component before its `data` prop is populated.
  */
 export function streamed<T>(get: () => Promise<T> | undefined, initial: T) {

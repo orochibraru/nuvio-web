@@ -9,7 +9,7 @@ export const load: PageServerLoad = ({ locals, fetch }) => {
 	// own skeleton. All three are self-recovering (empty on failure).
 	//
 	// The catalog rows and the continue-watching enrichment run here rather
-	// than in client queries — the browser would otherwise have to wait for
+	// than in client queries : the browser would otherwise have to wait for
 	// the page, hydrate, and only then start the round trip that fetches the
 	// content, and continue-watching cards would show their raw content ids
 	// until it landed.
@@ -20,7 +20,7 @@ export const load: PageServerLoad = ({ locals, fetch }) => {
 
 	return {
 		library: pullLibraryItems(nuvio, profileId),
-		// `[]` is a real empty feed; `null` is "couldn't reach the addons" — the
+		// `[]` is a real empty feed; `null` is "couldn't reach the addons" : the
 		// page shows a retry for one and "add an addon" for the other.
 		resume: pullContinueWatching(nuvio, profileId, metaLookup).catch(() => []),
 		rows: homeCatalogRows().catch(() => null),

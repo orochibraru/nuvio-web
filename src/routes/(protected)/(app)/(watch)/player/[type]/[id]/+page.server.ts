@@ -4,7 +4,7 @@ import type { PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = ({ params, locals, fetch }) => {
 	// Streamed, never awaited: the player shell paints on navigation and this
-	// fills in behind it — same as before, minus the extra client round trip
+	// fills in behind it : same as before, minus the extra client round trip
 	// that used to have to wait for hydration first.
 	const nuvio = locals.nuvio.withFetch(fetch);
 	return {

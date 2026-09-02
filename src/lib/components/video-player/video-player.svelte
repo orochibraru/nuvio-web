@@ -1,192 +1,193 @@
 <script lang="ts">
-	import { theme } from "#lib/settings/theme.svelte.js";
-	import { subtitleFontSize } from "#lib/settings/ui-settings.js";
-	import { cn } from "#lib/utils.js";
-	import { handlePlayerKey } from "#lib/watch/player-keymap.js";
-	import { createRemotePlayback } from "#lib/watch/remote-playback.svelte.js";
-	import { createInfoOverlayController } from "./info-overlay-controller.svelte.js";
-	import { createPanelToggles } from "./panel-toggles.svelte.js";
-	import { createPlaybackDiagnostics } from "./playback-diagnostics.svelte.js";
-	import { createPlaybackMilestones } from "./playback-milestones.svelte.js";
-	import { createPlayerBroadcastSync } from "./player-broadcast.svelte.js";
-	import { createPlayerController } from "./player-controller.svelte.js";
-	import PlayerOverlays from "./player-overlays.svelte";
-	import { createSubtitleController } from "./subtitle-controller.svelte.js";
-	import SubtitlePanel from "./subtitle-panel.svelte";
-	import TransportControls from "./transport-controls.svelte";
-	import type { VideoPlayerProps } from "./types.js";
+  import { theme } from "#lib/settings/theme.svelte.js";
+  import { subtitleFontSize } from "#lib/settings/ui-settings.js";
+  import { cn } from "#lib/utils.js";
+  import { handlePlayerKey } from "#lib/watch/player-keymap.js";
+  import { createRemotePlayback } from "#lib/watch/remote-playback.svelte.js";
+  import { createInfoOverlayController } from "./info-overlay-controller.svelte.js";
+  import { createPanelToggles } from "./panel-toggles.svelte.js";
+  import { createPlaybackDiagnostics } from "./playback-diagnostics.svelte.js";
+  import { createPlaybackMilestones } from "./playback-milestones.svelte.js";
+  import { createPlayerBroadcastSync } from "./player-broadcast.svelte.js";
+  import { createPlayerController } from "./player-controller.svelte.js";
+  import PlayerOverlays from "./player-overlays.svelte";
+  import { createSubtitleController } from "./subtitle-controller.svelte.js";
+  import SubtitlePanel from "./subtitle-panel.svelte";
+  import TransportControls from "./transport-controls.svelte";
+  import type { VideoPlayerProps } from "./types.js";
 
-	let {
-		src,
-		poster = null,
-		posterImage = null,
-		logo = null,
-		title,
-		subheading = null,
-		startTime = 0,
-		subtitles = [],
-		fill = false,
-		certification = null,
-		genres = [],
-		info = null,
-		detailHref = "",
-		subtitleSize = "medium",
-		subtitleColor = "#ffffff",
-		subtitleBackground = true,
-		preferredLanguage = "",
-		audioRisky = false,
-		videoRisky = false,
-		externalUrl = null,
-		introStart = null,
-		introEnd = null,
-		outroStart = null,
-		minimized = false,
-		onProgress,
-		onEnded,
-		onOutro,
-		onBack,
-		onSources,
-		onSubtitleAppearance,
-		onEpisodes,
-		onNext,
-	}: VideoPlayerProps = $props();
+  let {
+    src,
+    poster = null,
+    posterImage = null,
+    logo = null,
+    title,
+    subheading = null,
+    startTime = 0,
+    subtitles = [],
+    fill = false,
+    certification = null,
+    genres = [],
+    info = null,
+    detailHref = "",
+    subtitleSize = "medium",
+    subtitleColor = "#ffffff",
+    subtitleBackground = true,
+    preferredLanguage = "",
+    audioRisky = false,
+    videoRisky = false,
+    externalUrl = null,
+    introStart = null,
+    introEnd = null,
+    outroStart = null,
+    minimized = false,
+    onProgress,
+    onEnded,
+    onOutro,
+    onBack,
+    onSources,
+    onSubtitleAppearance,
+    onEpisodes,
+    onNext,
+  }: VideoPlayerProps = $props();
 
-	let container = $state<HTMLDivElement | null>(null);
-	let video = $state<HTMLVideoElement | null>(null);
+  let container = $state<HTMLDivElement | null>(null);
+  let video = $state<HTMLVideoElement | null>(null);
 
-	let fatalError = $state<string | null>(null);
+  let fatalError = $state<string | null>(null);
 
-	const player = createPlayerController({
-		container: () => container,
-		video: () => video,
-		src: () => src,
-		startTime: () => startTime,
-		panelOpen: () => panels.panelOpen,
-		onFatal: (message) => {
-			fatalError = message;
-		},
-		onEnded: () => onEnded?.(),
-	});
-	// `player.state` is the shared reactive transport object — read/write it
-	// directly (it's what `<video bind:paused>` etc. below are bound to).
-	const transport = player.state;
+  const player = createPlayerController({
+    container: () => container,
+    video: () => video,
+    src: () => src,
+    startTime: () => startTime,
+    panelOpen: () => panels.panelOpen,
+    onFatal: (message) => {
+      fatalError = message;
+    },
+    onEnded: () => onEnded?.(),
+  });
+  // `player.state` is the shared reactive transport object : read/write it
+  // directly (it's what `<video bind:paused>` etc. below are bound to).
+  const transport = player.state;
 
-	// Multi-tab coherence: starting playback here pauses this video in every
-	// other open tab.
-	createPlayerBroadcastSync({
-		video: () => video,
-		paused: () => transport.paused,
-	});
+  // Multi-tab coherence: starting playback here pauses this video in every
+  // other open tab.
+  createPlayerBroadcastSync({
+    video: () => video,
+    paused: () => transport.paused,
+  });
 
-	const infoOverlay = createInfoOverlayController({
-		hasInfo: () => Boolean(info),
-		minimized: () => minimized,
-		fatalError: () => Boolean(fatalError),
-		ended: () => transport.ended,
-		loading: () => transport.loading,
-		paused: () => transport.paused,
-		currentTime: () => transport.currentTime,
-		onOpen: () => {
-			transport.controlsVisible = true;
-		},
-	});
+  const infoOverlay = createInfoOverlayController({
+    hasInfo: () => Boolean(info),
+    minimized: () => minimized,
+    fatalError: () => Boolean(fatalError),
+    ended: () => transport.ended,
+    loading: () => transport.loading,
+    paused: () => transport.paused,
+    currentTime: () => transport.currentTime,
+    onOpen: () => {
+      transport.controlsVisible = true;
+    },
+  });
 
-	// The info / subtitles / settings side panels — mutually exclusive, and any
-	// one open keeps the transport controls (and the Back button) up.
-	const panels = createPanelToggles({ infoOverlay });
+  // The info / subtitles / settings side panels : mutually exclusive, and any
+  // one open keeps the transport controls (and the Back button) up.
+  const panels = createPanelToggles({ infoOverlay });
 
-	const milestones = createPlaybackMilestones({
-		transport,
-		video: () => video,
-		minimized: () => minimized,
-		fatalError: () => Boolean(fatalError),
-		introStart: () => introStart,
-		introEnd: () => introEnd,
-		outroStart: () => outroStart,
-		onOutro: () => onOutro?.(),
-	});
+  const milestones = createPlaybackMilestones({
+    transport,
+    video: () => video,
+    minimized: () => minimized,
+    fatalError: () => Boolean(fatalError),
+    introStart: () => introStart,
+    introEnd: () => introEnd,
+    outroStart: () => outroStart,
+    onOutro: () => onOutro?.(),
+  });
 
-	// New source: clear everything scoped to the previous stream.
-	function resetForNewSource() {
-		fatalError = null;
-		milestones.reset();
-		infoOverlay.reset();
-		player.reset();
-		captions.reset();
-		progress.reset();
-	}
+  // New source: clear everything scoped to the previous stream.
+  function resetForNewSource() {
+    fatalError = null;
+    milestones.reset();
+    infoOverlay.reset();
+    player.reset();
+    captions.reset();
+    progress.reset();
+  }
 
-	const { media, progress, silentAudio, videoDecode } =
-		createPlaybackDiagnostics({
-			src: () => src,
-			video: () => video,
-			transport,
-			audioRisky: () => audioRisky,
-			videoRisky: () => videoRisky,
-			fatalError: () => fatalError,
-			onLoad: resetForNewSource,
-			onFatal: (message) => {
-				fatalError = message;
-			},
-			onProgress: (position, total) => onProgress?.(position, total),
-		});
+  const { media, progress, silentAudio, videoDecode } =
+    createPlaybackDiagnostics({
+      src: () => src,
+      video: () => video,
+      transport,
+      audioRisky: () => audioRisky,
+      videoRisky: () => videoRisky,
+      fatalError: () => fatalError,
+      onLoad: resetForNewSource,
+      onFatal: (message) => {
+        fatalError = message;
+      },
+      onProgress: (position, total) => onProgress?.(position, total),
+    });
 
-	// Subtitle files are fetched + converted to WebVTT in the browser, on
-	// demand — never proxied through the server.
-	const captions = createSubtitleController({
-		tracks: () => subtitles,
-		video: () => video,
-		preferredLanguage: () => preferredLanguage,
-	});
+  // Subtitle files are fetched + converted to WebVTT in the browser, on
+  // demand : never proxied through the server.
+  const captions = createSubtitleController({
+    tracks: () => subtitles,
+    video: () => video,
+    preferredLanguage: () => preferredLanguage,
+  });
 
-	// Cast to a TV via whichever API the browser has (Remote Playback /
-	// AirPlay). The button hides itself when there's no device to cast to.
-	const remotePlayback = createRemotePlayback({ video: () => video });
+  // Cast to a TV via whichever API the browser has (Remote Playback /
+  // AirPlay). The button hides itself when there's no device to cast to.
+  const remotePlayback = createRemotePlayback({ video: () => video });
 
-	const bufferedEnd = $derived(transport.buffered.at(-1)?.end ?? 0);
-	const progressRatio = $derived(
-		transport.duration ? transport.currentTime / transport.duration : 0,
-	);
-	const bufferedRatio = $derived(
-		transport.duration ? bufferedEnd / transport.duration : 0,
-	);
+  const bufferedEnd = $derived(transport.buffered.at(-1)?.end ?? 0);
+  const progressRatio = $derived(
+    transport.duration ? transport.currentTime / transport.duration : 0,
+  );
+  const bufferedRatio = $derived(
+    transport.duration ? bufferedEnd / transport.duration : 0,
+  );
 
-	const cueFontSize = $derived(subtitleFontSize(subtitleSize));
-	const cueBackground = $derived(
-		subtitleBackground ? "rgba(0,0,0,0.75)" : "transparent",
-	);
+  const cueFontSize = $derived(subtitleFontSize(subtitleSize));
+  const cueBackground = $derived(
+    subtitleBackground ? "rgba(0,0,0,0.75)" : "transparent",
+  );
 
-	function onReady() {
-		transport.loading = false;
-		transport.ended = false;
-		captions.trySelectPreferred();
-	}
+  function onReady() {
+    transport.loading = false;
+    transport.ended = false;
+    captions.trySelectPreferred();
+  }
 
-	function onKeydown(event: KeyboardEvent) {
-		const handled = handlePlayerKey(event, {
-			togglePlay: player.togglePlay,
-			seek: player.seek,
-			adjustVolume: player.adjustVolume,
-			toggleFullscreen: () => void player.toggleFullscreen(),
-			toggleMute: () => (transport.muted = !transport.muted),
-			cycleCaption: captions.cycleCaption,
-			toggleInfo: () => {
-				if (info) {
-					panels.toggleInfo();
-				}
-			},
-			next: () => onNext?.(),
-			episodes: () => onEpisodes?.(),
-			closeMenus: panels.closeMenus,
-		});
-		if (handled) {
-			player.nudgeControls();
-		}
-	}
+  function onKeydown(event: KeyboardEvent) {
+    const handled = handlePlayerKey(event, {
+      togglePlay: player.togglePlay,
+      seek: player.seek,
+      adjustVolume: player.adjustVolume,
+      toggleFullscreen: () => void player.toggleFullscreen(),
+      toggleMute: () => (transport.muted = !transport.muted),
+      cycleCaption: captions.cycleCaption,
+      toggleInfo: () => {
+        if (info) {
+          panels.toggleInfo();
+        }
+      },
+      next: () => onNext?.(),
+      episodes: () => onEpisodes?.(),
+      closeMenus: panels.closeMenus,
+    });
+    if (handled) {
+      player.nudgeControls();
+    }
+  }
 </script>
 
 <svelte:document
-  onfullscreenchange={() => (transport.fullscreen = Boolean(document.fullscreenElement))}
+  onfullscreenchange={() =>
+    (transport.fullscreen = Boolean(document.fullscreenElement))}
 />
 <svelte:window onkeydown={onKeydown} />
 
@@ -210,7 +211,9 @@
   style:--cue-bg={cueBackground}
   onmousemove={player.nudgeControls}
   onmouseleave={() =>
-    !transport.paused && !panels.panelOpen && (transport.controlsVisible = false)}
+    !transport.paused &&
+    !panels.panelOpen &&
+    (transport.controlsVisible = false)}
 >
   <!-- svelte-ignore a11y_media_has_caption -->
   <video

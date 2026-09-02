@@ -1,113 +1,113 @@
 <script lang="ts">
-	import BookmarkIcon from "@lucide/svelte/icons/bookmark";
-	import CircleUserIcon from "@lucide/svelte/icons/circle-user";
-	import CompassIcon from "@lucide/svelte/icons/compass";
-	import HouseIcon from "@lucide/svelte/icons/house";
-	import LayersIcon from "@lucide/svelte/icons/layers";
-	import LogOutIcon from "@lucide/svelte/icons/log-out";
-	import MenuIcon from "@lucide/svelte/icons/menu";
-	import SearchIcon from "@lucide/svelte/icons/search";
-	import SettingsIcon from "@lucide/svelte/icons/settings";
-	import UsersIcon from "@lucide/svelte/icons/users";
-	import XIcon from "@lucide/svelte/icons/x";
-	import { Dialog as DialogPrimitive } from "bits-ui";
-	import { fade, fly } from "svelte/transition";
-	import CommandPalette from "#lib/components/command-palette.svelte";
-	import { commandPalette } from "#lib/components/command-palette.svelte.js";
-	import FirstRunNotice from "#lib/components/first-run-notice.svelte";
-	import HealthBanner from "#lib/components/health-banner.svelte";
-	import ProfileAvatar from "#lib/components/profile-avatar.svelte";
-	import * as DropdownMenu from "#lib/components/ui/dropdown-menu/index.js";
-	import { Separator } from "#lib/components/ui/separator/index.js";
-	import { reduced } from "#lib/motion.js";
-	import { theme } from "#lib/settings/theme.svelte.js";
-	import { sync } from "#lib/sync/store.svelte.js";
-	import { cn } from "#lib/utils.js";
-	import { afterNavigate } from "$app/navigation";
-	import { resolve } from "$app/paths";
-	import { page } from "$app/state";
-	import { signOut } from "../../auth/auth.remote.ts";
+  import BookmarkIcon from "@lucide/svelte/icons/bookmark";
+  import CircleUserIcon from "@lucide/svelte/icons/circle-user";
+  import CompassIcon from "@lucide/svelte/icons/compass";
+  import HouseIcon from "@lucide/svelte/icons/house";
+  import LayersIcon from "@lucide/svelte/icons/layers";
+  import LogOutIcon from "@lucide/svelte/icons/log-out";
+  import MenuIcon from "@lucide/svelte/icons/menu";
+  import SearchIcon from "@lucide/svelte/icons/search";
+  import SettingsIcon from "@lucide/svelte/icons/settings";
+  import UsersIcon from "@lucide/svelte/icons/users";
+  import XIcon from "@lucide/svelte/icons/x";
+  import { Dialog as DialogPrimitive } from "bits-ui";
+  import { fade, fly } from "svelte/transition";
+  import CommandPalette from "#lib/components/command-palette.svelte";
+  import { commandPalette } from "#lib/components/command-palette.svelte.js";
+  import FirstRunNotice from "#lib/components/first-run-notice.svelte";
+  import HealthBanner from "#lib/components/health-banner.svelte";
+  import ProfileAvatar from "#lib/components/profile-avatar.svelte";
+  import * as DropdownMenu from "#lib/components/ui/dropdown-menu/index.js";
+  import { Separator } from "#lib/components/ui/separator/index.js";
+  import { reduced } from "#lib/motion.js";
+  import { theme } from "#lib/settings/theme.svelte.js";
+  import { sync } from "#lib/sync/store.svelte.js";
+  import { cn } from "#lib/utils.js";
+  import { afterNavigate } from "$app/navigation";
+  import { resolve } from "$app/paths";
+  import { page } from "$app/state";
+  import { signOut } from "../../auth/auth.remote.ts";
 
-	let { data, children } = $props();
+  let { data, children } = $props();
 
-	const nav = [
-		{
-			href: resolve("/(protected)/(app)"),
-			label: "Home",
-			exact: true,
-			icon: HouseIcon,
-		},
-		{ href: resolve("discover"), label: "Discover", icon: CompassIcon },
-		{ href: resolve("library"), label: "Library", icon: BookmarkIcon },
-		{ href: resolve("collections"), label: "Collections", icon: LayersIcon },
-	];
+  const nav = [
+    {
+      href: resolve("/(protected)/(app)"),
+      label: "Home",
+      exact: true,
+      icon: HouseIcon,
+    },
+    { href: resolve("discover"), label: "Discover", icon: CompassIcon },
+    { href: resolve("library"), label: "Library", icon: BookmarkIcon },
+    { href: resolve("collections"), label: "Collections", icon: LayersIcon },
+  ];
 
-	let mobileNavOpen = $state(false);
+  let mobileNavOpen = $state(false);
 
-	function isActive(href: string, exact?: boolean) {
-		return exact
-			? page.url.pathname === href
-			: page.url.pathname.startsWith(href);
-	}
+  function isActive(href: string, exact?: boolean) {
+    return exact
+      ? page.url.pathname === href
+      : page.url.pathname.startsWith(href);
+  }
 
-	// The player is a whole-page surface — no header / footer / page padding.
-	const immersive = $derived(page.url.pathname.startsWith("/player/"));
+  // The player is a whole-page surface : no header / footer / page padding.
+  const immersive = $derived(page.url.pathname.startsWith("/player/"));
 
-	let scrolled = $state(false);
-	let mainEl = $state<HTMLElement | null>(null);
+  let scrolled = $state(false);
+  let mainEl = $state<HTMLElement | null>(null);
 
-	// On a client navigation SvelteKit resets focus to <body> (or an `autofocus`
-	// element) and announces the new page title. The nav links live in this
-	// persistent header though, so clicking one leaves the browser's focus right
-	// there instead — the clicked <a> never left the DOM for SvelteKit's own
-	// reset to kick in. Move focus into <main> whenever it lands outside it, so
-	// keyboard tab order resumes at the page content rather than the skip link
-	// or a stale nav link. An `autofocus` element on the new page still wins —
-	// it renders inside <main>, so this is a no-op there. `type === "enter"` is
-	// the initial SSR load — leave it be.
-	afterNavigate(({ type }) => {
-		mobileNavOpen = false;
-		if (type === "enter") {
-			return;
-		}
-		if (!mainEl?.contains(document.activeElement)) {
-			mainEl?.focus({ preventScroll: true });
-		}
-	});
+  // On a client navigation SvelteKit resets focus to <body> (or an `autofocus`
+  // element) and announces the new page title. The nav links live in this
+  // persistent header though, so clicking one leaves the browser's focus right
+  // there instead : the clicked <a> never left the DOM for SvelteKit's own
+  // reset to kick in. Move focus into <main> whenever it lands outside it, so
+  // keyboard tab order resumes at the page content rather than the skip link
+  // or a stale nav link. An `autofocus` element on the new page still wins —
+  // it renders inside <main>, so this is a no-op there. `type === "enter"` is
+  // the initial SSR load : leave it be.
+  afterNavigate(({ type }) => {
+    mobileNavOpen = false;
+    if (type === "enter") {
+      return;
+    }
+    if (!mainEl?.contains(document.activeElement)) {
+      mainEl?.focus({ preventScroll: true });
+    }
+  });
 
-	$effect(() => {
-		theme.seed(data.ui);
-	});
+  $effect(() => {
+    theme.seed(data.ui);
+  });
 
-	// Local-first store for library / progress / history: hydrates from IndexedDB,
-	// reconciles deltas in the background, flushes optimistic writes.
-	// `attach` no-ops when the profile is unchanged, so it is safe for this to
-	// re-run on every navigation. `detach` must NOT be this effect's cleanup —
-	// that fires on every nav and would clear the pending-write queue / cancel a
-	// scheduled flush mid-navigation (losing watch progress). Detach only when
-	// the whole app shell unmounts.
-	$effect(() => {
-		const profileIndex = data.profile?.profile_index;
-		if (profileIndex != null) {
-			void sync.attach(profileIndex);
-		}
-	});
-	$effect(() => () => sync.detach());
+  // Local-first store for library / progress / history: hydrates from IndexedDB,
+  // reconciles deltas in the background, flushes optimistic writes.
+  // `attach` no-ops when the profile is unchanged, so it is safe for this to
+  // re-run on every navigation. `detach` must NOT be this effect's cleanup —
+  // that fires on every nav and would clear the pending-write queue / cancel a
+  // scheduled flush mid-navigation (losing watch progress). Detach only when
+  // the whole app shell unmounts.
+  $effect(() => {
+    const profileIndex = data.profile?.profile_index;
+    if (profileIndex != null) {
+      void sync.attach(profileIndex);
+    }
+  });
+  $effect(() => () => sync.detach());
 
-	// Server value for SSR / first paint; the client controller takes over once seeded.
-	const active = $derived(theme.ready ? theme.current : data.ui);
-	const accent = $derived(active.accent);
-	const amoled = $derived(active.darkStyle === "amoled");
+  // Server value for SSR / first paint; the client controller takes over once seeded.
+  const active = $derived(theme.ready ? theme.current : data.ui);
+  const accent = $derived(active.accent);
+  const amoled = $derived(active.darkStyle === "amoled");
 
-	$effect(() => {
-		const root = document.documentElement;
-		root.dataset.accent = accent;
-		root.dataset.amoled = String(amoled);
-		return () => {
-			delete root.dataset.accent;
-			delete root.dataset.amoled;
-		};
-	});
+  $effect(() => {
+    const root = document.documentElement;
+    root.dataset.accent = accent;
+    root.dataset.amoled = String(amoled);
+    return () => {
+      delete root.dataset.accent;
+      delete root.dataset.amoled;
+    };
+  });
 </script>
 
 <svelte:window onscroll={() => (scrolled = window.scrollY > 12)} />
@@ -157,9 +157,9 @@
       <a
         href={resolve("/(protected)/(app)")}
         class="flex shrink-0 items-center gap-2 text-lg font-bold tracking-tight"
-        aria-label="Nuvio — home"
+        aria-label="Nuvio : home"
       >
-        <img alt="Nuvio — home" src="/logo-text.webp" width={100} />
+        <img alt="Nuvio : home" src="/logo-text.webp" width={100} />
       </a>
 
       <nav class="hidden items-center gap-1 text-sm md:flex">

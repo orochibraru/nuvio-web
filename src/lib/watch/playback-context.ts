@@ -86,14 +86,14 @@ export function nextCard(
 	const candidate = index >= 0 ? ordered[index + 1] : undefined;
 	return candidate
 		? {
-				videoId: candidate.id,
-				label: `S${candidate.season}E${candidate.episode} · ${candidate.title}`,
-				thumbnail: candidate.thumbnail ?? null,
-			}
+			videoId: candidate.id,
+			label: `S${candidate.season}E${candidate.episode} · ${candidate.title}`,
+			thumbnail: candidate.thumbnail ?? null,
+		}
 		: null;
 }
 
-/** Everything the in-player info overlay shows — so it never re-fetches meta. */
+/** Everything the in-player info overlay shows : so it never re-fetches meta. */
 export function overlayInfo(
 	meta: Meta | undefined,
 	episode: { title: string | null; overview: string | null },
@@ -148,7 +148,7 @@ interface ProgressRow {
 
 /**
  * Assemble the `playbackContext` payload from a title's meta and the profile's
- * watch-progress rows. Pure — the query handler owns the I/O.
+ * watch-progress rows. Pure : the query handler owns the I/O.
  */
 export function assemblePlaybackContext(input: {
 	type: string;

@@ -1,5 +1,5 @@
 /**
- * Small pure helpers for the video player — kept out of the component so they
+ * Small pure helpers for the video player : kept out of the component so they
  * can be unit-tested and don't count against its size budget.
  */
 
@@ -29,7 +29,7 @@ export function languageName(code: string): string {
 			return resolved;
 		}
 	} catch {
-		// Intl.DisplayNames unsupported — fall through.
+		// Intl.DisplayNames unsupported : fall through.
 	}
 	return raw.toUpperCase();
 }

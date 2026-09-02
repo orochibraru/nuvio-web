@@ -1,9 +1,9 @@
 /**
  * A global cap on simultaneous "nice to have" background requests the browser
- * has in flight at once — cast bios (`#lib/people.ts`) today, any future
+ * has in flight at once : cast bios (`#lib/people.ts`) today, any future
  * client-side addon fan-out tomorrow. `AddonClient`'s `FANOUT_CONCURRENCY`
  * throttles one server-side fan-out call; this throttles across *all* of
- * them, app-wide, regardless of which component kicked each one off — e.g. a
+ * them, app-wide, regardless of which component kicked each one off : e.g. a
  * detail page's 18-cast-member row shouldn't open 18 simultaneous Wikipedia
  * requests just because it fetched them from one `$effect`.
  *

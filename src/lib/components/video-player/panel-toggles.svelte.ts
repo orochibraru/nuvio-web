@@ -31,7 +31,7 @@ export function createPanelToggles(deps: {
 		deps.infoOverlay.closeSilently();
 	}
 
-	/** `DropdownMenu.Root`'s `onOpenChange` — opening it closes the other panels. */
+	/** `DropdownMenu.Root`'s `onOpenChange` : opening it closes the other panels. */
 	function setSettingsOpen(open: boolean) {
 		settingsOpen = open;
 		if (open) {

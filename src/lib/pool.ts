@@ -16,7 +16,7 @@ export async function pooledMap<T, R>(
 	async function worker(): Promise<void> {
 		while (cursor < items.length) {
 			const index = cursor++;
-			// biome-ignore lint/performance/noAwaitInLoops: the sequential await is the throttle — each worker pulls the next item only when the previous settles
+			// biome-ignore lint/performance/noAwaitInLoops: the sequential await is the throttle : each worker pulls the next item only when the previous settles
 			results[index] = await fn(items[index], index);
 		}
 	}
@@ -28,7 +28,7 @@ export async function pooledMap<T, R>(
 /**
  * Split settled outcomes into the values that fulfilled and the reasons that
  * rejected. The building block for the "count the results, count the errors"
- * checks below — works the same whether the outcomes came from `Promise.all`
+ * checks below : works the same whether the outcomes came from `Promise.all`
  * (via a catch) or `Promise.allSettled`.
  */
 export function partitionSettled<T>(outcomes: Array<PromiseSettledResult<T>>): {

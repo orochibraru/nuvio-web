@@ -7,7 +7,7 @@ import {
 
 /**
  * Reactive "can I cast, and am I casting?" for the transport bar. Nothing to
- * configure and no SDK to load — see `remote-playback.ts` for which browser
+ * configure and no SDK to load : see `remote-playback.ts` for which browser
  * API backs it. `available` stays false where neither exists (or where no
  * device is on the network), and the control row hides the button entirely.
  */

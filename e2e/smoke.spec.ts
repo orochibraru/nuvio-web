@@ -34,10 +34,10 @@ for (const route of routes) {
 
 		const response = await page.goto(route);
 		expect(response?.status(), `HTTP status for ${route}`).toBeLessThan(400);
-		// A playing <video> keeps the network busy — bound the idle wait.
+		// A playing <video> keeps the network busy : bound the idle wait.
 		await page
 			.waitForLoadState("networkidle", { timeout: 8000 })
-			.catch(() => {});
+			.catch(() => { });
 		await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 		// Give late / async errors a beat to surface before we assert.
 		await page.waitForTimeout(1000);
@@ -52,11 +52,11 @@ test("settings: TheIntroDB key saves on blur and survives a reload", async ({
 	const errors = collectRuntimeErrors(page);
 
 	await page.goto("/settings?tab=integrations");
-	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
+	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => { });
 
 	const input = page.locator("#introdb-key");
 	await expect(input).toBeVisible();
-	// Normalise to empty regardless of what a prior run left — only blur
+	// Normalise to empty regardless of what a prior run left : only blur
 	// triggers a save, so this is a no-op (and no "Saved" toast) when a prior
 	// run already left it empty.
 	await input.fill("");
@@ -67,7 +67,7 @@ test("settings: TheIntroDB key saves on blur and survives a reload", async ({
 	await expect(page.getByText("Saved")).toBeVisible({ timeout: 5000 });
 
 	await page.reload();
-	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
+	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => { });
 	await expect(page.locator("#introdb-key")).toHaveValue("e2e-test-key");
 
 	// Restore: clear what this test wrote.
@@ -119,7 +119,7 @@ test("interrupting a pending navigation still swaps the page", async ({
 	await page.waitForLoadState("networkidle");
 
 	await page.getByRole("textbox").fill("inter");
-	// Well inside the 450ms debounce — a /search?q= navigation is now pending.
+	// Well inside the 450ms debounce : a /search?q= navigation is now pending.
 	await page.waitForTimeout(150);
 	await page
 		.getByRole("navigation")
@@ -128,7 +128,7 @@ test("interrupting a pending navigation still swaps the page", async ({
 
 	await expect(page).toHaveURL(/\/$/);
 	await expect(page).toHaveTitle("Nuvio", { timeout: 10_000 });
-	// The search box and its <h1> only exist on /search — gone once the page
+	// The search box and its <h1> only exist on /search : gone once the page
 	// component actually swapped.
 	await expect(page.getByRole("textbox")).toHaveCount(0);
 	await expect(
@@ -143,7 +143,7 @@ test("below md the nav collapses into a burger menu", async ({ page }) => {
 
 	await page.setViewportSize({ width: 390, height: 844 });
 	await page.goto("/");
-	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
+	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => { });
 
 	// The inline nav links are hidden; the burger is the way through.
 	await expect(
@@ -170,7 +170,7 @@ test("discover: catalog pills repaint the grid, even clicked back to back", asyn
 
 	// Each pill re-runs the load, which fetches that catalog's first page
 	// server-side. Clicking the next one before the last settles aborts a
-	// navigation — that used to escape as an uncaught "navigation aborted"
+	// navigation : that used to escape as an uncaught "navigation aborted"
 	// (and stranded the top loading bar), so the runtime-error assertion
 	// below is the point of the rapid-fire loop.
 	const pills = page
@@ -190,10 +190,10 @@ test("search auto-runs while typing (debounced)", async ({ page }) => {
 	const errors = collectRuntimeErrors(page);
 
 	await page.goto("/search");
-	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
+	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => { });
 
 	await page.getByPlaceholder("Search movies and series").fill("breaking bad");
-	// No Enter — the debounced effect pushes the query into the URL itself.
+	// No Enter : the debounced effect pushes the query into the URL itself.
 	await expect(page).toHaveURL(/\/search\?q=breaking(%20|\+)bad/, {
 		timeout: 5000,
 	});
@@ -238,11 +238,11 @@ test("series poster + detail page offer a 'mark all watched' action", async ({
 	const errors = collectRuntimeErrors(page);
 
 	// Search results always show Breaking Bad regardless of the account's own
-	// library/watch state. Don't actually invoke the action — marking all ~62
+	// library/watch state. Don't actually invoke the action : marking all ~62
 	// episodes watched on the shared test account has no simple undo (unlike
 	// the movie toggle above), so this only checks the affordance renders.
 	await page.goto("/search?q=breaking%20bad");
-	// Several movie results also contain "Breaking Bad" as a substring — match
+	// Several movie results also contain "Breaking Bad" as a substring : match
 	// the series card specifically via its aria-label's `(series)` suffix.
 	const poster = page
 		.getByRole("link", { name: /^Breaking Bad \(series\)/ })
@@ -283,7 +283,7 @@ test("library posters stay painted across a sync re-publish", async ({
 
 	// A background delta pull re-publishes the store, which rebuilds every `item`
 	// object in the grid and re-runs each poster's load effect. That effect used
-	// to blank `loaded` — and since the cached <img> fires no fresh `load` event,
+	// to blank `loaded` : and since the cached <img> fires no fresh `load` event,
 	// the poster stayed stuck behind its skeleton forever. Drive a pull by
 	// toggling page visibility (the store syncs on `visibilitychange`).
 	for (let i = 0; i < 2; i += 1) {
@@ -314,10 +314,10 @@ test("home hero carousel: manual step changes the featured title", async ({
 	const errors = collectRuntimeErrors(page);
 
 	await page.goto("/");
-	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
+	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => { });
 
 	const next = page.getByRole("button", { name: "Next featured title" });
-	// Only present when the load found >1 backdropped title — skip otherwise.
+	// Only present when the load found >1 backdropped title : skip otherwise.
 	if (await next.isVisible().catch(() => false)) {
 		const heading = page.getByRole("group", { name: "Featured titles" });
 		const before = await heading.textContent();
@@ -334,14 +334,14 @@ test("continue-watching card: right-click menu + play/details targets", async ({
 	const errors = collectRuntimeErrors(page);
 
 	await page.goto("/");
-	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
+	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => { });
 
 	const row = page.getByRole("heading", { name: "Continue watching" });
 	if (!(await row.isVisible().catch(() => false))) {
 		test.skip(true, "no continue-watching row for this account");
 	}
 
-	// First card in the row. Right-click a corner — the centred play button
+	// First card in the row. Right-click a corner : the centred play button
 	// intercepts pointer events over the middle.
 	const card = row
 		.locator("xpath=following-sibling::div[1]")
@@ -391,7 +391,7 @@ test("local store: an optimistic add shows on the library page after client nav"
 }) => {
 	const errors = collectRuntimeErrors(page);
 
-	// Interstellar — not part of the test account's baseline library.
+	// Interstellar : not part of the test account's baseline library.
 	await page.goto("/detail/movie/tt0816692");
 	await page.waitForLoadState("networkidle");
 

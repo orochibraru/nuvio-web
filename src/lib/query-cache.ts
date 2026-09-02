@@ -7,16 +7,16 @@ import type { RemoteQuery } from "$app/server";
  * query cache is reference-counted: it evicts a result as soon as nothing on
  * screen still references those args, so navigating away and back re-fans-out
  * to the addons every time. This persists the last good value to
- * `localStorage`, keyed by a caller-supplied key, and — while the value is
- * still fresh — primes the query's `set()` before it ever starts, which
+ * `localStorage`, keyed by a caller-supplied key, and : while the value is
+ * still fresh : primes the query's `set()` before it ever starts, which
  * pre-empties the network call entirely instead of just racing it.
  *
  * Callers must fold anything the result depends on (profile id, args) into
- * `key` — a stale hit from a different profile's addon set would otherwise
+ * `key` : a stale hit from a different profile's addon set would otherwise
  * leak into this one. See `#lib/addons/addons.remote.ts` call sites.
  *
  * `query.set()` mutates the query's reactive state, so `ttlPrime` must run
- * from an `$effect`, never from inside a `$derived` — Svelte forbids state
+ * from an `$effect`, never from inside a `$derived` : Svelte forbids state
  * mutation during a derived's evaluation (`state_unsafe_mutation`), even
  * several calls deep. Typical shape:
  *
@@ -57,17 +57,17 @@ function writeStore(store: Record<string, CacheEntry>): void {
 			JSON.stringify(Object.fromEntries(entries.slice(0, MAX_ENTRIES))),
 		);
 	} catch {
-		// storage full / unavailable — caching just won't kick in
+		// storage full / unavailable : caching just won't kick in
 	}
 }
 
 /**
- * Prime `query` from the TTL cache when a fresh entry exists for `key` — this
+ * Prime `query` from the TTL cache when a fresh entry exists for `key` : this
  * skips the query's network call entirely. Otherwise let it run as normal and
  * persist the result once it resolves. A `query` that's already resolved
  * (reused live from another component on the page) is left alone so a cache
  * hit can never clobber fresher in-memory data. Must be called from an
- * `$effect` — see the module doc.
+ * `$effect` : see the module doc.
  */
 export function ttlPrime<T>(
 	query: RemoteQuery<T>,
@@ -89,11 +89,11 @@ export function ttlPrime<T>(
 			writeStore(store);
 		})
 		.catch(() => {
-			// query failed — nothing to cache
+			// query failed : nothing to cache
 		});
 }
 
-/** Shared TTLs for the addon-query call sites — tune here, not per call site. */
+/** Shared TTLs for the addon-query call sites : tune here, not per call site. */
 export const QUERY_TTL = {
 	/** Title metadata: essentially static once an addon has published it. */
 	meta: 30 * 60_000,

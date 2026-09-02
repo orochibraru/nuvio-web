@@ -12,7 +12,7 @@ export const load: LayoutServerLoad = async ({ locals, url, fetch }) => {
 	const nuvio = locals.nuvio.withFetch(fetch);
 
 	// The profile list is load-bearing (you can't pick a profile without it) so
-	// this one is allowed to fail loudly — but it's still 12s-bounded, never a
+	// this one is allowed to fail loudly : but it's still 12s-bounded, never a
 	// hang. Avatars are cosmetic: fall back to initials.
 	const profiles = await nuvio.profiles.list();
 	const avatars = await nuvio.listAvatars().catch(() => []);

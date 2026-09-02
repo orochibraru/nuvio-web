@@ -1,6 +1,6 @@
 /**
  * Ask the browser whether it can decode a given video codec *before* handing a
- * source to `<video>` — the label-based `videoSupport` in `stream-format.ts` is
+ * source to `<video>` : the label-based `videoSupport` in `stream-format.ts` is
  * only a guess, this turns it into a yes/no on the machine we're actually on.
  *
  * The label → MIME-probe mapping is pure so it can be unit-tested; the actual
@@ -11,7 +11,7 @@
 /**
  * A representative `codecs=` MIME string for a `stream-format` codec label, or
  * `null` when the label isn't one we probe. The exact profile/level barely
- * matters — a browser that lacks the HEVC decoder rejects every `hvc1.*`, one
+ * matters : a browser that lacks the HEVC decoder rejects every `hvc1.*`, one
  * that has it accepts the baseline string below.
  */
 export function codecMimeProbe(codecLabel: string | null): string | null {
@@ -23,7 +23,7 @@ export function codecMimeProbe(codecLabel: string | null): string | null {
 		case "H.264":
 			return 'video/mp4; codecs="avc1.42E01E"';
 		// Xvid / DivX (MPEG-4 Part 2) has no MSE-probeable string and no browser
-		// decodes it from MP4 — treat as a definite miss.
+		// decodes it from MP4 : treat as a definite miss.
 		case "Xvid":
 			return "video/x-msvideo";
 		default:
@@ -34,8 +34,8 @@ export function codecMimeProbe(codecLabel: string | null): string | null {
 export type CodecVerdict = "supported" | "unsupported" | "unknown";
 
 /**
- * Does this browser decode `codecLabel`? `"unknown"` when we can't tell — the
- * label is unrecognised, or neither probe API is available — and callers should
+ * Does this browser decode `codecLabel`? `"unknown"` when we can't tell : the
+ * label is unrecognised, or neither probe API is available : and callers should
  * fall back to the runtime watchdog rather than block the stream.
  */
 export function browserCanPlayCodec(codecLabel: string | null): CodecVerdict {

@@ -114,7 +114,7 @@ interface HttpOptions extends Omit<RequestInit, "headers"> {
 /**
  * Hard ceiling on every API call. Without it a stalled socket or a Cloudflare
  * hold (the API rate-limits with a 1015 that can hang the connection) leaves the
- * `await` pending forever — and any `+page.server.ts` load waiting on it blocks
+ * `await` pending forever : and any `+page.server.ts` load waiting on it blocks
  * the navigation that triggered it.
  */
 const DEFAULT_REQUEST_TIMEOUT_MS = 12_000;
@@ -155,7 +155,7 @@ export class NuvioClient {
 	}
 
 	/**
-	 * A clone bound to a different `fetch` — used by `+page.server.ts` loads so
+	 * A clone bound to a different `fetch` : used by `+page.server.ts` loads so
 	 * every upstream call goes through the request-scoped `fetch` SvelteKit hands
 	 * the load (never a `fetch` captured earlier). Shares the current session but
 	 * not the cookie writer, so it is read-only by design.
