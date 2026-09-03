@@ -53,8 +53,13 @@ bun run biome check --write --unsafe .ss
 Nuvio publishes its public API as prose markdown, not as a machine-readable
 document. Two scripts bridge the gap:
 
-- `scripts/check-nuvio-spec.ts` fetches the live spec and diffs it against the
-  committed snapshot (`src/lib/nuvio/nuvio-public-api.snapshot.md`).
+- `scripts/check-nuvio-spec.ts` fetches the live spec and compares it to the
+  committed snapshot (`src/lib/nuvio/nuvio-public-api.snapshot.md`). It fails
+  only when the **generated OpenAPI document** moves : a reworded or rewrapped
+  page is reported and left green, because an "API drifted" issue over a
+  reflowed paragraph is how a drift check stops being believed. The snapshot is
+  a verbatim copy of an external document, so it is in `.prettierignore`;
+  formatting it makes the check diff our own line wrapping forever.
 - `scripts/build-nuvio-spec.ts` parses that snapshot into an OpenAPI 3.1
   document (`src/lib/nuvio/nuvio-public-api.json`). It is a real parser, not an
   LLM: request blocks become operations, the JSON examples give each payload its

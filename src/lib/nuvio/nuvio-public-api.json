@@ -689,7 +689,7 @@
 			"post": {
 				"operationId": "syncAddonsPush",
 				"summary": "Sync addons (push)",
-				"description": "This endpoint fully replaces the specified profile's addons. It **deletes** any addon omitted from the array.\n\n**Deduplication:** Addons are keyed by `md5(url)` per user and profile. A push\n\nupdates a row only when `name`, `enabled`, or `sort_order` has changed.",
+				"description": "This endpoint fully replaces the specified profile's addons. It **deletes** any addon omitted from the array.\n\n**Deduplication:** Addons are keyed by `md5(url)` per user and profile. A push updates a row only when `name`, `enabled`, or `sort_order` has changed.",
 				"tags": [
 					"Addons"
 				],

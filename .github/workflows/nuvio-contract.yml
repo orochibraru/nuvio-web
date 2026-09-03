@@ -10,6 +10,12 @@ jobs:
   drift:
     name: spec drift check
     runs-on: ubuntu-latest
+    # The default token is read-only, so the drift issue below 403'd
+    # ("Resource not accessible by integration") and the real signal was lost
+    # in a failed step.
+    permissions:
+      contents: read
+      issues: write
     steps:
       - uses: actions/checkout@v7
 
@@ -19,6 +25,8 @@ jobs:
 
       - run: bun install --frozen-lockfile
 
+      # Fails only when the generated OpenAPI document moves. A reworded or
+      # rewrapped page is reported as a notice and keeps the job green.
       - name: Compare the committed snapshot to the live spec
         id: check
         run: bun run nuvio:check
@@ -32,8 +40,10 @@ jobs:
             const body = [
               "`bun run nuvio:check` failed on the scheduled run.",
               "",
-              "The live spec at https://nuvio.tv/docs/nuvio-public-api.md no longer",
-              "matches `src/lib/nuvio/nuvio-public-api.snapshot.md`.",
+              "The OpenAPI document generated from the live spec at",
+              "https://nuvio.tv/docs/nuvio-public-api.md no longer matches",
+              "`src/lib/nuvio/nuvio-public-api.json`, so this is a real API",
+              "change, not a reworded page. The run log has the JSON diff.",
               "",
               "Reconcile `src/lib/nuvio/types.ts` + `client.ts`, then run",
               "`bun run nuvio:check:accept` to update the snapshot and",

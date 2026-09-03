@@ -104,23 +104,24 @@ function readTable(lines: string[], start: number): [TableBlock, number] {
 	return [{ kind: "table", headers, rows }, index];
 }
 
+/** True where a paragraph must stop: a blank line or the start of another block. */
+function endsParagraph(lines: string[], index: number): boolean {
+	const trimmed = lines[index].trim();
+	return (
+		trimmed === "" ||
+		HEADING.test(trimmed) ||
+		FENCE.test(trimmed) ||
+		LABEL.test(trimmed) ||
+		isTableStart(lines, index)
+	);
+}
+
 function readParagraph(lines: string[], start: number): [string, number] {
 	const text: string[] = [];
 	let index = start;
-	while (index < lines.length) {
-		const line = lines[index];
-		const trimmed = line.trim();
-		if (
-			trimmed === "" ||
-			HEADING.test(trimmed) ||
-			FENCE.test(trimmed) ||
-			LABEL.test(trimmed) ||
-			isTableStart(lines, index)
-		) {
-			break;
-		}
+	while (index < lines.length && !endsParagraph(lines, index)) {
 		// Blockquote callouts are prose; keep the text, drop the marker.
-		text.push(trimmed.replace(/^>\s?/, ""));
+		text.push(lines[index].trim().replace(/^>\s?/, ""));
 		index++;
 	}
 	return [text.join(" "), index];
@@ -160,12 +161,16 @@ export function tokenize(markdown: string): Block[] {
 
 		const label = trimmed.match(LABEL);
 		if (label) {
+			// `**Note:** text` that wraps onto the next line is still one
+			// paragraph. Folding the continuation into `trailing` is what makes
+			// the parse independent of how the prose happens to be wrapped.
+			const [continuation, next] = readParagraph(lines, index + 1);
 			blocks.push({
 				kind: "label",
 				label: label[1].trim(),
-				trailing: label[2].trim(),
+				trailing: [label[2].trim(), continuation].filter(Boolean).join(" "),
 			});
-			index++;
+			index = next;
 			continue;
 		}
 

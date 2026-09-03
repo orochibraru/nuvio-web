@@ -1,0 +1,7 @@
+# Verbatim copies of external documents. Reflowing them makes
+# `bun run nuvio:check` diff our formatting against the upstream file and fail
+# on prose that never changed.
+src/lib/nuvio/nuvio-public-api.snapshot.md
+
+# Generated.
+CHANGELOG.md

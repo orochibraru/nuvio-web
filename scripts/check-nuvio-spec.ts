@@ -2,28 +2,36 @@
 /**
  * Drift check for the Nuvio public API spec.
  *
- * The typed client in src/lib/nuvio/ is derived by hand from the prose spec at
- * SPEC_URL. This script fetches that spec and compares it to the committed
- * snapshot; a difference means the client may be out of date.
+ * Nuvio publishes the API as prose, so this fetches that page and compares it
+ * to the committed snapshot. Two kinds of difference come out of that, and
+ * they are not the same thing:
  *
- *   bun run nuvio:check          fail (exit 1) and print a diff if the spec moved
- *   bun run nuvio:check:accept   overwrite the snapshot with the current spec
+ *   - The generated OpenAPI document changed -> the API itself moved, and
+ *     src/lib/nuvio/types.ts + client.ts need reconciling. Exits 1.
+ *   - Only the prose changed (a reword, or upstream rewrapping its lines)
+ *     -> nothing to reconcile. Reported, but does not fail: opening an
+ *     "API drifted" issue over a reflowed paragraph is how this check
+ *     stopped being believed.
  *
- * Accepting also regenerates nuvio-public-api.json (scripts/build-nuvio-spec.ts),
- * so the machine-readable spec never lags the prose one.
+ *   bun run nuvio:check          report; exit 1 only on a real API change
+ *   bun run nuvio:check:accept   refresh the snapshot + regenerate the JSON
  *
- * Accept only after reconciling src/lib/nuvio/types.ts and client.ts.
+ * The snapshot is a verbatim copy of an external document : keep it out of the
+ * repo's formatters (see .prettierignore), or every `prettier --write` reflows
+ * it and this check diffs our own wrapping forever.
  */
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import { writeOpenApi } from "./build-nuvio-spec.ts";
+import {
+	OUTPUT_PATH,
+	SNAPSHOT_PATH,
+	writeOpenApi,
+} from "./build-nuvio-spec.ts";
+import { renderOpenApi } from "./nuvio-spec/index.ts";
 
 const SPEC_URL = "https://nuvio.tv/docs/nuvio-public-api.md";
-const SNAPSHOT_PATH = fileURLToPath(
-	new URL("../src/lib/nuvio/nuvio-public-api.snapshot.md", import.meta.url),
-);
 
 const shouldUpdate = process.argv.includes("--update");
 
@@ -36,6 +44,31 @@ function normalize(text: string): string {
 
 function specVersion(text: string): string {
 	return text.match(/\*\*Version:\*\*\s*([^\s·&]+)/)?.[1] ?? "unknown";
+}
+
+/** Unified diff of two strings, via `diff(1)` on scratch files. */
+function unifiedDiff(
+	left: string,
+	right: string,
+	labels: [string, string],
+): string {
+	const base = fileURLToPath(new URL("../.nuvio-drift", import.meta.url));
+	const leftPath = `${base}.left.tmp`;
+	const rightPath = `${base}.right.tmp`;
+	writeFileSync(leftPath, left);
+	writeFileSync(rightPath, right);
+	try {
+		return (
+			spawnSync(
+				"diff",
+				["-u", "-L", labels[0], "-L", labels[1], leftPath, rightPath],
+				{ encoding: "utf8" },
+			).stdout ?? ""
+		);
+	} finally {
+		rmSync(leftPath, { force: true });
+		rmSync(rightPath, { force: true });
+	}
 }
 
 const response = await fetch(SPEC_URL);
@@ -67,29 +100,35 @@ if (!existsSync(SNAPSHOT_PATH)) {
 }
 
 const snapshot = normalize(readFileSync(SNAPSHOT_PATH, "utf8"));
-if (remote === snapshot) {
-	console.log(`Nuvio API spec unchanged (version ${specVersion(remote)}).`);
+const committedJson = existsSync(OUTPUT_PATH)
+	? readFileSync(OUTPUT_PATH, "utf8")
+	: "";
+const remoteJson = renderOpenApi(remote).json;
+
+if (remoteJson !== committedJson) {
+	console.error(
+		[
+			`Nuvio API changed: snapshot ${specVersion(snapshot)} -> remote ${specVersion(remote)}.`,
+			"Reconcile src/lib/nuvio/types.ts and client.ts, then run `bun run nuvio:check:accept`.",
+			"",
+		].join("\n"),
+	);
+	process.stderr.write(
+		unifiedDiff(committedJson, remoteJson, ["committed", "remote"]),
+	);
+	process.exit(1);
+}
+
+if (remote !== snapshot) {
+	// Same API, different words on the page. Worth knowing, not worth an issue.
+	const message = `Nuvio spec text changed but the API did not (version ${specVersion(remote)}). Run \`bun run nuvio:check:accept\` to refresh the snapshot.`;
+	console.log(message);
+	if (process.env.GITHUB_ACTIONS) {
+		console.log(`::notice title=Nuvio spec reworded::${message}`);
+	}
+	process.stdout.write(unifiedDiff(snapshot, remote, ["snapshot", "remote"]));
 	process.exit(0);
 }
 
-console.error(
-	[
-		`Nuvio API spec changed: snapshot ${specVersion(snapshot)} -> remote ${specVersion(remote)}.`,
-		"Reconcile src/lib/nuvio/types.ts and client.ts, then run `bun run nuvio:check:accept`.",
-		"",
-	].join("\n"),
-);
-
-const remoteTmp = `${SNAPSHOT_PATH}.remote.tmp`;
-writeFileSync(remoteTmp, remote);
-try {
-	const diff = spawnSync(
-		"diff",
-		["-u", "-L", "snapshot", "-L", "remote", SNAPSHOT_PATH, remoteTmp],
-		{ encoding: "utf8" },
-	);
-	process.stderr.write(diff.stdout ?? "");
-} finally {
-	rmSync(remoteTmp, { force: true });
-}
-process.exit(1);
+console.log(`Nuvio API spec unchanged (version ${specVersion(remote)}).`);
+process.exit(0);

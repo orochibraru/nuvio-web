@@ -107,6 +107,21 @@ describe("markdown lexer", () => {
 		expect(kinds).toContain("table");
 	});
 
+	it("folds a wrapped `**Label:**` note back into one trailing string", () => {
+		expect(
+			tokenize(
+				"**Deduplication:** Keyed by `md5(url)`. A push\nupdates a row only when it changed.",
+			),
+		).toEqual([
+			{
+				kind: "label",
+				label: "Deduplication",
+				trailing:
+					"Keyed by `md5(url)`. A push updates a row only when it changed.",
+			},
+		]);
+	});
+
 	it("folds a blockquote callout into one clean paragraph", () => {
 		expect(tokenize("> **Note:** careful\n> with this one.")).toEqual([
 			{ kind: "paragraph", text: "**Note:** careful with this one." },
@@ -278,6 +293,58 @@ describe("specToOpenApi", () => {
 		expect(
 			document.paths["/rest/v1/rpc/delete_widget"].post.responses["204"],
 		).toEqual({ description: "No Content" });
+	});
+});
+
+describe("prose wrapping", () => {
+	// Upstream publishes the spec unwrapped; the repo used to reflow its copy to
+	// 80 columns, which made the drift check diff our own formatting. The parse
+	// must not be able to tell the two apart.
+	const wrapped = [
+		"# W",
+		"",
+		"## Things",
+		"",
+		"### Do a thing",
+		"",
+		"This endpoint does a thing with a description long enough that it has",
+		"to wrap onto a second line.",
+		"",
+		"```",
+		"POST /rest/v1/rpc/do_thing",
+		"apikey: <publishable_key>",
+		"```",
+		"",
+		"**Note:** it is keyed by something, and this note also runs on past",
+		"the eightieth column.",
+		"",
+		"**Response:** `204 No Content`",
+		"",
+	].join("\n");
+	const flat = [
+		"# W",
+		"",
+		"## Things",
+		"",
+		"### Do a thing",
+		"",
+		"This endpoint does a thing with a description long enough that it has to wrap onto a second line.",
+		"",
+		"```",
+		"POST /rest/v1/rpc/do_thing",
+		"apikey: <publishable_key>",
+		"```",
+		"",
+		"**Note:** it is keyed by something, and this note also runs on past the eightieth column.",
+		"",
+		"**Response:** `204 No Content`",
+		"",
+	].join("\n");
+
+	it("produces the same document either way", () => {
+		expect(specToOpenApi(flat).document).toEqual(
+			specToOpenApi(wrapped).document,
+		);
 	});
 });
 
