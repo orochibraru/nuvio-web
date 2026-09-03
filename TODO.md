@@ -2,7 +2,9 @@
 
 ## Small
 
-//
+- [ ] Add title args to every html button, especially in the player to know
+      which icon does what. Perhaps a tooltip in the player? Something to try
+      I'm afraid it might be too much and cause more issues than it solves.
 
 ## Medium
 
