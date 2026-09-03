@@ -48,18 +48,36 @@ bun run tailwint --fix . "**/*.svelte"
 bun run biome check --write --unsafe .ss
 ```
 
-## OpenAPI types
+## OpenAPI spec
 
-This app has a script that checks the latest version of the Nuvio openapi doc to
-ensure the types are up to date.
+Nuvio publishes its public API as prose markdown, not as a machine-readable
+document. Two scripts bridge the gap:
+
+- `scripts/check-nuvio-spec.ts` fetches the live spec and diffs it against the
+  committed snapshot (`src/lib/nuvio/nuvio-public-api.snapshot.md`).
+- `scripts/build-nuvio-spec.ts` parses that snapshot into an OpenAPI 3.1
+  document (`src/lib/nuvio/nuvio-public-api.json`). It is a real parser, not an
+  LLM: request blocks become operations, the JSON examples give each payload its
+  shape, and the field / parameter tables supply types, nullability, defaults,
+  descriptions and which fields are required. The parser lives in
+  `scripts/nuvio-spec/` and is unit-tested.
 
 ```bash
-# Dry run, check if version is up to date (mostly for CI usage)
+# Dry run, check if the live spec still matches the snapshot (CI runs this daily)
 bun run nuvio:check
 
-# If a new version is available, the types need to be updated manually (for now). Then this command can be ran to accept the changes.
+# Accept a new spec: updates the snapshot and regenerates the OpenAPI JSON
 bun run nuvio:check:accept
+
+# Regenerate the OpenAPI JSON from the committed snapshot
+bun run nuvio:spec
+
+# Fail if the committed JSON is stale (CI runs this on every PR)
+bun run nuvio:spec:check
 ```
+
+`src/lib/nuvio/types.ts` and `client.ts` are still written by hand; the
+generated JSON is what you reconcile them against.
 
 ## Tests
 

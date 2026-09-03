@@ -30,6 +30,9 @@ jobs:
       - name: Lint + format (ts)
         run: bun run lint
 
+      - name: Nuvio OpenAPI up to date with the prose snapshot
+        run: bun run nuvio:spec:check
+
       - name: Unit tests + coverage (server / remote layer)
         run: bun run test:unit:coverage
 

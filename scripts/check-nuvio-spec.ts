@@ -9,12 +9,16 @@
  *   bun run nuvio:check          fail (exit 1) and print a diff if the spec moved
  *   bun run nuvio:check:accept   overwrite the snapshot with the current spec
  *
+ * Accepting also regenerates nuvio-public-api.json (scripts/build-nuvio-spec.ts),
+ * so the machine-readable spec never lags the prose one.
+ *
  * Accept only after reconciling src/lib/nuvio/types.ts and client.ts.
  */
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import { writeOpenApi } from "./build-nuvio-spec.ts";
 
 const SPEC_URL = "https://nuvio.tv/docs/nuvio-public-api.md";
 const SNAPSHOT_PATH = fileURLToPath(
@@ -45,7 +49,13 @@ const remote = normalize(await response.text());
 
 if (shouldUpdate) {
 	writeFileSync(SNAPSHOT_PATH, remote);
-	console.log(`Snapshot updated to spec version ${specVersion(remote)}.`);
+	const { operations, warnings } = writeOpenApi(remote);
+	console.log(
+		`Snapshot updated to spec version ${specVersion(remote)}; regenerated nuvio-public-api.json (${operations} operations).`,
+	);
+	for (const warning of warnings) {
+		console.warn(`  note: ${warning}`);
+	}
 	process.exit(0);
 }
 

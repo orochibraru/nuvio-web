@@ -11,7 +11,7 @@ export default defineConfig({
 		},
 	},
 	test: {
-		include: ["src/**/*.{test,spec}.ts"],
+		include: ["src/**/*.{test,spec}.ts", "scripts/**/*.{test,spec}.ts"],
 		environment: "node",
 		coverage: {
 			// istanbul, not v8 : `@bcoe/v8-coverage`'s merge step blows the stack

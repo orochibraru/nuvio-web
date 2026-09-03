@@ -36,7 +36,8 @@ jobs:
               "matches `src/lib/nuvio/nuvio-public-api.snapshot.md`.",
               "",
               "Reconcile `src/lib/nuvio/types.ts` + `client.ts`, then run",
-              "`bun run nuvio:check:accept` to update the snapshot.",
+              "`bun run nuvio:check:accept` to update the snapshot and",
+              "regenerate `src/lib/nuvio/nuvio-public-api.json`.",
               "",
               `Run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
             ].join("\n");

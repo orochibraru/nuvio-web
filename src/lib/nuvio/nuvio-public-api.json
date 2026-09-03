@@ -1,0 +1,3358 @@
+{
+	"openapi": "3.1.0",
+	"x-generated-by": "scripts/build-nuvio-spec.ts",
+	"info": {
+		"title": "Nuvio public API",
+		"version": "1.3",
+		"description": "The Nuvio API gives third-party clients public REST and RPC endpoints for working with Nuvio user data. Its Supabase-compatible interface supports authenticated operations for profiles, addons, library, watch progress, watch history, collections, and profile settings."
+	},
+	"servers": [
+		{
+			"url": "https://api.nuvio.tv"
+		}
+	],
+	"tags": [
+		{
+			"name": "Authentication"
+		},
+		{
+			"name": "Profiles",
+			"description": "Current public Nuvio clients support up to **6 profiles**. Addons, library, watch progress, watch history, settings, and collections are scoped by `profile_id`."
+		},
+		{
+			"name": "Addons",
+			"description": "Addons are compatible integration URLs tied to a user profile. Depending on the manifest, they can provide catalog, metadata, subtitle, or playback details."
+		},
+		{
+			"name": "Library",
+			"description": "The library stores content that each profile has bookmarked or favorited."
+		},
+		{
+			"name": "Watch progress",
+			"description": "Watch progress stores playback positions for the \"continue watching\" feature. Pushes use a **non-destructive merge**: they upsert entries and do not delete entries omitted from the payload."
+		},
+		{
+			"name": "Watch history",
+			"description": "Watch history records content that a profile has watched. Pushes use a **non-destructive merge**."
+		},
+		{
+			"name": "Profile settings",
+			"description": "Profile settings use a generic JSON key-value store for each profile. Examples include themes, player preferences, and UI options. Supplying `p_platform` gives the settings a platform namespace."
+		},
+		{
+			"name": "Home catalog settings",
+			"description": "Nuvio stores each profile's home catalog configuration as a JSON blob. It is separate from the general profile settings blob, which lets clients sync home layout and catalog preferences independently."
+		},
+		{
+			"name": "Collections",
+			"description": "Each profile stores its custom content collections in a JSON blob."
+		},
+		{
+			"name": "Avatars",
+			"description": "The avatar catalog lists the profile avatars currently available. Clients should also support `avatar_color_hex` and `avatar_url` from profile rows because a custom avatar URL does not require a catalog entry."
+		},
+		{
+			"name": "Supporter Wall",
+			"description": "This public website endpoint returns the Top and Recent views of The Wall in one request. It does not require authentication and exposes only the same public name, avatar, tier, and member-since fields shown on the Support page. The response permits cross-origin reads, so it can be used directly by other public Nuvio sites."
+		},
+		{
+			"name": "Sync overview",
+			"description": "This endpoint returns core sync data counts for each profile. Clients can use the counts in dashboards and status displays."
+		},
+		{
+			"name": "Health check",
+			"description": "Use this endpoint to check the API and database health. It does not require authentication."
+		}
+	],
+	"paths": {
+		"/auth/v1/signup": {
+			"post": {
+				"operationId": "signUpEmailPassword",
+				"summary": "Sign up (email/password)",
+				"description": "Nuvio automatically creates two default metadata/subtitle integrations for each new user.",
+				"tags": [
+					"Authentication"
+				],
+				"security": [
+					{
+						"apiKey": []
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"email": {
+										"type": "string"
+									},
+									"password": {
+										"type": "string"
+									}
+								}
+							},
+							"example": {
+								"email": "user@example.com",
+								"password": "securepassword123"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"access_token": {
+											"type": "string"
+										},
+										"token_type": {
+											"type": "string"
+										},
+										"expires_in": {
+											"type": "integer"
+										},
+										"refresh_token": {
+											"type": "string"
+										},
+										"user": {
+											"type": "object",
+											"properties": {
+												"id": {
+													"type": "string"
+												},
+												"email": {
+													"type": "string"
+												},
+												"created_at": {
+													"type": "string"
+												}
+											}
+										}
+									}
+								},
+								"example": {
+									"access_token": "eyJ...",
+									"token_type": "bearer",
+									"expires_in": 3600,
+									"refresh_token": "abc123...",
+									"user": {
+										"id": "uuid",
+										"email": "user@example.com",
+										"created_at": "2026-01-01T00:00:00Z"
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/auth/v1/token?grant_type=password": {
+			"post": {
+				"operationId": "signInEmailPassword",
+				"summary": "Sign in (email/password)",
+				"tags": [
+					"Authentication"
+				],
+				"parameters": [
+					{
+						"name": "grant_type",
+						"in": "query",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"const": "password"
+						},
+						"example": "password"
+					}
+				],
+				"security": [
+					{
+						"apiKey": []
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"email": {
+										"type": "string"
+									},
+									"password": {
+										"type": "string"
+									}
+								}
+							},
+							"example": {
+								"email": "user@example.com",
+								"password": "securepassword123"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Same shape as sign-up."
+					}
+				}
+			}
+		},
+		"/auth/v1/token?grant_type=refresh_token": {
+			"post": {
+				"operationId": "refreshToken",
+				"summary": "Refresh token",
+				"tags": [
+					"Authentication"
+				],
+				"parameters": [
+					{
+						"name": "grant_type",
+						"in": "query",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"const": "refresh_token"
+						},
+						"example": "refresh_token"
+					}
+				],
+				"security": [
+					{
+						"apiKey": []
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"refresh_token": {
+										"type": "string"
+									}
+								}
+							},
+							"example": {
+								"refresh_token": "your_refresh_token"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Returns a new `access_token` and `refresh_token`."
+					}
+				}
+			}
+		},
+		"/auth/v1/logout": {
+			"post": {
+				"operationId": "signOut",
+				"summary": "Sign out",
+				"tags": [
+					"Authentication"
+				],
+				"security": [
+					{
+						"bearerAuth": [],
+						"apiKey": []
+					}
+				],
+				"responses": {
+					"204": {
+						"description": "No Content"
+					}
+				}
+			}
+		},
+		"/auth/v1/user": {
+			"get": {
+				"operationId": "getCurrentUser",
+				"summary": "Get current user",
+				"tags": [
+					"Authentication"
+				],
+				"security": [
+					{
+						"bearerAuth": [],
+						"apiKey": []
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"id": {
+											"type": "string"
+										},
+										"email": {
+											"type": "string"
+										},
+										"created_at": {
+											"type": "string"
+										}
+									}
+								},
+								"example": {
+									"id": "uuid",
+									"email": "user@example.com",
+									"created_at": "2026-01-01T00:00:00Z"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/rest/v1/rpc/sync_pull_profiles": {
+			"post": {
+				"operationId": "listProfiles",
+				"summary": "List profiles",
+				"description": "This request has no body.",
+				"tags": [
+					"Profiles"
+				],
+				"security": [
+					{
+						"bearerAuth": [],
+						"apiKey": []
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "array",
+									"items": {
+										"type": "object",
+										"properties": {
+											"id": {
+												"type": "string",
+												"format": "uuid",
+												"description": "Profile record ID"
+											},
+											"user_id": {
+												"type": "string",
+												"format": "uuid",
+												"description": "Owner user ID"
+											},
+											"profile_index": {
+												"type": "integer",
+												"description": "1 to 6, unique per user in the public client surface"
+											},
+											"name": {
+												"type": "string",
+												"description": "Display name"
+											},
+											"avatar_color_hex": {
+												"type": "string",
+												"description": "Hex color (e.g. `#1E88E5`)"
+											},
+											"uses_primary_addons": {
+												"type": "boolean",
+												"description": "Whether this profile shares addons with profile 1"
+											},
+											"avatar_id": {
+												"type": [
+													"string",
+													"null"
+												],
+												"description": "Reference to avatar catalog entry"
+											},
+											"avatar_url": {
+												"type": [
+													"string",
+													"null"
+												],
+												"description": "Custom profile avatar image URL"
+											},
+											"pin_enabled": {
+												"type": "boolean",
+												"description": "Read-only lock state for clients that need to show locked profiles"
+											},
+											"pin_locked_until": {
+												"type": [
+													"string",
+													"null"
+												],
+												"format": "date-time",
+												"description": "Read-only lock expiry, if the profile is temporarily locked"
+											},
+											"created_at": {
+												"type": "string",
+												"format": "date-time",
+												"description": "Creation time"
+											},
+											"updated_at": {
+												"type": "string",
+												"format": "date-time",
+												"description": "Last update time"
+											}
+										}
+									}
+								},
+								"example": [
+									{
+										"id": "uuid",
+										"user_id": "uuid",
+										"profile_index": 1,
+										"name": "Main",
+										"avatar_color_hex": "#1E88E5",
+										"uses_primary_addons": false,
+										"avatar_id": "avatar_cat_01",
+										"avatar_url": null,
+										"pin_enabled": false,
+										"pin_locked_until": null,
+										"created_at": "2026-01-01T00:00:00Z",
+										"updated_at": "2026-01-01T00:00:00Z"
+									}
+								]
+							}
+						}
+					}
+				}
+			}
+		},
+		"/rest/v1/rpc/sync_push_profiles": {
+			"post": {
+				"operationId": "updateProfiles",
+				"summary": "Update profiles",
+				"description": "This endpoint fully replaces profiles within the declared client range. It **deletes** profiles omitted from the array for slots `1..p_client_max_profiles`.\n\nTop-level body fields:\n\nProfile object fields:\n\n**Note:** This endpoint never overwrites PIN fields. PIN management is an app-specific Nuvio flow and is not part of the public API.",
+				"tags": [
+					"Profiles"
+				],
+				"security": [
+					{
+						"bearerAuth": [],
+						"apiKey": []
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"required": [
+									"p_profiles"
+								],
+								"properties": {
+									"p_client_max_profiles": {
+										"type": "integer",
+										"description": "Highest profile slot this client manages. Use `6` for current public clients. Defaults to `4` when omitted."
+									},
+									"p_profiles": {
+										"type": "array",
+										"description": "Complete profile list for the declared profile range",
+										"items": {
+											"type": "object",
+											"required": [
+												"name",
+												"profile_index"
+											],
+											"properties": {
+												"profile_index": {
+													"type": "integer",
+													"description": "1 to 6 in the public client surface"
+												},
+												"name": {
+													"type": "string",
+													"description": "Display name"
+												},
+												"avatar_color_hex": {
+													"type": "string",
+													"description": "Hex color code"
+												},
+												"uses_primary_addons": {
+													"type": "boolean",
+													"description": "Share addons with profile 1"
+												},
+												"avatar_id": {
+													"type": "string",
+													"description": "Avatar catalog ID; existing value is kept if omitted or null and `avatar_url` is not provided"
+												},
+												"avatar_url": {
+													"type": [
+														"string",
+														"null"
+													],
+													"description": "Custom avatar image URL. When provided, it takes precedence over `avatar_id`; send `null` or `\"\"` to clear it."
+												}
+											}
+										}
+									}
+								}
+							},
+							"example": {
+								"p_client_max_profiles": 6,
+								"p_profiles": [
+									{
+										"profile_index": 1,
+										"name": "Main",
+										"avatar_color_hex": "#1E88E5",
+										"uses_primary_addons": false,
+										"avatar_id": "avatar_cat_01",
+										"avatar_url": null
+									},
+									{
+										"profile_index": 2,
+										"name": "Kids",
+										"avatar_color_hex": "#FF5722",
+										"uses_primary_addons": true
+									}
+								]
+							}
+						}
+					}
+				},
+				"responses": {
+					"204": {
+						"description": "No Content"
+					}
+				}
+			}
+		},
+		"/rest/v1/rpc/sync_delete_profile_data": {
+			"post": {
+				"operationId": "deleteProfileData",
+				"summary": "Delete profile data",
+				"description": "This endpoint deletes **all** public data associated with a profile: addons, collections, watch progress, library, watched items, and the profile row itself.",
+				"tags": [
+					"Profiles"
+				],
+				"security": [
+					{
+						"bearerAuth": [],
+						"apiKey": []
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"p_profile_id": {
+										"type": "integer"
+									}
+								}
+							},
+							"example": {
+								"p_profile_id": 2
+							}
+						}
+					}
+				},
+				"responses": {
+					"204": {
+						"description": "No Content"
+					}
+				}
+			}
+		},
+		"/rest/v1/addons": {
+			"get": {
+				"operationId": "listAddons",
+				"summary": "List addons",
+				"description": "Use a direct table query:",
+				"tags": [
+					"Addons"
+				],
+				"parameters": [
+					{
+						"name": "select",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string"
+						},
+						"example": "*"
+					},
+					{
+						"name": "profile_id",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string"
+						},
+						"example": "eq.1"
+					},
+					{
+						"name": "order",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string"
+						},
+						"example": "sort_order"
+					}
+				],
+				"security": [
+					{
+						"bearerAuth": [],
+						"apiKey": []
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "array",
+									"items": {
+										"type": "object",
+										"properties": {
+											"id": {
+												"type": "string",
+												"format": "uuid",
+												"description": "Record ID"
+											},
+											"user_id": {
+												"type": "string",
+												"format": "uuid",
+												"description": "Owner user ID"
+											},
+											"profile_id": {
+												"type": "integer",
+												"description": "Profile index (1 to 6 in the public client surface)"
+											},
+											"url": {
+												"type": "string",
+												"description": "Addon manifest URL"
+											},
+											"name": {
+												"type": [
+													"string",
+													"null"
+												],
+												"description": "Display name"
+											},
+											"enabled": {
+												"type": "boolean",
+												"description": "Whether addon is active"
+											},
+											"sort_order": {
+												"type": "integer",
+												"description": "Display order (0-based)"
+											},
+											"created_at": {
+												"type": "string",
+												"format": "date-time",
+												"description": "Creation time"
+											},
+											"updated_at": {
+												"type": "string",
+												"format": "date-time",
+												"description": "Last update time"
+											}
+										}
+									}
+								},
+								"example": [
+									{
+										"id": "uuid",
+										"user_id": "uuid",
+										"profile_id": 1,
+										"url": "https://catalog.example.com",
+										"name": "Example Catalog",
+										"enabled": true,
+										"sort_order": 0,
+										"created_at": "2026-01-01T00:00:00Z",
+										"updated_at": "2026-01-01T00:00:00Z"
+									}
+								]
+							}
+						}
+					}
+				}
+			}
+		},
+		"/rest/v1/rpc/sync_push_addons": {
+			"post": {
+				"operationId": "syncAddonsPush",
+				"summary": "Sync addons (push)",
+				"description": "This endpoint fully replaces the specified profile's addons. It **deletes** any addon omitted from the array.\n\n**Deduplication:** Addons are keyed by `md5(url)` per user and profile. A push\n\nupdates a row only when `name`, `enabled`, or `sort_order` has changed.",
+				"tags": [
+					"Addons"
+				],
+				"security": [
+					{
+						"bearerAuth": [],
+						"apiKey": []
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"p_profile_id": {
+										"type": "integer"
+									},
+									"p_addons": {
+										"type": "array",
+										"items": {
+											"type": "object",
+											"required": [
+												"url"
+											],
+											"properties": {
+												"url": {
+													"type": "string",
+													"description": "Addon manifest URL"
+												},
+												"name": {
+													"type": "string",
+													"description": "Display name"
+												},
+												"enabled": {
+													"type": "boolean",
+													"description": "Default `true`"
+												},
+												"sort_order": {
+													"type": "integer",
+													"description": "Display order, default `0`"
+												}
+											}
+										}
+									}
+								}
+							},
+							"example": {
+								"p_profile_id": 1,
+								"p_addons": [
+									{
+										"url": "https://catalog.example.com/manifest.json",
+										"name": "Example Catalog",
+										"enabled": true,
+										"sort_order": 0
+									},
+									{
+										"url": "https://metadata.example.com/manifest.json",
+										"name": "Example Metadata",
+										"enabled": true,
+										"sort_order": 1
+									}
+								]
+							}
+						}
+					}
+				},
+				"responses": {
+					"204": {
+						"description": "No Content"
+					}
+				}
+			}
+		},
+		"/rest/v1/rpc/sync_pull_library": {
+			"post": {
+				"operationId": "getLibrary",
+				"summary": "Get library",
+				"description": "This endpoint returns one page of the current library snapshot. It remains available for bootstrap, recovery, and older clients.\n\nResults are ordered by `added_at DESC`.\n\nIncrease `p_offset` by the requested `p_limit` until the response contains fewer rows than the limit. The recommended page size for large libraries is 500 rows.",
+				"tags": [
+					"Library"
+				],
+				"security": [
+					{
+						"bearerAuth": [],
+						"apiKey": []
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"p_profile_id": {
+										"type": "integer",
+										"default": 1,
+										"description": "Profile index"
+									},
+									"p_limit": {
+										"type": "integer",
+										"default": 500,
+										"description": "Max items per page"
+									},
+									"p_offset": {
+										"type": "integer",
+										"default": 0,
+										"description": "Pagination offset"
+									}
+								}
+							},
+							"example": {
+								"p_profile_id": 1,
+								"p_limit": 500,
+								"p_offset": 0
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "array",
+									"items": {
+										"type": "object",
+										"properties": {
+											"id": {
+												"type": "string"
+											},
+											"user_id": {
+												"type": "string"
+											},
+											"profile_id": {
+												"type": "integer"
+											},
+											"content_id": {
+												"type": "string",
+												"description": "Content identifier (e.g. `tmdb:550`)"
+											},
+											"content_type": {
+												"type": "string",
+												"description": "`movie` or `series`"
+											},
+											"name": {
+												"type": "string",
+												"description": "Content title"
+											},
+											"poster": {
+												"type": [
+													"string",
+													"null"
+												],
+												"description": "Poster image URL"
+											},
+											"poster_shape": {
+												"type": "string",
+												"description": "`POSTER`, `LANDSCAPE`, or `SQUARE`"
+											},
+											"background": {
+												"type": [
+													"string",
+													"null"
+												],
+												"description": "Background image URL"
+											},
+											"description": {
+												"type": [
+													"string",
+													"null"
+												],
+												"description": "Synopsis"
+											},
+											"release_info": {
+												"type": [
+													"string",
+													"null"
+												],
+												"description": "Year or year range"
+											},
+											"imdb_rating": {
+												"type": [
+													"number",
+													"null"
+												],
+												"description": "IMDb rating"
+											},
+											"genres": {
+												"type": "array",
+												"description": "Genre list",
+												"items": {
+													"type": "string"
+												}
+											},
+											"addon_base_url": {
+												"type": [
+													"string",
+													"null"
+												],
+												"description": "Related addon URL"
+											},
+											"added_at": {
+												"type": "integer",
+												"description": "Epoch milliseconds when added"
+											},
+											"created_at": {
+												"type": "string"
+											},
+											"updated_at": {
+												"type": "string"
+											}
+										}
+									}
+								},
+								"example": [
+									{
+										"id": "uuid",
+										"user_id": "uuid",
+										"profile_id": 1,
+										"content_id": "tmdb:550",
+										"content_type": "movie",
+										"name": "Fight Club",
+										"poster": "https://image.tmdb.org/t/p/w500/...",
+										"poster_shape": "POSTER",
+										"background": "https://image.tmdb.org/t/p/original/...",
+										"description": "An insomniac office worker...",
+										"release_info": "1999",
+										"imdb_rating": 8.8,
+										"genres": [
+											"Drama",
+											"Thriller"
+										],
+										"addon_base_url": "https://catalog.example.com",
+										"added_at": 1711600000000,
+										"created_at": "2026-01-01T00:00:00Z",
+										"updated_at": "2026-01-01T00:00:00Z"
+									}
+								]
+							}
+						}
+					}
+				}
+			}
+		},
+		"/rest/v1/rpc/sync_get_library_delta_cursor": {
+			"post": {
+				"operationId": "getLibraryDeltaCursor",
+				"summary": "Get library delta cursor",
+				"description": "This endpoint returns the highest library event ID available for the profile, or `0` if the profile has no events.\n\nCapture this cursor before pulling the paginated snapshot. When the snapshot is complete, pull events after this cursor to apply changes that occurred during bootstrap.",
+				"tags": [
+					"Library"
+				],
+				"security": [
+					{
+						"bearerAuth": [],
+						"apiKey": []
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"p_profile_id": {
+										"type": "integer",
+										"default": 1,
+										"description": "Profile index"
+									}
+								}
+							},
+							"example": {
+								"p_profile_id": 1
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "integer"
+								},
+								"example": 481
+							}
+						}
+					}
+				}
+			}
+		},
+		"/rest/v1/rpc/sync_pull_library_delta": {
+			"post": {
+				"operationId": "getLibraryDelta",
+				"summary": "Get library delta",
+				"description": "This endpoint returns library changes after a stored event cursor. Results are ordered by `event_id ASC`.\n\nAfter each page, save the highest `event_id`. Request the next page from that cursor until a page contains fewer rows than `p_limit`.",
+				"tags": [
+					"Library"
+				],
+				"security": [
+					{
+						"bearerAuth": [],
+						"apiKey": []
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"p_profile_id": {
+										"type": "integer",
+										"default": 1,
+										"description": "Profile index"
+									},
+									"p_since_event_id": {
+										"type": "integer",
+										"default": 0,
+										"description": "Return events with an ID greater than this cursor"
+									},
+									"p_limit": {
+										"type": "integer",
+										"default": 1000,
+										"description": "Page size, clamped to `1..1000`"
+									}
+								}
+							},
+							"example": {
+								"p_profile_id": 1,
+								"p_since_event_id": 481,
+								"p_limit": 500
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "array",
+									"items": {
+										"type": "object",
+										"properties": {
+											"event_id": {
+												"type": "integer",
+												"description": "Monotonically increasing cursor"
+											},
+											"operation": {
+												"type": "string",
+												"description": "`upsert` or `delete`"
+											},
+											"content_id": {
+												"type": "string"
+											},
+											"content_type": {
+												"type": "string"
+											},
+											"name": {
+												"type": "string"
+											},
+											"poster": {
+												"type": [
+													"string",
+													"null"
+												]
+											},
+											"poster_shape": {
+												"type": "string"
+											},
+											"background": {
+												"type": [
+													"string",
+													"null"
+												]
+											},
+											"description": {
+												"type": [
+													"string",
+													"null"
+												]
+											},
+											"release_info": {
+												"type": [
+													"string",
+													"null"
+												]
+											},
+											"imdb_rating": {
+												"type": [
+													"number",
+													"null"
+												]
+											},
+											"genres": {
+												"type": "array",
+												"items": {
+													"type": "string"
+												}
+											},
+											"addon_base_url": {
+												"type": [
+													"string",
+													"null"
+												]
+											},
+											"added_at": {
+												"type": "integer"
+											}
+										}
+									}
+								},
+								"example": [
+									{
+										"event_id": 482,
+										"operation": "upsert",
+										"content_id": "tmdb:550",
+										"content_type": "movie",
+										"name": "Fight Club",
+										"poster": "https://image.tmdb.org/t/p/w500/...",
+										"poster_shape": "POSTER",
+										"background": "https://image.tmdb.org/t/p/original/...",
+										"description": "An insomniac office worker...",
+										"release_info": "1999",
+										"imdb_rating": 8.8,
+										"genres": [
+											"Drama",
+											"Thriller"
+										],
+										"addon_base_url": "https://catalog.example.com",
+										"added_at": 1711600000000
+									},
+									{
+										"event_id": 483,
+										"operation": "delete",
+										"content_id": "tmdb:1396",
+										"content_type": "series",
+										"name": "Breaking Bad",
+										"poster": null,
+										"poster_shape": "POSTER",
+										"background": null,
+										"description": null,
+										"release_info": null,
+										"imdb_rating": null,
+										"genres": [],
+										"addon_base_url": null,
+										"added_at": 1711500000000
+									}
+								]
+							}
+						}
+					}
+				}
+			}
+		},
+		"/rest/v1/rpc/sync_push_library_items": {
+			"post": {
+				"operationId": "upsertLibraryItems",
+				"summary": "Upsert library items",
+				"description": "This endpoint inserts or updates only the supplied items. It preserves existing library items that are not in the request.\n\nSend large writes in batches. Nuvio clients use at most 500 items per request.",
+				"tags": [
+					"Library"
+				],
+				"security": [
+					{
+						"bearerAuth": [],
+						"apiKey": []
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"required": [
+									"p_items"
+								],
+								"properties": {
+									"p_profile_id": {
+										"type": "integer",
+										"default": 1,
+										"description": "Profile index"
+									},
+									"p_origin_client_id": {
+										"type": [
+											"string",
+											"null"
+										],
+										"default": null,
+										"description": "Stable installation identifier attached to emitted sync events"
+									},
+									"p_items": {
+										"type": "array",
+										"default": "Not applicable",
+										"description": "Items to insert or update",
+										"items": {
+											"type": "object",
+											"properties": {
+												"content_id": {
+													"type": "string"
+												},
+												"content_type": {
+													"type": "string"
+												},
+												"name": {
+													"type": "string"
+												},
+												"poster": {
+													"type": "string"
+												},
+												"poster_shape": {
+													"type": "string"
+												},
+												"background": {
+													"type": "string"
+												},
+												"description": {
+													"type": "string"
+												},
+												"release_info": {
+													"type": "string"
+												},
+												"imdb_rating": {
+													"type": "number"
+												},
+												"genres": {
+													"type": "array",
+													"items": {
+														"type": "string"
+													}
+												},
+												"addon_base_url": {
+													"type": "string"
+												},
+												"added_at": {
+													"type": "integer"
+												}
+											}
+										}
+									}
+								}
+							},
+							"example": {
+								"p_profile_id": 1,
+								"p_origin_client_id": "my-client-installation-01",
+								"p_items": [
+									{
+										"content_id": "tmdb:550",
+										"content_type": "movie",
+										"name": "Fight Club",
+										"poster": "https://image.tmdb.org/t/p/w500/...",
+										"poster_shape": "POSTER",
+										"background": "https://image.tmdb.org/t/p/original/...",
+										"description": "An insomniac office worker...",
+										"release_info": "1999",
+										"imdb_rating": 8.8,
+										"genres": [
+											"Drama",
+											"Thriller"
+										],
+										"addon_base_url": "https://catalog.example.com",
+										"added_at": 1711600000000
+									}
+								]
+							}
+						}
+					}
+				},
+				"responses": {
+					"204": {
+						"description": "No Content"
+					}
+				}
+			}
+		},
+		"/rest/v1/rpc/sync_delete_library_items": {
+			"post": {
+				"operationId": "deleteLibraryItems",
+				"summary": "Delete library items",
+				"description": "This endpoint deletes only the supplied `(content_id, content_type)` keys. It preserves items not listed in the request.\n\nSend large deletes in batches. Nuvio clients use at most 500 keys per request.",
+				"tags": [
+					"Library"
+				],
+				"security": [
+					{
+						"bearerAuth": [],
+						"apiKey": []
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"required": [
+									"p_keys"
+								],
+								"properties": {
+									"p_profile_id": {
+										"type": "integer",
+										"default": 1,
+										"description": "Profile index"
+									},
+									"p_origin_client_id": {
+										"type": [
+											"string",
+											"null"
+										],
+										"default": null,
+										"description": "Stable installation identifier attached to emitted sync events"
+									},
+									"p_keys": {
+										"type": "array",
+										"default": "Not applicable",
+										"description": "Exact library identities to delete",
+										"items": {
+											"type": "object",
+											"properties": {
+												"content_id": {
+													"type": "string"
+												},
+												"content_type": {
+													"type": "string"
+												}
+											}
+										}
+									}
+								}
+							},
+							"example": {
+								"p_profile_id": 1,
+								"p_origin_client_id": "my-client-installation-01",
+								"p_keys": [
+									{
+										"content_id": "tmdb:550",
+										"content_type": "movie"
+									}
+								]
+							}
+						}
+					}
+				},
+				"responses": {
+					"204": {
+						"description": "No Content"
+					}
+				}
+			}
+		},
+		"/rest/v1/rpc/sync_push_library": {
+			"post": {
+				"operationId": "syncLibraryPushLegacyFullReplace",
+				"summary": "Sync library (push): legacy full replace",
+				"description": "This compatibility endpoint performs a full replace for existing clients. It **deletes** items omitted from the array for the specified profile.\n\nNew clients should use `sync_push_library_items` and `sync_delete_library_items` instead. Do not send partial state to this legacy endpoint.",
+				"tags": [
+					"Library"
+				],
+				"security": [
+					{
+						"bearerAuth": [],
+						"apiKey": []
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"p_profile_id": {
+										"type": "integer"
+									},
+									"p_items": {
+										"type": "array",
+										"items": {
+											"type": "object",
+											"properties": {
+												"content_id": {
+													"type": "string"
+												},
+												"content_type": {
+													"type": "string"
+												},
+												"name": {
+													"type": "string"
+												},
+												"poster": {
+													"type": "string"
+												},
+												"poster_shape": {
+													"type": "string"
+												},
+												"background": {
+													"type": "string"
+												},
+												"description": {
+													"type": "string"
+												},
+												"release_info": {
+													"type": "string"
+												},
+												"imdb_rating": {
+													"type": "number"
+												},
+												"genres": {
+													"type": "array",
+													"items": {
+														"type": "string"
+													}
+												},
+												"addon_base_url": {
+													"type": "string"
+												},
+												"added_at": {
+													"type": "integer"
+												}
+											}
+										}
+									}
+								}
+							},
+							"example": {
+								"p_profile_id": 1,
+								"p_items": [
+									{
+										"content_id": "tmdb:550",
+										"content_type": "movie",
+										"name": "Fight Club",
+										"poster": "https://image.tmdb.org/t/p/w500/...",
+										"poster_shape": "POSTER",
+										"background": "https://image.tmdb.org/t/p/original/...",
+										"description": "An insomniac office worker...",
+										"release_info": "1999",
+										"imdb_rating": 8.8,
+										"genres": [
+											"Drama",
+											"Thriller"
+										],
+										"addon_base_url": "https://catalog.example.com",
+										"added_at": 1711600000000
+									}
+								]
+							}
+						}
+					}
+				},
+				"responses": {
+					"204": {
+						"description": "No Content"
+					}
+				}
+			}
+		},
+		"/rest/v1/rpc/sync_pull_watch_progress": {
+			"post": {
+				"operationId": "getWatchProgress",
+				"summary": "Get watch progress",
+				"description": "Without `p_since_last_watched`, this endpoint returns the latest progress entries for the profile in `last_watched DESC` order. Use the delta endpoints below when you need delete events or a stable event cursor.",
+				"tags": [
+					"Watch progress"
+				],
+				"security": [
+					{
+						"bearerAuth": [],
+						"apiKey": []
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"p_profile_id": {
+										"type": "integer",
+										"default": 1,
+										"description": "Profile index"
+									},
+									"p_since_last_watched": {
+										"type": "integer",
+										"default": null,
+										"description": "Optional epoch-millisecond cursor. When set, returns rows with `last_watched` greater than this value."
+									},
+									"p_limit": {
+										"type": "integer",
+										"default": 200,
+										"description": "Optional row limit. Without `p_since_last_watched`, the server caps the result at 200 rows."
+									}
+								}
+							},
+							"example": {
+								"p_profile_id": 1,
+								"p_since_last_watched": 1711600000000,
+								"p_limit": 200
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "array",
+									"items": {
+										"type": "object",
+										"properties": {
+											"id": {
+												"type": "string"
+											},
+											"user_id": {
+												"type": "string"
+											},
+											"profile_id": {
+												"type": "integer"
+											},
+											"content_id": {
+												"type": "string",
+												"description": "Content identifier (e.g. `tmdb:550`)"
+											},
+											"content_type": {
+												"type": "string",
+												"description": "`movie` or `series`"
+											},
+											"video_id": {
+												"type": "string",
+												"description": "Specific playback item ID"
+											},
+											"season": {
+												"type": [
+													"integer",
+													"null"
+												],
+												"description": "Season number (series only)"
+											},
+											"episode": {
+												"type": [
+													"integer",
+													"null"
+												],
+												"description": "Episode number (series only)"
+											},
+											"progress_key": {
+												"type": "string",
+												"description": "Unique key (see [Progress Key Format](#progress-key-format))"
+											},
+											"position": {
+												"type": "integer",
+												"description": "Playback position in milliseconds"
+											},
+											"duration": {
+												"type": "integer",
+												"description": "Total duration in milliseconds"
+											},
+											"last_watched": {
+												"type": "integer",
+												"description": "Epoch milliseconds of last playback"
+											}
+										}
+									}
+								},
+								"example": [
+									{
+										"id": "uuid",
+										"user_id": "uuid",
+										"profile_id": 1,
+										"content_id": "tmdb:550",
+										"content_type": "movie",
+										"video_id": "tmdb:550",
+										"season": null,
+										"episode": null,
+										"progress_key": "tmdb:550",
+										"position": 3600000,
+										"duration": 7920000,
+										"last_watched": 1711600000000
+									},
+									{
+										"id": "uuid",
+										"user_id": "uuid",
+										"profile_id": 1,
+										"content_id": "tmdb:1396",
+										"content_type": "series",
+										"video_id": "tmdb:1396:1:1",
+										"season": 1,
+										"episode": 1,
+										"progress_key": "tmdb:1396_s1e1",
+										"position": 1800000,
+										"duration": 3480000,
+										"last_watched": 1711600000000
+									}
+								]
+							}
+						}
+					}
+				}
+			}
+		},
+		"/rest/v1/rpc/sync_pull_watch_progress_delta": {
+			"post": {
+				"operationId": "getWatchProgressDelta",
+				"summary": "Get watch progress delta",
+				"description": "This endpoint returns upsert and delete events after a stored event cursor. Use it for incremental sync after the client completes its initial snapshot pull.\n\nApply events in ascending `event_id` order and save the highest `event_id` you process.",
+				"tags": [
+					"Watch progress"
+				],
+				"security": [
+					{
+						"bearerAuth": [],
+						"apiKey": []
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"p_profile_id": {
+										"type": "integer",
+										"default": 1,
+										"description": "Profile index"
+									},
+									"p_since_event_id": {
+										"type": "integer",
+										"default": 0,
+										"description": "Return events with `event_id` greater than this value"
+									},
+									"p_limit": {
+										"type": "integer",
+										"default": 1000,
+										"description": "Max events to return, capped at `1000`"
+									}
+								}
+							},
+							"example": {
+								"p_profile_id": 1,
+								"p_since_event_id": 12345,
+								"p_limit": 1000
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "array",
+									"items": {
+										"type": "object",
+										"properties": {
+											"event_id": {
+												"type": "integer"
+											},
+											"operation": {
+												"type": "string"
+											},
+											"progress_key": {
+												"type": "string"
+											},
+											"content_id": {
+												"type": "string"
+											},
+											"content_type": {
+												"type": "string"
+											},
+											"video_id": {
+												"type": "string"
+											},
+											"season": {
+												"type": [
+													"null",
+													"integer"
+												]
+											},
+											"episode": {
+												"type": [
+													"null",
+													"integer"
+												]
+											},
+											"position": {
+												"type": "integer"
+											},
+											"duration": {
+												"type": "integer"
+											},
+											"last_watched": {
+												"type": "integer"
+											}
+										}
+									}
+								},
+								"example": [
+									{
+										"event_id": 12346,
+										"operation": "upsert",
+										"progress_key": "tmdb:550",
+										"content_id": "tmdb:550",
+										"content_type": "movie",
+										"video_id": "tmdb:550",
+										"season": null,
+										"episode": null,
+										"position": 3600000,
+										"duration": 7920000,
+										"last_watched": 1711600000000
+									},
+									{
+										"event_id": 12347,
+										"operation": "delete",
+										"progress_key": "tmdb:1396_s1e1",
+										"content_id": "tmdb:1396",
+										"content_type": "series",
+										"video_id": "tmdb:1396:1:1",
+										"season": 1,
+										"episode": 1,
+										"position": 1800000,
+										"duration": 3480000,
+										"last_watched": 1711600000000
+									}
+								]
+							}
+						}
+					}
+				}
+			}
+		},
+		"/rest/v1/rpc/sync_get_watch_progress_delta_cursor": {
+			"post": {
+				"operationId": "getWatchProgressDeltaCursor",
+				"summary": "Get watch progress delta cursor",
+				"description": "This endpoint returns the current maximum watch-progress event ID for the profile. After a full snapshot sync, call it and save the returned value as the next `p_since_event_id`.",
+				"tags": [
+					"Watch progress"
+				],
+				"security": [
+					{
+						"bearerAuth": [],
+						"apiKey": []
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"p_profile_id": {
+										"type": "integer"
+									}
+								}
+							},
+							"example": {
+								"p_profile_id": 1
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "integer"
+								},
+								"example": 12347
+							}
+						}
+					}
+				}
+			}
+		},
+		"/rest/v1/rpc/sync_push_watch_progress": {
+			"post": {
+				"operationId": "syncWatchProgressPush",
+				"summary": "Sync watch progress (push)",
+				"description": "This endpoint uses a non-destructive merge. It upserts entries and does **not** delete entries omitted from the request.\n\n**Completion handling:** When an entry has `duration >= 60000` and `position` is at least 90% of `duration`, the server also upserts a matching watched-history item. The server may ignore tiny progress changes to reduce write volume.",
+				"tags": [
+					"Watch progress"
+				],
+				"security": [
+					{
+						"bearerAuth": [],
+						"apiKey": []
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"p_profile_id": {
+										"type": "integer"
+									},
+									"p_entries": {
+										"type": "array",
+										"items": {
+											"type": "object",
+											"required": [
+												"content_id",
+												"content_type",
+												"duration",
+												"last_watched",
+												"position",
+												"video_id"
+											],
+											"properties": {
+												"content_id": {
+													"type": "string",
+													"description": "Content identifier"
+												},
+												"content_type": {
+													"type": "string",
+													"description": "`movie` or `series`"
+												},
+												"video_id": {
+													"type": "string",
+													"description": "Playback item identifier"
+												},
+												"position": {
+													"type": "integer",
+													"description": "Playback position in ms"
+												},
+												"duration": {
+													"type": "integer",
+													"description": "Total duration in ms"
+												},
+												"last_watched": {
+													"type": "integer",
+													"description": "Epoch milliseconds"
+												},
+												"season": {
+													"type": "integer",
+													"description": "Season number (for series)"
+												},
+												"episode": {
+													"type": "integer",
+													"description": "Episode number (for series)"
+												}
+											}
+										}
+									}
+								}
+							},
+							"example": {
+								"p_profile_id": 1,
+								"p_entries": [
+									{
+										"content_id": "tmdb:550",
+										"content_type": "movie",
+										"video_id": "tmdb:550",
+										"position": 3600000,
+										"duration": 7920000,
+										"last_watched": 1711600000000
+									},
+									{
+										"content_id": "tmdb:1396",
+										"content_type": "series",
+										"video_id": "tmdb:1396:1:1",
+										"season": 1,
+										"episode": 1,
+										"position": 1800000,
+										"duration": 3480000,
+										"last_watched": 1711600000000
+									}
+								]
+							}
+						}
+					}
+				},
+				"responses": {
+					"204": {
+						"description": "No Content"
+					}
+				}
+			}
+		},
+		"/rest/v1/rpc/sync_delete_watch_progress": {
+			"post": {
+				"operationId": "syncDeleteWatchProgress",
+				"summary": "Delete watch progress (single) / Delete watch progress (batch)",
+				"tags": [
+					"Watch progress"
+				],
+				"security": [
+					{
+						"bearerAuth": [],
+						"apiKey": []
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"oneOf": [
+									{
+										"title": "Delete watch progress (single)",
+										"type": "object",
+										"properties": {
+											"p_progress_key": {
+												"type": "string"
+											},
+											"p_profile_id": {
+												"type": "integer"
+											}
+										}
+									},
+									{
+										"title": "Delete watch progress (batch)",
+										"type": "object",
+										"properties": {
+											"p_keys": {
+												"type": "array",
+												"items": {
+													"type": "string"
+												}
+											},
+											"p_profile_id": {
+												"type": "integer"
+											}
+										}
+									}
+								]
+							}
+						}
+					}
+				},
+				"responses": {
+					"204": {
+						"description": "No Content"
+					}
+				}
+			}
+		},
+		"/rest/v1/rpc/sync_pull_watched_items": {
+			"post": {
+				"operationId": "getWatchHistory",
+				"summary": "Get watch history",
+				"description": "Results are ordered by `watched_at DESC`.",
+				"tags": [
+					"Watch history"
+				],
+				"security": [
+					{
+						"bearerAuth": [],
+						"apiKey": []
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"p_profile_id": {
+										"type": "integer",
+										"default": 1,
+										"description": "Profile index"
+									},
+									"p_page": {
+										"type": "integer",
+										"default": 1,
+										"description": "Page number (1-indexed)"
+									},
+									"p_page_size": {
+										"type": "integer",
+										"default": 100000,
+										"description": "Items per page"
+									}
+								}
+							},
+							"example": {
+								"p_profile_id": 1,
+								"p_page": 1,
+								"p_page_size": 500
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "array",
+									"items": {
+										"type": "object",
+										"properties": {
+											"id": {
+												"type": "string"
+											},
+											"user_id": {
+												"type": "string"
+											},
+											"profile_id": {
+												"type": "integer"
+											},
+											"content_id": {
+												"type": "string",
+												"description": "Content identifier"
+											},
+											"content_type": {
+												"type": "string",
+												"description": "`movie` or `series`"
+											},
+											"title": {
+												"type": "string",
+												"description": "Content title"
+											},
+											"season": {
+												"type": [
+													"integer",
+													"null"
+												],
+												"description": "Season number (series only)"
+											},
+											"episode": {
+												"type": [
+													"integer",
+													"null"
+												],
+												"description": "Episode number (series only)"
+											},
+											"watched_at": {
+												"type": "integer",
+												"description": "Epoch milliseconds"
+											},
+											"created_at": {
+												"type": "string"
+											}
+										}
+									}
+								},
+								"example": [
+									{
+										"id": "uuid",
+										"user_id": "uuid",
+										"profile_id": 1,
+										"content_id": "tmdb:550",
+										"content_type": "movie",
+										"title": "Fight Club",
+										"season": null,
+										"episode": null,
+										"watched_at": 1711600000000,
+										"created_at": "2026-01-01T00:00:00Z"
+									}
+								]
+							}
+						}
+					}
+				}
+			}
+		},
+		"/rest/v1/rpc/sync_pull_watched_items_delta": {
+			"post": {
+				"operationId": "getWatchHistoryDelta",
+				"summary": "Get watch history delta",
+				"description": "This endpoint returns watched-history upsert and delete events after a stored event cursor. Use it for incremental sync after the client completes its initial snapshot pull.\n\nApply events in ascending `event_id` order and save the highest `event_id` you process.",
+				"tags": [
+					"Watch history"
+				],
+				"security": [
+					{
+						"bearerAuth": [],
+						"apiKey": []
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"p_profile_id": {
+										"type": "integer",
+										"default": 1,
+										"description": "Profile index"
+									},
+									"p_since_event_id": {
+										"type": "integer",
+										"default": 0,
+										"description": "Return events with `event_id` greater than this value"
+									},
+									"p_limit": {
+										"type": "integer",
+										"default": 1000,
+										"description": "Max events to return, capped at `1000`"
+									}
+								}
+							},
+							"example": {
+								"p_profile_id": 1,
+								"p_since_event_id": 98765,
+								"p_limit": 1000
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "array",
+									"items": {
+										"type": "object",
+										"properties": {
+											"event_id": {
+												"type": "integer"
+											},
+											"operation": {
+												"type": "string"
+											},
+											"content_id": {
+												"type": "string"
+											},
+											"content_type": {
+												"type": "string"
+											},
+											"title": {
+												"type": "string"
+											},
+											"season": {
+												"type": [
+													"null",
+													"integer"
+												]
+											},
+											"episode": {
+												"type": [
+													"null",
+													"integer"
+												]
+											},
+											"watched_at": {
+												"type": "integer"
+											}
+										}
+									}
+								},
+								"example": [
+									{
+										"event_id": 98766,
+										"operation": "upsert",
+										"content_id": "tmdb:550",
+										"content_type": "movie",
+										"title": "Fight Club",
+										"season": null,
+										"episode": null,
+										"watched_at": 1711600000000
+									},
+									{
+										"event_id": 98767,
+										"operation": "delete",
+										"content_id": "tmdb:1396",
+										"content_type": "series",
+										"title": "Breaking Bad S01E01",
+										"season": 1,
+										"episode": 1,
+										"watched_at": 1711600000000
+									}
+								]
+							}
+						}
+					}
+				}
+			}
+		},
+		"/rest/v1/rpc/sync_get_watched_items_delta_cursor": {
+			"post": {
+				"operationId": "getWatchHistoryDeltaCursor",
+				"summary": "Get watch history delta cursor",
+				"description": "This endpoint returns the current maximum watched-history event ID for the profile. After a full snapshot sync, call it and save the returned value as the next `p_since_event_id`.",
+				"tags": [
+					"Watch history"
+				],
+				"security": [
+					{
+						"bearerAuth": [],
+						"apiKey": []
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"p_profile_id": {
+										"type": "integer"
+									}
+								}
+							},
+							"example": {
+								"p_profile_id": 1
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "integer"
+								},
+								"example": 98767
+							}
+						}
+					}
+				}
+			}
+		},
+		"/rest/v1/rpc/sync_push_watched_items": {
+			"post": {
+				"operationId": "syncWatchHistoryPush",
+				"summary": "Sync watch history (push)",
+				"description": "This endpoint uses a non-destructive merge and only upserts entries.",
+				"tags": [
+					"Watch history"
+				],
+				"security": [
+					{
+						"bearerAuth": [],
+						"apiKey": []
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"p_profile_id": {
+										"type": "integer"
+									},
+									"p_items": {
+										"type": "array",
+										"items": {
+											"type": "object",
+											"required": [
+												"content_id",
+												"content_type",
+												"watched_at"
+											],
+											"properties": {
+												"content_id": {
+													"type": "string",
+													"description": "Content identifier"
+												},
+												"content_type": {
+													"type": "string",
+													"description": "`movie` or `series`"
+												},
+												"title": {
+													"type": "string",
+													"description": "Title"
+												},
+												"watched_at": {
+													"type": "integer",
+													"description": "Epoch milliseconds"
+												},
+												"season": {
+													"type": "integer",
+													"description": "Season number"
+												},
+												"episode": {
+													"type": "integer",
+													"description": "Episode number"
+												}
+											}
+										}
+									}
+								}
+							},
+							"example": {
+								"p_profile_id": 1,
+								"p_items": [
+									{
+										"content_id": "tmdb:550",
+										"content_type": "movie",
+										"title": "Fight Club",
+										"watched_at": 1711600000000
+									},
+									{
+										"content_id": "tmdb:1396",
+										"content_type": "series",
+										"title": "Breaking Bad S01E01",
+										"season": 1,
+										"episode": 1,
+										"watched_at": 1711600000000
+									}
+								]
+							}
+						}
+					}
+				},
+				"responses": {
+					"204": {
+						"description": "No Content"
+					}
+				}
+			}
+		},
+		"/rest/v1/rpc/sync_delete_watched_items": {
+			"post": {
+				"operationId": "deleteWatchHistory",
+				"summary": "Delete watch history",
+				"tags": [
+					"Watch history"
+				],
+				"security": [
+					{
+						"bearerAuth": [],
+						"apiKey": []
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"p_profile_id": {
+										"type": "integer"
+									},
+									"p_keys": {
+										"type": "array",
+										"items": {
+											"type": "object",
+											"required": [
+												"content_id"
+											],
+											"properties": {
+												"content_id": {
+													"type": "string",
+													"description": "Content identifier"
+												},
+												"season": {
+													"type": "integer",
+													"description": "Required for series episodes"
+												},
+												"episode": {
+													"type": "integer",
+													"description": "Required for series episodes"
+												}
+											}
+										}
+									}
+								}
+							},
+							"example": {
+								"p_profile_id": 1,
+								"p_keys": [
+									{
+										"content_id": "tmdb:550"
+									},
+									{
+										"content_id": "tmdb:1396",
+										"season": 1,
+										"episode": 1
+									}
+								]
+							}
+						}
+					}
+				},
+				"responses": {
+					"204": {
+						"description": "No Content"
+					}
+				}
+			}
+		},
+		"/rest/v1/rpc/sync_pull_profile_settings_blob": {
+			"post": {
+				"operationId": "getSettings",
+				"summary": "Get settings",
+				"description": "The `settings_json` field accepts any JSON object. The server does not enforce a schema; your application defines the structure.",
+				"tags": [
+					"Profile settings"
+				],
+				"security": [
+					{
+						"bearerAuth": [],
+						"apiKey": []
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"required": [
+									"p_profile_id"
+								],
+								"properties": {
+									"p_profile_id": {
+										"type": "integer",
+										"description": "Profile index"
+									},
+									"p_platform": {
+										"type": "string",
+										"default": "tv",
+										"description": "Optional platform namespace. Recommended for new clients."
+									}
+								}
+							},
+							"example": {
+								"p_profile_id": 1,
+								"p_platform": "tv"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "array",
+									"items": {
+										"type": "object",
+										"properties": {
+											"profile_id": {
+												"type": "integer"
+											},
+											"settings_json": {
+												"type": "object",
+												"properties": {
+													"theme": {
+														"type": "string"
+													},
+													"player_quality": {
+														"type": "string"
+													},
+													"subtitle_language": {
+														"type": "string"
+													},
+													"auto_play_next": {
+														"type": "boolean"
+													}
+												}
+											},
+											"updated_at": {
+												"type": "string"
+											}
+										}
+									}
+								},
+								"example": [
+									{
+										"profile_id": 1,
+										"settings_json": {
+											"theme": "dark",
+											"player_quality": "auto",
+											"subtitle_language": "en",
+											"auto_play_next": true
+										},
+										"updated_at": "2026-01-01T00:00:00Z"
+									}
+								]
+							}
+						}
+					}
+				}
+			}
+		},
+		"/rest/v1/rpc/sync_push_profile_settings_blob": {
+			"post": {
+				"operationId": "updateSettings",
+				"summary": "Update settings",
+				"description": "This atomic upsert fully replaces the settings blob for the profile.",
+				"tags": [
+					"Profile settings"
+				],
+				"security": [
+					{
+						"bearerAuth": [],
+						"apiKey": []
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"p_profile_id": {
+										"type": "integer"
+									},
+									"p_platform": {
+										"type": "string"
+									},
+									"p_settings_json": {
+										"type": "object",
+										"properties": {
+											"theme": {
+												"type": "string"
+											},
+											"player_quality": {
+												"type": "string"
+											},
+											"subtitle_language": {
+												"type": "string"
+											},
+											"auto_play_next": {
+												"type": "boolean"
+											}
+										}
+									}
+								}
+							},
+							"example": {
+								"p_profile_id": 1,
+								"p_platform": "tv",
+								"p_settings_json": {
+									"theme": "dark",
+									"player_quality": "auto",
+									"subtitle_language": "en",
+									"auto_play_next": true
+								}
+							}
+						}
+					}
+				},
+				"responses": {
+					"204": {
+						"description": "No Content"
+					}
+				}
+			}
+		},
+		"/rest/v1/rpc/sync_pull_home_catalog_settings": {
+			"post": {
+				"operationId": "getHomeCatalogSettings",
+				"summary": "Get home catalog settings",
+				"description": "The `settings_json` payload is application-defined JSON.",
+				"tags": [
+					"Home catalog settings"
+				],
+				"security": [
+					{
+						"bearerAuth": [],
+						"apiKey": []
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"p_profile_id": {
+										"type": "integer"
+									},
+									"p_platform": {
+										"type": "string"
+									}
+								}
+							},
+							"example": {
+								"p_profile_id": 1,
+								"p_platform": "tv"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "array",
+									"items": {
+										"type": "object",
+										"properties": {
+											"id": {
+												"type": "string"
+											},
+											"user_id": {
+												"type": "string"
+											},
+											"profile_id": {
+												"type": "integer"
+											},
+											"platform": {
+												"type": "string"
+											},
+											"settings_json": {
+												"type": "object",
+												"properties": {
+													"rows": {
+														"type": "array",
+														"items": {}
+													},
+													"hidden_catalogs": {
+														"type": "array",
+														"items": {}
+													}
+												}
+											},
+											"updated_at": {
+												"type": "string"
+											}
+										}
+									}
+								},
+								"example": [
+									{
+										"id": "uuid",
+										"user_id": "uuid",
+										"profile_id": 1,
+										"platform": "tv",
+										"settings_json": {
+											"rows": [],
+											"hidden_catalogs": []
+										},
+										"updated_at": "2026-01-01T00:00:00Z"
+									}
+								]
+							}
+						}
+					}
+				}
+			}
+		},
+		"/rest/v1/rpc/sync_push_home_catalog_settings": {
+			"post": {
+				"operationId": "updateHomeCatalogSettings",
+				"summary": "Update home catalog settings",
+				"tags": [
+					"Home catalog settings"
+				],
+				"security": [
+					{
+						"bearerAuth": [],
+						"apiKey": []
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"required": [
+									"p_profile_id",
+									"p_settings_json"
+								],
+								"properties": {
+									"p_profile_id": {
+										"type": "integer",
+										"description": "Profile index"
+									},
+									"p_platform": {
+										"type": "string",
+										"default": "tv",
+										"description": "Optional platform namespace. Recommended for new clients."
+									},
+									"p_settings_json": {
+										"type": "object",
+										"description": "Full home catalog settings payload",
+										"properties": {
+											"rows": {
+												"type": "array",
+												"items": {}
+											},
+											"hidden_catalogs": {
+												"type": "array",
+												"items": {}
+											}
+										}
+									}
+								}
+							},
+							"example": {
+								"p_profile_id": 1,
+								"p_platform": "tv",
+								"p_settings_json": {
+									"rows": [],
+									"hidden_catalogs": []
+								}
+							}
+						}
+					}
+				},
+				"responses": {
+					"204": {
+						"description": "No Content"
+					}
+				}
+			}
+		},
+		"/rest/v1/rpc/sync_pull_collections": {
+			"post": {
+				"operationId": "getCollections",
+				"summary": "Get collections",
+				"tags": [
+					"Collections"
+				],
+				"security": [
+					{
+						"bearerAuth": [],
+						"apiKey": []
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"p_profile_id": {
+										"type": "integer"
+									}
+								}
+							},
+							"example": {
+								"p_profile_id": 1
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "array",
+									"items": {
+										"type": "object",
+										"properties": {
+											"profile_id": {
+												"type": "integer"
+											},
+											"collections_json": {
+												"type": "array",
+												"items": {
+													"type": "object",
+													"properties": {
+														"id": {
+															"type": "string",
+															"description": "Unique collection ID"
+														},
+														"title": {
+															"type": "string",
+															"description": "Collection name"
+														},
+														"backdropImageUrl": {
+															"type": "string",
+															"description": "Optional backdrop image"
+														},
+														"pinToTop": {
+															"type": "boolean",
+															"description": "Pin to top of home screen"
+														},
+														"viewMode": {
+															"type": "string",
+															"description": "`TABBED_GRID`, `ROWS`, or `FOLLOW_LAYOUT`"
+														},
+														"showAllTab": {
+															"type": "boolean",
+															"description": "Show \"All\" tab in tabbed view"
+														},
+														"folders": {
+															"type": "array",
+															"description": "Array of folder objects",
+															"items": {
+																"type": "object",
+																"properties": {
+																	"id": {
+																		"type": "string",
+																		"description": "Unique folder ID"
+																	},
+																	"title": {
+																		"type": "string",
+																		"description": "Folder name"
+																	},
+																	"coverImageUrl": {
+																		"type": "string",
+																		"description": "Optional cover image"
+																	},
+																	"coverEmoji": {
+																		"type": "string",
+																		"description": "Optional emoji icon"
+																	},
+																	"tileShape": {
+																		"type": "string",
+																		"description": "`POSTER`, `LANDSCAPE`, or `SQUARE`"
+																	},
+																	"hideTitle": {
+																		"type": "boolean",
+																		"description": "Hide the tile title text"
+																	},
+																	"catalogSources": {
+																		"type": "array",
+																		"description": "Array of catalog references",
+																		"items": {
+																			"type": "object",
+																			"properties": {
+																				"addonId": {
+																					"type": "string",
+																					"description": "Addon identifier"
+																				},
+																				"type": {
+																					"type": "string",
+																					"description": "Content type (e.g. `movie`, `series`)"
+																				},
+																				"catalogId": {
+																					"type": "string",
+																					"description": "Catalog identifier"
+																				}
+																			}
+																		}
+																	}
+																}
+															}
+														}
+													}
+												}
+											},
+											"updated_at": {
+												"type": "string"
+											}
+										}
+									}
+								},
+								"example": [
+									{
+										"profile_id": 1,
+										"collections_json": [
+											{
+												"id": "collection-1",
+												"title": "Weekend Picks",
+												"backdropImageUrl": "https://cdn.example.com/backdrops/weekend.jpg",
+												"pinToTop": true,
+												"viewMode": "TABBED_GRID",
+												"showAllTab": true,
+												"folders": [
+													{
+														"id": "folder-1",
+														"title": "Sci-Fi",
+														"coverImageUrl": "https://cdn.example.com/folders/scifi.jpg",
+														"coverEmoji": "🚀",
+														"tileShape": "LANDSCAPE",
+														"hideTitle": false,
+														"catalogSources": [
+															{
+																"addonId": "com.example.catalog",
+																"type": "movie",
+																"catalogId": "top"
+															}
+														]
+													}
+												]
+											}
+										],
+										"updated_at": "2026-01-01T00:00:00Z"
+									}
+								]
+							}
+						}
+					}
+				}
+			}
+		},
+		"/rest/v1/rpc/sync_push_collections": {
+			"post": {
+				"operationId": "updateCollections",
+				"summary": "Update collections",
+				"description": "This endpoint fully replaces the profile's collections blob. Send an empty array (`[]`) to clear it.",
+				"tags": [
+					"Collections"
+				],
+				"security": [
+					{
+						"bearerAuth": [],
+						"apiKey": []
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"p_profile_id": {
+										"type": "integer"
+									},
+									"p_collections_json": {
+										"type": "array",
+										"items": {
+											"type": "object",
+											"properties": {
+												"id": {
+													"type": "string"
+												},
+												"title": {
+													"type": "string"
+												},
+												"viewMode": {
+													"type": "string"
+												},
+												"folders": {
+													"type": "array",
+													"items": {}
+												}
+											}
+										}
+									}
+								}
+							},
+							"example": {
+								"p_profile_id": 1,
+								"p_collections_json": [
+									{
+										"id": "collection-1",
+										"title": "Weekend Picks",
+										"viewMode": "TABBED_GRID",
+										"folders": []
+									}
+								]
+							}
+						}
+					}
+				},
+				"responses": {
+					"204": {
+						"description": "No Content"
+					}
+				}
+			}
+		},
+		"/rest/v1/rpc/get_avatar_catalog": {
+			"post": {
+				"operationId": "listAvatars",
+				"summary": "List avatars",
+				"description": "This endpoint does not require authentication.\n\nThe response may be an empty array if no catalog avatars are currently published.",
+				"tags": [
+					"Avatars"
+				],
+				"security": [
+					{
+						"apiKey": []
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "array",
+									"items": {
+										"type": "object",
+										"properties": {
+											"id": {
+												"type": "string",
+												"description": "Avatar ID for use in profile `avatar_id`"
+											},
+											"display_name": {
+												"type": "string",
+												"description": "Human-readable name"
+											},
+											"storage_path": {
+												"type": "string",
+												"description": "Storage path for the image"
+											},
+											"category": {
+												"type": "string",
+												"description": "Category (e.g. `character`)"
+											},
+											"sort_order": {
+												"type": "integer",
+												"description": "Display order"
+											},
+											"is_active": {
+												"type": "boolean",
+												"description": "Whether available for selection"
+											},
+											"bg_color": {
+												"type": [
+													"string",
+													"null"
+												],
+												"description": "Suggested background color"
+											},
+											"created_at": {
+												"type": "string"
+											}
+										}
+									}
+								},
+								"example": [
+									{
+										"id": "avatar_cat_01",
+										"display_name": "Cool Cat",
+										"storage_path": "avatars/avatar_cat_01.png",
+										"category": "character",
+										"sort_order": 0,
+										"is_active": true,
+										"bg_color": "#FFB74D",
+										"created_at": "2026-01-01T00:00:00Z"
+									}
+								]
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/supporters/wall": {
+			"get": {
+				"operationId": "supporterWall",
+				"summary": "Supporter Wall",
+				"description": "This public website endpoint returns the Top and Recent views of The Wall in one request. It does not require authentication and exposes only the same public name, avatar, tier, and member-since fields shown on the Support page. The response permits cross-origin reads, so it can be used directly by other public Nuvio sites.\n\n`supporterSince` is `null` for one-time memberships. Members who opt out of The Wall are excluded from both lists. Payment amounts, account IDs, emails, and provider details are never returned.",
+				"tags": [
+					"Supporter Wall"
+				],
+				"parameters": [
+					{
+						"name": "limit",
+						"in": "query",
+						"required": false,
+						"description": "Members per list. Clamped to `1`–`100`.",
+						"schema": {
+							"type": "integer",
+							"default": 48
+						},
+						"example": 48
+					},
+					{
+						"name": "offset",
+						"in": "query",
+						"required": false,
+						"description": "Shared pagination offset for both lists.",
+						"schema": {
+							"type": "integer",
+							"default": 0
+						},
+						"example": 0
+					}
+				],
+				"security": [],
+				"servers": [
+					{
+						"url": "https://nuvio.tv"
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"top": {
+											"type": "object",
+											"properties": {
+												"members": {
+													"type": "array",
+													"items": {
+														"type": "object",
+														"properties": {
+															"displayName": {
+																"type": "string"
+															},
+															"avatarUrl": {
+																"type": "string"
+															},
+															"membershipLevel": {
+																"type": "string"
+															},
+															"supporterSince": {
+																"type": "string"
+															}
+														}
+													}
+												},
+												"totalCount": {
+													"type": "integer"
+												}
+											}
+										},
+										"recent": {
+											"type": "object",
+											"properties": {
+												"members": {
+													"type": "array",
+													"items": {}
+												},
+												"totalCount": {
+													"type": "integer"
+												}
+											}
+										},
+										"pagination": {
+											"type": "object",
+											"properties": {
+												"limit": {
+													"type": "integer"
+												},
+												"offset": {
+													"type": "integer"
+												}
+											}
+										}
+									}
+								},
+								"example": {
+									"top": {
+										"members": [
+											{
+												"displayName": "Nuvio Fan",
+												"avatarUrl": "https://example.com/avatar.png",
+												"membershipLevel": "SUPPORTER_PLUS",
+												"supporterSince": "2026-08-20T00:00:00Z"
+											}
+										],
+										"totalCount": 24
+									},
+									"recent": {
+										"members": [],
+										"totalCount": 24
+									},
+									"pagination": {
+										"limit": 48,
+										"offset": 0
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/rest/v1/rpc/get_sync_overview": {
+			"post": {
+				"operationId": "syncOverview",
+				"summary": "Sync overview",
+				"description": "This endpoint returns core sync data counts for each profile. Clients can use the counts in dashboards and status displays.\n\nEach key in the data objects is a profile index. The `profiles` entry includes the display name and color. This overview currently documents addons, library items, watch progress, watched items, and profiles only; it does not include collections, profile settings, or home catalog settings.",
+				"tags": [
+					"Sync overview"
+				],
+				"security": [
+					{
+						"bearerAuth": [],
+						"apiKey": []
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"addons": {
+											"type": "object",
+											"additionalProperties": {
+												"type": "integer"
+											},
+											"propertyNames": {
+												"type": "string"
+											}
+										},
+										"library_items": {
+											"type": "object",
+											"additionalProperties": {
+												"type": "integer"
+											},
+											"propertyNames": {
+												"type": "string"
+											}
+										},
+										"watch_progress": {
+											"type": "object",
+											"additionalProperties": {
+												"type": "integer"
+											},
+											"propertyNames": {
+												"type": "string"
+											}
+										},
+										"watched_items": {
+											"type": "object",
+											"additionalProperties": {
+												"type": "integer"
+											},
+											"propertyNames": {
+												"type": "string"
+											}
+										},
+										"profiles": {
+											"type": "object",
+											"additionalProperties": {
+												"type": "object",
+												"properties": {
+													"name": {
+														"type": "string"
+													},
+													"color": {
+														"type": "string"
+													}
+												}
+											},
+											"propertyNames": {
+												"type": "string"
+											}
+										}
+									}
+								},
+								"example": {
+									"addons": {
+										"1": 5,
+										"2": 3
+									},
+									"library_items": {
+										"1": 42,
+										"2": 10
+									},
+									"watch_progress": {
+										"1": 150,
+										"2": 30
+									},
+									"watched_items": {
+										"1": 200,
+										"2": 50
+									},
+									"profiles": {
+										"1": {
+											"name": "Main",
+											"color": "#1E88E5"
+										},
+										"2": {
+											"name": "Kids",
+											"color": "#FF5722"
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/functions/v1/health-check": {
+			"get": {
+				"operationId": "healthCheck",
+				"summary": "Health check",
+				"description": "Use this endpoint to check the API and database health. It does not require authentication.",
+				"tags": [
+					"Health check"
+				],
+				"security": [],
+				"responses": {
+					"200": {
+						"description": "Success",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"status": {
+											"type": "string"
+										},
+										"database": {
+											"type": "string"
+										},
+										"latency_ms": {
+											"type": "integer"
+										},
+										"timestamp": {
+											"type": "string"
+										}
+									}
+								},
+								"example": {
+									"status": "healthy",
+									"database": "connected",
+									"latency_ms": 45,
+									"timestamp": "2026-04-07T12:00:00.000Z"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/rest/v1/rpc/health_ping": {
+			"post": {
+				"operationId": "healthPing",
+				"summary": "Health check",
+				"description": "You can use the lightweight RPC ping instead:\n\nThe ping returns `true` if the database is reachable.",
+				"tags": [
+					"Health check"
+				],
+				"security": [
+					{
+						"apiKey": []
+					}
+				],
+				"responses": {
+					"204": {
+						"description": "No Content"
+					}
+				}
+			}
+		}
+	},
+	"components": {
+		"securitySchemes": {
+			"bearerAuth": {
+				"type": "http",
+				"scheme": "bearer",
+				"description": "Supabase access token from the auth endpoints."
+			},
+			"apiKey": {
+				"type": "apiKey",
+				"in": "header",
+				"name": "apikey",
+				"description": "Nuvio publishable key."
+			}
+		}
+	}
+}
