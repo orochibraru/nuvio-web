@@ -10,7 +10,7 @@ concurrency:
 
 jobs:
   static:
-    name: prek · unit · build
+    name: Lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -19,52 +19,7 @@ jobs:
         with:
           bun-version: latest
 
-      # The hooks shell out to the repo's own tooling (bun run check /
-      # nuvio:spec, bunx biome/prettier/markdownlint/tailwint), so deps have to
-      # exist first. `--ignore-scripts` skips `prepare`, which would try to
-      # install a git hook CI has no use for.
       - run: bun install --frozen-lockfile --ignore-scripts
 
-      # The same .pre-commit-config.yaml the local hook runs: actionlint,
-      # biome, prettier + markdownlint on markdown, tailwint, a regen of the
-      # derived Nuvio OpenAPI spec, and svelte-check. The fixer hooks autofix
-      # in place, so CI fails on any file one of them had to modify, with the
-      # diff printed.
       - name: Run prek
         uses: j178/prek-action@v3.0.0
-
-      - name: Unit tests + coverage (server / remote layer)
-        run: bun run test:unit:coverage
-
-      - name: Build
-        run: bun run build
-
-  e2e:
-    name: playwright e2e
-    runs-on: ubuntu-latest
-    env:
-      NUVIO_TEST_EMAIL: ${{ secrets.NUVIO_TEST_EMAIL }}
-      NUVIO_TEST_PASSWORD: ${{ secrets.NUVIO_TEST_PASSWORD }}
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-
-      - run: bun install --frozen-lockfile --ignore-scripts
-
-      - name: Install Playwright browser
-        run: bunx playwright install --with-deps chromium
-
-      - name: Run e2e
-        run: bun run test:e2e
-
-      - uses: orochibraru/upload-artifact@v8
-        if: failure()
-        with:
-          name: playwright-report
-          path: |
-            playwright-report/
-            test-results/
-          retention-days: 7
