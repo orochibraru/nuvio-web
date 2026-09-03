@@ -8,6 +8,7 @@
 	import MenuIcon from "@lucide/svelte/icons/menu";
 	import SearchIcon from "@lucide/svelte/icons/search";
 	import SettingsIcon from "@lucide/svelte/icons/settings";
+	import ShieldIcon from "@lucide/svelte/icons/shield";
 	import UsersIcon from "@lucide/svelte/icons/users";
 	import XIcon from "@lucide/svelte/icons/x";
 	import { Dialog as DialogPrimitive } from "bits-ui";
@@ -241,6 +242,15 @@
                   >
                 {/snippet}
               </DropdownMenu.Item>
+              {#if data.isAdmin}
+                <DropdownMenu.Item>
+                  {#snippet child({ props })}
+                    <a href={resolve("admin")} {...props}
+                      ><ShieldIcon />Server admin</a
+                    >
+                  {/snippet}
+                </DropdownMenu.Item>
+              {/if}
             </DropdownMenu.Group>
             <DropdownMenu.Separator />
             <form {...signOut.for("header")}>

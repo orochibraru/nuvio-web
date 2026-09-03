@@ -45,6 +45,12 @@ vi.mock("$app/server", () => ({
 	getRequestEvent: () => event,
 }));
 vi.mock("#lib/server/session.js", () => session);
+vi.mock("$app/env", () => ({ dev: false }));
+vi.mock("#lib/server/db.js", () => ({ tryDb: () => null }));
+vi.mock("$app/env/private", () => ({
+	NUVIO_ADMIN_EMAILS: "",
+	NUVIO_DATA_DIR: "data",
+}));
 vi.mock("#lib/nuvio/index.js", () => ({
 	NuvioApiError,
 	NuvioClient: class {
@@ -54,6 +60,13 @@ vi.mock("#lib/nuvio/index.js", () => ({
 }));
 
 import * as authForms from "./auth.remote.js";
+
+// What `/auth/v1/token` actually returns : a token *and* the user. The thin
+// `{ access_token }` stub only passed because `writeStoredSession` is mocked.
+const apiSession = {
+	access_token: "t",
+	user: { id: "user-1", email: "user@example.com" },
+};
 
 // The `form(...)` results aren't callable in their public type; the test drives
 // the underlying handler `(data, issue) => …` directly.
@@ -83,7 +96,7 @@ beforeEach(() => {
 
 describe("signIn", () => {
 	it("stores the session and redirects to a safe target", async () => {
-		client.signInWithPassword.mockResolvedValue({ access_token: "t" });
+		client.signInWithPassword.mockResolvedValue(apiSession);
 		await expect(
 			signIn(
 				{ email: "a@b.com", password: "pw", redirectTo: "/library" },
@@ -94,7 +107,7 @@ describe("signIn", () => {
 	});
 
 	it("rewrites an off-site redirectTo to the app root", async () => {
-		client.signInWithPassword.mockResolvedValue({ access_token: "t" });
+		client.signInWithPassword.mockResolvedValue(apiSession);
 		await expect(
 			signIn(
 				{ email: "a@b.com", password: "pw", redirectTo: "//evil.com" },
@@ -129,7 +142,7 @@ describe("signIn", () => {
 
 describe("signUp", () => {
 	it("signs the user straight in when the API returns a session", async () => {
-		client.signUp.mockResolvedValue({ access_token: "t" });
+		client.signUp.mockResolvedValue(apiSession);
 		await expect(
 			signUp(
 				{ email: "a@b.com", password: "longenough", redirectTo: "/library" },

@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import process from "node:process";
 import { defineConfig, devices } from "@playwright/test";
 
@@ -6,6 +7,27 @@ import { defineConfig, devices } from "@playwright/test";
 // the whole run out. Locally an already-running server on :3000 is reused.
 const PORT = 3000;
 const ORIGIN = `http://localhost:${PORT}`;
+
+/**
+ * This config is evaluated twice: once in the runner (which is what builds
+ * `webServer.env` and starts the server) and again in each worker. Only the
+ * worker has `.env` loaded, so reading `process.env` here silently yields
+ * `undefined` in the run that matters. Read the file directly instead.
+ */
+function fromEnvFile(name: string): string {
+	if (process.env[name]) {
+		return process.env[name];
+	}
+	try {
+		const text = readFileSync(new URL(".env", import.meta.url), "utf8");
+		const line = text
+			.split("\n")
+			.find((entry) => entry.trimStart().startsWith(`${name}=`));
+		return line?.slice(line.indexOf("=") + 1).trim() ?? "";
+	} catch {
+		return "";
+	}
+}
 
 export default defineConfig({
 	testDir: "e2e",
@@ -57,6 +79,11 @@ export default defineConfig({
 			// Unlocks the `/dev/player` harness on a production build. Only ever
 			// set here : see `src/routes/dev/player/+page.server.ts`.
 			NUVIO_E2E: "1",
+			// Makes the shared test account a server admin so `admin.spec.ts` can
+			// reach /admin. Its database goes to a scratch directory that the spec
+			// owns, so a run never touches a real `data/`.
+			NUVIO_ADMIN_EMAILS: fromEnvFile("NUVIO_TEST_EMAIL"),
+			NUVIO_DATA_DIR: "test-results/admin-data",
 		},
 	},
 });

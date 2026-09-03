@@ -84,6 +84,34 @@ bun run nuvio:spec:check
 `src/lib/nuvio/types.ts` and `client.ts` are still written by hand; the
 generated JSON is what you reconcile them against.
 
+## Server admin page
+
+`/admin` is a self-hosting surface, not a user feature. It lists who has signed
+in to _this_ instance and can lock it to an allowlist.
+
+- **Who gets in.** `NUVIO_ADMIN_EMAILS` (comma or whitespace separated),
+  declared in `src/env.ts`. It is deliberately not stored in the database: who
+  can administer the server is a deployment decision, not something a signed-in
+  user can write. Non-admins get a 404, not a 403, so the page does not announce
+  itself. Every route _and_ every remote function re-checks : the nav entry is
+  cosmetic.
+- **Server admins can always sign in**, listed on the allowlist or not, so a
+  typo can never lock you out of the page that fixes it.
+- **Locking** blocks sign-in and sign-up for anyone not allowlisted, and signs
+  out existing sessions on their next request (a cookie otherwise outlives the
+  decision by 30 days).
+- **Storage** is SQLite (`bun:sqlite`) under `NUVIO_DATA_DIR` (default `data`,
+  `/app/data` in the container : `compose.yaml` mounts it). One row per person,
+  never one per sign-in. If the directory is unwritable the feature degrades to
+  "no metrics, no lock" rather than 500-ing the app : the lock is stored _in_
+  that database, so no database means nobody ever turned it on.
+
+Environment variables go through SvelteKit 3's explicit environment variables
+(`experimental.explicitEnvironmentVariables` in `vite.config.ts`): declare them
+in `src/env.ts`, then import the name itself from `$app/env/private`. An
+undeclared name is not readable at all. Leave them non-`static` so a container
+reads them at boot instead of having a build-time value inlined.
+
 ## Tests
 
 ```bash

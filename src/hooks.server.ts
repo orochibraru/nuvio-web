@@ -1,6 +1,9 @@
 import type { RequestEvent } from "@sveltejs/kit";
 import type { Handle, HandleServerError } from "@sveltejs/kit/hooks";
+import { canSignIn } from "#lib/admin/admin-data.js";
 import { NuvioApiError, NuvioClient } from "#lib/nuvio/index.js";
+import { isAdminEmail } from "#lib/server/admin.js";
+import { tryDb } from "#lib/server/db.js";
 import { log } from "#lib/server/log.js";
 import {
 	clearStoredSession,
@@ -8,6 +11,7 @@ import {
 	isExpired,
 	readProfileId,
 	readStoredSession,
+	type StoredSession,
 	writeStoredSession,
 } from "#lib/server/session.js";
 import { dev } from "$app/env";
@@ -91,6 +95,22 @@ function logAccess(
 	}
 }
 
+/**
+ * Locking the instance has to reach sessions that already exist, or the lock
+ * does nothing for 30 days : the cookie outlives the decision. Checked per
+ * request against the local database, which is a single indexed lookup.
+ */
+function evictIfLocked(event: RequestEvent, stored: StoredSession): boolean {
+	const db = tryDb();
+	const email = stored.user.email;
+	if (!(db && email) || canSignIn(db, email, isAdminEmail(email))) {
+		return false;
+	}
+	log.warn("Signed out an existing session: instance is locked", { email });
+	clearStoredSession(event.cookies);
+	return true;
+}
+
 export const handle: Handle = async ({ event, resolve }) => {
 	const startedAt = performance.now();
 	let stored = readStoredSession(event.cookies);
@@ -108,6 +128,10 @@ export const handle: Handle = async ({ event, resolve }) => {
 			clearStoredSession(event.cookies);
 			stored = null;
 		}
+	}
+
+	if (stored && evictIfLocked(event, stored)) {
+		stored = null;
 	}
 
 	event.locals.session = stored ? { user: stored.user } : null;

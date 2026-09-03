@@ -24,6 +24,8 @@ const pages = [
 	{ name: "search", path: "/search?q=matrix" },
 	{ name: "detail", path: "/detail/movie/tt0137523" },
 	{ name: "player", path: "/player/movie/tt0137523" },
+	// Reachable because playwright.config.ts makes the test account an admin.
+	{ name: "admin", path: "/admin" },
 ];
 
 for (const { name, path } of pages) {

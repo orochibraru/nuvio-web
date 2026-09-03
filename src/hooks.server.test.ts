@@ -1,6 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("$app/env", () => ({ dev: false }));
+vi.mock("$app/server", () => ({ getRequestEvent: () => ({ locals: {} }) }));
+// No admin database in unit tests: `tryDb` returning null is the documented
+// "feature disabled" path, so the hook must behave exactly as it did before.
+vi.mock("#lib/server/db.js", () => ({ tryDb: () => null }));
+vi.mock("$app/env/private", () => ({
+	NUVIO_ADMIN_EMAILS: "",
+	NUVIO_DATA_DIR: "data",
+}));
 vi.mock("#lib/server/session.js", () => ({
 	readStoredSession: () => null,
 	createServerClient: () => ({ marker: "client" }),

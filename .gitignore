@@ -31,3 +31,6 @@ screens/
 
 # Vitest
 /coverage/
+
+# Local admin database (sign-in metrics + instance lock)
+/data/

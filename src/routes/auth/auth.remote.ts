@@ -1,6 +1,10 @@
 import { invalid, redirect } from "@sveltejs/kit";
 import * as v from "valibot";
+import { canSignIn, recordSignIn } from "#lib/admin/admin-data.js";
 import { NuvioApiError, NuvioClient } from "#lib/nuvio/index.js";
+import { isAdminEmail } from "#lib/server/admin.js";
+import { tryDb } from "#lib/server/db.js";
+import { log } from "#lib/server/log.js";
 import { clearStoredSession, writeStoredSession } from "#lib/server/session.js";
 import { resolve } from "$app/paths";
 import { form, getRequestEvent } from "$app/server";
@@ -28,6 +32,40 @@ const signUpSchema = v.object({
 	redirectTo,
 });
 
+/**
+ * The instance lock. Checked before the credentials reach Nuvio, so a locked
+ * instance never becomes an oracle for which accounts exist upstream, and the
+ * refusal is identical whether or not the password was right.
+ */
+function assertAllowed(email: string): void {
+	const db = tryDb();
+	if (!db || canSignIn(db, email, isAdminEmail(email))) {
+		return;
+	}
+	log.warn("Blocked sign-in: instance is locked", { email });
+	invalid(
+		"This server is invite-only. Ask the server admin to add your email address.",
+	);
+}
+
+/**
+ * Metrics are a side-effect of signing in, never a condition of it: a failed
+ * write is logged and swallowed rather than turning a valid sign-in into a 500.
+ */
+function record(email: string, userId: string): void {
+	const db = tryDb();
+	if (!db) {
+		return;
+	}
+	try {
+		recordSignIn(db, email, userId);
+	} catch (error) {
+		log.error("Could not record a sign-in", {
+			error: error instanceof Error ? error : "Unknown error",
+		});
+	}
+}
+
 function safeTarget(value: string): string {
 	return value.startsWith("/") && !value.startsWith("//")
 		? value
@@ -36,12 +74,14 @@ function safeTarget(value: string): string {
 
 export const signIn = form(signInSchema, async (data, issue) => {
 	const { cookies, fetch } = getRequestEvent();
+	assertAllowed(data.email);
 	try {
 		const session = await new NuvioClient({ fetch }).signInWithPassword({
 			email: data.email,
 			password: data.password,
 		});
 		writeStoredSession(cookies, session);
+		record(session.user.email ?? data.email, session.user.id);
 	} catch (error) {
 		if (error instanceof NuvioApiError) {
 			if (
@@ -60,6 +100,7 @@ export const signIn = form(signInSchema, async (data, issue) => {
 
 export const signUp = form(signUpSchema, async (data, issue) => {
 	const { cookies, fetch } = getRequestEvent();
+	assertAllowed(data.email);
 	let hasSession = false;
 	try {
 		const session = await new NuvioClient({ fetch }).signUp({
@@ -69,6 +110,7 @@ export const signUp = form(signUpSchema, async (data, issue) => {
 		hasSession = Boolean(session.access_token);
 		if (hasSession) {
 			writeStoredSession(cookies, session);
+			record(session.user.email ?? data.email, session.user.id);
 		}
 	} catch (error) {
 		if (error instanceof NuvioApiError) {

@@ -4,6 +4,14 @@ services:
     restart: unless-stopped
     ports:
       - 3000:3000
+    environment:
+      # Addresses that can reach /admin. Comma separated; leave unset to have
+      # no admin surface at all.
+      NUVIO_ADMIN_EMAILS: ${NUVIO_ADMIN_EMAILS:-}
+    volumes:
+      # Sign-in metrics and the instance lock live here. Without this the
+      # container starts clean on every recreate.
+      - ./data:/app/data
     healthcheck:
       interval: 30s
       retries: 3
