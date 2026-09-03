@@ -10,6 +10,7 @@
 		"start": "./build/server",
 		"preview": "vite preview",
 		"prepare": "prek install --allow-missing-config || true; svelte-kit sync || echo ''",
+		"sync": "svelte-kit sync || echo ''",
 		"lint": "tailwint && biome check .",
 		"lint:fix": "tailwint --fix && biome check --write .",
 		"format": "markdownlint-cli2 '**/*.md' && prettier --log-level warn '**/*.md'",

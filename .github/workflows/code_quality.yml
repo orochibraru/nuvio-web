@@ -17,5 +17,7 @@ jobs:
 
       - run: bun install --frozen-lockfile --ignore-scripts
 
+      - run: bun run sync
+
       - name: Run prek
         uses: j178/prek-action@v3.0.0
