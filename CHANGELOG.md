@@ -1,3 +1,15 @@
+## [1.0.6](https://github.com/orochibraru/nuvio-web/compare/v1.0.5...v1.0.6) (2026-09-03)
+
+### Features
+
+- api spec automation
+  ([ed8dd4b](https://github.com/orochibraru/nuvio-web/commit/ed8dd4bab07915d66285da36f4395cfb951b48bd))
+
+### Bug Fixes
+
+- discover page navigation
+  ([7dc63eb](https://github.com/orochibraru/nuvio-web/commit/7dc63eb1e35b33c622bd84200b5d96526e97e7d1))
+
 ## [1.0.5](https://github.com/orochibraru/nuvio-web/compare/v1.0.4...v1.0.5) (2026-09-02)
 
 ## [1.0.4](https://github.com/orochibraru/nuvio-web/compare/v1.0.3...v1.0.4) (2026-09-02)
