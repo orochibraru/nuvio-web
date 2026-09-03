@@ -9,7 +9,7 @@
 		"build": "vite build",
 		"start": "./build/server",
 		"preview": "vite preview",
-		"prepare": "prek install --allow-missing-config || true; svelte-kit sync || echo ''",
+		"prepare": "prek install --allow-missing-config -t pre-commit -t commit-msg || true; svelte-kit sync || echo ''",
 		"sync": "svelte-kit sync || echo ''",
 		"lint": "tailwint && biome check .",
 		"lint:fix": "tailwint --fix && biome check --write .",

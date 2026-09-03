@@ -13,6 +13,7 @@ interface Client {
 const state = {
 	profileId: 1 as number,
 	watchProgressPull: vi.fn(),
+	titleMeta: vi.fn(),
 	client: {} as Client,
 };
 
@@ -31,9 +32,15 @@ vi.mock("#lib/server/guards.js", () => ({
 
 vi.mock("#lib/addons/server.js", () => ({
 	getAddonClient: async () => ({ client: state.client }),
+	titleMeta: (type: string, id: string) => state.titleMeta(type, id),
 }));
 
-import { getSubtitles, resolveStreams, titleProgress } from "./watch.remote.ts";
+import {
+	getSubtitles,
+	playbackContext,
+	resolveStreams,
+	titleProgress,
+} from "./watch.remote.ts";
 
 function progressRow(over: Record<string, unknown> = {}) {
 	return {
@@ -162,5 +169,33 @@ describe("titleProgress", () => {
 			tt1: { fraction: 0.5, completed: false },
 			"tt1:1:2": { fraction: expect.closeTo(0.983, 2), completed: true },
 		});
+	});
+});
+
+describe("playbackContext", () => {
+	it("resolves the title's meta through the addon layer", async () => {
+		state.watchProgressPull = vi.fn(async () => []);
+		state.titleMeta = vi.fn(async () => ({
+			meta: { id: "tt9", type: "movie", name: "Movie" },
+			addonName: "One",
+		}));
+
+		const context = await playbackContext({ type: "movie", id: "tt9" });
+
+		expect(state.titleMeta).toHaveBeenCalledWith("movie", "tt9");
+		expect(context).toMatchObject({
+			metaType: "movie",
+			contentId: "tt9",
+			heading: "Movie",
+		});
+	});
+
+	it("falls back to the content id when no addon has the title", async () => {
+		state.watchProgressPull = vi.fn(async () => []);
+		state.titleMeta = vi.fn(async () => null);
+
+		expect(
+			(await playbackContext({ type: "movie", id: "tt404" })).heading,
+		).toBe("tt404");
 	});
 });

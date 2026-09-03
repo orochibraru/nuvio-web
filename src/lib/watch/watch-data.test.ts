@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import type { NuvioClient } from "#lib/nuvio/index.js";
-import { pullContinueWatching, pullResumeRows } from "./watch-data.ts";
+import {
+	pullContinueWatching,
+	pullPlaybackContext,
+	pullResumeRows,
+} from "./watch-data.ts";
 
 function nuvioWith(rows: unknown[] | Promise<never>): NuvioClient {
 	return {
@@ -157,5 +161,75 @@ describe("pullContinueWatching", () => {
 		await pullContinueWatching(nuvio, 1, slowLookup);
 		expect(peak).toBeLessThanOrEqual(4);
 		expect(slowLookup).toHaveBeenCalledTimes(10);
+	});
+});
+
+describe("pullContinueWatching meta failures", () => {
+	it("falls back to the bare content id when the meta lookup rejects", async () => {
+		const nuvio = nuvioWith([row({ content_id: "tt7" })]);
+		const lookup = vi.fn(async () => {
+			throw new Error("addon down");
+		});
+
+		const [item] = await pullContinueWatching(nuvio, 1, lookup as never);
+
+		expect(item).toMatchObject({ id: "tt7", name: "tt7", poster: null });
+	});
+});
+
+describe("pullPlaybackContext", () => {
+	it("assembles meta and the matching progress row for an episode", async () => {
+		const nuvio = nuvioWith([
+			{ progress_key: "tt9_s1e2", position: 300_000, duration: 2_400_000 },
+		]);
+		const lookup = vi.fn(async () => ({
+			id: "tt9",
+			type: "series",
+			name: "Show",
+			videos: [
+				{ id: "tt9:1:1", title: "One", season: 1, episode: 1 },
+				{ id: "tt9:1:2", title: "Two", season: 1, episode: 2 },
+			],
+		}));
+
+		const context = await pullPlaybackContext(
+			nuvio,
+			1,
+			{ type: "series", id: "tt9:1:2" },
+			lookup as never,
+		);
+
+		expect(lookup).toHaveBeenCalledWith("series", "tt9");
+		expect(context).toMatchObject({
+			metaType: "series",
+			contentId: "tt9",
+			season: 1,
+			episode: 2,
+			videoId: "tt9:1:2",
+		});
+		expect(context.resume).toMatchObject({ position: 300_000 });
+	});
+
+	it("still returns a context when both halves fail", async () => {
+		const nuvio = nuvioWith(Promise.reject(new Error("down")) as never);
+		const lookup = vi.fn(async () => {
+			throw new Error("addon down");
+		});
+
+		const context = await pullPlaybackContext(
+			nuvio,
+			1,
+			{ type: "movie", id: "tt1" },
+			lookup as never,
+		);
+
+		expect(context).toMatchObject({
+			metaType: "movie",
+			contentId: "tt1",
+			season: null,
+			episode: null,
+		});
+		expect(context.resume).toBeNull();
+		expect(context.heading).toBe("tt1");
 	});
 });

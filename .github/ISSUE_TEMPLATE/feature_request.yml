@@ -12,7 +12,8 @@ body:
     id: problem
     attributes:
       label: Problem Statement
-      description: Is your feature request related to a problem? Describe it clearly.
+      description:
+        Is your feature request related to a problem? Describe it clearly.
       placeholder: "I'm always frustrated when…"
     validations:
       required: true
@@ -29,7 +30,8 @@ body:
     id: alternatives
     attributes:
       label: Alternatives Considered
-      description: Have you considered any alternative approaches or workarounds?
+      description:
+        Have you considered any alternative approaches or workarounds?
     validations:
       required: false
 
@@ -46,5 +48,7 @@ body:
     attributes:
       label: Checklist
       options:
-        - label: I have searched existing issues to make sure this has not already been requested.
+        - label:
+            I have searched existing issues to make sure this has not already
+            been requested.
           required: true

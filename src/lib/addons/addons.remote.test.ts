@@ -84,9 +84,13 @@ import {
 	browseAddonCatalog,
 	browseCatalog,
 	getMeta,
+	getStreams,
+	homeRows,
 	installedAddons,
 	previewAddon,
 	saveAddons,
+	searchCatalogs,
+	similarTitles,
 } from "./addons.remote.ts";
 
 beforeEach(() => {
@@ -294,5 +298,40 @@ describe("browseAddonCatalog", () => {
 				id: "nope",
 			}),
 		).rejects.toMatchObject({ status: 404 });
+	});
+});
+
+// These four are kept for parity with the loads that call `server.ts` directly.
+// Thin as they are, they are reachable endpoints, so they get held to the same
+// wiring check as the rest.
+describe("pass-through queries", () => {
+	it("getStreams fans out through this request's client", async () => {
+		state.getStreams.mockResolvedValue({ streams: [{ url: "u" }], errors: [] });
+		expect(await getStreams({ type: "movie", id: "tt1" })).toEqual({
+			streams: [{ url: "u" }],
+			errors: [],
+		});
+		expect(state.getStreams).toHaveBeenCalledWith("movie", "tt1");
+	});
+
+	it("similarTitles forwards the genres", async () => {
+		state.similarToTitle.mockResolvedValue({ metas: [{ id: "tt2" }] });
+		expect(
+			await similarTitles({ type: "movie", id: "tt1", genres: ["Drama"] }),
+		).toEqual({ metas: [{ id: "tt2" }] });
+		expect(state.similarToTitle).toHaveBeenCalledWith("movie", "tt1", [
+			"Drama",
+		]);
+	});
+
+	it("homeRows delegates to the shared row builder", async () => {
+		state.homeCatalogRows.mockResolvedValue([{ id: "row" }]);
+		expect(await homeRows()).toEqual([{ id: "row" }]);
+	});
+
+	it("searchCatalogs delegates with the trimmed term", async () => {
+		state.searchAllCatalogs.mockResolvedValue({ metas: [{ id: "tt3" }] });
+		expect(await searchCatalogs("dune")).toEqual({ metas: [{ id: "tt3" }] });
+		expect(state.searchAllCatalogs).toHaveBeenCalledWith("dune");
 	});
 });

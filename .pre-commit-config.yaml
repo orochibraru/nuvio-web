@@ -1,10 +1,73 @@
 # Run by prek (https://github.com/j178/prek), a drop-in pre-commit runner.
-# Install the hook once with `prek install`; `bun install` does it for you.
+# Install the hooks once with `prek install -t pre-commit -t commit-msg`;
+# `bun install` does it for you.
 repos:
+  # Cheap, generic hygiene the language tooling below does not cover: biome
+  # owns the code files and prettier the markdown, but nothing was looking at
+  # YAML, the Dockerfile, .editorconfig or a stray conflict marker.
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: detect-private-key
+      - id: check-yaml
+      - id: check-added-large-files
+        # The gallery screenshots are legitimately multi-megabyte; everything
+        # else crossing 500KB is a mistake worth a second look.
+        exclude: ^gallery/
+      - id: mixed-line-ending
+        args: [--fix=lf]
+        exclude: &vendored |-
+          (?x)^(
+            src/lib/nuvio/nuvio-public-api\.snapshot\.md|
+            introdb-openapi\.yaml|
+            \.agents/
+          )
+      - id: end-of-file-fixer
+        # Verbatim copies of external documents: reformatting them makes
+        # `bun run nuvio:check` diff our own whitespace forever.
+        exclude: *vendored
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+        exclude: *vendored
+
+  # semantic-release computes the next version from the commit messages, so a
+  # malformed subject silently costs a release rather than failing loudly.
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: v4.4.0
+    hooks:
+      - id: conventional-pre-commit
+        stages: [commit-msg]
+
+  # Secrets are introduced at commit time, which is exactly where this runs.
+  # Note it scans the *staged* diff, so it is a no-op under `--all-files` in
+  # CI : GitHub's own push protection is the second line, not this hook.
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
+
+  - repo: https://github.com/crate-ci/typos
+    rev: v1.50.1
+    hooks:
+      - id: typos
+        # Report, do not rewrite. The upstream hook defaults to
+        # --write-changes, and an unattended "fix" to an identifier is worse
+        # than the typo it corrects. Project vocabulary lives in `_typos.toml`.
+        args: [--force-exclude]
+
   - repo: https://github.com/rhysd/actionlint
     rev: v1.7.12
     hooks:
       - id: actionlint
+
+  # The Docker image, not the system binary: CI runners have a daemon but no
+  # hadolint on PATH. Rule exemptions and their reasons are in `.hadolint.yaml`.
+  - repo: https://github.com/hadolint/hadolint
+    rev: v2.15.1
+    hooks:
+      - id: hadolint-docker
 
   - repo: local
     hooks:
@@ -27,10 +90,10 @@ repos:
         files: \.(ts|tsx|js|jsx|mjs|cjs|json|jsonc|css|svelte|html)$
 
       - id: prettier-md
-        name: prettier (markdown)
+        name: prettier (markdown, yaml)
         entry: bunx prettier --log-level warn --write
         language: system
-        types: [markdown]
+        types_or: [markdown, yaml]
 
       - id: markdownlint
         name: markdownlint-cli2 --fix
@@ -48,6 +111,15 @@ repos:
         pass_filenames: false
         files: \.(svelte|html|css)$
 
+      # A cheap unit suite (432 tests, ~1s) is worth running before the commit
+      # rather than after the push.
+      - id: test-unit
+        name: vitest run
+        entry: bun run test:unit
+        language: system
+        pass_filenames: false
+        files: ^(src/|scripts/|vitest\.config\.ts$)
+
       # Type checks last, after the fixers have had their turn. svelte-check is
       # whole-project by nature (a change in one file can break the types of a
       # file that imports it), so the staged paths only decide whether it is
@@ -58,3 +130,41 @@ repos:
         language: system
         pass_filenames: false
         files: ^(src/|e2e/|scripts/|vite\.config\.ts$|tsconfig\.json$|package\.json$)
+
+  # The CLAUDE.md conventions no linter knows about. Each of these is at zero
+  # occurrences today, so they are guards against regression, not a cleanup
+  # backlog.
+  - repo: local
+    hooks:
+      - id: no-thrown-redirect
+        name: "redirect() / error() throw on their own : call them bare"
+        language: pygrep
+        entry: \bthrow\s+(redirect|error)\s*\(
+        files: \.(ts|svelte)$
+
+      - id: no-dollar-lib
+        name: "SvelteKit 3 dropped $lib : import through #lib/"
+        language: pygrep
+        entry: |-
+          ["']\$lib[/"']
+        files: \.(ts|svelte)$
+
+      - id: lib-imports-end-js
+        name: "#lib/... specifiers end .js, not .ts"
+        language: pygrep
+        entry: |-
+          ["']#lib/[^"']*\.ts["']
+        files: \.(ts|svelte)$
+
+      - id: internal-links-resolve
+        name: "internal links go through resolve() from $app/paths"
+        language: pygrep
+        entry: href="/
+        files: \.svelte$
+
+      - id: lockfile-in-sync
+        name: bun.lock matches package.json
+        entry: bun install --frozen-lockfile --dry-run
+        language: system
+        pass_filenames: false
+        files: ^(package\.json|bun\.lock)$

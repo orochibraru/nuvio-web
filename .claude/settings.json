@@ -13,35 +13,19 @@
 	"hooks": {
 		"PostToolUse": [
 			{
-				"matcher": "Edit|Write|MultiEdit",
+				"matcher": "*",
 				"hooks": [
 					{
 						"type": "command",
-						"command": "bun run lint:fix",
+						"command": "prek run",
 						"timeout": 120,
 						"statusMessage": "Running Linters"
-					}
-				]
-			},
-			{
-				"matcher": "Edit|Write|MultiEdit",
-				"hooks": [
+					},
 					{
 						"type": "command",
-						"command": "bun run format:fix",
-						"timeout": 120,
-						"statusMessage": "Running Formatters"
-					}
-				]
-			},
-			{
-				"matcher": "Edit|Write|MultiEdit",
-				"hooks": [
-					{
-						"type": "command",
-						"command": "bun run test:unit:coverage",
-						"timeout": 120,
-						"statusMessage": "Running Unit Tests w/ Coverage"
+						"command": "bun run test:e2e",
+						"timeout": 120000,
+						"statusMessage": "Running E2E tests"
 					}
 				]
 			}

@@ -43,9 +43,24 @@ function isBlockedIpv6(ip: string): boolean {
 	) {
 		return true;
 	}
+	// IPv4-mapped addresses reach the IPv4 host, so they get the IPv4 rules.
+	// Two spellings arrive here: `lookup()` hands back the dotted form
+	// (`::ffff:10.0.0.1`), while `new URL()` normalizes a literal in the host
+	// to hex (`[::ffff:a00:1]`) : missing the second let a mapped literal
+	// through to a private address.
 	const mapped = normalized.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
 	if (mapped) {
 		return isBlockedIpv4(mapped[1]);
+	}
+	const mappedHex = normalized.match(
+		/^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/,
+	);
+	if (mappedHex) {
+		const high = Number.parseInt(mappedHex[1], 16);
+		const low = Number.parseInt(mappedHex[2], 16);
+		return isBlockedIpv4(
+			[high >>> 8, high & 0xff, low >>> 8, low & 0xff].join("."),
+		);
 	}
 	return false;
 }
