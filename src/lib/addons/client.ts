@@ -1,4 +1,4 @@
-import { pooledMap } from "#lib/pool.js";
+import { pooledMap } from "#lib/core/pool.js";
 import { safeFetch } from "#lib/server/safe-fetch.js";
 
 // Cap on simultaneous upstream addon requests during a fan-out : keeps a

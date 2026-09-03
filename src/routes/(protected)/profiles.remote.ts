@@ -1,11 +1,7 @@
 import { invalid, redirect } from "@sveltejs/kit";
 import * as v from "valibot";
 import type { Profile, ProfileInput } from "#lib/nuvio/index.js";
-import {
-	clearProfileId,
-	readProfileId,
-	writeProfileId,
-} from "#lib/server/session.js";
+import { SESSION } from "#lib/services/index.js";
 import { resolve } from "$app/paths";
 import { form, getRequestEvent } from "$app/server";
 
@@ -43,12 +39,12 @@ function toInput(profile: Profile): ProfileInput {
 export const selectProfile = form(
 	v.object({ profileId: profileIndex, redirectTo }),
 	async ({ profileId, redirectTo: target }) => {
-		const { cookies, locals } = getRequestEvent();
+		const { locals } = getRequestEvent();
 		const profiles = await locals.nuvio.profiles.list();
 		if (!profiles.some((profile) => profile.profile_index === profileId)) {
 			redirect(303, resolve("profiles"));
 		}
-		writeProfileId(cookies, profileId);
+		locals.services.get(SESSION).writeProfileId(profileId);
 		redirect(303, safeTarget(target));
 	},
 );
@@ -69,7 +65,7 @@ export const createProfile = form(
 		redirectTo,
 	}),
 	async ({ name, avatarId, colorHex, redirectTo: target }, issue) => {
-		const { cookies, locals } = getRequestEvent();
+		const { locals } = getRequestEvent();
 		const existing = await locals.nuvio.profiles.list();
 		if (existing.length >= MAX_PROFILES) {
 			invalid(issue.name("You already have the maximum of 6 profiles."));
@@ -93,7 +89,7 @@ export const createProfile = form(
 				},
 			],
 		});
-		writeProfileId(cookies, nextIndex);
+		locals.services.get(SESSION).writeProfileId(nextIndex);
 		redirect(303, safeTarget(target));
 	},
 );
@@ -154,7 +150,7 @@ export const deleteProfile = form(
 		if (profileId === 1) {
 			invalid(issue.profileId("The primary profile can't be deleted."));
 		}
-		const { cookies, locals } = getRequestEvent();
+		const { locals } = getRequestEvent();
 		const existing = await locals.nuvio.profiles.list();
 		if (!existing.some((profile) => profile.profile_index === profileId)) {
 			redirect(303, resolve("profiles"));
@@ -171,8 +167,9 @@ export const deleteProfile = form(
 				.map(toInput),
 		});
 
-		if (readProfileId(cookies) === profileId) {
-			clearProfileId(cookies);
+		const session = locals.services.get(SESSION);
+		if (session.readProfileId() === profileId) {
+			session.clearProfileId();
 		}
 
 		redirect(303, resolve("profiles"));

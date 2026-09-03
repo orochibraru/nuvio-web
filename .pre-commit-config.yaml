@@ -1,0 +1,60 @@
+# Run by prek (https://github.com/j178/prek), a drop-in pre-commit runner.
+# Install the hook once with `prek install`; `bun install` does it for you.
+repos:
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.12
+    hooks:
+      - id: actionlint
+
+  - repo: local
+    hooks:
+      # Runs first: nuvio-public-api.json is generated from the committed prose
+      # snapshot, which may itself be part of this commit. Regenerating here
+      # means a stale JSON is fixed in place rather than reported by CI later.
+      # `nuvio:check` is deliberately not a hook : it fetches the live upstream
+      # page, so it belongs in CI, not in front of every commit.
+      - id: nuvio-spec
+        name: regenerate the Nuvio OpenAPI spec
+        entry: bun run nuvio:spec
+        language: system
+        pass_filenames: false
+        files: ^(src/lib/nuvio/nuvio-public-api\.snapshot\.md$|scripts/build-nuvio-spec\.ts$|scripts/nuvio-spec/)
+
+      - id: biome
+        name: biome check --write --unsafe
+        entry: bunx biome check --write --unsafe --no-errors-on-unmatched
+        language: system
+        files: \.(ts|tsx|js|jsx|mjs|cjs|json|jsonc|css|svelte|html)$
+
+      - id: prettier-md
+        name: prettier (markdown)
+        entry: bunx prettier --log-level warn --write
+        language: system
+        types: [markdown]
+
+      - id: markdownlint
+        name: markdownlint-cli2 --fix
+        entry: bunx markdownlint-cli2 --fix
+        language: system
+        types: [markdown]
+
+      # tailwint discards explicit file arguments (verified: any path/glob form
+      # reports "0 files scanned"), so it always scans the whole repo. Only the
+      # decision to run it at all is staged-scoped.
+      - id: tailwint
+        name: tailwint --fix
+        entry: bunx tailwint --fix
+        language: system
+        pass_filenames: false
+        files: \.(svelte|html|css)$
+
+      # Type checks last, after the fixers have had their turn. svelte-check is
+      # whole-project by nature (a change in one file can break the types of a
+      # file that imports it), so the staged paths only decide whether it is
+      # worth running at all, never what gets checked.
+      - id: check
+        name: svelte-check
+        entry: bun run check
+        language: system
+        pass_filenames: false
+        files: ^(src/|e2e/|scripts/|vite\.config\.ts$|tsconfig\.json$|package\.json$)

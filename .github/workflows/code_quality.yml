@@ -1,5 +1,5 @@
+# Runs linters, test suites & formatters
 name: Code Quality
-description: Runs linters, test suites & formatters
 
 on:
   workflow_call:
@@ -10,7 +10,7 @@ concurrency:
 
 jobs:
   static:
-    name: check · lint · unit · build
+    name: prek · unit · build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -19,19 +19,19 @@ jobs:
         with:
           bun-version: latest
 
-      - run: bun install --frozen-lockfile
+      # The hooks shell out to the repo's own tooling (bun run check /
+      # nuvio:spec, bunx biome/prettier/markdownlint/tailwint), so deps have to
+      # exist first. `--ignore-scripts` skips `prepare`, which would try to
+      # install a git hook CI has no use for.
+      - run: bun install --frozen-lockfile --ignore-scripts
 
-      - name: Type + Svelte check
-        run: bun run check
-
-      - name: Format (md)
-        run: bun run format
-
-      - name: Lint + format (ts)
-        run: bun run lint
-
-      - name: Nuvio OpenAPI up to date with the prose snapshot
-        run: bun run nuvio:spec:check
+      # The same .pre-commit-config.yaml the local hook runs: actionlint,
+      # biome, prettier + markdownlint on markdown, tailwint, a regen of the
+      # derived Nuvio OpenAPI spec, and svelte-check. The fixer hooks autofix
+      # in place, so CI fails on any file one of them had to modify, with the
+      # diff printed.
+      - name: Run prek
+        uses: j178/prek-action@v3.0.0
 
       - name: Unit tests + coverage (server / remote layer)
         run: bun run test:unit:coverage
@@ -52,7 +52,7 @@ jobs:
         with:
           bun-version: latest
 
-      - run: bun install --frozen-lockfile
+      - run: bun install --frozen-lockfile --ignore-scripts
 
       - name: Install Playwright browser
         run: bunx playwright install --with-deps chromium

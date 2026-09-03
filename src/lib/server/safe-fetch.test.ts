@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { safeFetch } from "./safe-fetch.js";
+import { safeFetch } from "./safe-fetch.ts";
 
 function okFetch(): typeof fetch {
 	return vi.fn(

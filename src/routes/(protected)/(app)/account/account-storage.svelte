@@ -4,7 +4,7 @@
 	import * as Card from "#lib/components/ui/card/index.js";
 	import * as Dialog from "#lib/components/ui/dialog/index.js";
 	import { Spinner } from "#lib/components/ui/spinner/index.js";
-	import { streamed } from "#lib/stream.svelte.js";
+	import { streamed } from "#lib/core/stream.svelte.js";
 	import { sync } from "#lib/sync/store.svelte.js";
 	import { refreshAll } from "$app/navigation";
 	import { deleteProfileData } from "./account.remote.ts";

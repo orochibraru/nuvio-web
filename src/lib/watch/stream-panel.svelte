@@ -12,12 +12,12 @@
 	import { cubicOut } from "svelte/easing";
 	import { fade, fly } from "svelte/transition";
 	import { Separator } from "#lib/components/ui/separator/index.js";
-	import { reduced } from "#lib/motion.js";
+	import { reduced } from "#lib/core/motion.js";
 	import { theme } from "#lib/settings/theme.svelte.js";
 	import { cn } from "#lib/utils.js";
 	import { goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
-	import { playbackHandoff } from "./playback.svelte.js";
+	import { playbackHandoff } from "./playback.svelte.ts";
 	import {
 		isPlayable,
 		type ResolvedStream,

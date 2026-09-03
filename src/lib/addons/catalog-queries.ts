@@ -1,4 +1,4 @@
-import { pooledMap } from "#lib/pool.js";
+import { pooledMap } from "#lib/core/pool.js";
 import type { AddonRegistry } from "./registry.ts";
 import type { Meta, MetaPreview } from "./types.ts";
 

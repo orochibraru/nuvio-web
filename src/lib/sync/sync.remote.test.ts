@@ -33,7 +33,7 @@ vi.mock("#lib/server/guards.js", () => ({
 	requireProfile: () => ({ event: { locals: {}, fetch }, nuvio, profileId: 9 }),
 }));
 
-import { flushWrites, syncDeltas, syncSnapshot } from "./sync.remote.js";
+import { flushWrites, syncDeltas, syncSnapshot } from "./sync.remote.ts";
 
 beforeEach(() => {
 	for (const domain of Object.values(nuvio)) {

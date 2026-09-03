@@ -1,6 +1,6 @@
 import { redirect } from "@sveltejs/kit";
-import { toProfileView } from "#lib/profile.js";
-import { isAdminEmail } from "#lib/server/admin.js";
+import { toProfileView } from "#lib/nuvio/profile.js";
+import { ADMIN } from "#lib/services/index.js";
 import { resolve } from "$app/paths";
 import type { LayoutServerLoad } from "./$types";
 
@@ -24,7 +24,7 @@ export const load: LayoutServerLoad = async ({ locals, url, fetch }) => {
 		user: locals.session.user,
 		// Drives the nav entry only : every admin route and remote function
 		// checks server-side on its own.
-		isAdmin: isAdminEmail(locals.session.user.email),
+		isAdmin: locals.services.get(ADMIN).isAdmin(locals.session.user.email),
 		profileId: locals.profileId,
 		profiles: profiles
 			.sort((a, b) => a.profile_index - b.profile_index)

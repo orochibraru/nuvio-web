@@ -39,11 +39,12 @@ const { session, profiles, event } = vi.hoisted(() => {
 	return {
 		session,
 		profiles,
-		event: { cookies: {}, locals: { nuvio: { profiles } } },
+		event: {
+			cookies: {},
+			locals: { nuvio: { profiles } } as Record<string, unknown>,
+		},
 	};
 });
-
-vi.mock("#lib/server/session.js", () => session);
 
 vi.mock("$app/server", () => ({
 	form: (schemaOrFn: unknown, fn?: unknown) => fn ?? schemaOrFn,
@@ -55,7 +56,15 @@ const issue = new Proxy(
 	{ get: (_t, field: string) => (msg: string) => ({ field, msg }) },
 ) as Record<string, (msg: string) => unknown>;
 
+import { Container, SESSION } from "#lib/services/index.js";
 import * as profileForms from "./profiles.remote.js";
+
+// The handlers resolve SessionService off the request scope, so the fake goes
+// in through a real container rather than a module mock.
+event.locals.services = new Container("test").provide(
+	SESSION,
+	session as never,
+);
 
 // `form(...)` results aren't callable in their public type; drive the handler.
 type FormHandler = (
@@ -95,7 +104,7 @@ describe("selectProfile", () => {
 		await expect(selectProfile({ profileId: 2 }, issue)).rejects.toMatchObject({
 			location: "/(protected)/(app)",
 		});
-		expect(session.writeProfileId).toHaveBeenCalledWith(event.cookies, 2);
+		expect(session.writeProfileId).toHaveBeenCalledWith(2);
 	});
 
 	it("bounces back to the picker for an unknown profile", async () => {
@@ -122,7 +131,7 @@ describe("createProfile", () => {
 			name: "New",
 			avatar_color_hex: "#123456",
 		});
-		expect(session.writeProfileId).toHaveBeenCalledWith(event.cookies, 2);
+		expect(session.writeProfileId).toHaveBeenCalledWith(2);
 	});
 
 	it("refuses a seventh profile", async () => {

@@ -7,26 +7,26 @@
 	import TriangleAlertIcon from "@lucide/svelte/icons/triangle-alert";
 	import { toast } from "svelte-sonner";
 	import { similarTitles } from "#lib/addons/addons.remote.js";
-	import PlaybackLoading from "#lib/components/playback-loading.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
-	import VideoPlayer from "#lib/components/video-player/video-player.svelte";
+	import { streamed } from "#lib/core/stream.svelte.js";
+	import { pageTitle } from "#lib/core/title.svelte.js";
+	import { browserCanPlayCodec } from "#lib/player/codec-support.js";
+	import PlayerEndPanel from "#lib/player/components/end-panel.svelte";
+	import PlayerEpisodesPanel from "#lib/player/components/episodes-panel.svelte";
+	import PlaybackLoading from "#lib/player/components/playback-loading.svelte";
+	import VideoPlayer from "#lib/player/components/video-player.svelte";
+	import { externalPlayerHandoff } from "#lib/player/external-player.js";
+	import { mediaSegments } from "#lib/player/segments.remote.js";
 	import { saveUiSettings } from "#lib/settings/settings.remote.js";
 	import { theme } from "#lib/settings/theme.svelte.js";
 	import type { UiSettings } from "#lib/settings/ui-settings.js";
-	import { pageTitle } from "#lib/stores/title.svelte.js";
-	import { streamed } from "#lib/stream.svelte.js";
 	import { sync } from "#lib/sync/store.svelte.js";
-	import { browserCanPlayCodec } from "#lib/watch/codec-support.js";
-	import { externalPlayerHandoff } from "#lib/watch/external-player.js";
 	import {
 		forgetLink,
 		playbackHandoff,
 		recallLink,
 		rememberLink,
 	} from "#lib/watch/playback.svelte.js";
-	import PlayerEndPanel from "#lib/watch/player-end-panel.svelte";
-	import PlayerEpisodesPanel from "#lib/watch/player-episodes-panel.svelte";
-	import { mediaSegments } from "#lib/watch/segments.remote.js";
 	import { sourcesPanel } from "#lib/watch/sources-panel.svelte.js";
 	import {
 		audioSupport,

@@ -29,7 +29,7 @@ vi.mock("#lib/addons/server.js", () => ({
 	getAddonClient: async () => ({ client: { getCatalog: state.getCatalog } }),
 }));
 
-import { collectionContents, saveCollections } from "./collections.remote.js";
+import { collectionContents, saveCollections } from "./collections.remote.ts";
 
 beforeEach(() => {
 	state.collectionsPull = vi.fn(async () => []);

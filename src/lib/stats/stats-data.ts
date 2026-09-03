@@ -1,6 +1,6 @@
 import type { Meta } from "#lib/addons/index.js";
+import { pooledMap } from "#lib/core/pool.js";
 import type { NuvioClient } from "#lib/nuvio/index.js";
-import { pooledMap } from "#lib/pool.js";
 
 /** Injected so this module stays free of `$app/server` (and unit-testable). */
 export type MetaLookup = (type: string, id: string) => Promise<Meta | null>;

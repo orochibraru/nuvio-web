@@ -19,7 +19,7 @@ vi.mock("#lib/server/guards.js", () => ({
 	}),
 }));
 
-import { saveUiSettings } from "./settings.remote.js";
+import { saveUiSettings } from "./settings.remote.ts";
 
 const defaults = v.parse(uiSettingsSchema, {});
 

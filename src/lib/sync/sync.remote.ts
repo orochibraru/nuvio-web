@@ -1,6 +1,6 @@
 import * as v from "valibot";
+import { settleAll } from "#lib/core/pool.js";
 import type { LibraryItemInput, WatchProgressInput } from "#lib/nuvio/index.js";
-import { settleAll } from "#lib/pool.js";
 import { requireProfile } from "#lib/server/guards.js";
 import { command, query } from "$app/server";
 

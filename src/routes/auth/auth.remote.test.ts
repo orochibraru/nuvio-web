@@ -25,8 +25,12 @@ const { Redirect, Invalid, NuvioApiError, client, session, event } = vi.hoisted(
 				signUp: vi.fn(),
 				signOut: vi.fn(),
 			},
-			session: { writeStoredSession: vi.fn(), clearStoredSession: vi.fn() },
-			event: { cookies: {}, fetch: vi.fn(), locals: {} as { nuvio?: unknown } },
+			session: { write: vi.fn(), clear: vi.fn() },
+			event: {
+				cookies: {},
+				fetch: vi.fn(),
+				locals: {} as Record<string, unknown>,
+			},
 		};
 	},
 );
@@ -44,9 +48,7 @@ vi.mock("$app/server", () => ({
 	form: (schemaOrFn: unknown, fn?: unknown) => fn ?? schemaOrFn,
 	getRequestEvent: () => event,
 }));
-vi.mock("#lib/server/session.js", () => session);
 vi.mock("$app/env", () => ({ dev: false }));
-vi.mock("#lib/server/db.js", () => ({ tryDb: () => null }));
 vi.mock("$app/env/private", () => ({
 	NUVIO_ADMIN_EMAILS: "",
 	NUVIO_DATA_DIR: "data",
@@ -59,7 +61,25 @@ vi.mock("#lib/nuvio/index.js", () => ({
 	},
 }));
 
+import {
+	ADMIN,
+	AdminService,
+	Container,
+	DATABASE,
+	LOGGER,
+	Logger,
+	SESSION,
+} from "#lib/services/index.js";
 import * as authForms from "./auth.remote.js";
+
+// The handlers resolve their collaborators off the request scope, so the fakes
+// go in through a real container rather than module mocks. `tryConnect()`
+// returning null is the documented "no admin database" path.
+const testServices = new Container("test")
+	.provide(SESSION, session as never)
+	.provide(DATABASE, { tryConnect: () => null } as never)
+	.provide(ADMIN, new AdminService(""))
+	.provide(LOGGER, new Logger("error", { out: () => {}, err: () => {} }));
 
 // What `/auth/v1/token` actually returns : a token *and* the user. The thin
 // `{ access_token }` stub only passed because `writeStoredSession` is mocked.
@@ -91,7 +111,10 @@ beforeEach(() => {
 	]) {
 		fn.mockReset();
 	}
-	event.locals = { nuvio: { signOut: client.signOut } };
+	event.locals = {
+		nuvio: { signOut: client.signOut },
+		services: testServices,
+	};
 });
 
 describe("signIn", () => {
@@ -103,7 +126,7 @@ describe("signIn", () => {
 				issue,
 			),
 		).rejects.toMatchObject({ status: 303, location: "/library" });
-		expect(session.writeStoredSession).toHaveBeenCalled();
+		expect(session.write).toHaveBeenCalled();
 	});
 
 	it("rewrites an off-site redirectTo to the app root", async () => {
@@ -149,7 +172,7 @@ describe("signUp", () => {
 				issue,
 			),
 		).rejects.toMatchObject({ location: "/library" });
-		expect(session.writeStoredSession).toHaveBeenCalled();
+		expect(session.write).toHaveBeenCalled();
 	});
 
 	it("routes to sign-in with ?registered=1 when there's no session yet", async () => {
@@ -160,7 +183,7 @@ describe("signUp", () => {
 				issue,
 			),
 		).rejects.toMatchObject({ location: "auth/sign-in?registered=1" });
-		expect(session.writeStoredSession).not.toHaveBeenCalled();
+		expect(session.write).not.toHaveBeenCalled();
 	});
 
 	it("maps a 409 conflict to an email field error", async () => {
@@ -180,6 +203,6 @@ describe("signOut", () => {
 		await expect(signOut({}, issue)).rejects.toMatchObject({
 			location: "auth/sign-in",
 		});
-		expect(session.clearStoredSession).toHaveBeenCalled();
+		expect(session.clear).toHaveBeenCalled();
 	});
 });

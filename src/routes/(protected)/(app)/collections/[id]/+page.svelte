@@ -8,17 +8,17 @@
 		collectionContents,
 		saveCollections,
 	} from "#lib/collections/collections.remote.js";
-	import EmptyState from "#lib/components/empty-state.svelte";
-	import MediaGrid from "#lib/components/media-grid.svelte";
-	import MediaRow from "#lib/components/media-row.svelte";
-	import QueryError from "#lib/components/query-error.svelte";
+	import EmptyState from "#lib/components/feedback/empty-state.svelte";
+	import QueryError from "#lib/components/feedback/query-error.svelte";
+	import MediaGrid from "#lib/components/media/grid.svelte";
+	import MediaRow from "#lib/components/media/row.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { Checkbox } from "#lib/components/ui/checkbox/index.js";
 	import * as Dialog from "#lib/components/ui/dialog/index.js";
 	import { Input } from "#lib/components/ui/input/index.js";
+	import { streamed } from "#lib/core/stream.svelte.js";
+	import { pageTitle } from "#lib/core/title.svelte.js";
 	import type { Collection, CollectionFolder } from "#lib/nuvio/index.js";
-	import { pageTitle } from "#lib/stores/title.svelte.js";
-	import { streamed } from "#lib/stream.svelte.js";
 	import { cn } from "#lib/utils.js";
 	import { goto, refreshAll } from "$app/navigation";
 	import { resolve } from "$app/paths";

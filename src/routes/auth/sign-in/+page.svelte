@@ -8,8 +8,8 @@
 	import * as Field from "#lib/components/ui/field/index.js";
 	import { Input } from "#lib/components/ui/input/index.js";
 	import { Spinner } from "#lib/components/ui/spinner/index.js";
+	import { pageTitle } from "#lib/core/title.svelte.js";
 	import { NUVIO_WEBSITE_URL } from "#lib/nuvio/index.js";
-	import { pageTitle } from "#lib/stores/title.svelte.js";
 	import { page } from "$app/state";
 	import { signIn } from "../auth.remote.ts";
 

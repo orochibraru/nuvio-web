@@ -33,7 +33,7 @@ vi.mock("#lib/addons/server.js", () => ({
 	getAddonClient: async () => ({ client: state.client }),
 }));
 
-import { getSubtitles, resolveStreams, titleProgress } from "./watch.remote.js";
+import { getSubtitles, resolveStreams, titleProgress } from "./watch.remote.ts";
 
 function progressRow(over: Record<string, unknown> = {}) {
 	return {

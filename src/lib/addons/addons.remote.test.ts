@@ -87,7 +87,7 @@ import {
 	installedAddons,
 	previewAddon,
 	saveAddons,
-} from "./addons.remote.js";
+} from "./addons.remote.ts";
 
 beforeEach(() => {
 	state.addonsList.mockReset().mockResolvedValue([]);

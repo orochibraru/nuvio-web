@@ -1,5 +1,6 @@
 import type { NuvioClient, NuvioUser } from "#lib/nuvio/index.js";
-import type { ProfileView } from "#lib/profile.js";
+import type { ProfileView } from "#lib/nuvio/profile.js";
+import type { Container } from "#lib/services/index.js";
 
 declare global {
 	namespace App {
@@ -8,6 +9,8 @@ declare global {
 		}
 		interface Locals {
 			nuvio: NuvioClient;
+			/** This request's service scope. See `#lib/services/server.js`. */
+			services: Container;
 			session: { user: NuvioUser } | null;
 			profileId: number | null;
 			authCookie: string;
@@ -15,7 +18,6 @@ declare global {
 			errorId: string;
 			errorStackTrace: string;
 			isAdmin: boolean;
-			logger: Logger;
 			message: unknown;
 			userAgent: string;
 		}

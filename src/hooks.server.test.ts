@@ -2,23 +2,37 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("$app/env", () => ({ dev: false }));
 vi.mock("$app/server", () => ({ getRequestEvent: () => ({ locals: {} }) }));
-// No admin database in unit tests: `tryDb` returning null is the documented
-// "feature disabled" path, so the hook must behave exactly as it did before.
-vi.mock("#lib/server/db.js", () => ({ tryDb: () => null }));
 vi.mock("$app/env/private", () => ({
 	NUVIO_ADMIN_EMAILS: "",
 	NUVIO_DATA_DIR: "data",
 }));
-vi.mock("#lib/server/session.js", () => ({
-	readStoredSession: () => null,
-	createServerClient: () => ({ marker: "client" }),
-	isExpired: () => false,
-	readProfileId: () => null,
-	writeStoredSession: () => ({}),
-	clearStoredSession: () => {},
-}));
 
+import { DATABASE, LOGGER, Logger, SESSION } from "#lib/services/index.js";
+import { serverServices } from "#lib/services/server.js";
 import { handle, handleError } from "./hooks.server.js";
+
+// Swapping implementations is a `register` call now : no module mock, and the
+// scope the hook builds per request inherits these.
+//
+// No admin database in unit tests: `tryConnect()` returning null is the
+// documented "feature disabled" path, so the hook must behave exactly as it
+// did before. The logger gets a sink that swallows lines so an access-log
+// entry per test doesn't clutter the run.
+serverServices
+	.register(LOGGER, () => new Logger("error", { out: () => {}, err: () => {} }))
+	.register(DATABASE, () => ({ tryConnect: () => null }) as never)
+	.register(
+		SESSION,
+		() =>
+			({
+				read: () => null,
+				write: () => ({}),
+				clear: () => {},
+				readProfileId: () => null,
+				createNuvioClient: () => ({ marker: "client" }),
+			}) as never,
+		"scoped",
+	);
 
 function fakeEvent() {
 	return {

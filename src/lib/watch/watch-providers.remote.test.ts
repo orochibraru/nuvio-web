@@ -20,7 +20,7 @@ vi.mock("$app/server", () => ({
 
 vi.mock("#lib/server/guards.js", () => ({ requireProfile: () => ({}) }));
 
-import { watchProviders } from "./watch-providers.remote.js";
+import { watchProviders } from "./watch-providers.remote.ts";
 import { EMPTY_PROVIDERS } from "./watch-providers.ts";
 
 beforeEach(() => {

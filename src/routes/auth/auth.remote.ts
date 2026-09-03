@@ -2,10 +2,7 @@ import { invalid, redirect } from "@sveltejs/kit";
 import * as v from "valibot";
 import { canSignIn, recordSignIn } from "#lib/admin/admin-data.js";
 import { NuvioApiError, NuvioClient } from "#lib/nuvio/index.js";
-import { isAdminEmail } from "#lib/server/admin.js";
-import { tryDb } from "#lib/server/db.js";
-import { log } from "#lib/server/log.js";
-import { clearStoredSession, writeStoredSession } from "#lib/server/session.js";
+import { ADMIN, DATABASE, LOGGER, SESSION } from "#lib/services/index.js";
 import { resolve } from "$app/paths";
 import { form, getRequestEvent } from "$app/server";
 
@@ -38,11 +35,12 @@ const signUpSchema = v.object({
  * refusal is identical whether or not the password was right.
  */
 function assertAllowed(email: string): void {
-	const db = tryDb();
-	if (!db || canSignIn(db, email, isAdminEmail(email))) {
+	const services = getRequestEvent().locals.services;
+	const db = services.get(DATABASE).tryConnect();
+	if (!db || canSignIn(db, email, services.get(ADMIN).isAdmin(email))) {
 		return;
 	}
-	log.warn("Blocked sign-in: instance is locked", { email });
+	services.get(LOGGER).warn("Blocked sign-in: instance is locked", { email });
 	invalid(
 		"This server is invite-only. Ask the server admin to add your email address.",
 	);
@@ -53,14 +51,15 @@ function assertAllowed(email: string): void {
  * write is logged and swallowed rather than turning a valid sign-in into a 500.
  */
 function record(email: string, userId: string): void {
-	const db = tryDb();
+	const services = getRequestEvent().locals.services;
+	const db = services.get(DATABASE).tryConnect();
 	if (!db) {
 		return;
 	}
 	try {
 		recordSignIn(db, email, userId);
 	} catch (error) {
-		log.error("Could not record a sign-in", {
+		services.get(LOGGER).error("Could not record a sign-in", {
 			error: error instanceof Error ? error : "Unknown error",
 		});
 	}
@@ -73,14 +72,14 @@ function safeTarget(value: string): string {
 }
 
 export const signIn = form(signInSchema, async (data, issue) => {
-	const { cookies, fetch } = getRequestEvent();
+	const { fetch, locals } = getRequestEvent();
 	assertAllowed(data.email);
 	try {
 		const session = await new NuvioClient({ fetch }).signInWithPassword({
 			email: data.email,
 			password: data.password,
 		});
-		writeStoredSession(cookies, session);
+		locals.services.get(SESSION).write(session);
 		record(session.user.email ?? data.email, session.user.id);
 	} catch (error) {
 		if (error instanceof NuvioApiError) {
@@ -99,7 +98,7 @@ export const signIn = form(signInSchema, async (data, issue) => {
 });
 
 export const signUp = form(signUpSchema, async (data, issue) => {
-	const { cookies, fetch } = getRequestEvent();
+	const { fetch, locals } = getRequestEvent();
 	assertAllowed(data.email);
 	let hasSession = false;
 	try {
@@ -109,7 +108,7 @@ export const signUp = form(signUpSchema, async (data, issue) => {
 		});
 		hasSession = Boolean(session.access_token);
 		if (hasSession) {
-			writeStoredSession(cookies, session);
+			locals.services.get(SESSION).write(session);
 			record(session.user.email ?? data.email, session.user.id);
 		}
 	} catch (error) {
@@ -134,7 +133,7 @@ export const signUp = form(signUpSchema, async (data, issue) => {
 });
 
 export const signOut = form(async () => {
-	const { cookies, locals } = getRequestEvent();
+	const { locals } = getRequestEvent();
 	try {
 		await locals.nuvio.signOut();
 	} catch (error) {
@@ -142,6 +141,6 @@ export const signOut = form(async () => {
 			throw error;
 		}
 	}
-	clearStoredSession(cookies);
+	locals.services.get(SESSION).clear();
 	redirect(303, resolve("auth/sign-in"));
 });

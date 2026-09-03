@@ -7,7 +7,7 @@
 	import * as Card from "#lib/components/ui/card/index.js";
 	import * as Field from "#lib/components/ui/field/index.js";
 	import { Input } from "#lib/components/ui/input/index.js";
-	import { pageTitle } from "#lib/stores/title.svelte.js";
+	import { pageTitle } from "#lib/core/title.svelte.js";
 	import { resolve } from "$app/paths";
 	import { allowEmail, revokeEmail, setInstanceLock } from "./admin.remote.ts";
 

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from "svelte";
-	import VideoPlayer from "#lib/components/video-player/video-player.svelte";
-	import PlayerEndPanel from "#lib/watch/player-end-panel.svelte";
+	import PlayerEndPanel from "#lib/player/components/end-panel.svelte";
+	import VideoPlayer from "#lib/player/components/video-player.svelte";
 	import { page } from "$app/state";
 
 	const src = $derived(page.url.searchParams.get("src") ?? "/e2e/sample.webm");

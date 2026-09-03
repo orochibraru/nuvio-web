@@ -1,6 +1,6 @@
 import { isLocked, listAllowlist, listSignIns } from "#lib/admin/admin-data.js";
-import { adminEmails, requireAdmin } from "#lib/server/admin.js";
-import { getDb } from "#lib/server/db.js";
+import { requireAdmin } from "#lib/server/guards.js";
+import { ADMIN, DATABASE } from "#lib/services/index.js";
 import type { PageServerLoad } from "./$types";
 
 /**
@@ -8,12 +8,12 @@ import type { PageServerLoad } from "./$types";
  * there is no network in it to hide behind a skeleton.
  */
 export const load: PageServerLoad = () => {
-	requireAdmin();
-	const db = getDb();
+	const { event } = requireAdmin();
+	const db = event.locals.services.get(DATABASE).connect();
 	return {
 		signIns: listSignIns(db),
 		allowlist: listAllowlist(db),
 		locked: isLocked(db),
-		admins: adminEmails(),
+		admins: [...event.locals.services.get(ADMIN).emails],
 	};
 };
