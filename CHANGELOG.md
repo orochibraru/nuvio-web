@@ -1,3 +1,9 @@
+## [1.0.7](https://github.com/orochibraru/nuvio-web/compare/v1.0.6...v1.0.7) (2026-09-03)
+
+### Bug Fixes
+
+* nuvio contract checks ([fcacd96](https://github.com/orochibraru/nuvio-web/commit/fcacd96bfa12198f25b9a5d60d26774c4b4de6de))
+
 ## [1.0.6](https://github.com/orochibraru/nuvio-web/compare/v1.0.5...v1.0.6) (2026-09-03)
 
 ### Features
