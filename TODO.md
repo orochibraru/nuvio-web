@@ -6,6 +6,9 @@
 
 ## Medium
 
+- [ ] Split `nuvio/types.ts` by domain to drop the `noExcessiveLinesPerFile`
+      ceiling (currently 680). _(File is 600/680 lines as of 2026-09-01 : under
+      the ceiling, not currently blocking; revisit once it's back near 680.)_
 - [ ] Derive `nuvio/types.ts` from the generated
       `src/lib/nuvio/nuvio-public-api.json` (`bun run nuvio:spec`) instead of
       hand-writing it : would also settle the split above on its own.

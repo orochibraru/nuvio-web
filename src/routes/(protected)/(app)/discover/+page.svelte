@@ -12,7 +12,7 @@
 	import { cn } from "#lib/utils.js";
 	import { goto, invalidateAll } from "$app/navigation";
 	import { resolve } from "$app/paths";
-	import { page } from "$app/state";
+	import { navigating, page } from "$app/state";
 
 	pageTitle.set("Discover");
 
@@ -40,19 +40,53 @@
 		selected ? `${selected.addonId}|${selected.type}|${selected.id}` : null,
 	);
 
+	// Pills are links, so the URL only changes once SvelteKit has round-tripped
+	// the load. Highlight against the URL being navigated *to* so the click
+	// lands visually straight away instead of looking ignored for the length of
+	// a server fetch : that dead window is what made pill clicks feel dropped.
+	const targetUrl = $derived(navigating.to?.url ?? page.url);
+	const pendingKey = $derived(targetUrl.searchParams.get("c") ?? activeKey);
+	const pendingGenre = $derived(targetUrl.searchParams.get("g") ?? "");
+
+	/** `?c=` for a catalog; the genre never survives a catalog switch. */
+	function catalogHref(key: string): string {
+		const params = new URLSearchParams(page.url.search);
+		params.set("c", key);
+		params.delete("g");
+		return `${resolve("discover")}?${params}`;
+	}
+
+	function genreHref(value: string): string {
+		const params = new URLSearchParams(page.url.search);
+		if (value) {
+			params.set("g", value);
+		} else {
+			params.delete("g");
+		}
+		const query = params.toString();
+		return query ? `${resolve("discover")}?${query}` : resolve("discover");
+	}
+
 	// A stale `?c=` (an addon was removed, or the link is just wrong) silently
 	// falls back to the first catalog above : sync the URL to match so it
 	// doesn't keep naming a catalog that isn't showing.
+	//
+	// Never while a navigation is in flight. The addon registry is rebuilt on a
+	// TTL, so a rebuild that drops a slow addon can make `find` miss for one
+	// render : firing then would replace the URL the viewer is currently
+	// navigating to, landing them on a catalog they did not pick.
 	$effect(() => {
 		if (
 			catalogsReady &&
+			!navigating.to &&
 			selectedKey &&
 			activeKey &&
 			selectedKey !== activeKey
 		) {
 			const params = new URLSearchParams(page.url.search);
 			params.set("c", activeKey);
-			// Same superseded-navigation caveat as `navigate` below.
+			// A newer navigation can still supersede this one : swallow that
+			// rejection, or it surfaces as an uncaught "navigation aborted".
 			void goto(`?${params}`, { reset: false, replace: true }).catch(() => {
 				// A newer navigation won : this URL fixup no longer applies.
 			});
@@ -110,34 +144,6 @@
 
 	const items = $derived([...(firstPage?.metas ?? []), ...more]);
 
-	// `refreshAll` re-runs the load, which is what re-fetches the catalog page
-	// server-side for the new `?c=`/`?g=`. Clicking a second pill before the
-	// first navigation settles aborts it, and SvelteKit rejects the superseded
-	// `goto` : swallow that, or it surfaces as an uncaught "navigation
-	// aborted" page error.
-	function navigate(params: URLSearchParams) {
-		void goto(`?${params}`, { reset: false, refreshAll: true }).catch(() => {
-			// A newer pill click superseded this navigation : nothing to do.
-		});
-	}
-
-	function selectCatalog(key: string) {
-		const params = new URLSearchParams(page.url.search);
-		params.set("c", key);
-		params.delete("g");
-		navigate(params);
-	}
-
-	function setGenre(value: string) {
-		const params = new URLSearchParams(page.url.search);
-		if (value) {
-			params.set("g", value);
-		} else {
-			params.delete("g");
-		}
-		navigate(params);
-	}
-
 	async function loadMore() {
 		if (!selected || loadingMore) {
 			return;
@@ -191,12 +197,12 @@
     <ScrollRail label="Catalogs" arrows={false} trackClass="gap-2 py-1">
       {#each catalogs as entry (`${entry.addonId}|${entry.type}|${entry.id}`)}
         {@const key = `${entry.addonId}|${entry.type}|${entry.id}`}
-        <button
-          type="button"
-          onclick={() => selectCatalog(key)}
+        <a
+          href={catalogHref(key)}
+          aria-current={key === pendingKey ? "true" : undefined}
           class={cn(
             "shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium whitespace-nowrap transition",
-            key === activeKey
+            key === pendingKey
               ? "bg-primary text-primary-foreground shadow-sm"
               : "bg-foreground/5 text-muted-foreground hover:bg-foreground/10 hover:text-foreground",
           )}
@@ -205,37 +211,37 @@
           {#if multipleAddons}
             <span class="text-xs opacity-60">· {entry.addonName}</span>
           {/if}
-        </button>
+        </a>
       {/each}
     </ScrollRail>
 
     {#if selected.genres.length > 0}
       <ScrollRail label="Genres" arrows={false} trackClass="gap-1.5 pb-1">
-        <button
-          type="button"
-          onclick={() => setGenre("")}
+        <a
+          href={genreHref("")}
+          aria-current={pendingGenre ? undefined : "true"}
           class={cn(
             "shrink-0 rounded-full px-2.5 py-1 text-xs font-medium transition",
-            !genre
-              ? "bg-secondary text-secondary-foreground"
-              : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground",
+            pendingGenre
+              ? "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
+              : "bg-secondary text-secondary-foreground",
           )}
         >
           All
-        </button>
+        </a>
         {#each selected.genres as option (option)}
-          <button
-            type="button"
-            onclick={() => setGenre(option)}
+          <a
+            href={genreHref(option)}
+            aria-current={option === pendingGenre ? "true" : undefined}
             class={cn(
               "shrink-0 rounded-full px-2.5 py-1 text-xs font-medium whitespace-nowrap transition",
-              genre === option
+              option === pendingGenre
                 ? "bg-secondary text-secondary-foreground"
                 : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground",
             )}
           >
             {option}
-          </button>
+          </a>
         {/each}
       </ScrollRail>
     {/if}
@@ -257,7 +263,7 @@
       >
         {#snippet actions()}
           {#if genre}
-            <Button variant="outline" onclick={() => setGenre("")}>
+            <Button variant="outline" href={genreHref("")}>
               Clear genre filter
             </Button>
           {:else}

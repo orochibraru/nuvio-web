@@ -172,10 +172,9 @@ test("discover: catalog pills repaint the grid, even clicked back to back", asyn
 	// server-side. Clicking the next one before the last settles aborts a
 	// navigation : that used to escape as an uncaught "navigation aborted"
 	// (and stranded the top loading bar), so the runtime-error assertion
-	// below is the point of the rapid-fire loop.
-	const pills = page
-		.getByRole("group", { name: "Catalogs" })
-		.getByRole("button");
+	// below is the point of the rapid-fire loop. Pills are links : that each
+	// click lands on the catalog clicked is covered by discover-pills.spec.ts.
+	const pills = page.getByRole("group", { name: "Catalogs" }).getByRole("link");
 	for (let i = 1; i < Math.min(await pills.count(), 4); i++) {
 		await pills.nth(i).click();
 		await expect(posters.first()).toBeVisible({ timeout: 20_000 });
