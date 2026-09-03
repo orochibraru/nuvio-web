@@ -1,3 +1,9 @@
+## [1.0.8](https://github.com/orochibraru/nuvio-web/compare/v1.0.7...v1.0.8) (2026-09-03)
+
+### Features
+
+* admin page ([ad787be](https://github.com/orochibraru/nuvio-web/commit/ad787be9e2e3044c37f2598ab4dac7f4de1ca3ca))
+
 ## [1.0.7](https://github.com/orochibraru/nuvio-web/compare/v1.0.6...v1.0.7) (2026-09-03)
 
 ### Bug Fixes
