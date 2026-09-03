@@ -4,13 +4,13 @@
 	import XIcon from "@lucide/svelte/icons/x";
 	import { fly } from "svelte/transition";
 	import { toast } from "svelte-sonner";
-	import EmptyState from "#lib/components/empty-state.svelte";
-	import MediaPoster from "#lib/components/media-poster.svelte";
+	import EmptyState from "#lib/components/feedback/empty-state.svelte";
+	import MediaPoster from "#lib/components/media/poster.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import * as DropdownMenu from "#lib/components/ui/dropdown-menu/index.js";
-	import { reduced } from "#lib/motion.js";
-	import { pageTitle } from "#lib/stores/title.svelte.js";
-	import { streamed } from "#lib/stream.svelte.js";
+	import { reduced } from "#lib/core/motion.js";
+	import { streamed } from "#lib/core/stream.svelte.js";
+	import { pageTitle } from "#lib/core/title.svelte.js";
 	import { sync } from "#lib/sync/store.svelte.js";
 	import { cn } from "#lib/utils.js";
 	import { goto } from "$app/navigation";

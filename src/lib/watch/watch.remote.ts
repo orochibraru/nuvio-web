@@ -1,7 +1,7 @@
 import * as v from "valibot";
 import { getAddonClient, titleMeta } from "#lib/addons/server.js";
+import { httpUrlOrNull } from "#lib/core/url.js";
 import { requireProfile } from "#lib/server/guards.js";
-import { httpUrlOrNull } from "#lib/utils.js";
 import { query } from "$app/server";
 import { pullPlaybackContext } from "./watch-data.ts";
 

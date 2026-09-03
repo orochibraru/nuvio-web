@@ -20,7 +20,7 @@ vi.mock("$app/server", () => ({
 
 vi.mock("#lib/server/guards.js", () => ({ requireProfile: () => ({}) }));
 
-import { watchProviders } from "./watch-providers.remote.js";
+import { watchProviders } from "./watch-providers.remote.ts";
 import { EMPTY_PROVIDERS } from "./watch-providers.ts";
 
 beforeEach(() => {
@@ -76,5 +76,80 @@ describe("watchProviders", () => {
 		});
 		const body = JSON.parse(state.fetch.mock.calls[0][1].body);
 		expect(body.variables.country).toBe("FR");
+	});
+
+	it("shapes the matched node's offers", async () => {
+		state.fetch = vi.fn(async () => ({
+			ok: true,
+			json: async () => ({
+				data: {
+					popularTitles: {
+						edges: [
+							null,
+							{ node: null },
+							{
+								node: {
+									content: {
+										title: "Dune",
+										originalReleaseYear: 2021,
+										fullPath: "/us/movie/dune-2021",
+										externalIds: { imdbId: "tt1160419" },
+									},
+									offers: [
+										{
+											monetizationType: "FLATRATE",
+											standardWebURL: "https://max.com/dune",
+											package: {
+												clearName: "Max",
+												technicalName: "max",
+												icon: "/icon/1/{profile}/{format}",
+											},
+										},
+										{
+											monetizationType: "RENT",
+											standardWebURL: "https://apple.com/dune",
+											package: { clearName: "Apple TV", technicalName: "atv" },
+										},
+									],
+								},
+							},
+						],
+					},
+				},
+			}),
+		})) as never;
+
+		const result = await watchProviders({
+			title: "Dune",
+			year: 2021,
+			imdbId: "tt1160419",
+			region: "US",
+		});
+
+		expect(result.network).toBe("Max");
+		expect(result.stream).toHaveLength(1);
+		expect(result.rent[0]).toMatchObject({
+			provider: "Apple TV",
+			kind: "rent",
+		});
+		expect(result.justWatchUrl).toBe(
+			"https://www.justwatch.com/us/movie/dune-2021",
+		);
+	});
+
+	it("resolves to EMPTY when the response carries no edges", async () => {
+		state.fetch = vi.fn(async () => ({
+			ok: true,
+			json: async () => ({ data: {} }),
+		})) as never;
+
+		expect(
+			await watchProviders({
+				title: "Dune",
+				year: null,
+				imdbId: null,
+				region: "US",
+			}),
+		).toEqual(EMPTY_PROVIDERS);
 	});
 });

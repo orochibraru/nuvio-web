@@ -1,5 +1,5 @@
 <script lang="ts">
-	import AuroraBackground from "#lib/components/aurora-background.svelte";
+	import AuroraBackground from "#lib/components/layout/aurora-background.svelte";
 
 	let { children } = $props();
 </script>

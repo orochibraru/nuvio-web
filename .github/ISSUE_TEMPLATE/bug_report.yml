@@ -72,7 +72,9 @@ body:
     attributes:
       label: Checklist
       options:
-        - label: I have searched existing issues to make sure this is not a duplicate.
+        - label:
+            I have searched existing issues to make sure this is not a
+            duplicate.
           required: true
         - label: I have provided all the information required above.
           required: true

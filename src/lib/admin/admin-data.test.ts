@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("$app/env", () => ({ dev: false }));
 vi.mock("$app/env/private", () => ({ NUVIO_DATA_DIR: "data" }));
 
-import { migrate } from "#lib/server/db.js";
+import { DatabaseService } from "#lib/services/index.js";
 import {
 	addToAllowlist,
 	canSignIn,
@@ -21,7 +21,7 @@ import {
 let db: Database;
 
 beforeEach(() => {
-	db = migrate(new Database(":memory:"));
+	db = DatabaseService.migrate(new Database(":memory:"));
 });
 
 describe("sign-in log", () => {

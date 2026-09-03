@@ -1,6 +1,6 @@
 import type { Meta } from "#lib/addons/index.js";
+import { pooledMap } from "#lib/core/pool.js";
 import type { NuvioClient } from "#lib/nuvio/index.js";
-import { pooledMap } from "#lib/pool.js";
 import type { ContentType } from "#lib/sync/types.js";
 
 export interface HistoryRow {

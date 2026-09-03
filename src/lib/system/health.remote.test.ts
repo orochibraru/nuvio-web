@@ -6,7 +6,7 @@ vi.mock("$app/server", () => ({
 	getRequestEvent: () => event,
 }));
 
-import { apiHealth } from "./health.remote.js";
+import { apiHealth } from "./health.remote.ts";
 
 function withHealthCheck(impl: () => unknown) {
 	event.locals = { nuvio: { healthCheck: impl } };

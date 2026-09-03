@@ -30,8 +30,12 @@ export default defineConfig({
 				// globs follow the code rather than quietly dropping the domain.
 				"src/lib/history/*.ts",
 				"src/lib/stats/*.ts",
-				"src/lib/pool.ts",
-				"src/lib/images.ts",
+				// `core/` helpers that the server / data layer leans on. Not the
+				// whole directory: `motion.ts` reads `window.matchMedia` and
+				// `*.svelte.ts` holds runes, both of which are e2e's job.
+				"src/lib/core/pool.ts",
+				"src/lib/core/images.ts",
+				"src/lib/core/url.ts",
 				"src/hooks.server.ts",
 			],
 			exclude: [
@@ -41,14 +45,19 @@ export default defineConfig({
 				// Svelte rune modules ($state/$effect) can't run in the node env —
 				// they're covered by Playwright, not here.
 				"src/**/*.svelte.ts",
+				// Same reason, without the suffix to say so: every path in this
+				// module is behind `browser && typeof indexedDB !== "undefined"`,
+				// so in the node env it is unreachable by construction. The store
+				// it backs is exercised in `e2e/`.
+				"src/lib/sync/idb.ts",
 			],
 			// Ratchet upward as tests land : do not lower. Target is 100% for the
 			// server / remote-function layer (see TODO "CI/CD").
 			thresholds: {
-				lines: 79,
-				functions: 73,
-				branches: 73,
-				statements: 78,
+				lines: 98,
+				functions: 98,
+				branches: 90,
+				statements: 98,
 			},
 		},
 	},

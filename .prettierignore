@@ -5,3 +5,8 @@ src/lib/nuvio/nuvio-public-api.snapshot.md
 
 # Generated.
 CHANGELOG.md
+
+# Vendored: an upstream OpenAPI document and the pinned agent skills
+# (skills-lock.json). Reformatting them makes every upstream bump a diff.
+introdb-openapi.yaml
+.agents/

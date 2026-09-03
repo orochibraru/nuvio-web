@@ -19,11 +19,15 @@ jobs:
   code_quality:
     name: Code Quality
     uses: ./.github/workflows/code_quality.yml
+
+  tests:
+    name: Tests
+    uses: ./.github/workflows/test.yml
     secrets: inherit
 
   build:
     name: Docker Build (App)
-    needs: [code_quality]
+    needs: [code_quality, tests]
     uses: ./.github/workflows/docker.yml
     with:
       image_tag: pr-${{ github.event.pull_request.number }}
@@ -37,12 +41,12 @@ jobs:
   gate:
     name: CI Gate
     if: always()
-    needs: [code_quality, build]
+    needs: [code_quality, tests, build]
     runs-on: ubuntu-latest
     steps:
       - name: Check results
         run: |
-          results=("${{ needs.code_quality.result }}" "${{ needs.build.result }}")
+          results=("${{ needs.code_quality.result }}" "${{ needs.tests.result }}" "${{ needs.build.result }}")
           for result in "${results[@]}"; do
             if [[ "$result" == "failure" || "$result" == "cancelled" ]]; then
               echo "::error::One or more jobs failed or were cancelled"

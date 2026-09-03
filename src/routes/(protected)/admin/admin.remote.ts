@@ -5,9 +5,8 @@ import {
 	removeFromAllowlist,
 	setLocked,
 } from "#lib/admin/admin-data.js";
-import { requireAdmin } from "#lib/server/admin.js";
-import { getDb } from "#lib/server/db.js";
-import { log } from "#lib/server/log.js";
+import { requireAdmin } from "#lib/server/guards.js";
+import { DATABASE, LOGGER } from "#lib/services/index.js";
 import { form } from "$app/server";
 
 // Every one of these re-checks `requireAdmin()`. The page guard only protects
@@ -16,10 +15,13 @@ import { form } from "$app/server";
 export const setInstanceLock = form(
 	v.object({ locked: v.picklist(["on", "off"]) }),
 	(data) => {
-		const { email } = requireAdmin();
+		const { email, event } = requireAdmin();
+		const services = event.locals.services;
 		const locked = data.locked === "on";
-		setLocked(getDb(), locked);
-		log.warn(`Instance ${locked ? "locked" : "unlocked"}`, { by: email });
+		setLocked(services.get(DATABASE).connect(), locked);
+		services
+			.get(LOGGER)
+			.warn(`Instance ${locked ? "locked" : "unlocked"}`, { by: email });
 	},
 );
 
@@ -33,18 +35,25 @@ export const allowEmail = form(
 		),
 	}),
 	(data) => {
-		const { email } = requireAdmin();
-		addToAllowlist(getDb(), data.email, email);
+		const { email, event } = requireAdmin();
+		addToAllowlist(
+			event.locals.services.get(DATABASE).connect(),
+			data.email,
+			email,
+		);
 	},
 );
 
 export const revokeEmail = form(
 	v.object({ email: v.pipe(v.string(), v.nonEmpty()) }),
 	(data) => {
-		const { email } = requireAdmin();
+		const { email, event } = requireAdmin();
 		if (data.email.trim().toLowerCase() === email.toLowerCase()) {
 			invalid("You cannot remove your own address while you are signed in.");
 		}
-		removeFromAllowlist(getDb(), data.email);
+		removeFromAllowlist(
+			event.locals.services.get(DATABASE).connect(),
+			data.email,
+		);
 	},
 );

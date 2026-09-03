@@ -3,13 +3,13 @@
 	import SearchIcon from "@lucide/svelte/icons/search";
 	import XIcon from "@lucide/svelte/icons/x";
 	import { untrack } from "svelte";
-	import MediaGrid from "#lib/components/media-grid.svelte";
-	import MediaRow from "#lib/components/media-row.svelte";
-	import QueryError from "#lib/components/query-error.svelte";
+	import QueryError from "#lib/components/feedback/query-error.svelte";
+	import MediaGrid from "#lib/components/media/grid.svelte";
+	import MediaRow from "#lib/components/media/row.svelte";
 	import { Input } from "#lib/components/ui/input/index.js";
-	import { searchHistory } from "#lib/search-history.svelte.js";
-	import { pageTitle } from "#lib/stores/title.svelte.js";
-	import { streamed } from "#lib/stream.svelte.js";
+	import { streamed } from "#lib/core/stream.svelte.js";
+	import { pageTitle } from "#lib/core/title.svelte.js";
+	import { searchHistory } from "#lib/search/search-history.svelte.js";
 	import { browser } from "$app/env";
 	import {
 		afterNavigate,

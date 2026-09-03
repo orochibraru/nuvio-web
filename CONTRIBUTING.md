@@ -4,13 +4,40 @@
 
 - Bun
 - Docker
+- [prek](https://github.com/j178/prek) : runs the pre-commit hooks
+  (`brew install prek`, or see the repo for other installers)
 
 ## Setup
 
 This repo uses SvelteKit with Typescript and Bun. For convenience installing
-dependencies will setup Husky (pre-commit hooks) to run linters and format
-before you push. This helps reducing usage of CI minutes just for formatting
-tasks and prevents commits such as "chore: fix lint".
+dependencies will setup the pre-commit hooks (via `prek install`) to run linters
+and formatters before you commit. This helps reducing usage of CI minutes just
+for formatting tasks and prevents commits such as "chore: fix lint".
+
+The hooks live in `.pre-commit-config.yaml` and are the same set CI runs, so a
+green commit locally is a green Code Quality job. They only look at what you
+staged, except the whole-project ones (`svelte-check`, `tailwint`, the unit
+suite) where the staged paths just decide whether it is worth running at all.
+
+Two shims are installed, not one: `pre-commit` runs the fixers and checks, and
+`commit-msg` enforces Conventional Commits : semantic-release computes the next
+version from your commit subjects, so a malformed one silently costs a release
+rather than failing loudly.
+
+The last group is repo-specific: plain `grep` guards for the conventions in
+`CLAUDE.md` that no linter knows about (`throw redirect(...)`, a `$lib` import,
+a `#lib/...` specifier ending `.ts`, a raw `href="/..."` that skips `resolve`).
+Each is at zero occurrences today : they guard against regression, they are not
+a cleanup backlog.
+
+Run them by hand over everything with:
+
+```bash
+prek run --all-files
+```
+
+If `prek` is not installed the `prepare` script skips hook installation rather
+than failing the install : you just do not get the hooks.
 
 ## Dev
 

@@ -6,14 +6,14 @@
 	import PlusIcon from "@lucide/svelte/icons/plus";
 	import { toast } from "svelte-sonner";
 	import { saveCollections } from "#lib/collections/collections.remote.js";
-	import EmptyState from "#lib/components/empty-state.svelte";
+	import EmptyState from "#lib/components/feedback/empty-state.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import * as Dialog from "#lib/components/ui/dialog/index.js";
 	import * as DropdownMenu from "#lib/components/ui/dropdown-menu/index.js";
 	import { Input } from "#lib/components/ui/input/index.js";
+	import { streamed } from "#lib/core/stream.svelte.js";
+	import { pageTitle } from "#lib/core/title.svelte.js";
 	import type { Collection } from "#lib/nuvio/index.js";
-	import { pageTitle } from "#lib/stores/title.svelte.js";
-	import { streamed } from "#lib/stream.svelte.js";
 	import { cn } from "#lib/utils.js";
 	import { refreshAll } from "$app/navigation";
 	import { resolve } from "$app/paths";

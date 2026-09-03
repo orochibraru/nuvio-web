@@ -2,10 +2,10 @@
 	import "./layout.css";
 	import { ModeWatcher } from "mode-watcher";
 	import favicon from "#lib/assets/logo.png";
-	import SmallScreenNotice from "#lib/components/small-screen-notice.svelte";
-	import TopLoadingBar from "#lib/components/top-loading-bar.svelte";
+	import SmallScreenNotice from "#lib/components/chrome/small-screen-notice.svelte";
+	import TopLoadingBar from "#lib/components/chrome/top-loading-bar.svelte";
 	import { Toaster } from "#lib/components/ui/sonner/index.js";
-	import { pageTitle } from "#lib/stores/title.svelte.js";
+	import { pageTitle } from "#lib/core/title.svelte.js";
 	import { browser } from "$app/env";
 	import { beforeNavigate, onNavigate } from "$app/navigation";
 

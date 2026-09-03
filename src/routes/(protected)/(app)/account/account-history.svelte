@@ -5,10 +5,10 @@
 	import Trash2Icon from "@lucide/svelte/icons/trash-2";
 	import TvIcon from "@lucide/svelte/icons/tv";
 	import { toast } from "svelte-sonner";
-	import EmptyState from "#lib/components/empty-state.svelte";
+	import EmptyState from "#lib/components/feedback/empty-state.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
+	import { streamed } from "#lib/core/stream.svelte.js";
 	import type { HistoryRow } from "#lib/history/history-data.js";
-	import { streamed } from "#lib/stream.svelte.js";
 	import { sync } from "#lib/sync/store.svelte.js";
 	import { resolve } from "$app/paths";
 

@@ -2,18 +2,16 @@ import type { RequestEvent } from "@sveltejs/kit";
 import type { Handle, HandleServerError } from "@sveltejs/kit/hooks";
 import { canSignIn } from "#lib/admin/admin-data.js";
 import { NuvioApiError, NuvioClient } from "#lib/nuvio/index.js";
-import { isAdminEmail } from "#lib/server/admin.js";
-import { tryDb } from "#lib/server/db.js";
-import { log } from "#lib/server/log.js";
 import {
-	clearStoredSession,
-	createServerClient,
-	isExpired,
-	readProfileId,
-	readStoredSession,
+	ADMIN,
+	type Container,
+	DATABASE,
+	LOGGER,
+	SESSION,
+	SessionService,
 	type StoredSession,
-	writeStoredSession,
-} from "#lib/server/session.js";
+} from "#lib/services/index.js";
+import { createRequestScope, serverServices } from "#lib/services/server.js";
 import { dev } from "$app/env";
 
 function makeErrorId(): string {
@@ -65,10 +63,12 @@ export const handleError: HandleServerError = ({ event, error, kind }) => {
 		return;
 	}
 	const errorId = makeErrorId();
-	log.error(`Error on ${event.request.method} ${event.url.pathname}`, {
-		errorId,
-		error: error instanceof Error ? error : "Unknown error",
-	});
+	serverServices
+		.get(LOGGER)
+		.error(`Error on ${event.request.method} ${event.url.pathname}`, {
+			errorId,
+			error: error instanceof Error ? error : "Unknown error",
+		});
 
 	return {
 		errorId,
@@ -80,18 +80,20 @@ export const handleError: HandleServerError = ({ event, error, kind }) => {
 };
 
 function logAccess(
+	services: Container,
 	event: RequestEvent,
 	status: number,
 	startedAt: number,
 ): void {
+	const logger = services.get(LOGGER);
 	const ms = Math.round(performance.now() - startedAt);
 	const message = `${event.request.method} ${event.url.pathname}`;
 	if (status >= 500) {
-		log.error(message, { status, ms });
+		logger.error(message, { status, ms });
 	} else if (status >= 400) {
-		log.warn(message, { status, ms });
+		logger.warn(message, { status, ms });
 	} else {
-		log.info(message, { status, ms });
+		logger.info(message, { status, ms });
 	}
 }
 
@@ -100,46 +102,58 @@ function logAccess(
  * does nothing for 30 days : the cookie outlives the decision. Checked per
  * request against the local database, which is a single indexed lookup.
  */
-function evictIfLocked(event: RequestEvent, stored: StoredSession): boolean {
-	const db = tryDb();
+function evictIfLocked(services: Container, stored: StoredSession): boolean {
+	const db = services.get(DATABASE).tryConnect();
 	const email = stored.user.email;
-	if (!(db && email) || canSignIn(db, email, isAdminEmail(email))) {
+	const isAdmin = services.get(ADMIN).isAdmin(email);
+	if (!(db && email) || canSignIn(db, email, isAdmin)) {
 		return false;
 	}
-	log.warn("Signed out an existing session: instance is locked", { email });
-	clearStoredSession(event.cookies);
+	services
+		.get(LOGGER)
+		.warn("Signed out an existing session: instance is locked", { email });
+	services.get(SESSION).clear();
 	return true;
 }
 
 export const handle: Handle = async ({ event, resolve }) => {
 	const startedAt = performance.now();
-	let stored = readStoredSession(event.cookies);
+	const services = createRequestScope(event);
+	event.locals.services = services;
+	const session = services.get(SESSION);
+	let stored = session.read();
 
-	if (stored && isExpired(stored)) {
+	if (stored && SessionService.isExpired(stored)) {
 		try {
 			const refreshed = await new NuvioClient({
 				fetch: event.fetch,
 			}).refreshSession(stored.refresh_token);
-			stored = writeStoredSession(event.cookies, refreshed);
+			stored = session.write(refreshed);
 		} catch (error) {
 			if (!(error instanceof NuvioApiError)) {
 				throw error;
 			}
-			clearStoredSession(event.cookies);
+			session.clear();
 			stored = null;
 		}
 	}
 
-	if (stored && evictIfLocked(event, stored)) {
+	if (stored && evictIfLocked(services, stored)) {
 		stored = null;
 	}
 
 	event.locals.session = stored ? { user: stored.user } : null;
-	event.locals.profileId = stored ? readProfileId(event.cookies) : null;
-	event.locals.nuvio = createServerClient(event, stored);
+	event.locals.profileId = stored ? session.readProfileId() : null;
+	event.locals.nuvio = session.createNuvioClient(event.fetch, stored);
 
-	const response = await resolve(event);
-	applySecurityHeaders(response.headers);
-	logAccess(event, response.status, startedAt);
-	return response;
+	try {
+		const response = await resolve(event);
+		applySecurityHeaders(response.headers);
+		logAccess(services, event, response.status, startedAt);
+		return response;
+	} finally {
+		// Drops this request's scoped instances; the process-wide singletons on
+		// the parent container are untouched.
+		services.dispose();
+	}
 };

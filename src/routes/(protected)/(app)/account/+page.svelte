@@ -4,7 +4,7 @@
 	import ClockIcon from "@lucide/svelte/icons/clock";
 	import HardDriveIcon from "@lucide/svelte/icons/hard-drive";
 	import * as Tabs from "#lib/components/ui/tabs/index.js";
-	import { pageTitle } from "#lib/stores/title.svelte.js";
+	import { pageTitle } from "#lib/core/title.svelte.js";
 	import { goto } from "$app/navigation";
 	import { page } from "$app/state";
 	import AccountHistory from "./account-history.svelte";

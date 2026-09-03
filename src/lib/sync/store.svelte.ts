@@ -17,7 +17,7 @@ import {
 	splitPendingWrites,
 	titleProgressMap,
 } from "./reconcile.ts";
-import { flushWrites, syncDeltas, syncSnapshot } from "./sync.remote.js";
+import { flushWrites, syncDeltas, syncSnapshot } from "./sync.remote.ts";
 import type {
 	ContentType,
 	HistoryRecord,

@@ -1,0 +1,55 @@
+# Runs linters, test suites & formatters
+name: Tests
+
+on:
+  workflow_call:
+
+jobs:
+  unit:
+    name: Unit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - run: bun install --frozen-lockfile --ignore-scripts
+
+      - run: bun run sync
+
+      - name: Unit tests + coverage (server / remote layer)
+        run: bun run test:unit:coverage
+
+  e2e:
+    name: Playwright (e2e)
+    runs-on: ubuntu-latest
+    env:
+      NUVIO_TEST_EMAIL: ${{ secrets.NUVIO_TEST_EMAIL }}
+      NUVIO_TEST_PASSWORD: ${{ secrets.NUVIO_TEST_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - run: bun install --frozen-lockfile --ignore-scripts
+
+      - run: bun run sync
+
+      - name: Install Playwright browser
+        run: bunx playwright install --with-deps chromium
+
+      - name: Run e2e
+        run: bun run test:e2e
+
+      - uses: orochibraru/upload-artifact@v8
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7

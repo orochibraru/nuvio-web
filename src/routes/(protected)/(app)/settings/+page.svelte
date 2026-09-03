@@ -7,10 +7,10 @@
 	import RefreshCwIcon from "@lucide/svelte/icons/refresh-cw";
 	import { toast } from "svelte-sonner";
 	import * as Tabs from "#lib/components/ui/tabs/index.js";
+	import { pageTitle } from "#lib/core/title.svelte.js";
 	import { saveUiSettings } from "#lib/settings/settings.remote.js";
 	import { theme } from "#lib/settings/theme.svelte.js";
 	import type { UiSettings } from "#lib/settings/ui-settings.js";
-	import { pageTitle } from "#lib/stores/title.svelte.js";
 	import { goto, refreshAll } from "$app/navigation";
 	import { page } from "$app/state";
 	import SettingsAddons from "./settings-addons.svelte";

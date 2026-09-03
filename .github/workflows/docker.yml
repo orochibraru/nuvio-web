@@ -1,5 +1,5 @@
+# Builds docker images for this app via the Bake conf
 name: Docker
-description: Builds docker images for this app via the Bake conf
 
 on:
   workflow_call:
@@ -93,7 +93,7 @@ jobs:
       - name: Prepare
         run: |
           platform=${{ matrix.platform }}
-          echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV
+          echo "PLATFORM_PAIR=${platform//\//-}" >> "$GITHUB_ENV"
 
       - name: Download meta bake definition
         uses: orochibraru/download-artifact@v8
@@ -178,6 +178,9 @@ jobs:
       - name: Create manifest list and push
         working-directory: ${{ runner.temp }}/digests
         run: |
+          # Both substitutions below must word-split: the first expands to
+          # several `-t <tag>` flags, the second to several image references.
+          # shellcheck disable=SC2046
           docker buildx imagetools create \
             $(jq -cr '.target."docker-metadata-action".tags | map("-t " + .) | join(" ")' "$RUNNER_TEMP/bake-meta.json") \
             $(printf '${{ env.IMAGE }}@sha256:%s ' *)
@@ -185,6 +188,6 @@ jobs:
       - name: Inspect image
         id: inspect
         run: |
-          tag=$(jq -r '.target."docker-metadata-action".args.DOCKER_META_VERSION' ${{ runner.temp }}/bake-meta.json)
-          echo "tag=$tag" >> $GITHUB_OUTPUT
-          docker buildx imagetools inspect ${{ env.IMAGE }}:$tag
+          tag=$(jq -r '.target."docker-metadata-action".args.DOCKER_META_VERSION' "${{ runner.temp }}/bake-meta.json")
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          docker buildx imagetools inspect "${{ env.IMAGE }}:$tag"

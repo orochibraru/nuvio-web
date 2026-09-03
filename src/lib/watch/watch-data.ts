@@ -1,6 +1,6 @@
 import type { Meta } from "#lib/addons/index.js";
+import { pooledMap } from "#lib/core/pool.js";
 import type { NuvioClient } from "#lib/nuvio/index.js";
-import { pooledMap } from "#lib/pool.js";
 import { nextEpisode } from "./episodes.ts";
 import { assemblePlaybackContext, parseVideoId } from "./playback-context.ts";
 

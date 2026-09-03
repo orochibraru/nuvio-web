@@ -3,10 +3,10 @@
 	import ClockIcon from "@lucide/svelte/icons/clock";
 	import FilmIcon from "@lucide/svelte/icons/film";
 	import TvIcon from "@lucide/svelte/icons/tv";
-	import QueryError from "#lib/components/query-error.svelte";
+	import QueryError from "#lib/components/feedback/query-error.svelte";
 	import * as Card from "#lib/components/ui/card/index.js";
+	import { streamed } from "#lib/core/stream.svelte.js";
 	import type { WatchStats } from "#lib/stats/stats-data.js";
-	import { streamed } from "#lib/stream.svelte.js";
 	import { invalidateAll } from "$app/navigation";
 	import { resolve } from "$app/paths";
 

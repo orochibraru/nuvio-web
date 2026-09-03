@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { Redirect, Invalid, NuvioApiError, client, session, event } = vi.hoisted(
-	() => {
+const { Redirect, Invalid, NuvioApiError, client, session, event, adminData } =
+	vi.hoisted(() => {
 		class Redirect {
 			constructor(
 				public status: number,
@@ -25,11 +25,23 @@ const { Redirect, Invalid, NuvioApiError, client, session, event } = vi.hoisted(
 				signUp: vi.fn(),
 				signOut: vi.fn(),
 			},
-			session: { writeStoredSession: vi.fn(), clearStoredSession: vi.fn() },
-			event: { cookies: {}, fetch: vi.fn(), locals: {} as { nuvio?: unknown } },
+			session: { write: vi.fn(), clear: vi.fn() },
+			adminData: {
+				canSignIn: vi.fn(() => true),
+				recordSignIn: vi.fn(),
+			},
+			event: {
+				cookies: {},
+				fetch: vi.fn(),
+				locals: {} as Record<string, unknown>,
+			},
 		};
-	},
-);
+	});
+
+vi.mock("#lib/admin/admin-data.js", () => ({
+	canSignIn: (...args: unknown[]) => adminData.canSignIn(...(args as [])),
+	recordSignIn: (...args: unknown[]) => adminData.recordSignIn(...(args as [])),
+}));
 
 vi.mock("@sveltejs/kit", () => ({
 	redirect: (status: number, location: string) => {
@@ -44,9 +56,7 @@ vi.mock("$app/server", () => ({
 	form: (schemaOrFn: unknown, fn?: unknown) => fn ?? schemaOrFn,
 	getRequestEvent: () => event,
 }));
-vi.mock("#lib/server/session.js", () => session);
 vi.mock("$app/env", () => ({ dev: false }));
-vi.mock("#lib/server/db.js", () => ({ tryDb: () => null }));
 vi.mock("$app/env/private", () => ({
 	NUVIO_ADMIN_EMAILS: "",
 	NUVIO_DATA_DIR: "data",
@@ -59,7 +69,34 @@ vi.mock("#lib/nuvio/index.js", () => ({
 	},
 }));
 
+import {
+	ADMIN,
+	AdminService,
+	Container,
+	DATABASE,
+	LOGGER,
+	Logger,
+	SESSION,
+} from "#lib/services/index.js";
 import * as authForms from "./auth.remote.js";
+
+// The handlers resolve their collaborators off the request scope, so the fakes
+// go in through a real container rather than module mocks. `tryConnect()`
+// returning null is the documented "no admin database" path.
+const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
+const testServices = new Container("test")
+	.provide(SESSION, session as never)
+	.provide(DATABASE, { tryConnect: () => null } as never)
+	.provide(ADMIN, new AdminService(""))
+	.provide(LOGGER, new Logger("error", { out: () => {}, err: () => {} }));
+
+// The same scope with an admin database present : the lock check and the
+// sign-in metrics only exist on this path.
+const withDatabase = new Container("test-db")
+	.provide(SESSION, session as never)
+	.provide(DATABASE, { tryConnect: () => ({ marker: "db" }) } as never)
+	.provide(ADMIN, new AdminService(""))
+	.provide(LOGGER, logger as never);
 
 // What `/auth/v1/token` actually returns : a token *and* the user. The thin
 // `{ access_token }` stub only passed because `writeStoredSession` is mocked.
@@ -91,7 +128,15 @@ beforeEach(() => {
 	]) {
 		fn.mockReset();
 	}
-	event.locals = { nuvio: { signOut: client.signOut } };
+	for (const fn of Object.values(logger)) {
+		fn.mockReset();
+	}
+	adminData.canSignIn.mockReset().mockReturnValue(true);
+	adminData.recordSignIn.mockReset();
+	event.locals = {
+		nuvio: { signOut: client.signOut },
+		services: testServices,
+	};
 });
 
 describe("signIn", () => {
@@ -103,7 +148,7 @@ describe("signIn", () => {
 				issue,
 			),
 		).rejects.toMatchObject({ status: 303, location: "/library" });
-		expect(session.writeStoredSession).toHaveBeenCalled();
+		expect(session.write).toHaveBeenCalled();
 	});
 
 	it("rewrites an off-site redirectTo to the app root", async () => {
@@ -149,7 +194,7 @@ describe("signUp", () => {
 				issue,
 			),
 		).rejects.toMatchObject({ location: "/library" });
-		expect(session.writeStoredSession).toHaveBeenCalled();
+		expect(session.write).toHaveBeenCalled();
 	});
 
 	it("routes to sign-in with ?registered=1 when there's no session yet", async () => {
@@ -160,7 +205,7 @@ describe("signUp", () => {
 				issue,
 			),
 		).rejects.toMatchObject({ location: "auth/sign-in?registered=1" });
-		expect(session.writeStoredSession).not.toHaveBeenCalled();
+		expect(session.write).not.toHaveBeenCalled();
 	});
 
 	it("maps a 409 conflict to an email field error", async () => {
@@ -180,6 +225,98 @@ describe("signOut", () => {
 		await expect(signOut({}, issue)).rejects.toMatchObject({
 			location: "auth/sign-in",
 		});
-		expect(session.clearStoredSession).toHaveBeenCalled();
+		expect(session.clear).toHaveBeenCalled();
+	});
+});
+
+describe("the instance lock", () => {
+	beforeEach(() => {
+		event.locals.services = withDatabase;
+	});
+
+	it("refuses a sign-in before the credentials reach Nuvio", async () => {
+		adminData.canSignIn.mockReturnValue(false);
+
+		await expect(
+			signIn({ email: "a@b.com", password: "pw", redirectTo: "/" }, issue),
+		).rejects.toBeInstanceOf(Invalid);
+
+		expect(client.signInWithPassword).not.toHaveBeenCalled();
+		expect(logger.warn).toHaveBeenCalledWith(
+			"Blocked sign-in: instance is locked",
+			{ email: "a@b.com" },
+		);
+	});
+
+	it("records a sign-in as a side effect", async () => {
+		client.signInWithPassword.mockResolvedValue(apiSession);
+
+		await expect(
+			signIn({ email: "a@b.com", password: "pw", redirectTo: "/" }, issue),
+		).rejects.toBeInstanceOf(Redirect);
+
+		expect(adminData.recordSignIn).toHaveBeenCalledWith(
+			{ marker: "db" },
+			"user@example.com",
+			"user-1",
+		);
+	});
+
+	it("logs and swallows a failed metrics write rather than failing the sign-in", async () => {
+		client.signInWithPassword.mockResolvedValue(apiSession);
+		adminData.recordSignIn.mockImplementation(() => {
+			throw new Error("disk full");
+		});
+
+		await expect(
+			signIn(
+				{ email: "a@b.com", password: "pw", redirectTo: "/library" },
+				issue,
+			),
+		).rejects.toMatchObject({ status: 303, location: "/library" });
+
+		expect(logger.error).toHaveBeenCalledWith(
+			"Could not record a sign-in",
+			expect.objectContaining({ error: expect.any(Error) }),
+		);
+	});
+
+	it("logs a non-Error metrics failure as unknown", async () => {
+		client.signInWithPassword.mockResolvedValue(apiSession);
+		adminData.recordSignIn.mockImplementation(() => {
+			// biome-ignore lint/style/useThrowOnlyError: the point of the test is the non-Error branch of `record()`'s catch
+			throw "a string";
+		});
+
+		await expect(
+			signIn({ email: "a@b.com", password: "pw", redirectTo: "/" }, issue),
+		).rejects.toBeInstanceOf(Redirect);
+
+		expect(logger.error).toHaveBeenCalledWith("Could not record a sign-in", {
+			error: "Unknown error",
+		});
+	});
+});
+
+describe("signUp redirect targets", () => {
+	it("carries a redirectTo through to the sign-in page", async () => {
+		client.signUp.mockResolvedValue({ session: null, user: { id: "u" } });
+
+		await expect(
+			signUp(
+				{ email: "a@b.com", password: "pw", redirectTo: "/library" },
+				issue,
+			),
+		).rejects.toMatchObject({
+			location: "auth/sign-in?registered=1&redirectTo=%2Flibrary",
+		});
+	});
+});
+
+describe("signOut failures", () => {
+	it("rethrows anything that is not an API error", async () => {
+		client.signOut.mockRejectedValue(new TypeError("network down"));
+		await expect(signOut({}, issue)).rejects.toThrow("network down");
+		expect(session.clear).not.toHaveBeenCalled();
 	});
 });

@@ -15,7 +15,7 @@ vi.mock("#lib/server/guards.js", () => ({
 	}),
 }));
 
-import { libraryIds } from "./library.remote.js";
+import { libraryIds } from "./library.remote.ts";
 
 beforeEach(() => {
 	state.libraryPull = vi.fn(async () => []);
