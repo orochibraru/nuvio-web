@@ -4,9 +4,6 @@ import type { Container } from "#lib/services/index.js";
 
 declare global {
 	namespace App {
-		interface Error {
-			code?: string;
-		}
 		interface Locals {
 			nuvio: NuvioClient;
 			/** This request's service scope. See `#lib/services/server.js`. */

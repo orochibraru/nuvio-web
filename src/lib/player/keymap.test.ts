@@ -71,10 +71,36 @@ describe("handlePlayerKey", () => {
 		expect(a.togglePlay).not.toHaveBeenCalled();
 	});
 
+	// Stands in for a focused control: `closest` matches when the selector covers
+	// this element, which is what the real DOM does for the panel's buttons.
+	function focused(matches: boolean): EventTarget {
+		return { closest: () => (matches ? {} : null) } as unknown as EventTarget;
+	}
+
 	it("ignores keys typed into an input", () => {
 		const a = actions();
-		const input = { tagName: "INPUT" } as unknown as EventTarget;
-		expect(handlePlayerKey(key("k", input), a)).toBe(false);
+		expect(handlePlayerKey(key("k", focused(true)), a)).toBe(false);
 		expect(a.togglePlay).not.toHaveBeenCalled();
+	});
+
+	it("leaves keys alone when a control has focus, so its own handler runs", () => {
+		const a = actions();
+		const event = key(" ", focused(true));
+		expect(handlePlayerKey(event, a)).toBe(false);
+		expect(a.togglePlay).not.toHaveBeenCalled();
+		// The killer detail: preventDefault would have eaten the button's click.
+		expect(event.preventDefault).not.toHaveBeenCalled();
+	});
+
+	it("still handles keys when the focused node matches nothing", () => {
+		const a = actions();
+		expect(handlePlayerKey(key("k", focused(false)), a)).toBe(true);
+		expect(a.togglePlay).toHaveBeenCalled();
+	});
+
+	it("closes menus on Escape even from inside a focused control", () => {
+		const a = actions();
+		expect(handlePlayerKey(key("Escape", focused(true)), a)).toBe(true);
+		expect(a.closeMenus).toHaveBeenCalled();
 	});
 });

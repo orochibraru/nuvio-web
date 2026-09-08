@@ -1,7 +1,8 @@
 <script lang="ts">
 	import ScrollRail from "#lib/components/layout/scroll-rail.svelte";
 	import { browserServices } from "#lib/services/browser.js";
-	import { PEOPLE, type Person } from "#lib/services/index.js";
+	import type { Person } from "#lib/services/people.service.js";
+	import { PEOPLE } from "#lib/services/tokens.js";
 	import { browser } from "$app/env";
 	import { resolve } from "$app/paths";
 

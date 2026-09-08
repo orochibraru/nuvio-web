@@ -33,6 +33,13 @@
 			Object.defineProperty(video, "videoWidth", { get: () => 0 });
 		}
 	});
+	// `?fill=1` renders the player the way the real watch route does : it owns
+	// the viewport, which is what makes fullscreen target the document rather
+	// than the player's own div. Needed to exercise that path in a test.
+	const fill = $derived(Boolean(page.url.searchParams.get("fill")));
+	// `?drawer=1` stands in for the sources / episodes drawer being open over the
+	// player, which must keep the pause-triggered info overlay down.
+	const drawerOpen = $derived(Boolean(page.url.searchParams.get("drawer")));
 	const start = $derived(Number(page.url.searchParams.get("start") ?? "0"));
 	// `?external=<url>` surfaces the fatal screen's external-player handoff.
 	const externalUrl = $derived(page.url.searchParams.get("external"));
@@ -106,6 +113,8 @@
   {/if}
   <VideoPlayer
     {src}
+    {fill}
+    {drawerOpen}
     title="Player harness"
     subheading="dev only"
     startTime={start}

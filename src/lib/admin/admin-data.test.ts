@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("$app/env", () => ({ dev: false }));
 vi.mock("$app/env/private", () => ({ NUVIO_DATA_DIR: "data" }));
 
-import { DatabaseService } from "#lib/services/index.js";
+import { DatabaseService } from "#lib/services/database.service.js";
 import {
 	addToAllowlist,
 	canSignIn,

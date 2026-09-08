@@ -77,8 +77,8 @@
 </script>
 
 <svelte:head>
-  <link rel="icon" href={favicon} />
-  <title>{pageTitle.full}</title>
+    <link rel="icon" href={favicon} />
+    <title>{pageTitle.full}</title>
 </svelte:head>
 
 <TopLoadingBar />

@@ -57,6 +57,12 @@ export interface VideoPlayerProps {
 	outroStart?: number | null;
 	/** Shrink to a corner PiP (the page's end-of-show takeover). */
 	minimized?: boolean;
+	/**
+	 * One of the page's own drawers (sources, episodes) is covering the player.
+	 * Keeps the pause-triggered info overlay from opening on top of it, where it
+	 * would swallow the clicks meant for the drawer.
+	 */
+	drawerOpen?: boolean;
 	onProgress?: (position: number, duration: number) => void;
 	onEnded?: () => void;
 	/** Fired once when playback first reaches `outroStart`. */

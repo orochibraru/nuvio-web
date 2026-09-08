@@ -1,10 +1,30 @@
 export type LogLevel = "debug" | "info" | "warn" | "error";
+export type LogFormat = "console" | "json";
 export type LogFields = Record<string, unknown>;
+
+export const LOG_LEVELS: readonly LogLevel[] = [
+	"debug",
+	"info",
+	"warn",
+	"error",
+];
+export const LOG_FORMATS: readonly LogFormat[] = ["console", "json"];
 
 /** Where lines end up. Swapped for an array in tests. */
 export interface LogSink {
 	out: (line: string) => void;
 	err: (line: string) => void;
+}
+
+export interface LoggerOptions {
+	/**
+	 * `console` is the colorized single-line form meant to be read straight off
+	 * `docker logs`; `json` emits one object per line for a log shipper to
+	 * parse. Set per instance from `NUVIO_LOG_FORMAT`, see `./server.ts`.
+	 */
+	format?: LogFormat;
+	/** Subsystem name, printed as `[Hooks]` / carried as `scope` in JSON. */
+	scope?: string;
 }
 
 const COLOR: Record<LogLevel, string> = {
@@ -15,6 +35,7 @@ const COLOR: Record<LogLevel, string> = {
 };
 const RESET = "\x1b[0m";
 const DIM = "\x1b[2m";
+const MAGENTA = "\x1b[35m";
 
 const LEVEL_ORDER: Record<LogLevel, number> = {
 	debug: 0,
@@ -35,14 +56,20 @@ export const consoleSink: LogSink = {
 };
 
 /**
- * Leveled console logger for server-side code. Colorized single-line output,
- * meant to be read straight off `docker logs`, not parsed by a log shipper.
+ * Leveled logger for server-side code. Warn and error go to the error sink so
+ * they survive a `2>` split; everything else goes to the out sink.
  */
 export class Logger {
+	readonly #bound: LogFields;
+
 	constructor(
 		private readonly minLevel: LogLevel = "info",
 		private readonly sink: LogSink = consoleSink,
-	) {}
+		private readonly options: LoggerOptions = {},
+		bound: LogFields = {},
+	) {
+		this.#bound = bound;
+	}
 
 	debug(message: string, fields?: LogFields): void {
 		this.#write("debug", message, fields);
@@ -65,51 +92,71 @@ export class Logger {
 	 * request's `errorId` so a handler doesn't repeat it at each call.
 	 */
 	with(fields: LogFields): Logger {
-		return new BoundLogger(this.minLevel, this.sink, fields);
+		return new Logger(this.minLevel, this.sink, this.options, {
+			...this.#bound,
+			...fields,
+		});
 	}
 
-	protected enabled(level: LogLevel): boolean {
-		return LEVEL_ORDER[level] >= LEVEL_ORDER[this.minLevel];
-	}
-
-	protected format(
-		level: LogLevel,
-		message: string,
-		fields: LogFields | undefined,
-	): string {
-		const time = new Date().toTimeString().slice(0, 8);
-		const tag = `${COLOR[level]}${level.toUpperCase().padEnd(5)}${RESET}`;
-		return `${DIM}${time}${RESET} ${tag} ${message}${formatFields(fields)}`;
+	/** A logger tagged with a subsystem name : `logger.scoped("Hooks")`. */
+	scoped(scope: string): Logger {
+		return new Logger(
+			this.minLevel,
+			this.sink,
+			{ ...this.options, scope },
+			this.#bound,
+		);
 	}
 
 	#write(level: LogLevel, message: string, fields?: LogFields): void {
-		if (!this.enabled(level)) {
+		if (LEVEL_ORDER[level] < LEVEL_ORDER[this.minLevel]) {
 			return;
 		}
-		const line = this.format(level, message, this.merge(fields));
+		const all = { ...this.#bound, ...fields };
+		const line =
+			this.options.format === "json"
+				? formatJson(level, this.options.scope, message, all)
+				: formatConsole(level, this.options.scope, message, all);
 		if (level === "error" || level === "warn") {
 			this.sink.err(line);
 			return;
 		}
 		this.sink.out(line);
 	}
-
-	protected merge(fields: LogFields | undefined): LogFields | undefined {
-		return fields;
-	}
 }
 
-class BoundLogger extends Logger {
-	readonly #bound: LogFields;
+function formatConsole(
+	level: LogLevel,
+	scope: string | undefined,
+	message: string,
+	fields: LogFields,
+): string {
+	const time = new Date().toTimeString().slice(0, 8);
+	const tag = `${COLOR[level]}${level.toUpperCase().padEnd(5)}${RESET}`;
+	const prefix = scope ? ` ${MAGENTA}[${scope}]${RESET}` : "";
+	return `${DIM}${time}${RESET} ${tag}${prefix} ${message}${formatFields(fields)}`;
+}
 
-	constructor(minLevel: LogLevel, sink: LogSink, bound: LogFields) {
-		super(minLevel, sink);
-		this.#bound = bound;
+function formatJson(
+	level: LogLevel,
+	scope: string | undefined,
+	message: string,
+	fields: LogFields,
+): string {
+	// Errors are stringified through formatValue rather than left to
+	// JSON.stringify, which turns an Error into `{}` and silently loses the
+	// only part anyone reads.
+	const serializable: LogFields = {};
+	for (const [key, value] of Object.entries(fields)) {
+		serializable[key] = value instanceof Error ? formatValue(value) : value;
 	}
-
-	protected override merge(fields: LogFields | undefined): LogFields {
-		return { ...this.#bound, ...fields };
-	}
+	return JSON.stringify({
+		time: new Date().toISOString(),
+		level,
+		scope,
+		message,
+		...serializable,
+	});
 }
 
 function formatValue(value: unknown): string {

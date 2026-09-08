@@ -14,6 +14,15 @@ import {
 import { createRequestScope, serverServices } from "#lib/services/server.js";
 import { dev } from "$app/env";
 
+/**
+ * Resolved per call rather than at module load: `handleError` can fire before
+ * anything else has touched the container, and a module-level `.get()` would
+ * pin the logger into this module's import side effects.
+ */
+function hooksLogger() {
+	return serverServices.get(LOGGER).scoped("Hooks");
+}
+
 function makeErrorId(): string {
 	return crypto.randomUUID().replace(/-/g, "").slice(0, 24);
 }
@@ -56,28 +65,63 @@ function applySecurityHeaders(headers: Headers): void {
 	}
 }
 
+/** The readable part of whatever `handleError` was handed, for the log line. */
+function describe(error: unknown): string {
+	if (error instanceof Error) {
+		return error.stack ?? error.message;
+	}
+	if (typeof error === "object" && error !== null && "message" in error) {
+		return String((error as { message: unknown }).message);
+	}
+	return String(error);
+}
+
 export const handleError: HandleServerError = ({ event, error, kind }) => {
-	// SvelteKit 3 routes expected + framework errors through here too; a 404 is
+	// SvelteKit 3 routes app + framework errors through here too; a 404 is
 	// noise, not a bug.
 	if (kind === "framework" && error.status === 404) {
 		return;
 	}
 	const errorId = makeErrorId();
-	serverServices
-		.get(LOGGER)
-		.error(`Error on ${event.request.method} ${event.url.pathname}`, {
-			errorId,
-			error: error instanceof Error ? error : "Unknown error",
-		});
+	const message = `Error on ${event.request.method} ${event.url.pathname}`;
+	const fields = { errorId, error: describe(error) };
 
-	return {
-		errorId,
-		message:
-			error instanceof Error && dev
-				? error.message
-				: "An unknown error occurred.",
-	};
+	if (kind === "unknown") {
+		hooksLogger().error(message, fields);
+		// Only an unknown error carries a message that could leak internals (a
+		// driver string, a path, a query), so it is the only kind whose message
+		// is replaced in production. Plain object, never an `Error` instance:
+		// this becomes `App.Error` (app.d.ts) and is serialized to the client
+		// with devalue, which can't stringify a non-POJO and would turn every
+		// uncaught error into an unrelated-looking "Cannot stringify arbitrary
+		// non-POJOs" 500.
+		return {
+			errorId,
+			message: dev ? describe(error) : "An unknown error occurred.",
+		};
+	}
+
+	// A 403 from a guard, or a rejected remote-function argument, is the app
+	// working as designed : worth a line, not an ERROR line.
+	hooksLogger().warn(message, fields);
+	// Returning only `errorId` lets SvelteKit keep the message it already has
+	// (the body passed to `error(...)`, or its own safe text for a framework
+	// error) : the one actually written for a user to read.
+	return { errorId };
 };
+
+/**
+ * Requests nobody wants an access line for: probes the browser and the
+ * platform make on their own, whose 404s say nothing about this app.
+ */
+function isLogNoise(pathname: string): boolean {
+	return (
+		pathname === "/favicon.ico" ||
+		pathname.startsWith("/.well-known/") ||
+		pathname.startsWith("/@") ||
+		pathname.startsWith("/_app/")
+	);
+}
 
 function logAccess(
 	services: Container,
@@ -85,7 +129,7 @@ function logAccess(
 	status: number,
 	startedAt: number,
 ): void {
-	const logger = services.get(LOGGER);
+	const logger = services.get(LOGGER).scoped("Hooks");
 	const ms = Math.round(performance.now() - startedAt);
 	const message = `${event.request.method} ${event.url.pathname}`;
 	if (status >= 500) {
@@ -149,7 +193,9 @@ export const handle: Handle = async ({ event, resolve }) => {
 	try {
 		const response = await resolve(event);
 		applySecurityHeaders(response.headers);
-		logAccess(services, event, response.status, startedAt);
+		if (!isLogNoise(event.url.pathname)) {
+			logAccess(services, event, response.status, startedAt);
+		}
 		return response;
 	} finally {
 		// Drops this request's scoped instances; the process-wide singletons on

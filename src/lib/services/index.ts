@@ -1,5 +1,8 @@
-// Deliberately does not re-export `./server.ts`: it reads `$app/env/private`
-// and must never reach the browser bundle. Import that one directly.
+// Deliberately does not re-export `./server.ts` (reads `$app/env/private`) or
+// `./database.service.ts` (imports `bun:sqlite` / `node:fs`): neither may reach
+// the browser bundle, and client components import this barrel. Import those
+// two directly from the server. The `DATABASE` token below is safe : it only
+// references `DatabaseService` as a type, which is erased on emit.
 
 export { AdminService } from "./admin.service.ts";
 export {
@@ -11,11 +14,14 @@ export {
 	ServiceToken,
 	serviceToken,
 } from "./container.ts";
-export { DatabaseService } from "./database.service.ts";
 export {
 	consoleSink,
+	LOG_FORMATS,
+	LOG_LEVELS,
 	type LogFields,
+	type LogFormat,
 	Logger,
+	type LoggerOptions,
 	type LogLevel,
 	type LogSink,
 } from "./logger.service.ts";

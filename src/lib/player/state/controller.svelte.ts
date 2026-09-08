@@ -10,7 +10,7 @@ import { createPlayerTransportState } from "./transport-state.svelte.ts";
  * function, safe to spread into one flat object.
  */
 export function createPlayerController(deps: {
-	container: () => HTMLDivElement | null;
+	fullscreenTarget: () => Element | null;
 	video: () => HTMLVideoElement | null;
 	src: () => string;
 	startTime: () => number;
@@ -21,7 +21,7 @@ export function createPlayerController(deps: {
 	const state = createPlayerTransportState({ video: deps.video });
 	const actions = createPlayerTransportActions({
 		state,
-		container: deps.container,
+		fullscreenTarget: deps.fullscreenTarget,
 		video: deps.video,
 		panelOpen: deps.panelOpen,
 	});
