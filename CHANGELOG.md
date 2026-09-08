@@ -1,3 +1,9 @@
+## [1.0.9](https://github.com/orochibraru/nuvio-web/compare/v1.0.8...v1.0.9) (2026-09-08)
+
+### Bug Fixes
+
+* streams drawer ([#10](https://github.com/orochibraru/nuvio-web/issues/10)) ([1acfeed](https://github.com/orochibraru/nuvio-web/commit/1acfeedb16f0ab95e8c926340d4148f9082da353))
+
 ## [1.0.8](https://github.com/orochibraru/nuvio-web/compare/v1.0.7...v1.0.8) (2026-09-03)
 
 ### Features
