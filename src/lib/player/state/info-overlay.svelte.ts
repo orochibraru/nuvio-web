@@ -13,6 +13,12 @@ export function createInfoOverlayController(deps: {
 	loading: () => boolean;
 	paused: () => boolean;
 	currentTime: () => number;
+	/**
+	 * A drawer the page owns (sources, episodes) is covering the player. Pausing
+	 * behind one must not surface the overlay on top of it : it swallows the
+	 * clicks meant for the drawer, leaving no way to close it.
+	 */
+	blocked: () => boolean;
 	/** Fired whenever the overlay opens, sticky or auto : keep the transport up. */
 	onOpen: () => void;
 }) {
@@ -49,6 +55,13 @@ export function createInfoOverlayController(deps: {
 	}
 
 	$effect(() => {
+		// Get out from under a drawer that's already up, however it was opened:
+		// the same reason `closeSilently` exists for the sibling panels.
+		if (deps.blocked()) {
+			open = false;
+			autoOpened = false;
+			return;
+		}
 		if (
 			!deps.hasInfo() ||
 			deps.minimized() ||

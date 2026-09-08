@@ -5,6 +5,11 @@
 - [ ] Add title args to every html button, especially in the player to know
       which icon does what. Perhaps a tooltip in the player? Something to try
       I'm afraid it might be too much and cause more issues than it solves.
+- [ ] The settings page looks a bit shit, narrow design, weird second navbar
+      that's not touching the first one like an extension... Either make it
+      stick to the main navbar (and create child navbar on mobile), make it a
+      subnavbar that slides in on top of the main one when on settings (really
+      like that one) or go back to tabs.
 
 ## Medium
 

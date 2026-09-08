@@ -41,7 +41,16 @@ import { handle, handleError } from "./hooks.server.js";
 
 // Swapping implementations is a `register` call now : no module mock, and the
 // scope the hook builds per request inherits these.
-const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
+// `scoped`/`with` return a logger, so the fake returns itself : every
+// assertion below can keep looking at the same three spies.
+const logger: Record<string, unknown> = {
+	info: vi.fn(),
+	warn: vi.fn(),
+	error: vi.fn(),
+	debug: vi.fn(),
+	scoped: () => logger,
+	with: () => logger,
+};
 const database = { tryConnect: vi.fn(() => null as unknown) };
 
 serverServices
@@ -240,7 +249,7 @@ describe("handleError", () => {
 		);
 	});
 
-	it("logs a non-Error throw as unknown", () => {
+	it("keeps the readable part of a non-Error throw in the log", () => {
 		handleError({
 			kind: "unknown",
 			event: { request: { method: "POST" }, url: { pathname: "/y" } },
@@ -248,7 +257,27 @@ describe("handleError", () => {
 		} as never);
 		expect(logger.error).toHaveBeenCalledWith(
 			"Error on POST /y",
-			expect.objectContaining({ error: "Unknown error" }),
+			expect.objectContaining({ error: "a string" }),
+		);
+	});
+
+	it("warns rather than errors on a deliberate `error(...)`, and keeps its message", () => {
+		const result = handleError({
+			kind: "app",
+			event: { request: { method: "GET" }, url: { pathname: "/z" } },
+			error: { message: "This addon isn't installed" },
+		} as never) as { errorId: string; message?: string };
+		// Omitting `message` is what makes SvelteKit fall back to the body the
+		// route passed to `error(...)` : the text written for the user.
+		expect(result.message).toBeUndefined();
+		expect(result.errorId).toMatch(/^[a-f0-9]{24}$/);
+		expect(logger.error).not.toHaveBeenCalledWith(
+			"Error on GET /z",
+			expect.anything(),
+		);
+		expect(logger.warn).toHaveBeenCalledWith(
+			"Error on GET /z",
+			expect.objectContaining({ error: "This addon isn't installed" }),
 		);
 	});
 });

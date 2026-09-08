@@ -156,6 +156,53 @@ test("video player: autoplay, keyboard seek, speed menu", async ({ page }) => {
 	expect(errors, "runtime errors").toEqual([]);
 });
 
+test("fullscreen keeps overlays mounted outside the player clickable", async ({
+	page,
+}) => {
+	const errors = collectRuntimeErrors(page);
+
+	await page.goto(harness({ fill: "1" }));
+	await page.waitForLoadState("networkidle");
+
+	const player = page.getByRole("region", { name: "Video player" });
+	await expect(player).toBeVisible();
+	await page.evaluate(() => document.querySelector("video")?.pause());
+
+	await player.getByRole("button", { name: "Fullscreen" }).click();
+
+	// The regression: fullscreening the player's own div left every overlay
+	// mounted outside it (sources drawer, episodes, up-next, portalled menus)
+	// out of the top layer, so they were neither painted nor clickable. Only
+	// the fullscreen element and its descendants render, so the target has to
+	// be an ancestor of those overlays.
+	await expect
+		.poll(() =>
+			page.evaluate(() => document.fullscreenElement?.tagName ?? null),
+		)
+		.toBe("HTML");
+
+	// The settings menu portals to <body>, i.e. outside the player region : the
+	// case that used to silently do nothing in fullscreen.
+	await player.getByRole("button", { name: "Settings" }).click();
+	const speed = page.getByRole("menuitemradio", { name: "1.5×" });
+	await expect(speed).toBeVisible();
+	expect(
+		await page.evaluate(() => {
+			const item = document.querySelector('[role="menuitemradio"]');
+			return Boolean(item && document.fullscreenElement?.contains(item));
+		}),
+		"portalled menu inside the fullscreen element",
+	).toBe(true);
+
+	// Clicking it has to actually land, not just be visible.
+	await speed.click();
+	expect(
+		await page.evaluate(() => document.querySelector("video")?.playbackRate),
+	).toBe(1.5);
+
+	expect(errors, "runtime errors").toEqual([]);
+});
+
 test("detail page shows official watch providers (JustWatch)", async ({
 	page,
 	context,
@@ -180,6 +227,29 @@ test("detail page shows official watch providers (JustWatch)", async ({
 	}
 
 	await page.waitForTimeout(500);
+	expect(errors, "runtime errors").toEqual([]);
+});
+
+test("pausing behind an open drawer keeps the info overlay down", async ({
+	page,
+}) => {
+	const errors = collectRuntimeErrors(page);
+
+	await page.goto(harness({ info: "1", drawer: "1" }));
+	await page.waitForLoadState("networkidle");
+
+	await expect
+		.poll(() => currentTime(page), { timeout: 15_000 })
+		.toBeGreaterThan(1);
+
+	const synopsis = page.getByText("A dev-harness synopsis", { exact: false });
+
+	// The regression: the overlay auto-opened over the sources drawer and ate
+	// the clicks meant for it, so the drawer couldn't be closed.
+	await page.evaluate(() => document.querySelector("video")?.pause());
+	await page.waitForTimeout(1500);
+	await expect(synopsis).toBeHidden();
+
 	expect(errors, "runtime errors").toEqual([]);
 });
 

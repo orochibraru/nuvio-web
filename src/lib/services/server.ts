@@ -1,10 +1,15 @@
 import type { RequestEvent } from "@sveltejs/kit";
 import { dev } from "$app/env";
-import { NUVIO_ADMIN_EMAILS, NUVIO_DATA_DIR } from "$app/env/private";
+import {
+	NUVIO_ADMIN_EMAILS,
+	NUVIO_DATA_DIR,
+	NUVIO_LOG_FORMAT,
+	NUVIO_LOG_LEVEL,
+} from "$app/env/private";
 import { AdminService } from "./admin.service.ts";
 import { Container } from "./container.ts";
 import { DatabaseService } from "./database.service.ts";
-import { Logger } from "./logger.service.ts";
+import { consoleSink, Logger } from "./logger.service.ts";
 import { SessionService } from "./session.service.ts";
 import {
 	ADMIN,
@@ -26,7 +31,13 @@ import {
 export const serverServices = new Container("server");
 
 serverServices
-	.register(LOGGER, () => new Logger(dev ? "debug" : "info"))
+	.register(
+		LOGGER,
+		() =>
+			new Logger(NUVIO_LOG_LEVEL || (dev ? "debug" : "info"), consoleSink, {
+				format: NUVIO_LOG_FORMAT,
+			}),
+	)
 	.register(DATABASE, (c) => new DatabaseService(NUVIO_DATA_DIR, c.get(LOGGER)))
 	.register(ADMIN, () => new AdminService(NUVIO_ADMIN_EMAILS ?? ""))
 	.register(SESSION, (c) => new SessionService(c.get(COOKIES), !dev), "scoped");

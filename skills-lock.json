@@ -6,6 +6,18 @@
 			"sourceType": "github",
 			"skillPath": "skills/shadcn-svelte/SKILL.md",
 			"computedHash": "d4f3f983a71466a86649985a8a7fbce47da29f44de3a9d02540bbcf3167134e0"
+		},
+		"traceway": {
+			"source": "tracewayapp/traceway",
+			"sourceType": "github",
+			"skillPath": "skills/traceway/SKILL.md",
+			"computedHash": "6f4fb85721191826cefddfeada5d8c3291c50782f41f247d8c398e46386bafab"
+		},
+		"traceway-setup": {
+			"source": "tracewayapp/traceway",
+			"sourceType": "github",
+			"skillPath": "skills/traceway-setup/SKILL.md",
+			"computedHash": "d1cfb07de2a893f683036a91fcdf8a735f8f7b87df9ec3a114b54d248fc359a8"
 		}
 	}
 }

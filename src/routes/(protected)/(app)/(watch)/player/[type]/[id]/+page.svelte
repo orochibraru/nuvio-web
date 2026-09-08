@@ -508,6 +508,7 @@
       <VideoPlayer
         src={playableSrc}
         fill
+        drawerOpen={Boolean(sourcesPanel.target) || episodesOpen}
         poster={context.background ?? context.poster}
         posterImage={context.poster}
         info={context.info}

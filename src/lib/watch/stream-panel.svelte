@@ -13,6 +13,7 @@
 	import { fade, fly } from "svelte/transition";
 	import { Separator } from "#lib/components/ui/separator/index.js";
 	import { reduced } from "#lib/core/motion.js";
+	import { externalPlayerHandoff } from "#lib/player/external-player.js";
 	import { theme } from "#lib/settings/theme.svelte.js";
 	import { cn } from "#lib/utils.js";
 	import { goto } from "$app/navigation";
@@ -161,14 +162,31 @@
 		}
 	}
 
+	/**
+	 * Worth clicking when it plays here, or when the app can hand it to an
+	 * external player : a deep link, a `magnet:` for a P2P source, or a URL to
+	 * copy. `externalPlayerHandoff` is what the player's own handoff screen
+	 * asks, so asking it here keeps the two from disagreeing : the drawer used
+	 * to check `externalUrl` alone and so greyed out every P2P row, which is
+	 * exactly what "Show all sources" reveals.
+	 */
+	function actionable(row: Row): boolean {
+		return (
+			isPlayable(row) ||
+			externalPlayerHandoff(row, navigator.userAgent) !== null
+		);
+	}
+
 	function pick(row: Row) {
-		if (isPlayable(row)) {
-			playbackHandoff.select(videoId, row, row.info.title);
-			// The (watch) layout closes the drawer on `afterNavigate`.
-			void goto(resolve(`player/${type}/${encodeURIComponent(videoId)}`));
-		} else if (row.externalUrl) {
+		if (!isPlayable(row) && row.externalUrl) {
 			window.open(row.externalUrl, "_blank", "noopener");
+			return;
 		}
+		playbackHandoff.select(videoId, row, row.info.title);
+		// Not playable here still goes to the player: it owns the "can't play in
+		// the browser" screen, with the external-player link and the copy
+		// fallback. The (watch) layout closes the drawer on `afterNavigate`.
+		void goto(resolve(`player/${type}/${encodeURIComponent(videoId)}`));
 	}
 
 	function onKeydown(event: KeyboardEvent) {
@@ -554,7 +572,7 @@
           {@const playable = isPlayable(row)}
           <button
             type="button"
-            disabled={!playable && !row.externalUrl}
+            disabled={!actionable(row)}
             onclick={() => pick(row)}
             class="group/row flex items-start gap-3 rounded-lg border border-border bg-card p-2.5 text-left transition-all enabled:hover:border-primary/40 enabled:hover:bg-card disabled:opacity-50"
           >

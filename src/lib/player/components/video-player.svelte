@@ -41,6 +41,7 @@
 		introEnd = null,
 		outroStart = null,
 		minimized = false,
+		drawerOpen = false,
 		onProgress,
 		onEnded,
 		onOutro,
@@ -57,7 +58,12 @@
 	let fatalError = $state<string | null>(null);
 
 	const player = createPlayerController({
-		container: () => container,
+		// Fullscreening the player's own div drops every overlay mounted outside
+		// it (sources / episodes drawers, up-next, end panel, portalled menus)
+		// out of the top layer, leaving them unpainted and unclickable. When the
+		// player already owns the viewport, fullscreen the document instead :
+		// looks identical, and keeps those overlays inside the fullscreen subtree.
+		fullscreenTarget: () => (fill ? document.documentElement : container),
 		video: () => video,
 		src: () => src,
 		startTime: () => startTime,
@@ -86,6 +92,7 @@
 		loading: () => transport.loading,
 		paused: () => transport.paused,
 		currentTime: () => transport.currentTime,
+		blocked: () => drawerOpen,
 		onOpen: () => {
 			transport.controlsVisible = true;
 		},

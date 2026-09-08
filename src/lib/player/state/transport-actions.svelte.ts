@@ -8,7 +8,7 @@ import type { PlayerTransportState } from "./transport-state.svelte.ts";
  */
 export function createPlayerTransportActions(deps: {
 	state: PlayerTransportState;
-	container: () => HTMLDivElement | null;
+	fullscreenTarget: () => Element | null;
 	video: () => HTMLVideoElement | null;
 	panelOpen: () => boolean;
 }) {
@@ -56,14 +56,14 @@ export function createPlayerTransportActions(deps: {
 	}
 
 	async function toggleFullscreen() {
-		const container = deps.container();
-		if (!container) {
+		const target = deps.fullscreenTarget();
+		if (!target) {
 			return;
 		}
 		if (document.fullscreenElement) {
 			await document.exitFullscreen();
 		} else {
-			await container.requestFullscreen();
+			await target.requestFullscreen();
 		}
 	}
 
