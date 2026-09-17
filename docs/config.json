@@ -1,0 +1,91 @@
+{
+	"$schema": "https://orochibraru.com/docs-config.schema.json",
+	"categories": [
+		{
+			"title": "Getting started",
+			"description": "Run Nuvio Web, point it at your Nuvio account, and watch something.",
+			"icon": "rocket",
+			"pages": [
+				{
+					"slug": "introduction",
+					"title": "Introduction",
+					"icon": "book-open"
+				},
+				{ "slug": "install", "title": "Install", "icon": "container" },
+				{
+					"slug": "configuration",
+					"title": "Configuration",
+					"icon": "sliders-horizontal"
+				},
+				{ "slug": "first-run", "title": "First run", "icon": "play" }
+			]
+		},
+		{
+			"title": "Using Nuvio Web",
+			"description": "Every screen, and what it does.",
+			"icon": "tv-minimal",
+			"pages": [
+				{ "slug": "browsing", "title": "Browsing", "icon": "search" },
+				{ "slug": "player", "title": "The player", "icon": "monitor-play" },
+				{ "slug": "addons", "title": "Addons", "icon": "puzzle" },
+				{
+					"slug": "library-and-sync",
+					"title": "Library and sync",
+					"icon": "library-big"
+				},
+				{
+					"slug": "profiles-and-settings",
+					"title": "Profiles and settings",
+					"icon": "settings"
+				}
+			]
+		},
+		{
+			"title": "Self-hosting",
+			"description": "Running an instance for yourself or a household.",
+			"icon": "server",
+			"pages": [
+				{ "slug": "admin", "title": "The admin page", "icon": "shield-user" },
+				{
+					"slug": "troubleshooting",
+					"title": "Troubleshooting",
+					"icon": "life-buoy"
+				}
+			]
+		},
+		{
+			"title": "Architecture",
+			"description": "How the app is put together, and why.",
+			"icon": "blocks",
+			"pages": [
+				{ "slug": "architecture", "title": "Overview", "icon": "workflow" },
+				{ "slug": "services", "title": "Services and DI", "icon": "boxes" },
+				{
+					"slug": "addon-pipeline",
+					"title": "The addon pipeline",
+					"icon": "waypoints"
+				},
+				{
+					"slug": "sync-store",
+					"title": "The sync store",
+					"icon": "refresh-cw"
+				},
+				{ "slug": "security", "title": "Security", "icon": "shield-check" }
+			]
+		},
+		{
+			"title": "Contributing",
+			"description": "Working on Nuvio Web itself.",
+			"icon": "git-pull-request",
+			"pages": [
+				{ "slug": "development", "title": "Development", "icon": "terminal" },
+				{ "slug": "testing", "title": "Testing", "icon": "flask-conical" },
+				{
+					"slug": "nuvio-api",
+					"title": "The Nuvio API spec",
+					"icon": "file-braces"
+				}
+			]
+		}
+	]
+}
