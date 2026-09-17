@@ -1,4 +1,47 @@
 {
+	"hooks": {
+		"PostToolUse": [
+			{
+				"matcher": "Edit|Write",
+				"hooks": [
+					{
+						"type": "command",
+						"command": "jq -r '.tool_input.file_path // empty' | { read -r f; case \"$f\" in *.ts|*.tsx|*.js|*.jsx|*.mjs|*.cjs|*.json|*.jsonc|*.css|*.svelte|*.html) \"$CLAUDE_PROJECT_DIR/node_modules/.bin/biome\" check --write \"$f\";; esac; } 2>/dev/null || true",
+						"timeout": 20,
+						"statusMessage": "biome lint"
+					},
+					{
+						"type": "command",
+						"command": "jq -r '.tool_input.file_path // empty' | { read -r f; case \"$f\" in *.md) \"$CLAUDE_PROJECT_DIR/node_modules/.bin/prettier\" --log-level warn --write \"$f\";; esac; } 2>/dev/null || true",
+						"timeout": 20,
+						"statusMessage": "prettier (markdown)"
+					}
+				]
+			}
+		],
+		"Stop": [
+			{
+				"hooks": [
+					{
+						"type": "command",
+						"command": "bun run check:app",
+						"timeout": 90,
+						"statusMessage": "Typechecking before handing back..."
+					},
+					{
+						"type": "command",
+						"command": "prek run",
+						"timeout": 90,
+						"statusMessage": "Running status checks..."
+					}
+				]
+			}
+		]
+	},
+	"enabledPlugins": {
+		"svelte@svelte": true,
+		"ponytail@ponytail": true
+	},
 	"extraKnownMarketplaces": {
 		"svelte": {
 			"source": {
@@ -6,29 +49,5 @@
 				"repo": "sveltejs/ai-tools"
 			}
 		}
-	},
-	"enabledPlugins": {
-		"svelte@svelte": true
-	},
-	"hooks": {
-		"PostToolUse": [
-			{
-				"matcher": "*",
-				"hooks": [
-					{
-						"type": "command",
-						"command": "prek run",
-						"timeout": 120,
-						"statusMessage": "Running Linters"
-					},
-					{
-						"type": "command",
-						"command": "bun run test:e2e",
-						"timeout": 120000,
-						"statusMessage": "Running E2E tests"
-					}
-				]
-			}
-		]
 	}
 }
