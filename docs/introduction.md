@@ -43,6 +43,10 @@ collections of titles, watch statistics, and a local-first sync store that makes
 a bookmark or a progress save land instantly and reconcile in the background.
 Open tabs stay in step with each other.
 
+**Install it.** The app ships a web app manifest, so a browser will offer to
+install it and it launches standalone, without browser chrome, from a home
+screen or a dock.
+
 **Make it yours.** Profiles with avatars, light/dark/system themes with a dim or
 AMOLED dark style and seven accent colours, and settings for appearance,
 playback, sync, addons and integrations, all stored on your Nuvio account so

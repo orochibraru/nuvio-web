@@ -73,6 +73,11 @@
       : transport.paused
         ? "Play"
         : "Pause"}
+    title={transport.ended
+      ? "Replay (Space)"
+      : transport.paused
+        ? "Play (Space)"
+        : "Pause (Space)"}
     onclick={player.togglePlay}
     class="rounded-full [&_svg]:size-5"
   >
@@ -90,6 +95,7 @@
       variant="ghost"
       size="icon"
       aria-label={transport.muted ? "Unmute" : "Mute"}
+      title={transport.muted ? "Unmute (M)" : "Mute (M)"}
       onclick={() => (transport.muted = !transport.muted)}
       class="rounded-full [&_svg]:size-5"
     >
@@ -108,6 +114,7 @@
       step="0.05"
       bind:value={transport.volume}
       aria-label="Volume"
+      title="Volume (Up / Down)"
       class="hidden h-1 w-16 cursor-pointer appearance-none rounded-full bg-white/30 sm:block [&::-webkit-slider-thumb]:size-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white"
     />
   </div>
@@ -125,6 +132,7 @@
         variant="ghost"
         size="icon"
         aria-label="Next episode"
+        title="Next episode (N)"
         onclick={onNext}
         class="rounded-full [&_svg]:size-5"
       >
@@ -136,6 +144,7 @@
         variant="ghost"
         size="icon"
         aria-label="Episodes"
+        title="Episodes (E)"
         onclick={onEpisodes}
         class="rounded-full [&_svg]:size-5"
       >
@@ -147,6 +156,9 @@
         variant="ghost"
         size="icon"
         aria-label="Subtitles"
+        title={activeCaption
+          ? `Subtitles: ${activeCaption} (C)`
+          : "Subtitles: off (C)"}
         aria-pressed={subtitlesOpen}
         onclick={onToggleSubtitles}
         class={cn(
@@ -169,6 +181,7 @@
             variant="ghost"
             size="icon"
             aria-label="Settings"
+            title="Speed and audio track"
             class="rounded-full [&_svg]:size-5"
             {...props}
           >
@@ -190,6 +203,7 @@
         variant="ghost"
         size="icon"
         aria-label={casting ? "Stop casting" : "Cast"}
+        title={casting ? "Stop casting" : "Cast to a TV"}
         aria-pressed={casting}
         onclick={onCast}
         class={cn("rounded-full [&_svg]:size-5", casting && "text-primary")}
@@ -207,6 +221,7 @@
         variant="ghost"
         size="icon"
         aria-label="Picture in picture"
+        title="Picture in picture"
         onclick={player.togglePip}
         class="rounded-full [&_svg]:size-5"
       >
@@ -218,6 +233,7 @@
       variant="ghost"
       size="icon"
       aria-label={transport.fullscreen ? "Exit fullscreen" : "Fullscreen"}
+      title={transport.fullscreen ? "Exit fullscreen (F)" : "Fullscreen (F)"}
       onclick={player.toggleFullscreen}
       class="rounded-full [&_svg]:size-5"
     >

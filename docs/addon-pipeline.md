@@ -18,11 +18,18 @@ the registry down. The addon is left out; the others work.
 
 ## Caching
 
-| Cache              | Key            | TTL                                   |
-| ------------------ | -------------- | ------------------------------------- |
-| Manifest           | addon base URL | 30 minutes                            |
-| Registry           | profile        | 60s, or 5s while any addon is failing |
-| Client query cache | profile + args | 5–30 min, in `localStorage`           |
+| Cache    | Key                   | TTL                                   |
+| -------- | --------------------- | ------------------------------------- |
+| Manifest | addon base URL        | 30 minutes                            |
+| Registry | **account** + profile | 60s, or 5s while any addon is failing |
+
+The registry cache is process-wide, so its key has to identify the account and
+not just the profile. `profileId` is the profile _index_, 1..6 within one Nuvio
+account, so on an instance with more than one account — which `/admin` exists to
+support — keying on it alone served account B account A's addons, catalogs and
+streams for the length of the TTL. Invalidation is per-entry for the same
+reason: one person editing their addons should not re-fan-out everyone else's
+next page.
 
 The shorter retry TTL is what makes a transient addon outage recover in seconds
 rather than up to a minute, and it is why the Addons page can usefully re-poll.

@@ -88,6 +88,9 @@ form:
 | `E`                     | Episode list            |
 | `Esc`                   | Close the open panel    |
 
+Every control also carries its shortcut in its hover tooltip, so the icons do
+not have to be learned from this table.
+
 Shortcuts are bound on the window, but a key aimed at a focused control is left
 alone: `Space` on a focused button inside the sources, subtitles or episodes
 panel activates that button, as a keyboard user expects, rather than toggling

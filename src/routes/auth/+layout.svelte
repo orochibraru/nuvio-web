@@ -1,7 +1,18 @@
 <script lang="ts">
 	import AuroraBackground from "#lib/components/layout/aurora-background.svelte";
+	import { forgetLocalData } from "#lib/sync/local-data.js";
 
 	let { children } = $props();
+
+	// Reaching any auth screen means there is no valid session (the load
+	// redirects anyone who has one), so this is where every way of losing one
+	// converges: sign-out, an expired refresh token, an eviction by the
+	// instance lock. Clearing cookies leaves the IndexedDB mirror and the
+	// unflushed write queue behind for whoever signs in next; this is what
+	// takes them.
+	$effect(() => {
+		void forgetLocalData();
+	});
 </script>
 
 <!--

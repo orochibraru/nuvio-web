@@ -16,8 +16,14 @@ and tabs on one profile never see another profile's state.
 ## Settings
 
 Settings live on your Nuvio account, so they follow you between devices. They
-are split into five tabs, and the open tab is in the URL — so it survives
-back/forward and can be linked to.
+are split into five sections, and the open one is in the URL (`?tab=`) — so it
+survives back/forward and can be linked to.
+
+The section switcher lives in the app header: on Settings the main navigation
+row slides out and the section row slides in over it, with an × to leave. One
+bar's worth of height, and the row you are navigating within is the one under
+your cursor. Below the `md` breakpoint the header hides its navigation entirely,
+so the sections render on the page as a scrollable pill row instead.
 
 ### Appearance
 

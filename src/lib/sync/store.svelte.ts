@@ -1,6 +1,11 @@
 import { browser } from "$app/env";
 import { fromBroadcastMessage, toBroadcastMessage } from "./broadcast.ts";
-import { clearProfile, readAll, readOne, replaceAll, writeOne } from "./idb.ts";
+import { clearOwner, purgeOtherOwners, readAll, readOne } from "./idb.ts";
+import {
+	persistEverything,
+	persistQueue,
+	persistRecords,
+} from "./persist.svelte.ts";
 import type { PendingLibraryWrite } from "./reconcile.ts";
 import {
 	buildFlushPayload,
@@ -35,6 +40,7 @@ import {
 	libraryRecordFromItem,
 	progressKeyFor,
 	progressRecordFromRow,
+	syncOwner,
 } from "./types.ts";
 
 const SYNC_INTERVAL_MS = 90_000;
@@ -49,17 +55,10 @@ function online(): boolean {
 	return !browser || navigator.onLine !== false;
 }
 
-/** Plain (structured-cloneable) entries for IndexedDB : see `#broadcast`. */
-function snapshotEntries(
-	map: Map<string, unknown>,
-): Iterable<[string, unknown]> {
-	return [...map.entries()].map(
-		([key, value]) => [key, $state.snapshot(value)] as [string, unknown],
-	);
-}
-
 class SyncStore {
 	#profileId: number | null = null;
+	/** `<userId>:<profileId>`; see `syncOwner` for why the index alone won't do. */
+	#owner: string | null = null;
 	#cursors: SyncCursors = { ...EMPTY_CURSORS };
 	#bootstrapped = false;
 	#queue: PendingWrite[] = [];
@@ -121,22 +120,35 @@ class SyncStore {
 		return libraryHas(this.library, contentType, contentId);
 	}
 
-	async attach(profileId: number): Promise<void> {
-		if (this.#profileId === profileId) {
+	async attach(profileId: number, userId: string): Promise<void> {
+		const owner = syncOwner(userId, profileId);
+		if (this.#owner === owner) {
 			return;
 		}
 		this.detach();
 		this.#profileId = profileId;
+		this.#owner = owner;
+
+		// Anything another account (or another profile) left behind goes now,
+		// not whenever it happens to be overwritten. Not awaited with the reads
+		// below: it only ever deletes rows this attach will not read.
+		void purgeOtherOwners(owner);
 
 		const [library, progress, history, cursors, queue, bootstrapped] =
 			await Promise.all([
-				readAll<LibraryRecord>("library", profileId),
-				readAll<ProgressRecord>("progress", profileId),
-				readAll<HistoryRecord>("history", profileId),
-				readOne<SyncCursors>("meta", profileId, "cursors"),
-				readOne<PendingWrite[]>("meta", profileId, "queue"),
-				readOne<boolean>("meta", profileId, "bootstrapped"),
+				readAll<LibraryRecord>("library", owner),
+				readAll<ProgressRecord>("progress", owner),
+				readAll<HistoryRecord>("history", owner),
+				readOne<SyncCursors>("meta", owner, "cursors"),
+				readOne<PendingWrite[]>("meta", owner, "queue"),
+				readOne<boolean>("meta", owner, "bootstrapped"),
 			]);
+
+		// A late attach (another profile picked while these reads were in
+		// flight) must not publish this owner's rows over the new one's.
+		if (this.#owner !== owner) {
+			return;
+		}
 
 		this.#cursors = cursors ?? { ...EMPTY_CURSORS };
 		this.#queue = queue ?? [];
@@ -166,7 +178,7 @@ class SyncStore {
 				INITIAL_SYNC_DELAY_MS,
 			);
 			if (typeof BroadcastChannel !== "undefined") {
-				this.#channel = new BroadcastChannel(`nuvio-sync-${profileId}`);
+				this.#channel = new BroadcastChannel(`nuvio-sync-${owner}`);
 				this.#channel.onmessage = (event) =>
 					this.#applyBroadcast(event.data as SyncBroadcastMessage);
 			}
@@ -186,6 +198,7 @@ class SyncStore {
 		this.#channel?.close();
 		this.#channel = undefined;
 		this.#profileId = null;
+		this.#owner = null;
 		this.#cursors = { ...EMPTY_CURSORS };
 		this.#bootstrapped = false;
 		this.#queue = [];
@@ -473,7 +486,8 @@ class SyncStore {
 		void this.#persist("queue");
 	}
 
-	async clear(profileId: number): Promise<void> {
+	async clear(): Promise<void> {
+		const owner = this.#owner;
 		this.#library = new Map();
 		this.#progress = new Map();
 		this.#history = new Map();
@@ -485,7 +499,15 @@ class SyncStore {
 		this.mutated = false;
 		this.#publish();
 		this.#broadcast();
-		await clearProfile(profileId);
+		if (owner) {
+			await clearOwner(owner);
+		}
+	}
+
+	/** Wipes every account's mirror and detaches. See `sync/local-data.ts`. */
+	async forget(): Promise<void> {
+		this.detach();
+		await purgeOtherOwners(null);
 	}
 
 	/** Queued writes plus recently-flushed ones, oldest first so a fresh queued
@@ -615,12 +637,12 @@ class SyncStore {
 	async #persist(
 		which: "library" | "progress" | "history" | "queue",
 	): Promise<void> {
-		const profileId = this.#profileId;
-		if (profileId == null) {
+		const owner = this.#owner;
+		if (owner == null) {
 			return;
 		}
 		if (which === "queue") {
-			await writeOne("meta", profileId, "queue", $state.snapshot(this.#queue));
+			await persistQueue(owner, this.#queue);
 			return;
 		}
 		const map =
@@ -629,21 +651,21 @@ class SyncStore {
 				: which === "progress"
 					? this.#progress
 					: this.#history;
-		await replaceAll(which, profileId, snapshotEntries(map));
+		await persistRecords(owner, which, map);
 	}
 
 	async #persistAll(): Promise<void> {
-		const profileId = this.#profileId;
-		if (profileId == null) {
+		const owner = this.#owner;
+		if (owner == null) {
 			return;
 		}
-		await Promise.all([
-			replaceAll("library", profileId, snapshotEntries(this.#library)),
-			replaceAll("progress", profileId, snapshotEntries(this.#progress)),
-			replaceAll("history", profileId, snapshotEntries(this.#history)),
-			writeOne("meta", profileId, "cursors", $state.snapshot(this.#cursors)),
-			writeOne("meta", profileId, "bootstrapped", this.#bootstrapped),
-		]);
+		await persistEverything(owner, {
+			library: this.#library,
+			progress: this.#progress,
+			history: this.#history,
+			cursors: this.#cursors,
+			bootstrapped: this.#bootstrapped,
+		});
 	}
 }
 

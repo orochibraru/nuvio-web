@@ -58,17 +58,17 @@ anything if every caller shares one.
 
 - **`RequestBudget`** caps concurrent outbound browser fetches (six), so a cast
   list of thirty people does not open thirty connections.
-- **`PeopleService`** memoises Wikipedia summaries for cast and crew.
-- **`QueryCacheService`** is a TTL cache layered over SvelteKit's own, in
-  `localStorage`. SvelteKit's cache is reference-counted and evicts a result the
-  moment nothing on screen holds it, so navigating away and back would
-  re-fan-out to every addon; this keeps the last good value and serves it back.
+- **`PeopleService`** memoises Wikipedia summaries for cast and crew. There used
+  to be a third, a `localStorage` TTL cache layered over SvelteKit's own. It was
+  deleted: nothing ever primed it, so it cached nothing and its `clear()` was
+  never called.
 
-`QueryCacheService.prime()` must be called from an `$effect`, never a `$derived`
-— it calls `query.set()`, and Svelte forbids state mutation inside a derived
-even several calls deep. Its key must fold in everything the result depends on,
-profile id included: a hit from another profile's addon set would otherwise
-leak.
+If the need comes back — SvelteKit's cache is reference-counted and drops a
+result the moment nothing on screen holds it, so navigating away and back
+re-fans-out to every addon — note what the old one got wrong. Its key folded in
+the profile _index_, which is 1..6 within one account and therefore not an
+identity; it has to be scoped by account too, the way `syncOwner` does for the
+sync store. See [The sync store](sync-store).
 
 ## What is not a service
 

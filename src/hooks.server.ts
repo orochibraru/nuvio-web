@@ -1,6 +1,7 @@
 import type { RequestEvent } from "@sveltejs/kit";
 import type { Handle, HandleServerError } from "@sveltejs/kit/hooks";
 import { canSignIn } from "#lib/admin/admin-data.js";
+import { makeErrorId } from "#lib/core/error-id.js";
 import { NuvioApiError, NuvioClient } from "#lib/nuvio/index.js";
 import {
 	ADMIN,
@@ -21,10 +22,6 @@ import { dev } from "$app/env";
  */
 function hooksLogger() {
 	return serverServices.get(LOGGER).scoped("Hooks");
-}
-
-function makeErrorId(): string {
-	return crypto.randomUUID().replace(/-/g, "").slice(0, 24);
 }
 
 // `'unsafe-inline'` on script-src is unavoidable without SvelteKit's CSP nonce

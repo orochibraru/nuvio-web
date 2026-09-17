@@ -26,17 +26,30 @@ export interface AllowlistEntry {
 
 const LOCK_KEY = "access.locked";
 
+/** How much of the sign-in event log is kept. Older rows are pruned on write. */
+export const SIGN_IN_EVENT_RETENTION_DAYS = 90;
+
+const MS_PER_DAY = 86_400_000;
+
 export function normalizeEmail(email: string): string {
 	return email.trim().toLowerCase();
 }
 
-/** Upserts one person's row. Called on every successful sign-in and sign-up. */
+/**
+ * Records one successful sign-in or sign-up: upserts the person's summary row
+ * *and* appends an event.
+ *
+ * Both, because they answer different questions. `sign_ins` answers "who has
+ * used this instance" in one row per person; `sign_in_events` answers "when",
+ * which a summary cannot reconstruct.
+ */
 export function recordSignIn(
 	db: Database,
 	email: string,
 	userId: string,
 	now = Date.now(),
 ): void {
+	const normalized = normalizeEmail(email);
 	db.query(
 		`INSERT INTO sign_ins (email, user_id, first_seen_at, last_seen_at, sign_in_count)
 		 VALUES ($email, $userId, $now, $now, 1)
@@ -44,7 +57,74 @@ export function recordSignIn(
 			 last_seen_at = $now,
 			 user_id = $userId,
 			 sign_in_count = sign_in_count + 1`,
-	).run({ $email: normalizeEmail(email), $userId: userId, $now: now });
+	).run({ $email: normalized, $userId: userId, $now: now });
+	db.query("INSERT INTO sign_in_events (email, at) VALUES ($email, $now)").run({
+		$email: normalized,
+		$now: now,
+	});
+	// Pruned here rather than on a timer: sign-in is the only thing that grows
+	// this table, and it is rare enough that a delete on the indexed column
+	// costs nothing worth scheduling around.
+	db.query("DELETE FROM sign_in_events WHERE at < $cutoff").run({
+		$cutoff: now - SIGN_IN_EVENT_RETENTION_DAYS * MS_PER_DAY,
+	});
+}
+
+/** One day of the activity chart. `day` is `YYYY-MM-DD`, UTC. */
+export interface SignInDay {
+	day: string;
+	signIns: number;
+	people: number;
+}
+
+function utcDay(timestamp: number): string {
+	return new Date(timestamp).toISOString().slice(0, 10);
+}
+
+/**
+ * Sign-ins per day over the last `days` days, oldest first, **including the
+ * days with none**.
+ *
+ * The gaps are the point: a chart built only from the days that have rows draws
+ * a quiet week as a continuous line and misrepresents it. Days are UTC so the
+ * buckets do not shift with the server's timezone.
+ */
+export function signInsPerDay(
+	db: Database,
+	days = 30,
+	now = Date.now(),
+): SignInDay[] {
+	const since = now - (days - 1) * MS_PER_DAY;
+	const rows = db
+		.query(
+			`SELECT at, email FROM sign_in_events
+			 WHERE at >= $since ORDER BY at`,
+		)
+		.all({ $since: new Date(utcDay(since)).getTime() }) as Array<{
+		at: number;
+		email: string;
+	}>;
+
+	const buckets = new Map<string, Set<string>>();
+	const counts = new Map<string, number>();
+	for (const row of rows) {
+		const day = utcDay(row.at);
+		counts.set(day, (counts.get(day) ?? 0) + 1);
+		const people = buckets.get(day) ?? new Set<string>();
+		people.add(row.email);
+		buckets.set(day, people);
+	}
+
+	const out: SignInDay[] = [];
+	for (let index = 0; index < days; index++) {
+		const day = utcDay(since + index * MS_PER_DAY);
+		out.push({
+			day,
+			signIns: counts.get(day) ?? 0,
+			people: buckets.get(day)?.size ?? 0,
+		});
+	}
+	return out;
 }
 
 export function listSignIns(db: Database): SignInRecord[] {

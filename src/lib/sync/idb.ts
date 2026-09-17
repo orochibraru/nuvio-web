@@ -57,17 +57,17 @@ interface Row {
 	value: unknown;
 }
 
-/** Every value for one profile in a store, as identity → value (profile prefix stripped). */
+/** Every value for one owner in a store, as identity → value (prefix stripped). */
 export async function readAll<T>(
 	store: StoreName,
-	profileId: number,
+	owner: string,
 ): Promise<Map<string, T>> {
 	const db = await openDb();
 	const out = new Map<string, T>();
 	if (!db) {
 		return out;
 	}
-	const prefix = `${profileId}:`;
+	const prefix = `${owner}:`;
 	try {
 		const objectStore = tx(db, store, "readonly");
 		const rows: Row[] = await new Promise((resolve, reject) => {
@@ -88,7 +88,7 @@ export async function readAll<T>(
 
 export async function readOne<T>(
 	store: StoreName,
-	profileId: number,
+	owner: string,
 	key: string,
 ): Promise<T | null> {
 	const db = await openDb();
@@ -96,7 +96,7 @@ export async function readOne<T>(
 		return null;
 	}
 	try {
-		const request = tx(db, store, "readonly").get(`${profileId}:${key}`);
+		const request = tx(db, store, "readonly").get(`${owner}:${key}`);
 		const row: Row | undefined = await new Promise((resolve, reject) => {
 			request.onsuccess = () => resolve(request.result as Row | undefined);
 			request.onerror = () => reject(request.error);
@@ -109,7 +109,7 @@ export async function readOne<T>(
 
 export async function writeOne(
 	store: StoreName,
-	profileId: number,
+	owner: string,
 	key: string,
 	value: unknown,
 ): Promise<void> {
@@ -119,31 +119,31 @@ export async function writeOne(
 	}
 	try {
 		await done(
-			tx(db, store, "readwrite").put({ _pk: `${profileId}:${key}`, value }),
+			tx(db, store, "readwrite").put({ _pk: `${owner}:${key}`, value }),
 		);
 	} catch {
 		// best effort
 	}
 }
 
-/** Replace a store's contents for one profile with `entries` (identity → value). */
+/** Replace a store's contents for one owner with `entries` (identity → value). */
 export async function replaceAll(
 	store: StoreName,
-	profileId: number,
+	owner: string,
 	entries: Iterable<[string, unknown]>,
 ): Promise<void> {
 	const db = await openDb();
 	if (!db) {
 		return;
 	}
-	const prefix = `${profileId}:`;
+	const prefix = `${owner}:`;
 	const rows = [...entries].map(([identity, value]) => ({
 		_pk: `${prefix}${identity}`,
 		value,
 	}));
 	try {
 		// One transaction, no `await` between requests: a cursor deletes this
-		// profile's rows, then the new rows go in, then we await the commit.
+		// owner's rows, then the new rows go in, then we await the commit.
 		const objectStore = tx(db, store, "readwrite");
 		await new Promise<void>((resolve, reject) => {
 			objectStore.transaction.oncomplete = () => resolve();
@@ -172,10 +172,58 @@ export async function replaceAll(
 	}
 }
 
-export async function clearProfile(profileId: number): Promise<void> {
+export async function clearOwner(owner: string): Promise<void> {
 	await Promise.all(
 		STORES.map(async (store) => {
-			await replaceAll(store, profileId, []);
+			await replaceAll(store, owner, []);
+		}),
+	);
+}
+
+/**
+ * Drops every row that is not `keep`'s, across every store.
+ *
+ * Signing out clears cookies, not IndexedDB, so without this the previous
+ * account's mirror sits on the device until something overwrites it. Running it
+ * on attach is what makes "sign out, sign in as someone else" leave nothing
+ * behind, and it self-heals a device that was already in that state. `null`
+ * keeps nothing, which is the sign-out case.
+ */
+export async function purgeOtherOwners(keep: string | null): Promise<void> {
+	const db = await openDb();
+	if (!db) {
+		return;
+	}
+	const prefix = keep === null ? null : `${keep}:`;
+	await Promise.all(
+		STORES.map(async (store) => {
+			try {
+				const objectStore = tx(db, store, "readwrite");
+				await new Promise<void>((resolve, reject) => {
+					objectStore.transaction.oncomplete = () => resolve();
+					objectStore.transaction.onerror = () =>
+						reject(objectStore.transaction.error);
+					objectStore.transaction.onabort = () =>
+						reject(objectStore.transaction.error);
+					const cursorRequest = objectStore.openKeyCursor();
+					cursorRequest.onsuccess = () => {
+						const cursor = cursorRequest.result;
+						if (!cursor) {
+							return;
+						}
+						if (
+							typeof cursor.key === "string" &&
+							(prefix === null || !cursor.key.startsWith(prefix))
+						) {
+							objectStore.delete(cursor.key);
+						}
+						cursor.continue();
+					};
+					cursorRequest.onerror = () => reject(cursorRequest.error);
+				});
+			} catch {
+				// best effort
+			}
 		}),
 	);
 }

@@ -1,85 +1,103 @@
 # Nuvio web TODO
 
-## Bugs
-
-`profileId` is 1..6 **per account**, not a global identity. Three caches treat
-it as one, so on an instance with more than one account (which `/admin` exists
-to support) two people who both picked profile 1 share state:
-
-- [ ] `addons/server.ts` : the module-level registry cache is keyed
-      `cache.profileId === profileId` only, so account B gets account A's addon
-      set, catalogs and streams for up to 60s. Fold the user id into the key (or
-      hang the cache on the request scope). `invalidateRegistry()` is global for
-      the same reason : one person's addon edit clears everyone's.
-- [ ] `sync/idb.ts` : IndexedDB rows are keyed `<profileId>:<identity>`, and
-      nothing clears them on sign-out. Sign in as another account, pick profile
-      1, and `attach()` reads the previous account's library / progress /
-      history **with `bootstrapped: true`**, so `sync()` skips `#bootstrap()`
-      and only pulls deltas from the old cursors : the other account's rows are
-      never removed, and its queued writes flush to the new account. Key the
-      namespace by user id, and clear browser-local state on sign-out.
-- [ ] `sync/store.svelte.ts` : `BroadcastChannel("nuvio-sync-" + profileId)` is
-      same-origin, so two accounts on one browser cross-talk. Same fix.
-
-Smaller, same family:
-
-- [ ] `QueryCacheService.clear()` is never called : the `nuvio:query-cache`
-      localStorage entry (addon catalog / meta / search results) survives
-      sign-out. Call it from the sign-out path.
-- [ ] `search/search-history.svelte.ts` keys on `nuvio:recent-searches` with no
-      profile or account scope, so one profile's recent searches show for
-      another.
-
 ## Small
 
-- [ ] Add title args to every html button, especially in the player to know
-      which icon does what. Perhaps a tooltip in the player? Something to try
-      I'm afraid it might be too much and cause more issues than it solves.
-- [ ] The settings page looks a bit shit, narrow design, weird second navbar
-      that's not touching the first one like an extension... Either make it
-      stick to the main navbar (and create child navbar on mobile), make it a
-      subnavbar that slides in on top of the main one when on settings (really
-      like that one) or go back to tabs.
+- [x] ~~Add title args to every html button, especially in the player~~ Done as
+      native `title` tooltips carrying the shortcut ("Pause (Space)", "Episodes
+      (E)"). No tooltip component: nothing to portal, nothing to focus-trap, and
+      `aria-label` still wins the accessible name so nothing is announced twice.
+      That was the "more issues than it solves" worry, and it is the reason to
+      stay with `title`.
+- [x] ~~The settings page looks a bit shit~~ Went with the sub-navbar: on
+      Settings the header's main nav row slides out and the section row slides
+      in over it, sharing one grid cell so the header keeps its height and the
+      search box does not shift. `#lib/settings/sections.ts` is the single list
+      the header and the page both read. Below `md` the header hides its nav, so
+      the page renders the same links as a scrollable pill row.
 
 ## Medium
 
-- [ ] Admin page: chart sign-ins over time (needs an event log, not the current
-      one-row-per-person summary).
+- [x] ~~Admin page: chart sign-ins over time~~ `sign_in_events` (one row per
+      sign-in, pruned to 90 days on write) plus an inline-SVG bar chart with the
+      total, per-bar date / count / people tooltips and a table view. Days with
+      no sign-ins are drawn as gaps, not skipped.
 
 - [ ] Split `nuvio/types.ts` by domain to drop the `noExcessiveLinesPerFile`
       ceiling (currently 680). _(File is 600/680 lines as of 2026-09-01 : under
       the ceiling, not currently blocking; revisit once it's back near 680.)_
+      **Deliberately not done in the 2026-09-17 pass**: the note above says not
+      yet, and the item below settles it anyway : splitting by hand first is
+      work the generator would throw away.
 - [ ] Derive `nuvio/types.ts` from the generated
       `src/lib/nuvio/nuvio-public-api.json` (`bun run nuvio:spec`) instead of
       hand-writing it : would also settle the split above on its own.
 - [ ] Collection folder reorder, tile shape / hide-title / cover image,
-      `FOLLOW_LAYOUT`.
+      `FOLLOW_LAYOUT`. _(Needs the shape of Nuvio's collections blob first :
+      same reverse-engineering as the home layout editor below.)_
 - [ ] Next-air-date for an unaired next episode (needs a schedule source).
-- [ ] AniSkip for anime intro/outro.
-- [ ] Unit-test `sync/store.svelte.ts` (650 lines: queue, grace period, cursor
-      handling). `reconcile.ts` is pure and covered, but the orchestration
-      around it is e2e-only, and it is where the bugs above live. Vitest
-      excludes `*.svelte.ts` wholesale : a browser-env project would let the
-      store in without loosening the node-env config.
-- [ ] Web app manifest + `apple-touch-icon` + `theme-color`. A watch app that
-      can't be added to a home screen or launched standalone is leaving the
-      obvious on the table. Also: the favicon is `logo.png` (74 KB) while the
-      1.4 KB `src/lib/assets/favicon.svg` sits unused.
-- [ ] `CONTRIBUTING.md` documents `bun run test:integration`, which does not
-      exist in `package.json`, and has three typos in copy-pasteable commands
-      (`biome check --write --unsafe .ss`, "Run the imagge", "doc
-      consistencys"). Now that `docs/` exists, most of that file is better as a
-      pointer to `docs/development.md` + `docs/testing.md`.
-- [ ] `hooks.client.ts` rolls its own 24-char `makeid()` out of `Math.random`,
-      duplicating `makeErrorId()` in `hooks.server.ts`. `crypto.randomUUID()`
-      exists in every browser the app supports : one helper, both hooks.
+      _(Blocked: no schedule source picked. TMDB's `next_episode_to_air` or
+      TVmaze would both do it; that is a decision, not a task.)_
+- [ ] AniSkip for anime intro/outro. _(Not started. Needs anime detection on a
+      title before the lookup is worth making : TheIntroDB already covers the
+      non-anime case, so this is an addition to `player/segments.ts`, not a
+      replacement.)_
+- [ ] Unit-test `sync/store.svelte.ts` (queue, grace period, cursor handling).
+      The owner keying and the reconcile logic are covered as pure functions
+      (`syncOwner` in `sync/types.test.ts`, `reconcile.test.ts`), but the rune
+      and timer orchestration around them is still e2e-only. Vitest runs in the
+      node env and excludes `*.svelte.ts`; covering the store needs a second
+      Vitest project with the Svelte plugin and a browser-ish env, which means
+      two new dev dependencies (a DOM shim and `fake-indexeddb`). Worth it, but
+      it is a dependency decision.
 
 ## Large
 
-- [ ] Trakt backend (OAuth → `#lib/trakt/`, map to the local store).
+- [ ] Trakt backend (OAuth → `#lib/trakt/`, map to the local store). _(Blocked
+      on an OAuth client id/secret and a redirect URI per instance : needs a
+      decision about whether a self-hosted instance registers its own app.)_
 - [ ] SIMKL backend (same shape).
 - [ ] Store reads/writes per-domain backend (`librarySource` /
-      `progressSource`), Nuvio as fallback + mirror.
+      `progressSource`), Nuvio as fallback + mirror. _(Depends on the two
+      above.)_
 - [ ] Download / offline media.
 - [ ] Home layout editor in Settings (API plumbing done; reverse-engineer the
       `settings_json` blob shape first).
+
+## Done 2026-09-17
+
+Cross-account bleed, all one root cause: `profileId` is the profile _index_,
+1..6 **within** one Nuvio account, and three caches treated it as a global
+identity. On an instance with more than one account (which `/admin` exists to
+support) two people who both picked profile 1 shared state.
+
+- [x] `addons/server.ts` : registry cache keyed by account + profile, and
+      `invalidateRegistry()` drops only the caller's entry so one person's addon
+      edit does not re-fan-out everyone else's next page. Expired entries are
+      pruned on write. Two regression tests.
+- [x] `sync/` : IndexedDB rows, the `BroadcastChannel` name and recent searches
+      are all namespaced by `syncOwner(userId, profileId)`. Attaching purges
+      every other owner's rows; landing on an auth screen purges all of them
+      (`sync/local-data.ts`), which is what makes signing out actually clear the
+      device. Without this, signing in as a second account read the first one's
+      library _with_ its persisted `bootstrapped`, so it skipped the full
+      snapshot, pulled deltas from the wrong cursors and flushed the previous
+      account's queued writes into the new account.
+- [x] `QueryCacheService` deleted rather than fixed : nothing ever called
+      `prime()`, so it cached nothing and its never-called `clear()` was moot.
+      `docs/services.md` records what its key got wrong, for whoever wants the
+      cache back.
+- [x] `sync/persist.svelte.ts` extracted from `store.svelte.ts`, which the above
+      pushed over the 680-line ceiling. The store decides when to persist; the
+      new module knows how.
+
+Also:
+
+- [x] Web app manifest, `apple-touch-icon`, `theme-color` per colour scheme, and
+      a 2.8 KB favicon in place of the 74 KB `logo.png`. Deleted
+      `src/lib/assets/favicon.svg`, which was still the scaffold's Svelte logo.
+- [x] `hooks.client.ts` no longer rolls its own `Math.random` id : both hooks
+      share `#lib/core/error-id.ts`.
+- [x] `CONTRIBUTING.md` rewritten to point at `docs/`. It documented
+      `bun run test:integration`, which does not exist, and had three typos in
+      copy-pasteable commands.
+- [x] `docs/` : 19 pages plus `config.json` for orochibraru.com/nuvio-web.

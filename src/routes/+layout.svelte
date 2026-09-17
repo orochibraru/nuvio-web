@@ -1,7 +1,6 @@
 <script lang="ts">
 	import "./layout.css";
 	import { ModeWatcher } from "mode-watcher";
-	import favicon from "#lib/assets/logo.png";
 	import SmallScreenNotice from "#lib/components/chrome/small-screen-notice.svelte";
 	import TopLoadingBar from "#lib/components/chrome/top-loading-bar.svelte";
 	import { Toaster } from "#lib/components/ui/sonner/index.js";
@@ -77,8 +76,7 @@
 </script>
 
 <svelte:head>
-    <link rel="icon" href={favicon} />
-    <title>{pageTitle.full}</title>
+      <title>{pageTitle.full}</title>
 </svelte:head>
 
 <TopLoadingBar />

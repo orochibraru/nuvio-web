@@ -26,7 +26,6 @@ export {
 	type LogSink,
 } from "./logger.service.ts";
 export { PeopleService, type Person } from "./people.service.ts";
-export { QUERY_TTL, QueryCacheService } from "./query-cache.service.ts";
 export { RequestBudget } from "./request-budget.service.ts";
 export { SessionService, type StoredSession } from "./session.service.ts";
 export * from "./tokens.ts";

@@ -61,9 +61,11 @@ anything the pull brings back.
 **Account → Storage** shows what the local mirror holds and clears it for the
 current profile. The server copy is untouched; the next sync repopulates it.
 
-Clearing is worth knowing about if you share a browser: signing out clears your
-session cookies, but the local mirror is keyed by profile and stays on the
-device until it is cleared or overwritten.
+**Signing out clears it for you.** The mirror is namespaced by account _and_
+profile, and landing on any auth screen wipes every account's copy — so sharing
+a browser does not share a library, and signing in as someone else cannot
+inherit the previous account's rows or its unflushed writes. Recent searches go
+the same way.
 
 ## Other backends
 

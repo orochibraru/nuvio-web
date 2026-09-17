@@ -3,6 +3,10 @@ import type { AddonManifest } from "./types.ts";
 
 const state = {
 	profileId: 7,
+	// Unique per test: the registry cache is module-level and keyed by
+	// account + profile, so a fresh account id is what isolates one test's
+	// cache entries from the next one's.
+	userId: "user-a",
 	list: vi.fn(async (_profileId: number) => [] as unknown[]),
 	manifest: vi.fn(async (url: string) => ({
 		manifest: {} as AddonManifest,
@@ -13,7 +17,15 @@ const state = {
 
 const event = {
 	fetch: (async () => new Response("{}")) as unknown as typeof fetch,
-	locals: { nuvio: { addons: { list: (id: number) => state.list(id) } } },
+	locals: {
+		nuvio: { addons: { list: (id: number) => state.list(id) } },
+		get session() {
+			return { user: { id: state.userId } };
+		},
+		get profileId() {
+			return state.profileId;
+		},
+	},
 };
 
 vi.mock("$app/server", () => ({ getRequestEvent: () => event }));
@@ -86,7 +98,7 @@ function row(url = "https://one.example/manifest.json") {
 beforeEach(() => {
 	vi.useFakeTimers();
 	vi.setSystemTime(new Date("2026-01-01T00:00:00Z"));
-	invalidateRegistry();
+	state.userId = crypto.randomUUID();
 	state.profileId = 7;
 	state.throwOnRequire = false;
 	state.list = vi.fn(async () => [row()]);
@@ -144,6 +156,45 @@ describe("getRegistry", () => {
 		state.profileId = 8;
 		await getRegistry();
 		expect(state.list).toHaveBeenCalledTimes(2);
+	});
+
+	// `profileId` is the profile *index*, 1..6 within one account, so two
+	// accounts that both picked profile 1 collide on it. Keying the cache on it
+	// alone served account B account A's addons for the length of the TTL.
+	it("does not serve one account's registry to another on the same profile", async () => {
+		const [accountA, accountB] = [`${state.userId}-a`, `${state.userId}-b`];
+		state.userId = accountA;
+		const first = await getRegistry();
+		expect(first.registry.addons[0].url).toBe(
+			"https://one.example/manifest.json",
+		);
+
+		state.userId = accountB;
+		state.list = vi.fn(async () => [row("https://two.example/manifest.json")]);
+		const second = await getRegistry();
+
+		expect(state.list).toHaveBeenCalledTimes(1);
+		expect(second.registry.addons[0].url).toBe(
+			"https://two.example/manifest.json",
+		);
+	});
+
+	it("invalidateRegistry() leaves other accounts' entries alone", async () => {
+		const [accountA, accountB] = [`${state.userId}-a`, `${state.userId}-b`];
+		state.userId = accountA;
+		await getRegistry();
+		state.userId = accountB;
+		await getRegistry();
+		expect(state.list).toHaveBeenCalledTimes(2);
+
+		// B edits its addons; A's cached registry must survive.
+		invalidateRegistry();
+		await getRegistry();
+		expect(state.list).toHaveBeenCalledTimes(3);
+
+		state.userId = accountA;
+		await getRegistry();
+		expect(state.list).toHaveBeenCalledTimes(3);
 	});
 
 	it("is rebuilt after invalidateRegistry()", async () => {

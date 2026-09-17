@@ -23,6 +23,18 @@ CREATE TABLE IF NOT EXISTS allowlist (
 	added_at  INTEGER NOT NULL,
 	added_by  TEXT NOT NULL
 );
+
+-- One row per sign-in, unlike sign_ins above which is one row per person. A
+-- summary cannot answer "when", so the admin page's activity chart needs the
+-- events. Pruned to SIGN_IN_EVENT_RETENTION_DAYS on write so an instance that
+-- runs for years does not accumulate an unbounded log.
+CREATE TABLE IF NOT EXISTS sign_in_events (
+	id     INTEGER PRIMARY KEY AUTOINCREMENT,
+	email  TEXT NOT NULL,
+	at     INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS sign_in_events_at ON sign_in_events (at);
 `;
 
 /**

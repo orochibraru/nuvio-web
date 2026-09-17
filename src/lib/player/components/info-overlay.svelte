@@ -102,6 +102,7 @@
                 variant="secondary"
                 size="icon"
                 aria-label="Close"
+                title="Close (Esc)"
                 onclick={onClose}
                 class="shrink-0 rounded-full"
               >

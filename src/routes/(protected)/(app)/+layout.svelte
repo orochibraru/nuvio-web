@@ -21,8 +21,15 @@
 	import * as DropdownMenu from "#lib/components/ui/dropdown-menu/index.js";
 	import { Separator } from "#lib/components/ui/separator/index.js";
 	import { reduced } from "#lib/core/motion.js";
+	import { searchHistory } from "#lib/search/search-history.svelte.js";
+	import {
+		SETTINGS_SECTIONS,
+		settingsSectionFrom,
+		settingsSectionQuery,
+	} from "#lib/settings/sections.js";
 	import { theme } from "#lib/settings/theme.svelte.js";
 	import { sync } from "#lib/sync/store.svelte.js";
+	import { syncOwner } from "#lib/sync/types.js";
 	import { cn } from "#lib/utils.js";
 	import { afterNavigate } from "$app/navigation";
 	import { resolve } from "$app/paths";
@@ -57,6 +64,16 @@
 
 	// The player is a whole-page surface : no header / footer / page padding.
 	const immersive = $derived(page.url.pathname.startsWith("/player/"));
+
+	// Settings replaces the main nav row with its own sections rather than
+	// stacking a second bar under it: one bar's worth of height, and the row you
+	// are navigating within is the one under your cursor. Below `md` the header
+	// nav is hidden entirely, so the page renders its own pill row there.
+	const settingsRoot = resolve("settings");
+	const onSettings = $derived(page.url.pathname === settingsRoot);
+	const settingsSection = $derived(
+		settingsSectionFrom(page.url.searchParams.get("tab")),
+	);
 
 	let scrolled = $state(false);
 	let mainEl = $state<HTMLElement | null>(null);
@@ -93,8 +110,10 @@
 	// the whole app shell unmounts.
 	$effect(() => {
 		const profileIndex = data.profile?.profile_index;
-		if (profileIndex != null) {
-			void sync.attach(profileIndex);
+		const userId = data.user?.id;
+		if (profileIndex != null && userId) {
+			void sync.attach(profileIndex, userId);
+			searchHistory.attach(syncOwner(userId, profileIndex));
 		}
 	});
 	$effect(() => () => sync.detach());
@@ -167,23 +186,77 @@
                 <img alt="Nuvio : home" src="/logo-text.webp" width={100} />
             </a>
 
-            <nav class="hidden items-center gap-1 text-sm md:flex">
-                {#each nav as item (item.href)}
-                    {@const active = isActive(item.href, item.exact)}
+            <!-- Both rows occupy the same grid cell, so the settings row
+                 slides over the main one without changing the header's height
+                 or shifting the search box. `invisible` (not just opacity-0) so
+                 the hidden row cannot be tabbed into or clicked. -->
+            <div class="relative hidden min-w-0 text-sm md:grid">
+                <nav
+                    aria-label="Main"
+                    aria-hidden={onSettings ? "true" : undefined}
+                    class={cn(
+                        "col-start-1 row-start-1 flex items-center gap-1 transition-[opacity,transform,visibility] duration-200",
+                        onSettings
+                            ? "invisible -translate-y-2 opacity-0"
+                            : "translate-y-0 opacity-100",
+                    )}
+                >
+                    {#each nav as item (item.href)}
+                        {@const active = isActive(item.href, item.exact)}
+                        <a
+                            href={item.href}
+                            tabindex={onSettings ? -1 : undefined}
+                            aria-current={active ? "page" : undefined}
+                            class={cn(
+                                "rounded-full px-3 py-1.5 font-medium transition-colors",
+                                active
+                                    ? "bg-primary/15 text-foreground"
+                                    : "text-muted-foreground hover:text-foreground",
+                            )}
+                        >
+                            {item.label}
+                        </a>
+                    {/each}
+                </nav>
+
+                <nav
+                    aria-label="Settings sections"
+                    aria-hidden={onSettings ? undefined : "true"}
+                    class={cn(
+                        "col-start-1 row-start-1 flex items-center gap-1 transition-[opacity,transform,visibility] duration-200",
+                        onSettings
+                            ? "translate-y-0 opacity-100"
+                            : "invisible translate-y-2 opacity-0",
+                    )}
+                >
                     <a
-                        href={item.href}
-                        aria-current={active ? "page" : undefined}
-                        class={cn(
-                            "rounded-full px-3 py-1.5 font-medium transition-colors",
-                            active
-                                ? "bg-primary/15 text-foreground"
-                                : "text-muted-foreground hover:text-foreground",
-                        )}
+                        href={resolve("/(protected)/(app)")}
+                        tabindex={onSettings ? undefined : -1}
+                        title="Leave settings"
+                        class="mr-1 flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground"
                     >
-                        {item.label}
+                        <XIcon class="size-4" />
+                        <span class="sr-only">Leave settings</span>
                     </a>
-                {/each}
-            </nav>
+                    {#each SETTINGS_SECTIONS as section (section.value)}
+                        {@const active = settingsSection === section.value}
+                        <a
+                            href={settingsRoot + settingsSectionQuery(section.value)}
+                            tabindex={onSettings ? undefined : -1}
+                            aria-current={active ? "page" : undefined}
+                            class={cn(
+                                "flex items-center gap-1.5 rounded-full px-3 py-1.5 font-medium transition-colors",
+                                active
+                                    ? "bg-primary/15 text-foreground"
+                                    : "text-muted-foreground hover:text-foreground",
+                            )}
+                        >
+                            <section.icon class="size-3.5" />
+                            {section.label}
+                        </a>
+                    {/each}
+                </nav>
+            </div>
 
             <div class="ml-auto flex items-center gap-3">
                 <a
