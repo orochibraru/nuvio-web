@@ -1,3 +1,9 @@
+## [1.0.10](https://github.com/orochibraru/nuvio-web/compare/v1.0.9...v1.0.10) (2026-09-17)
+
+### Bug Fixes
+
+* claude settings ([865f2b8](https://github.com/orochibraru/nuvio-web/commit/865f2b8235203f100d45f8041b94c70d2c8e9ed3))
+
 ## [1.0.9](https://github.com/orochibraru/nuvio-web/compare/v1.0.8...v1.0.9) (2026-09-08)
 
 ### Bug Fixes
