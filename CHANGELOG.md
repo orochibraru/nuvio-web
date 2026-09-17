@@ -1,3 +1,10 @@
+## [1.0.11](https://github.com/orochibraru/nuvio-web/compare/v1.0.10...v1.0.11) (2026-09-17)
+
+### Features
+
+* docs ([9c03049](https://github.com/orochibraru/nuvio-web/commit/9c03049b7a61728479a25451ff1e19ab91f62072))
+* docs trigger flow ([126eedb](https://github.com/orochibraru/nuvio-web/commit/126eedbb9fcd0fd520b59a0ec6d49e218cc3ac93))
+
 ## [1.0.10](https://github.com/orochibraru/nuvio-web/compare/v1.0.9...v1.0.10) (2026-09-17)
 
 ### Bug Fixes
