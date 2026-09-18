@@ -17,12 +17,23 @@ import { collectRuntimeErrors } from "./errors.ts";
 const DAY = 86_400_000;
 const DB_PATH = "test-results/admin-data/nuvio.sqlite";
 
+/** The addresses this spec inserts, so it can take exactly them back out. */
+const SEEDED = ["ana@e.com", "bo@e.com", "cy@e.com", "dee@e.com"];
+
+function clearSeededEvents(): void {
+	const db = new DatabaseSync(DB_PATH);
+	db.prepare(
+		`DELETE FROM sign_in_events WHERE email IN (${SEEDED.map(() => "?").join(", ")})`,
+	).run(...SEEDED);
+	db.close();
+}
+
 function seedSignInEvents(): { total: number; quietDays: number[] } {
 	const db = new DatabaseSync(DB_PATH);
 	const insert = db.prepare(
 		"INSERT INTO sign_in_events (email, at) VALUES (?, ?)",
 	);
-	const people = ["ana@e.com", "bo@e.com", "cy@e.com", "dee@e.com"];
+	const people = SEEDED;
 	const quietDays = [7, 18];
 	const now = Date.now();
 	let total = 0;
@@ -39,6 +50,13 @@ function seedSignInEvents(): { total: number; quietDays: number[] } {
 	db.close();
 	return { total, quietDays };
 }
+
+// Every spec in the run shares one database, so the rows go back out even when
+// an assertion above fails : a later spec seeing this one's leftovers is a
+// confusing failure a long way from its cause.
+test.afterEach(() => {
+	clearSeededEvents();
+});
 
 test("admin: the activity chart counts the event log and stays accessible", async ({
 	page,

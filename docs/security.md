@@ -42,6 +42,22 @@ Addon responses are treated as untrusted data throughout: an entry missing what
 installing it needs, or what displaying it needs, is dropped rather than
 rendered.
 
+## The download proxy
+
+`/api/downloads/proxy?url=…` passes a download's bytes through when the browser
+can't fetch the source itself (no CORS headers, or `http:` under an `https:`
+app). It isn't an open proxy:
+
+- it answers signed-in users only;
+- the target goes through the same SSRF guard as addon URLs, with private,
+  loopback and link-local addresses refused and every redirect hop re-checked;
+- only `Range` goes upstream, and only content headers come back (no cookies
+  either way);
+- the body streams through and is never stored.
+
+The download worker tries every source directly first, so the proxy only carries
+traffic that has no other way.
+
 ## Response headers
 
 Every response carries:

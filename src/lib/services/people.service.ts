@@ -87,6 +87,7 @@ export class PeopleService {
 			(PERSON_HINT.test(description) || PERSON_HINT.test(data.extract ?? ""));
 
 		const bornMatch =
+			// biome-ignore lint/suspicious/noUnnecessaryConditions: RegExp#exec returns null on no match (Biome 2.5.14 infers it as non-null; TypeScript does not)
 			/born[^)]*?(\d{4})/i.exec(description) ??
 			/\(born[^)]*?(\d{4})/i.exec(data.extract ?? "");
 

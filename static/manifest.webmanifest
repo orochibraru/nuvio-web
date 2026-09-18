@@ -9,6 +9,13 @@
 	"orientation": "any",
 	"background_color": "#0a0a0a",
 	"theme_color": "#0a0a0a",
+	"shortcuts": [
+		{
+			"name": "Downloads",
+			"url": "/downloads",
+			"icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+		}
+	],
 	"icons": [
 		{
 			"src": "/icon-192.png",

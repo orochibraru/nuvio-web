@@ -1,4 +1,5 @@
 import { requireProfile } from "#lib/server/guards.js";
+import { pullHomeLayout } from "#lib/settings/settings-data.js";
 import { getRequestEvent } from "$app/server";
 import * as queries from "./catalog-queries.ts";
 import { AddonClient } from "./client.ts";
@@ -140,8 +141,12 @@ export type {
  * after the page has shipped, hydrated and made a second round trip.
  */
 export async function homeCatalogRows(): Promise<queries.HomeRow[]> {
+	const { nuvio, profileId } = requireProfile();
+	// Started before the registry build, not after: the two don't depend on
+	// each other, and the layout pull is one small request.
+	const layout = pullHomeLayout(nuvio, profileId);
 	const { client, registry } = await getAddonClient();
-	return queries.homeCatalogRows(client, registry);
+	return queries.homeCatalogRows(client, registry, await layout);
 }
 
 export async function searchAllCatalogs(

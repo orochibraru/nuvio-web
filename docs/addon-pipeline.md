@@ -50,8 +50,9 @@ catalogs, "more like this", a catalog page, a title's metadata — as **pure
 functions taking an injected client**. They reach for no request context, so
 they are unit-tested against a fake.
 
-Home fetches up to eight catalogs, four at a time: fetching all of them at once
-is a burst at whichever addons serve them.
+Home fetches up to eight catalogs (sixteen once the user has arranged them in
+Settings → Home), four at a time: fetching all of them at once is a burst at
+whichever addons serve them.
 
 ## Request-scoped wrappers
 

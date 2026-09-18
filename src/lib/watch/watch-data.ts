@@ -1,8 +1,9 @@
 import type { Meta } from "#lib/addons/index.js";
 import { pooledMap } from "#lib/core/pool.js";
 import type { NuvioClient } from "#lib/nuvio/index.js";
-import { nextEpisode } from "./episodes.ts";
+import { nextEpisode, nextToAir, type UpcomingEpisode } from "./episodes.ts";
 import { assemblePlaybackContext, parseVideoId } from "./playback-context.ts";
+import { nextAiring, upcomingAfter } from "./schedule.ts";
 
 // Each row fans out to every meta-providing addon inside `getMeta`; an
 // unbounded pass over up to 16 rows could burst 30-50+ concurrent requests
@@ -193,4 +194,81 @@ export async function pullPlaybackContext(
 		meta: meta ?? undefined,
 		progressRows,
 	});
+}
+
+/**
+ * What airs after the episode being played, for the player's end panel.
+ *
+ * The meta answers when it lists the unaired episode (`context.upcoming`).
+ * TVmaze is asked only when the meta has run out entirely : no aired next, no
+ * unaired next : since that is the one case the addon cannot answer. Streamed
+ * separately from the context in the load, so a slow schedule lookup never
+ * holds up the player's heading.
+ */
+export async function pullUpcoming(
+	context: {
+		metaType: "movie" | "series";
+		contentId: string;
+		season: number | null;
+		episode: number | null;
+		next: unknown;
+		upcoming: UpcomingEpisode | null;
+	} | null,
+	fetchImpl: typeof fetch = fetch,
+): Promise<UpcomingEpisode | null> {
+	if (
+		context?.metaType !== "series" ||
+		context.season == null ||
+		context.episode == null
+	) {
+		return null;
+	}
+	if (context.upcoming || context.next) {
+		return context.upcoming;
+	}
+	return await upcomingAfter(
+		context.contentId,
+		context.season,
+		context.episode,
+		fetchImpl,
+	);
+}
+
+/**
+ * The series' next episode to air, for the detail page: the first unaired one
+ * the meta lists, else TVmaze's next airing if it is past the last episode the
+ * meta lists (when the two disagree, the addon's listing wins).
+ */
+export async function pullNextToAir(
+	meta: Meta | null,
+	fetchImpl: typeof fetch = fetch,
+): Promise<UpcomingEpisode | null> {
+	if (meta?.type !== "series") {
+		return null;
+	}
+	const fromMeta = nextToAir(meta.videos);
+	if (fromMeta) {
+		return fromMeta;
+	}
+	const listed = (meta.videos ?? []).filter(
+		(entry) => (entry.season ?? 0) > 0 && (entry.episode ?? 0) > 0,
+	);
+	const last = listed.reduce<(typeof listed)[number] | undefined>(
+		(latest, entry) =>
+			!latest ||
+			(entry.season ?? 0) > (latest.season ?? 0) ||
+			((entry.season ?? 0) === (latest.season ?? 0) &&
+				(entry.episode ?? 0) > (latest.episode ?? 0))
+				? entry
+				: latest,
+		undefined,
+	);
+	return last
+		? await upcomingAfter(
+				meta.id,
+				last.season ?? 0,
+				last.episode ?? 0,
+				fetchImpl,
+			)
+		: await nextAiring(meta.id, fetchImpl);
 }

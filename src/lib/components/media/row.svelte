@@ -10,13 +10,24 @@
 		title,
 		items,
 		href,
-	}: { title: string; items: MetaPreview[]; href?: string } = $props();
+		titleHidden = false,
+		preload = "hover",
+	}: {
+		title: string;
+		items: MetaPreview[];
+		href?: string;
+		/** Keep the heading for screen readers but don't show it. */
+		titleHidden?: boolean;
+		preload?: "hover" | "tap";
+	} = $props();
 </script>
 
 {#if items.length > 0}
 	<section class="group/row flex flex-col gap-3">
 		<div class="flex items-baseline justify-between gap-4">
-			<h2 class="text-xl font-semibold tracking-tight">{title}</h2>
+			<h2 class={titleHidden ? "sr-only" : "text-xl font-semibold tracking-tight"}>
+				{title}
+			</h2>
 			{#if href}
 				<a
 					{href}
@@ -38,7 +49,7 @@
 						delay: Math.min(i, 10) * 30,
 					})}
 				>
-					<MediaPoster {item} class="w-full" />
+					<MediaPoster {item} {preload} class="w-full" />
 				</div>
 			{/each}
 		</ScrollRail>

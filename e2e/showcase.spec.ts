@@ -60,7 +60,7 @@ const shots: Shot[] = [
 	{ name: "12-history", path: "/account?tab=history" },
 	{ name: "13-stats", path: "/account?tab=stats" },
 	{ name: "14-settings", path: "/settings" },
-	{ name: "15-addons", path: "/addons" },
+	{ name: "15-addons", path: "/settings?tab=addons" },
 	{ name: "16-account", path: "/account" },
 	{
 		name: "17-player",

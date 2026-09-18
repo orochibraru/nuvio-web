@@ -30,8 +30,7 @@ metadata and streams that addons return; without one the home screen is empty by
 construction.
 
 If your account already has addons (from the mobile app, say), they are there
-already and you can skip this. Otherwise go to **Settings → Addons**, or
-`/addons`, and either:
+already and you can skip this. Otherwise go to **Settings → Addons** and either:
 
 - paste an addon's manifest URL into **Add addon** and confirm the preview, or
 - browse an addon catalog, if one of your installed addons serves an

@@ -1,9 +1,9 @@
-import { error } from "@sveltejs/kit";
 import * as v from "valibot";
 import { getAddonClient } from "#lib/addons/server.js";
 import type { MetaPreview } from "#lib/addons/types.js";
 import { requireProfile } from "#lib/server/guards.js";
 import { command, query } from "$app/server";
+import { folderContents } from "./collections-data.ts";
 
 const catalogSourceSchema = v.object({
 	addonId: v.string(),
@@ -45,58 +45,18 @@ export const saveCollections = command(
 	},
 );
 
-export const collectionContents = query(v.string(), async (collectionId) => {
-	const { nuvio, profileId } = requireProfile();
-	const blobs = await nuvio.collections.pull(profileId);
-	const collection = (blobs[0]?.collections_json ?? []).find(
-		(entry) => entry.id === collectionId,
-	);
-	if (!collection) {
-		error(404, "Collection not found");
-	}
-
-	const { client } = await getAddonClient();
-
-	const folders = await Promise.all(
-		collection.folders.map(async (folder) => {
-			const batches = await Promise.all(
-				(folder.catalogSources ?? []).map(async (source) => {
-					try {
-						const result = await client.getCatalog(
-							{ type: source.type, id: source.catalogId },
-							source.addonId,
-						);
-						return result?.metas ?? [];
-					} catch {
-						return [];
-					}
-				}),
-			);
-
-			const seen = new Set<string>();
-			const metas: MetaPreview[] = [];
-			for (const meta of batches.flat()) {
-				const key = `${meta.type}:${meta.id}`;
-				if (!seen.has(key)) {
-					seen.add(key);
-					metas.push(meta);
-				}
-			}
-			return {
-				id: folder.id,
-				title: folder.title,
-				coverEmoji: folder.coverEmoji ?? null,
-				hideTitle: folder.hideTitle ?? false,
-				metas,
-			};
-		}),
-	);
-
-	return {
-		id: collection.id,
-		title: collection.title,
-		viewMode: collection.viewMode ?? "TABBED_GRID",
-		showAllTab: collection.showAllTab ?? false,
-		folders,
-	};
-});
+/**
+ * One folder's titles, for a folder the user just added or re-pointed at
+ * other catalogs. Client-initiated (a save), so a query rather than the load:
+ * the page's initial contents still come from the load, and re-running that
+ * whole load after every edit would re-fetch every other folder too.
+ */
+export const folderTitles = query(
+	folderSchema,
+	async (folder): Promise<MetaPreview[]> => {
+		requireProfile();
+		const { client } = await getAddonClient();
+		const [contents] = await folderContents(client, [folder]);
+		return contents?.metas ?? [];
+	},
+);

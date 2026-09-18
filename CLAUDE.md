@@ -97,9 +97,9 @@ prop-type helpers only).
   a container. See "Services" below.
 - **Feature directories** (`addons/`, `nuvio/`, `sync/`, `settings/`,
   `library/`, `collections/`, `history/`, `stats/`, `admin/`, `system/`,
-  `search/`) own their own data helpers, remote functions, and types.
-  **`server/`** holds what's left that is server-only and isn't a service: the
-  route guards and `safe-fetch`.
+  `search/`, `downloads/`) own their own data helpers, remote functions, and
+  types. **`server/`** holds what's left that is server-only and isn't a
+  service: the route guards and `safe-fetch`.
 
 Inside a feature the file suffix is the contract : `*-data.ts` is a plain server
 helper a load can call, `*.remote.ts` is client-initiated only, `*.svelte.ts`
@@ -152,6 +152,15 @@ that to `vi.mock` of a module path : `session.service.test.ts` and
 `auth.remote.test.ts` show both shapes, and the DI removed several `vi.mock`
 calls that only existed to stub module-level state.
 
+## Service worker
+
+`src/service-worker/` has its own `tsconfig.json` (the `WebWorker` lib, which
+clashes with the DOM lib) and is excluded from the root one; `bun run check`
+runs `svelte-check` over both. Its asset lists come from `$app/manifest` and
+`version` from `$app/env` (SvelteKit 3 has no `$service-worker`). It never
+caches signed-in pages : only the build, `static/` (minus `e2e/`), and the
+`/offline` shell, fetched without credentials.
+
 ## Verifying UI changes
 
 `bun run check` and `bun run lint` are necessary but not sufficient : they don't
@@ -182,8 +191,13 @@ and a couple of open-overlay states, asserting zero WCAG 2 A/AA violations, plus
 skip-link + focus-on-nav checks. New screens go in its `pages` list; fix what it
 flags rather than filtering rules.
 
-`bun run test:unit` (Vitest, node env, `src/**/*.test.ts`) covers
-framework-agnostic logic : currently `src/lib/sync/reconcile.ts`. Keep the sync
+`bun run test:unit` (Vitest, node env) runs two projects. `unit`
+(`src/**/*.test.ts`) covers framework-agnostic logic and the server / remote
+layer. `runes` (`src/**/*.svelte.test.ts`) compiles `.svelte.ts` modules with
+the Svelte plugin, for rune state that is logic rather than UI : currently the
+sync store, against `fake-indexeddb` and the tiny `document` stub in
+`src/lib/sync/test-setup.ts` (no DOM shim). A rune module added to the coverage
+`include` must be named, not globbed : `exclude` beats `include`. Keep the sync
 reconcile pure and tested.
 
 ## Sync store

@@ -18,10 +18,15 @@
 	--secondary: oklch(0.97 0 0);
 	--secondary-foreground: oklch(0.205 0 0);
 	--muted: oklch(0.97 0 0);
-	--muted-foreground: oklch(0.556 0 0);
+	/* 0.5, not shadcn's 0.556: muted text sits on faint tints here (pills,
+	   the ⌘K badge, a selected card), and 0.556 falls to ~4.1-4.3:1 on those,
+	   under AA's 4.5. Checked with axe in light mode. */
+	--muted-foreground: oklch(0.5 0 0);
 	--accent: oklch(0.97 0 0);
 	--accent-foreground: oklch(0.205 0 0);
-	--destructive: oklch(0.577 0.245 27.325);
+	/* Deeper than shadcn's 0.577: the destructive button is red text on a 10%
+	   red fill, which that value left at 3.98:1 (under AA). */
+	--destructive: oklch(0.51 0.21 27.325);
 	--warning: oklch(0.75 0.15 75);
 	--warning-foreground: oklch(0.47 0.11 60);
 	--border: oklch(0.922 0 0);

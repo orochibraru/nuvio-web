@@ -29,7 +29,7 @@ vi.mock("#lib/addons/server.js", () => ({
 	getAddonClient: async () => ({ client: { getCatalog: state.getCatalog } }),
 }));
 
-import { collectionContents, saveCollections } from "./collections.remote.ts";
+import { folderTitles, saveCollections } from "./collections.remote.ts";
 
 beforeEach(() => {
 	state.collectionsPull = vi.fn(async () => []);
@@ -50,80 +50,23 @@ describe("saveCollections", () => {
 	});
 });
 
-describe("collectionContents", () => {
-	it("throws 404 when the id isn't in the blob", async () => {
-		state.collectionsPull = vi.fn(async () => [
-			{ collections_json: [{ id: "other", title: "x", folders: [] }] },
-		]);
-		await expect(collectionContents("missing")).rejects.toMatchObject({
-			status: 404,
-		});
-	});
-
-	it("merges a folder's catalog sources and de-dupes by type:id", async () => {
-		state.collectionsPull = vi.fn(async () => [
-			{
-				collections_json: [
-					{
-						id: "c1",
-						title: "Mine",
-						folders: [
-							{
-								id: "f1",
-								title: "Folder",
-								catalogSources: [
-									{ addonId: "a", type: "movie", catalogId: "top" },
-									{ addonId: "b", type: "movie", catalogId: "new" },
-								],
-							},
-						],
-					},
-				],
-			},
-		]);
+describe("folderTitles", () => {
+	it("fetches one folder's sources through this request's addon client", async () => {
 		state.getCatalog = vi.fn(async (sel: { id: string }) => ({
-			metas:
-				sel.id === "top"
-					? [
-							{ type: "movie", id: "m1" },
-							{ type: "movie", id: "m2" },
-						]
-					: [
-							{ type: "movie", id: "m2" },
-							{ type: "movie", id: "m3" },
-						],
+			metas: [{ type: "movie", id: `m-${sel.id}` }],
 		}));
-
-		const out = await collectionContents("c1");
-		expect(out.viewMode).toBe("TABBED_GRID");
-		expect(out.folders[0].metas.map((m) => m.id)).toEqual(["m1", "m2", "m3"]);
+		const metas = await folderTitles({
+			id: "f1",
+			title: "Folder",
+			catalogSources: [
+				{ addonId: "a", type: "movie", catalogId: "top" },
+				{ addonId: "a", type: "movie", catalogId: "new" },
+			],
+		});
+		expect(metas.map((meta) => meta.id)).toEqual(["m-top", "m-new"]);
 	});
 
-	it("tolerates a failing catalog source", async () => {
-		state.collectionsPull = vi.fn(async () => [
-			{
-				collections_json: [
-					{
-						id: "c1",
-						title: "Mine",
-						folders: [
-							{
-								id: "f1",
-								title: "Folder",
-								catalogSources: [
-									{ addonId: "a", type: "movie", catalogId: "boom" },
-								],
-							},
-						],
-					},
-				],
-			},
-		]);
-		state.getCatalog = vi.fn(async () => {
-			throw new Error("addon down");
-		});
-
-		const out = await collectionContents("c1");
-		expect(out.folders[0].metas).toEqual([]);
+	it("is empty for a folder with no sources", async () => {
+		expect(await folderTitles({ id: "f1", title: "Empty" })).toEqual([]);
 	});
 });

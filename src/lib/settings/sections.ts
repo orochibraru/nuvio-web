@@ -1,3 +1,4 @@
+import HouseIcon from "@lucide/svelte/icons/house";
 import PaletteIcon from "@lucide/svelte/icons/palette";
 import PlayIcon from "@lucide/svelte/icons/play";
 import PlugIcon from "@lucide/svelte/icons/plug";
@@ -21,6 +22,7 @@ export interface SettingsSection {
 
 export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
 	{ value: "appearance", label: "Appearance", icon: PaletteIcon },
+	{ value: "home", label: "Home", icon: HouseIcon },
 	{ value: "playback", label: "Playback", icon: PlayIcon },
 	{ value: "sync", label: "Sync", icon: RefreshCwIcon },
 	{ value: "addons", label: "Addons", icon: PuzzleIcon },

@@ -37,7 +37,7 @@ export function normalizeEmail(email: string): string {
 
 /**
  * Records one successful sign-in or sign-up: upserts the person's summary row
- * *and* appends an event.
+ * and also appends an event.
  *
  * Both, because they answer different questions. `sign_ins` answers "who has
  * used this instance" in one row per person; `sign_in_events` answers "when",

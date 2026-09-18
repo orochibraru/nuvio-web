@@ -18,7 +18,15 @@ const state = {
 const event = {
 	fetch: (async () => new Response("{}")) as unknown as typeof fetch,
 	locals: {
-		nuvio: { addons: { list: (id: number) => state.list(id) } },
+		nuvio: {
+			addons: { list: (id: number) => state.list(id) },
+			// The home rows read the profile's saved layout.
+			homeCatalog: {
+				pull: async () => [
+					{ settings_json: { rows: [], hidden_catalogs: ["a|movie|x"] } },
+				],
+			},
+		},
 		get session() {
 			return { user: { id: state.userId } };
 		},
@@ -179,6 +187,20 @@ describe("getRegistry", () => {
 		);
 	});
 
+	// `requireProfile()` guarantees a session in real requests; without one the
+	// registry is built fresh and never cached under a shared key.
+	it("builds without caching when the request has no user", async () => {
+		const saved = state.userId;
+		state.userId = "";
+		try {
+			await getRegistry();
+			await getRegistry();
+			expect(state.list).toHaveBeenCalledTimes(2);
+		} finally {
+			state.userId = saved;
+		}
+	});
+
 	it("invalidateRegistry() leaves other accounts' entries alone", async () => {
 		const [accountA, accountB] = [`${state.userId}-a`, `${state.userId}-b`];
 		state.userId = accountA;
@@ -287,6 +309,12 @@ describe("request-scoped wrappers", () => {
 		expect(await titleMeta("movie", "tt1")).toEqual({
 			meta: { id: "tt1", type: "movie" },
 			addonName: "One",
+		});
+
+		// The saved home layout reaches the query as its third argument.
+		expect(vi.mocked(queries.homeCatalogRows).mock.calls[0][2]).toEqual({
+			rows: [],
+			hidden_catalogs: ["a|movie|x"],
 		});
 
 		for (const query of [

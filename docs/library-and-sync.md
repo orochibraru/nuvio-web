@@ -11,9 +11,31 @@ filtered by type.
 
 ## Collections
 
-Collections are your own folders of titles, separate from the library. A title
-can be in as many as you like, or in none. Create them from the Collections
-page.
+A collection is a page of your own layout, built from **folders**. Each folder
+is fed by one or more catalogs from your addons ("Popular movies" from one,
+"Trending" from another), merged and de-duplicated. Collections live on your
+Nuvio account next to the ones mobile makes, and show up in both.
+
+Create, rename, pin or delete a collection from the Collections page. Inside
+one, **Add folder** picks its catalogs; the pencil beside a folder edits it:
+
+- **Name**, and an optional **emoji** and **cover image** for its tile.
+- **Tile shape** : poster, landscape or square. A folder with a cover image or
+  an emoji gets a tile of that shape in the folder strip; one without stays a
+  plain pill.
+- **Hide the title on the tile**, for a cover that already says it. The name
+  stays available to screen readers.
+- **Move earlier / later** to reorder folders.
+
+The layout switch picks how the folders render: **Tabs** (one folder at a time,
+with an "All" tab once there are two), **Rows** (every folder as its own row),
+or **Default**, which follows the app's own layout. On the web that is tabs.
+
+Edits show straight away. The API's reads can briefly lag its writes, so the
+page keeps showing what you just saved until the server's copy catches up, and
+every edit builds on that rather than on the older read. The API replaces the
+whole collections list on every save, so building on a stale read could
+otherwise undo the edit before.
 
 ## Continue watching
 

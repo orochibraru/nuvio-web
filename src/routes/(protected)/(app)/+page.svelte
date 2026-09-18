@@ -21,6 +21,7 @@
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { reduced } from "#lib/core/motion.js";
 	import { streamed } from "#lib/core/stream.svelte.js";
+	import { catalogTitles } from "#lib/settings/home-layout.js";
 	import { sync } from "#lib/sync/store.svelte.js";
 	import { cn } from "#lib/utils.js";
 	import type { ResumeRow } from "#lib/watch/watch-data.js";
@@ -339,20 +340,8 @@
 	}
 
 	// Cinemeta exposes the same catalog id ("top" → "Popular") for both movie and
-	// series, so titles collide. Suffix the repeats with their type.
-	const rowTitles = $derived.by(() => {
-		const counts = new Map<string, number>();
-		for (const row of rows) {
-			counts.set(row.title, (counts.get(row.title) ?? 0) + 1);
-		}
-		return rows.map((row) => {
-			if ((counts.get(row.title) ?? 0) > 1) {
-				const noun = row.type === "series" ? "series" : "movies";
-				return `${row.title} ${noun}`;
-			}
-			return row.title;
-		});
-	});
+	// series, so titles collide: `catalogTitles` suffixes the repeats.
+	const rowTitles = $derived(catalogTitles(rows));
 </script>
 
 <div class="flex flex-col gap-12">
@@ -578,7 +567,7 @@
             Add a catalog addon and rows of movies and series fill in here.
           </p>
 
-          <Button href={resolve("addons")} variant="outline" class="mt-4"
+          <Button href={`${resolve("settings")}?tab=addons`} variant="outline" class="mt-4"
             >Manage addons</Button
           >
         </div>

@@ -11,6 +11,7 @@ export interface JsonSchema {
 	title?: string;
 	type?: string | string[];
 	const?: unknown;
+	enum?: unknown[];
 	oneOf?: JsonSchema[];
 	format?: string;
 	description?: string;
@@ -179,6 +180,7 @@ const KEY_ORDER = [
 	"type",
 	"format",
 	"const",
+	"enum",
 	"default",
 	"description",
 	"required",

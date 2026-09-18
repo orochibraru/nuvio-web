@@ -10,6 +10,8 @@
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { streamed } from "#lib/core/stream.svelte.js";
 	import { pageTitle } from "#lib/core/title.svelte.js";
+	import { downloads, playbackUrl } from "#lib/downloads/manager.svelte.js";
+	import { playbackSubtitles } from "#lib/downloads/subtitles.js";
 	import { browserCanPlayCodec } from "#lib/player/codec-support.js";
 	import PlayerEndPanel from "#lib/player/components/end-panel.svelte";
 	import PlayerEpisodesPanel from "#lib/player/components/episodes-panel.svelte";
@@ -27,6 +29,7 @@
 		recallLink,
 		rememberLink,
 	} from "#lib/watch/playback.svelte.js";
+	import { parseVideoId } from "#lib/watch/playback-context.js";
 	import { sourcesPanel } from "#lib/watch/sources-panel.svelte.js";
 	import {
 		audioSupport,
@@ -60,10 +63,11 @@
 		null as Awaited<typeof data.context>,
 	);
 	type PlaybackCtx = NonNullable<Awaited<typeof data.context>>;
+	const upcomingStream = streamed(() => data.upcoming, null);
 	const contextReady = $derived(contextStream.ready);
 	const contextFallback = $derived({
 		metaType: type === "series" ? "series" : "movie",
-		contentId: id.split(":")[0] ?? id,
+		contentId: parseVideoId(type, id).contentId,
 		season: null,
 		episode: null,
 		videoId: id,
@@ -90,6 +94,7 @@
 		},
 		episodes: [],
 		next: null,
+		upcoming: null,
 		resume: null,
 	} satisfies PlaybackCtx);
 	const context = $derived<PlaybackCtx>(
@@ -134,6 +139,10 @@
 		void goto(playerHref(videoId));
 	}
 
+	// A finished download of this video plays from disk, whatever was picked.
+	const download = $derived(downloads.find(id));
+	const offlineSrc = $derived(download ? playbackUrl(download) : null);
+
 	// The stream picked on /streams; else a remembered link (if "reuse last link"
 	// is on and it's still fresh); else resolve one here on a cold load.
 	const handed = $derived(
@@ -143,7 +152,7 @@
 				: null),
 	);
 	const streamsQuery = $derived(
-		handed ? undefined : resolveStreams({ type, id }),
+		handed || offlineSrc ? undefined : resolveStreams({ type, id }),
 	);
 	const autoStream = $derived(
 		pickPreferredStream(
@@ -183,9 +192,10 @@
 	);
 
 	const playableSrc = $derived(
-		active && !active.notWebReady && !codecBlocked
-			? (active.url ?? null)
-			: null,
+		offlineSrc ??
+			(active && !active.notWebReady && !codecBlocked
+				? (active.url ?? null)
+				: null),
 	);
 	// The stream fan-out rejected (addon host down, CORS, network) : a distinct
 	// state from "still loading" so the shell can offer a retry instead of
@@ -469,8 +479,13 @@
 	}
 </script>
 
+<!-- Always the dark palette: video is dark media, and the panels, pills and
+     scrims inside use theme tokens that went pale in light mode. The accent /
+     AMOLED attributes repeat the root's because `.dark` redeclares them. -->
 <div
-  class="fixed inset-0 z-40 flex items-center justify-center bg-black text-white"
+  class="dark fixed inset-0 z-40 flex items-center justify-center bg-black text-white"
+  data-accent={theme.current.accent}
+  data-amoled={theme.current.darkStyle === "amoled" ? "true" : undefined}
 >
   <h1 class="sr-only">{context.heading}</h1>
 
@@ -501,6 +516,7 @@
         onBack={goBack}
         onWatchAgain={watchAgain}
         onResume={trueEnd ? undefined : backToVideo}
+        upcoming={upcomingStream.current}
       />
     {/if}
 
@@ -517,7 +533,10 @@
         title={context.heading}
         subheading={active?.label ?? context.subheading}
         {startTime}
-        subtitles={subtitlesQuery?.current ?? []}
+        subtitles={[
+          ...(offlineSrc && download ? playbackSubtitles(download) : []),
+          ...(subtitlesQuery?.current ?? []),
+        ]}
         certification={context.certification}
         genres={context.genres}
         subtitleSize={theme.current.subtitleSize}

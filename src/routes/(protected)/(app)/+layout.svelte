@@ -2,10 +2,12 @@
 	import BookmarkIcon from "@lucide/svelte/icons/bookmark";
 	import CircleUserIcon from "@lucide/svelte/icons/circle-user";
 	import CompassIcon from "@lucide/svelte/icons/compass";
+	import DownloadIcon from "@lucide/svelte/icons/download";
 	import HouseIcon from "@lucide/svelte/icons/house";
 	import LayersIcon from "@lucide/svelte/icons/layers";
 	import LogOutIcon from "@lucide/svelte/icons/log-out";
 	import MenuIcon from "@lucide/svelte/icons/menu";
+	import MonitorDownIcon from "@lucide/svelte/icons/monitor-down";
 	import SearchIcon from "@lucide/svelte/icons/search";
 	import SettingsIcon from "@lucide/svelte/icons/settings";
 	import ShieldIcon from "@lucide/svelte/icons/shield";
@@ -21,6 +23,7 @@
 	import * as DropdownMenu from "#lib/components/ui/dropdown-menu/index.js";
 	import { Separator } from "#lib/components/ui/separator/index.js";
 	import { reduced } from "#lib/core/motion.js";
+	import { downloads } from "#lib/downloads/manager.svelte.js";
 	import { searchHistory } from "#lib/search/search-history.svelte.js";
 	import {
 		SETTINGS_SECTIONS,
@@ -56,14 +59,47 @@
 
 	let mobileNavOpen = $state(false);
 
+	// The browser's install offer, held back so the profile menu can make it
+	// (Chromium only; Safari installs from its Share menu).
+	let installPrompt = $state<
+		(Event & { prompt: () => Promise<unknown> }) | null
+	>(null);
+	$effect(() => {
+		const hold = (event: Event) => {
+			event.preventDefault();
+			installPrompt = event as Event & { prompt: () => Promise<unknown> };
+		};
+		const installed = () => {
+			installPrompt = null;
+		};
+		window.addEventListener("beforeinstallprompt", hold);
+		window.addEventListener("appinstalled", installed);
+		return () => {
+			window.removeEventListener("beforeinstallprompt", hold);
+			window.removeEventListener("appinstalled", installed);
+		};
+	});
+
 	function isActive(href: string, exact?: boolean) {
 		return exact
 			? page.url.pathname === href
 			: page.url.pathname.startsWith(href);
 	}
 
+	let scrolled = $state(false);
+
 	// The player is a whole-page surface : no header / footer / page padding.
 	const immersive = $derived(page.url.pathname.startsWith("/player/"));
+
+	// Home and a title's page open on a full-bleed hero, which is dark media
+	// whatever the theme (the hero forces `.dark` on itself). While the header
+	// floats transparent over it, it takes the same dark palette : in light
+	// mode its theme-coloured links and search pill were dark-on-dark.
+	const overHero = $derived(
+		page.url.pathname === resolve("/(protected)/(app)") ||
+			page.url.pathname.startsWith("/detail/"),
+	);
+	const headerDark = $derived(overHero && !scrolled);
 
 	// Settings replaces the main nav row with its own sections rather than
 	// stacking a second bar under it: one bar's worth of height, and the row you
@@ -75,7 +111,6 @@
 		settingsSectionFrom(page.url.searchParams.get("tab")),
 	);
 
-	let scrolled = $state(false);
 	let mainEl = $state<HTMLElement | null>(null);
 
 	// On a client navigation SvelteKit resets focus to <body> (or an `autofocus`
@@ -114,6 +149,7 @@
 		if (profileIndex != null && userId) {
 			void sync.attach(profileIndex, userId);
 			searchHistory.attach(syncOwner(userId, profileIndex));
+			void downloads.attach(syncOwner(userId, profileIndex));
 		}
 	});
 	$effect(() => () => sync.detach());
@@ -160,9 +196,14 @@
         style="background: radial-gradient(circle, color-mix(in oklch, var(--primary) 40%, transparent), transparent 70%)"
     ></div>
 
+    <!-- `data-accent` / `data-amoled` repeat the root's: `.dark` redeclares
+         `--primary`, which would otherwise shadow the chosen accent here. -->
     <header
+        data-accent={headerDark ? accent : undefined}
+        data-amoled={headerDark ? amoled : undefined}
         class={cn(
-            "fixed inset-x-0 top-0 z-50 transition-colors duration-300",
+            "fixed inset-x-0 top-0 z-50 text-foreground transition-colors duration-300",
+            headerDark && "dark",
             immersive && "hidden",
             scrolled
                 ? "border-b border-border bg-background/80 backdrop-blur-xl"
@@ -183,7 +224,22 @@
                 class="flex shrink-0 items-center gap-2 text-lg font-bold tracking-tight"
                 aria-label="Nuvio : home"
             >
-                <img alt="Nuvio : home" src="/logo-text.webp" width={100} />
+                <!-- The wordmark is white artwork: a dark copy for light
+                     surfaces. The link's `aria-label` names it. -->
+                <img
+                    alt=""
+                    src="/logo-text-dark.webp"
+                    width={100}
+                    height={32}
+                    class="dark:hidden"
+                />
+                <img
+                    alt=""
+                    src="/logo-text.webp"
+                    width={100}
+                    height={32}
+                    class="hidden dark:block"
+                />
             </a>
 
             <!-- Both rows occupy the same grid cell, so the settings row
@@ -324,6 +380,23 @@
                                     >
                                 {/snippet}
                             </DropdownMenu.Item>
+                            <DropdownMenu.Item>
+                                {#snippet child({ props })}
+                                    <a href={resolve("downloads")} {...props}
+                                        ><DownloadIcon />Downloads</a
+                                    >
+                                {/snippet}
+                            </DropdownMenu.Item>
+                            {#if installPrompt}
+                                <DropdownMenu.Item
+                                    onSelect={() => {
+                                        void installPrompt?.prompt();
+                                        installPrompt = null;
+                                    }}
+                                >
+                                    <MonitorDownIcon />Install app
+                                </DropdownMenu.Item>
+                            {/if}
                             {#if data.isAdmin}
                                 <DropdownMenu.Item>
                                     {#snippet child({ props })}
@@ -459,7 +532,7 @@
                 >
 
                 <a
-                    href={resolve("addons")}
+                    href={`${resolve("settings")}?tab=addons`}
                     class="transition hover:text-foreground">Addons</a
                 >
             </div>

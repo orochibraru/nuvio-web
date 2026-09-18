@@ -16,7 +16,7 @@ and tabs on one profile never see another profile's state.
 ## Settings
 
 Settings live on your Nuvio account, so they follow you between devices. They
-are split into five sections, and the open one is in the URL (`?tab=`) — so it
+are split into six sections, and the open one is in the URL (`?tab=`) — so it
 survives back/forward and can be linked to.
 
 The section switcher lives in the app header: on Settings the main navigation
@@ -33,6 +33,17 @@ so the sections render on the page as a scrollable pill row instead.
 
 A change previews immediately and saves in the background. If the save fails the
 preview rolls back rather than lying to you about what is stored.
+
+### Home
+
+Which catalogs the home screen shows, and in what order. Each catalog from your
+addons is listed with move up / down and a switch to show or hide it; **Reset**
+goes back to the default (the first eight catalogs in addon order). Once you
+have arranged the list, Home shows up to sixteen rows, since you chose each one.
+A catalog from an addon you install later appears at the end until you move it.
+
+The arrangement is stored on your Nuvio account under this web app's own
+platform, so it doesn't change what the mobile or TV app shows.
 
 ### Playback
 

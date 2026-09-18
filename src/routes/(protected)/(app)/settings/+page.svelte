@@ -16,9 +16,12 @@
 	import { page } from "$app/state";
 	import SettingsAddons from "./settings-addons.svelte";
 	import SettingsAppearance from "./settings-appearance.svelte";
+	import SettingsHome from "./settings-home.svelte";
 	import SettingsIntegrations from "./settings-integrations.svelte";
 	import SettingsPlayback from "./settings-playback.svelte";
 	import SettingsSync from "./settings-sync.svelte";
+
+	let { data } = $props();
 
 	pageTitle.set("Settings");
 
@@ -75,7 +78,7 @@
        same links render here as a scrollable pill row. -->
   <nav
     aria-label="Settings sections"
-    class="-mx-6 overflow-x-auto px-6 md:hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+    class="-mx-6 overflow-x-auto px-6 md:hidden scrollbar-none [&::-webkit-scrollbar]:hidden"
   >
     <div class="flex w-max gap-1 rounded-full border border-foreground/10 bg-card p-1">
       {#each SETTINGS_SECTIONS as entry (entry.value)}
@@ -100,6 +103,8 @@
   <div class="min-w-0">
     {#if section === "appearance"}
       <SettingsAppearance {update} />
+    {:else if section === "home" && data.home}
+      <SettingsHome layout={data.home.layout} catalogs={data.home.catalogs} />
     {:else if section === "playback"}
       <SettingsPlayback {update} />
     {:else if section === "sync"}

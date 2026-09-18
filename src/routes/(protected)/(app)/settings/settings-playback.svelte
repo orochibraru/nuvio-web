@@ -219,7 +219,8 @@
             aria-pressed={theme.current.subtitleColor === color}
             onclick={() => update({ subtitleColor: color })}
             class={cn(
-              "flex size-9 items-center justify-center rounded-full ring-2 ring-offset-2 ring-offset-card transition",
+              // The inner hairline keeps the white swatch visible on a white card.
+              "flex size-9 items-center justify-center rounded-full shadow-[inset_0_0_0_1px_rgb(0_0_0/0.15)] ring-2 ring-offset-2 ring-offset-card transition",
               theme.current.subtitleColor === color
                 ? "ring-foreground"
                 : "ring-transparent",

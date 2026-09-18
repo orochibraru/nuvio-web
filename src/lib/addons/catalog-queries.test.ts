@@ -55,6 +55,57 @@ function source(over: Record<string, unknown> = {}): CatalogSource {
 }
 
 describe("homeCatalogRows", () => {
+	const fullSource = () =>
+		source({
+			getCatalog: vi.fn(async (query: { id: string }) => ({
+				metas: [{ id: `m-${query.id}`, type: "movie" }],
+			})),
+		});
+	const catalogs = (count: number) =>
+		Array.from({ length: count }, (_, index) => ref({ id: `c${index}` }));
+
+	it("shows the first eight catalogs when no layout is saved", async () => {
+		const rows = await homeCatalogRows(
+			fullSource(),
+			registryWith(catalogs(12)),
+		);
+		expect(rows.map((row) => row.id)).toEqual([
+			"c0",
+			"c1",
+			"c2",
+			"c3",
+			"c4",
+			"c5",
+			"c6",
+			"c7",
+		]);
+	});
+
+	it("follows the saved order and drops hidden catalogs", async () => {
+		const rows = await homeCatalogRows(
+			fullSource(),
+			registryWith(catalogs(4)),
+			{
+				rows: ["a-c2|movie|c2", "a-c0|movie|c0"],
+				hidden_catalogs: ["a-c1|movie|c1"],
+			},
+		);
+		// Arranged ones first, then the unplaced one (c3) in addon order.
+		expect(rows.map((row) => row.id)).toEqual(["c2", "c0", "c3"]);
+	});
+
+	it("shows more rows once the user has arranged them", async () => {
+		const rows = await homeCatalogRows(
+			fullSource(),
+			registryWith(catalogs(20)),
+			{
+				rows: [],
+				hidden_catalogs: ["a-c0|movie|c0"],
+			},
+		);
+		expect(rows).toHaveLength(16);
+	});
+
 	it("drops rows whose catalog returned nothing, and rows that threw", async () => {
 		const client = source({
 			getCatalog: vi.fn(async (query: { id: string }) => {
