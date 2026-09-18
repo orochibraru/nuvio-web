@@ -281,7 +281,7 @@
 
 <Card.Root class="border border-foreground/10">
     <Card.Header>
-        <Card.Title>Addons</Card.Title>
+        <Card.Title role="heading" aria-level={2}>Addons</Card.Title>
         <Card.Description>
             Catalogs, metadata, streams and subtitles for this profile.
         </Card.Description>

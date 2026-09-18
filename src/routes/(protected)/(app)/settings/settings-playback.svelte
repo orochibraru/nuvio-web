@@ -51,7 +51,7 @@
 
 <Card.Root class="border border-foreground/10">
   <Card.Header>
-    <Card.Title>Playback</Card.Title>
+    <Card.Title role="heading" aria-level={2}>Playback</Card.Title>
     <Card.Description>How the player behaves for this profile.</Card.Description
     >
   </Card.Header>

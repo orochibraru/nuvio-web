@@ -74,7 +74,7 @@
 
 <Card.Root class="border border-foreground/10">
   <Card.Header>
-    <Card.Title>Home</Card.Title>
+    <Card.Title role="heading" aria-level={2}>Home</Card.Title>
     <Card.Description>
       Which catalogs your home screen shows, and in what order. Stored on your
       Nuvio account for this web app; catalogs from addons you install later

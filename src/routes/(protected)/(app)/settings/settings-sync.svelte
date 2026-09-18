@@ -31,7 +31,7 @@
 
 <Card.Root class="border border-foreground/10">
 	<Card.Header>
-		<Card.Title>Sync</Card.Title>
+		<Card.Title role="heading" aria-level={2}>Sync</Card.Title>
 		<Card.Description>
 			Choose where your library and watch progress live. Trakt and SIMKL need
 			to be connected first.
