@@ -417,15 +417,20 @@ async function downloadFile(job: Job): Promise<number> {
 	}
 	const access = await openWriter(dir, "media");
 	try {
+		const length = Number(response.headers.get("content-length"));
 		if (response.status !== 206) {
 			// The server ignored the range and sent the whole file: start over.
 			written = 0;
 			access.truncate(0);
-			const length = Number(response.headers.get("content-length"));
 			if (length > 0) {
 				plan.totalBytes = length;
 				await ensureRoom(length);
 			}
+		} else if (plan.totalBytes === null && length > 0) {
+			// The probe couldn't read `Content-Range` (not CORS-exposed by
+			// default), but `Content-Length` always is : it's what's left.
+			plan.totalBytes = written + length;
+			await ensureRoom(length);
 		}
 		const reader = response.body?.getReader();
 		if (!reader) {

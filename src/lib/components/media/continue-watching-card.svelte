@@ -1,9 +1,11 @@
 <script lang="ts">
+	import DownloadIcon from "@lucide/svelte/icons/download";
 	import InfoIcon from "@lucide/svelte/icons/info";
 	import PlayIcon from "@lucide/svelte/icons/play";
 	import Trash2Icon from "@lucide/svelte/icons/trash-2";
 	import { toast } from "svelte-sonner";
 	import * as ContextMenu from "#lib/components/ui/context-menu/index.js";
+	import { downloads } from "#lib/downloads/manager.svelte.js";
 	import { sync } from "#lib/sync/store.svelte.js";
 	import { formatRemaining } from "#lib/watch/runtime.js";
 	import { goto } from "$app/navigation";
@@ -34,6 +36,7 @@
 		resolve(`player/${item.type}/${encodeURIComponent(item.videoId)}`),
 	);
 	const started = $derived(item.progress >= 0.01);
+	const downloaded = $derived(downloads.find(item.videoId)?.status === "done");
 
 	// The Continue-watching row re-publishes fresh `item` objects on every sync
 	// tick, so this effect re-runs constantly. A reused `<img>` with an unchanged
@@ -82,6 +85,15 @@
       <div
         class="absolute inset-0 bg-linear-to-t from-black/85 via-black/25 to-transparent"
       ></div>
+
+      {#if downloaded}
+        <span
+          class="pointer-events-none absolute top-2 right-2 z-10 flex items-center gap-1 rounded-full bg-black/60 px-2 py-0.5 text-[11px] font-medium text-white ring-1 ring-white/20 backdrop-blur-md"
+        >
+          <DownloadIcon class="size-3" aria-hidden="true" />
+          Downloaded
+        </span>
+      {/if}
 
       <!-- Whole card opens details; the play button (a sibling, higher layer)
 			     goes straight to the player. -->

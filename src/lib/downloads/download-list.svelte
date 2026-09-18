@@ -34,7 +34,8 @@
 		if (record.totalBytes) {
 			return Math.min(1, record.bytes / record.totalBytes);
 		}
-		if (record.filesTotal) {
+		// A direct file is one "file" : counting it says nothing until it's done.
+		if (record.kind === "hls" && record.filesTotal) {
 			return Math.min(1, record.filesDone / record.filesTotal);
 		}
 		return null;
@@ -99,9 +100,14 @@
             aria-valuemax={100}
             aria-valuenow={part === null ? undefined : Math.floor(part * 100)}
           >
+            <!-- Size unknown (a server that sends no length) : pulse instead of sitting at 0. -->
             <div
-              class="h-full rounded-full bg-primary transition-[width]"
-              style:width={`${Math.floor((part ?? 0) * 100)}%`}
+              class={part === null && record.status === "downloading"
+                ? "h-full w-full animate-pulse rounded-full bg-primary/40"
+                : "h-full rounded-full bg-primary transition-[width]"}
+              style:width={part === null && record.status === "downloading"
+                ? undefined
+                : `${Math.floor((part ?? 0) * 100)}%`}
             ></div>
           </div>
         {/if}

@@ -81,7 +81,7 @@
 {#if mode && !dismissed}
   <div
     role="status"
-    class="-mx-6 flex items-center gap-3 border-b border-warning/30 bg-warning/10 px-6 py-2 text-sm text-warning-foreground"
+    class="relative z-40 -mx-6 flex items-center gap-3 border-b border-warning/30 bg-background bg-linear-to-r from-warning/10 to-warning/10 px-6 py-2 text-sm text-warning-foreground"
   >
     {#if mode === "offline"}
       <WifiOffIcon class="size-4 shrink-0" />

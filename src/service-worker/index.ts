@@ -186,6 +186,20 @@ sw.addEventListener("fetch", (event) => {
 		);
 		return;
 	}
+	if (url.pathname.endsWith("/__data.json")) {
+		// A client navigation with no network: SvelteKit's own redirect answer,
+		// so it lands on `/offline` instead of a "Failed to fetch" error page.
+		event.respondWith(
+			fetch(request).catch(() =>
+				Response.json({
+					type: "redirect",
+					status: 302,
+					location: OFFLINE_PAGE,
+				}),
+			),
+		);
+		return;
+	}
 	if (request.mode === "navigate") {
 		event.respondWith(navigate(request));
 	}
