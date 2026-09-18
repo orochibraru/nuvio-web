@@ -30,7 +30,7 @@
 
 <Card.Root class="border border-foreground/10">
   <Card.Header>
-    <Card.Title>Integrations</Card.Title>
+    <Card.Title role="heading" aria-level={2}>Integrations</Card.Title>
     <Card.Description>Optional keys for third-party services.</Card.Description>
   </Card.Header>
   <Card.Content>

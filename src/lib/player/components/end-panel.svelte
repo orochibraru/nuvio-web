@@ -5,6 +5,11 @@
 	import RotateCcwIcon from "@lucide/svelte/icons/rotate-ccw";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { theme } from "#lib/settings/theme.svelte.js";
+	import {
+		airDateLabel,
+		episodeLabel,
+		type UpcomingEpisode,
+	} from "#lib/watch/episodes.js";
 	import { resolve } from "$app/paths";
 
 	interface Suggestion {
@@ -21,6 +26,7 @@
 		onBack,
 		onWatchAgain,
 		onResume,
+		upcoming = null,
 	}: {
 		heading: string;
 		detailHref: string;
@@ -29,6 +35,8 @@
 		onWatchAgain: () => void;
 		/** Present while the video is still running (outro handoff) : keep watching. */
 		onResume?: () => void;
+		/** The next episode, when it exists but has not aired yet. */
+		upcoming?: UpcomingEpisode | null;
 	} = $props();
 </script>
 
@@ -47,9 +55,16 @@
       You finished
     </p>
     <h2 class="text-2xl font-bold sm:text-3xl">{heading}</h2>
-    <p class="mt-1 text-sm text-white/70">
-      It's over : but these titles could interest you.
-    </p>
+    {#if upcoming}
+      <p class="mt-1 text-sm text-white/70">
+        <span class="font-semibold text-white">{airDateLabel(upcoming.airsAt)}</span>
+        : {episodeLabel(upcoming)}. Meanwhile, these titles could interest you.
+      </p>
+    {:else}
+      <p class="mt-1 text-sm text-white/70">
+        It's over : but these titles could interest you.
+      </p>
+    {/if}
   </div>
 
   <div class="flex flex-wrap items-center gap-2 sm:pl-72">

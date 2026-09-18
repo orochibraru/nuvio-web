@@ -1,9 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
+import type { Meta } from "#lib/addons/index.js";
 import type { NuvioClient } from "#lib/nuvio/index.js";
 import {
 	pullContinueWatching,
+	pullNextToAir,
 	pullPlaybackContext,
 	pullResumeRows,
+	pullUpcoming,
 } from "./watch-data.ts";
 
 function nuvioWith(rows: unknown[] | Promise<never>): NuvioClient {
@@ -231,5 +234,148 @@ describe("pullPlaybackContext", () => {
 		});
 		expect(context.resume).toBeNull();
 		expect(context.heading).toBe("tt1");
+	});
+});
+
+const scheduled = {
+	season: 2,
+	episode: 1,
+	title: "Premiere",
+	airsAt: "2099-01-01T00:00:00.000Z",
+};
+
+function tvmazeAnswering(episode: unknown) {
+	return vi.fn(async (input: string | URL) =>
+		String(input).includes("/lookup/shows")
+			? new Response(
+					JSON.stringify({
+						_links: {
+							nextepisode: { href: "https://api.tvmaze.com/episodes/1" },
+						},
+					}),
+				)
+			: new Response(JSON.stringify(episode)),
+	) as unknown as typeof fetch & ReturnType<typeof vi.fn>;
+}
+
+const tvmazeS2E1 = {
+	season: 2,
+	number: 1,
+	name: "Premiere",
+	airstamp: "2099-01-01T00:00:00+00:00",
+};
+
+describe("pullUpcoming", () => {
+	const base = {
+		metaType: "series" as const,
+		contentId: "tt9000001",
+		season: 1,
+		episode: 8,
+		next: null,
+		upcoming: null,
+	};
+
+	it("uses the meta's own unaired episode without asking TVmaze", async () => {
+		const fetchImpl = tvmazeAnswering(tvmazeS2E1);
+		expect(
+			await pullUpcoming({ ...base, upcoming: scheduled }, fetchImpl),
+		).toBe(scheduled);
+		expect(fetchImpl).not.toHaveBeenCalled();
+	});
+
+	it("asks nothing when there is an aired next episode", async () => {
+		const fetchImpl = tvmazeAnswering(tvmazeS2E1);
+		expect(
+			await pullUpcoming({ ...base, next: { videoId: "x" } }, fetchImpl),
+		).toBeNull();
+		expect(fetchImpl).not.toHaveBeenCalled();
+	});
+
+	it("falls back to TVmaze once the meta has run out", async () => {
+		expect(
+			await pullUpcoming(
+				{ ...base, contentId: "tt9000002" },
+				tvmazeAnswering(tvmazeS2E1),
+			),
+		).toMatchObject({ season: 2, episode: 1 });
+	});
+
+	it("is null for a movie or a missing context", async () => {
+		const fetchImpl = tvmazeAnswering(tvmazeS2E1);
+		expect(
+			await pullUpcoming({ ...base, metaType: "movie" }, fetchImpl),
+		).toBeNull();
+		expect(await pullUpcoming(null, fetchImpl)).toBeNull();
+		expect(fetchImpl).not.toHaveBeenCalled();
+	});
+});
+
+describe("pullNextToAir", () => {
+	const series = (videos: NonNullable<Meta["videos"]>, id = "tt9000003") =>
+		({ id, type: "series", name: "Show", videos }) as Meta;
+
+	it("answers from the meta when it lists an unaired episode", async () => {
+		const fetchImpl = tvmazeAnswering(tvmazeS2E1);
+		const result = await pullNextToAir(
+			series([
+				{
+					id: "a",
+					title: "One",
+					season: 1,
+					episode: 1,
+					released: "2020-01-01",
+				},
+				{
+					id: "b",
+					title: "Two",
+					season: 1,
+					episode: 2,
+					released: "2099-02-02T00:00:00Z",
+				},
+			] as NonNullable<Meta["videos"]>),
+			fetchImpl,
+		);
+		expect(result).toMatchObject({ season: 1, episode: 2, title: "Two" });
+		expect(fetchImpl).not.toHaveBeenCalled();
+	});
+
+	it("asks TVmaze for what comes after the last listed episode", async () => {
+		const result = await pullNextToAir(
+			series(
+				[
+					{ id: "a", title: "One", season: 1, episode: 1 },
+					{ id: "b", title: "Eight", season: 1, episode: 8 },
+				] as NonNullable<Meta["videos"]>,
+				"tt9000004",
+			),
+			tvmazeAnswering(tvmazeS2E1),
+		);
+		expect(result).toMatchObject({ season: 2, episode: 1 });
+	});
+
+	it("lets the addon's listing win when TVmaze is behind it", async () => {
+		const result = await pullNextToAir(
+			series(
+				[{ id: "a", title: "Nine", season: 2, episode: 9 }] as NonNullable<
+					Meta["videos"]
+				>,
+				"tt9000005",
+			),
+			tvmazeAnswering(tvmazeS2E1),
+		);
+		expect(result).toBeNull();
+	});
+
+	it("asks TVmaze outright when the meta lists no episodes", async () => {
+		expect(
+			await pullNextToAir(series([], "tt9000006"), tvmazeAnswering(tvmazeS2E1)),
+		).toMatchObject({ season: 2 });
+	});
+
+	it("is null for a movie or no meta", async () => {
+		expect(
+			await pullNextToAir({ id: "tt1", type: "movie", name: "M" } as Meta),
+		).toBeNull();
+		expect(await pullNextToAir(null)).toBeNull();
 	});
 });

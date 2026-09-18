@@ -1,19 +1,9 @@
 import type { HandleClientError } from "@sveltejs/kit/hooks";
+import { makeErrorId } from "#lib/core/error-id.js";
 import { dev } from "$app/env";
 
-function makeid(length: number) {
-	let result = "";
-	const characters =
-		"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-	const charactersLength = characters.length;
-	for (let i = 0; i < length; i += 1) {
-		result += characters.charAt(Math.floor(Math.random() * charactersLength));
-	}
-	return result;
-}
-
 export const handleError: HandleClientError = ({ error, event }) => {
-	const errorId = makeid(24);
+	const errorId = makeErrorId();
 
 	// The id is the only handle the user has on this error : it's what the error
 	// page shows them, so it has to be in the log line they (or we) go looking

@@ -38,7 +38,7 @@
 		deleting = true;
 		try {
 			await deleteProfileData({ profileIndex: data.profile.profile_index });
-			await sync.clear(data.profile.profile_index);
+			await sync.clear();
 			await refreshAll();
 			toast.success(`Cleared all synced data for ${data.profile.name}.`);
 			confirmOpen = false;

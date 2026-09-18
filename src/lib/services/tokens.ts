@@ -4,7 +4,6 @@ import { serviceToken } from "./container.ts";
 import type { DatabaseService } from "./database.service.ts";
 import type { Logger } from "./logger.service.ts";
 import type { PeopleService } from "./people.service.ts";
-import type { QueryCacheService } from "./query-cache.service.ts";
 import type { RequestBudget } from "./request-budget.service.ts";
 import type { SessionService } from "./session.service.ts";
 
@@ -27,4 +26,3 @@ export const SESSION = serviceToken<SessionService>("SessionService");
 // -- Browser ------------------------------------------------------------------
 export const REQUEST_BUDGET = serviceToken<RequestBudget>("RequestBudget");
 export const PEOPLE = serviceToken<PeopleService>("PeopleService");
-export const QUERY_CACHE = serviceToken<QueryCacheService>("QueryCacheService");

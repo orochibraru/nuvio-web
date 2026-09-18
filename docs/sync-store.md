@@ -9,14 +9,16 @@ page calls `toggleLibrary` / `saveProgress` / `deleteHistory` directly any more.
 
 ## The pieces
 
-| File              | What it is                                               |
-| ----------------- | -------------------------------------------------------- |
-| `store.svelte.ts` | The store: state, queue, timers, lifecycle               |
-| `reconcile.ts`    | Pure merge logic. Unit-tested, knows nothing about runes |
-| `idb.ts`          | IndexedDB access, keyed `<profileId>:<identity>`         |
-| `broadcast.ts`    | Serializing state for other tabs                         |
-| `sync.remote.ts`  | The server calls: snapshot, deltas, flush                |
-| `types.ts`        | Record shapes and key derivation                         |
+| File                | What it is                                               |
+| ------------------- | -------------------------------------------------------- |
+| `store.svelte.ts`   | The store: state, queue, timers, lifecycle               |
+| `reconcile.ts`      | Pure merge logic. Unit-tested, knows nothing about runes |
+| `idb.ts`            | IndexedDB access, keyed `<owner>:<identity>`             |
+| `persist.svelte.ts` | Writing state out : where `$state.snapshot` happens      |
+| `broadcast.ts`      | Serializing state for other tabs                         |
+| `local-data.ts`     | The sign-out wipe                                        |
+| `sync.remote.ts`    | The server calls: snapshot, deltas, flush                |
+| `types.ts`          | Record shapes, key derivation, `syncOwner`               |
 
 Keeping `reconcile.ts` pure is the point. Merge order, conflict resolution and
 "which write wins" are the parts that break subtly, and they are testable as
@@ -42,6 +44,25 @@ what you just did.
 Flushed writes are therefore kept for fifteen seconds and re-overlaid on top of
 anything a pull brings back. A fresh queued write for the same target overrides
 a recently-flushed one, so the ordering holds.
+
+## Who the rows belong to
+
+Everything the store keeps in the browser is namespaced by an **owner**:
+`syncOwner(userId, profileId)`, i.e. `<userId>:<profileId>`. That covers the
+IndexedDB keys, the `BroadcastChannel` name and recent searches.
+
+The user id is the load-bearing half. `profileId` is the profile _index_, 1..6
+within one Nuvio account, so it is not an identity. Keyed on it alone, a shared
+browser or a multi-account instance had two people who both picked profile 1
+reading and writing each other's rows — and because `bootstrapped` is persisted
+next to those rows, the second account skipped the full snapshot entirely,
+pulled deltas from the first account's cursors, and flushed its queued writes
+into the wrong account.
+
+Attaching also drops every other owner's rows, and landing on an auth screen
+drops all of them (`local-data.ts`). Signing out clears cookies, not IndexedDB,
+so without that the previous account's mirror would sit on the device waiting
+for whoever signs in next.
 
 ## Cross-tab coherence
 

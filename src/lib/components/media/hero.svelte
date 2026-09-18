@@ -1,4 +1,5 @@
 <script lang="ts">
+	import CalendarClockIcon from "@lucide/svelte/icons/calendar-clock";
 	import { mode } from "mode-watcher";
 	import type { Snippet } from "svelte";
 	import { backdropSrcset } from "#lib/core/images.js";
@@ -18,6 +19,7 @@
 		genres = [],
 		flag = null,
 		network = null,
+		notice = null,
 		showPoster = false,
 		headingLevel = 1,
 		actions,
@@ -37,6 +39,8 @@
 		flag?: string | null;
 		/** Official streaming home, e.g. "Prime Video" : shown as an accent chip. */
 		network?: string | null;
+		/** One line under the meta row, e.g. when the next episode airs. */
+		notice?: string | null;
 		showPoster?: boolean;
 		/** Heading level for the title. Home demotes it to 2 (a stable `sr-only`
 		 *  "Home" `h1` owns the page heading there). */
@@ -223,6 +227,13 @@
               <span>{genres.slice(0, 3).join(" · ")}</span>
             {/if}
           </div>
+        {/if}
+
+        {#if notice}
+          <p class="flex items-center gap-1.5 text-sm font-medium text-foreground">
+            <CalendarClockIcon class="size-4 shrink-0 text-primary" aria-hidden="true" />
+            {notice}
+          </p>
         {/if}
 
         {#if description}

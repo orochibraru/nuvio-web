@@ -8,10 +8,12 @@
 		items,
 		loading = false,
 		skeletonCount = 12,
+		preload = "hover",
 	}: {
 		items: MetaPreview[];
 		loading?: boolean;
 		skeletonCount?: number;
+		preload?: "hover" | "tap";
 	} = $props();
 </script>
 
@@ -22,7 +24,7 @@
 		<div
 			in:fly={reduced({ y: 10, duration: 240, delay: Math.min(i, 17) * 20 })}
 		>
-			<MediaPoster {item} class="content-auto" />
+			<MediaPoster {item} {preload} class="content-auto" />
 		</div>
 	{/each}
 	{#if loading}

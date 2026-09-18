@@ -15,7 +15,9 @@ import {
 	normalizeEmail,
 	recordSignIn,
 	removeFromAllowlist,
+	SIGN_IN_EVENT_RETENTION_DAYS,
 	setLocked,
+	signInsPerDay,
 } from "./admin-data.ts";
 
 let db: Database;
@@ -117,5 +119,71 @@ describe("the lock", () => {
 describe("normalizeEmail", () => {
 	it("trims and folds case", () => {
 		expect(normalizeEmail("  Foo@Bar.COM  ")).toBe("foo@bar.com");
+	});
+});
+
+describe("signInsPerDay", () => {
+	const DAY = 86_400_000;
+	// A fixed UTC midnight, so the buckets in these assertions are stable
+	// wherever the suite runs.
+	const NOW = Date.parse("2026-09-17T12:00:00Z");
+
+	it("buckets events by UTC day, newest last", () => {
+		recordSignIn(db, "a@example.com", "u1", NOW - 2 * DAY);
+		recordSignIn(db, "a@example.com", "u1", NOW);
+		recordSignIn(db, "b@example.com", "u2", NOW);
+
+		const days = signInsPerDay(db, 3, NOW);
+
+		expect(days.map((day) => day.day)).toEqual([
+			"2026-09-15",
+			"2026-09-16",
+			"2026-09-17",
+		]);
+		expect(days.map((day) => day.signIns)).toEqual([1, 0, 2]);
+	});
+
+	// A chart built only from the days that have rows draws a quiet week as a
+	// continuous line, which is the whole reason the zeroes are filled in.
+	it("includes the days with no sign-ins at all", () => {
+		const days = signInsPerDay(db, 5, NOW);
+		expect(days).toHaveLength(5);
+		expect(days.every((day) => day.signIns === 0)).toBe(true);
+	});
+
+	it("counts distinct people separately from sign-ins", () => {
+		recordSignIn(db, "a@example.com", "u1", NOW);
+		recordSignIn(db, "a@example.com", "u1", NOW + 1000);
+		recordSignIn(db, "b@example.com", "u2", NOW + 2000);
+
+		const today = signInsPerDay(db, 1, NOW + 2000).at(-1);
+		expect(today).toMatchObject({ signIns: 3, people: 2 });
+	});
+
+	it("folds a repeat sign-in from one address into one person", () => {
+		recordSignIn(db, "A@Example.com", "u1", NOW);
+		recordSignIn(db, "a@example.com", "u1", NOW + 1000);
+		expect(signInsPerDay(db, 1, NOW + 1000).at(-1)?.people).toBe(1);
+	});
+
+	it("leaves events outside the window out", () => {
+		recordSignIn(db, "a@example.com", "u1", NOW - 10 * DAY);
+		recordSignIn(db, "a@example.com", "u1", NOW);
+		const days = signInsPerDay(db, 3, NOW);
+		expect(days.reduce((sum, day) => sum + day.signIns, 0)).toBe(1);
+	});
+
+	it("prunes events past the retention window on write", () => {
+		recordSignIn(db, "old@example.com", "u1", NOW);
+		// A sign-in well past the retention window drops the old event.
+		const later = NOW + (SIGN_IN_EVENT_RETENTION_DAYS + 1) * DAY;
+		recordSignIn(db, "new@example.com", "u2", later);
+
+		const count = db
+			.query("SELECT COUNT(*) AS n FROM sign_in_events")
+			.get() as { n: number };
+		expect(count.n).toBe(1);
+		// The per-person summary is untouched : it is not a log.
+		expect(listSignIns(db)).toHaveLength(2);
 	});
 });

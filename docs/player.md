@@ -38,20 +38,38 @@ of it lives in **Settings → Playback**.
 
 ## Skip intro and outro
 
-Intro and credits timestamps come from [TheIntroDB](https://theintrodb.org). The
-public keyless tier works out of the box with no server configuration.
+Intro and credits timestamps come from two community databases, neither of which
+needs any server configuration:
 
-Adding your own API key in **Settings → Integrations** folds your pending
-submissions into the lookup and raises your rate limits. The key is stored per
-profile on your Nuvio account, never as a server environment variable.
+- [TheIntroDB](https://theintrodb.org), asked first. The public keyless tier
+  works out of the box. Adding your own API key in **Settings → Integrations**
+  folds your pending submissions into the lookup and raises your rate limits.
+  The key is stored per profile on your Nuvio account, never as a server
+  environment variable.
+- [AniSkip](https://aniskip.com), when TheIntroDB has nothing at all for the
+  title. It is where anime skip times live, and anime is where TheIntroDB is
+  thinnest. AniSkip is keyed by MyAnimeList id, so the title's IMDb, TMDB, Kitsu
+  or AniList id is first mapped through [ARM](https://arm.haglund.dev). For an
+  IMDb or TMDB series, ARM lists one MyAnimeList entry per season, and the
+  player asks for the one matching the season you are watching. The mapping is
+  also the anime detection: ARM knows nothing about a title that is not anime,
+  so that lookup ends there.
 
-A missing id mapping, a 404 (no community data yet) or a rate limit all resolve
-to "no segments", and the player simply does not show the skip affordances.
+A missing id mapping, a 404 (no community data yet), a rate limit or a timeout
+all resolve to "no segments", and the player simply does not show the skip
+affordances.
 
 ## Auto-play next
 
 On by default. An end-of-episode panel counts down to the next episode and lets
 you stop it. Turn it off in **Settings → Playback**.
+
+Only an episode that has aired counts as next. When the next one is listed but
+not out yet, there is nothing to play, so the show ends instead and the end
+panel says when that episode airs. Continue Watching follows the same rule: a
+finished episode rolls forward only to one that has aired, and the card comes
+back on its own once the next one does. The air date comes from the addon's
+listing, or from TVmaze when the addon lists nothing past the last episode.
 
 ## Casting
 
@@ -87,6 +105,9 @@ form:
 | `N`                     | Next episode            |
 | `E`                     | Episode list            |
 | `Esc`                   | Close the open panel    |
+
+Every control also carries its shortcut in its hover tooltip, so the icons do
+not have to be learned from this table.
 
 Shortcuts are bound on the window, but a key aimed at a focused control is left
 alone: `Space` on a focused button inside the sources, subtitles or episodes

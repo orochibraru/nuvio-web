@@ -25,6 +25,7 @@
 		item,
 		progress,
 		class: className,
+		preload = "hover",
 	}: {
 		item: Pick<
 			MetaPreview,
@@ -38,6 +39,11 @@
 		>;
 		progress?: number;
 		class?: string;
+		/**
+		 * When to start loading the title's page. `hover` everywhere by
+		 * default; see the collection page for the one place that needs `tap`.
+		 */
+		preload?: "hover" | "tap";
 	} = $props();
 
 	let posterEl = $state<HTMLImageElement>();
@@ -176,7 +182,7 @@
       href={resolve(`detail/${item.type}/${encodeURIComponent(item.id)}`)}
       aria-label={linkLabel}
       class={cn("group/poster flex flex-col gap-2.5", className)}
-      data-sveltekit-preload-data="hover"
+      data-sveltekit-preload-data={preload}
     >
       <div
         class={cn(

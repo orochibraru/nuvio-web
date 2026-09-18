@@ -1,4 +1,9 @@
-import { isLocked, listAllowlist, listSignIns } from "#lib/admin/admin-data.js";
+import {
+	isLocked,
+	listAllowlist,
+	listSignIns,
+	signInsPerDay,
+} from "#lib/admin/admin-data.js";
 import { requireAdmin } from "#lib/server/guards.js";
 import { ADMIN, DATABASE } from "#lib/services/index.js";
 import type { PageServerLoad } from "./$types";
@@ -12,6 +17,7 @@ export const load: PageServerLoad = () => {
 	const db = event.locals.services.get(DATABASE).connect();
 	return {
 		signIns: listSignIns(db),
+		activity: signInsPerDay(db),
 		allowlist: listAllowlist(db),
 		locked: isLocked(db),
 		admins: [...event.locals.services.get(ADMIN).emails],

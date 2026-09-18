@@ -12,6 +12,7 @@ import {
 	libraryRecordFromItem,
 	progressKeyFor,
 	progressRecordFromRow,
+	syncOwner,
 } from "./types.ts";
 
 describe("contentType", () => {
@@ -165,5 +166,22 @@ describe("historyRecordFromItem", () => {
 				watched_at: 1700,
 			} as unknown as WatchedItem).id,
 		).toBe("tt5::");
+	});
+});
+
+describe("syncOwner", () => {
+	it("namespaces a profile by the account that owns it", () => {
+		expect(syncOwner("f3a2", 1)).toBe("f3a2:1");
+	});
+
+	// The bug this exists to stop: `profileId` is the profile index, 1..6
+	// *within* an account, so on a shared browser or a multi-account instance
+	// two people both on profile 1 read and write each other's rows.
+	it("separates the same profile index across two accounts", () => {
+		expect(syncOwner("account-a", 1)).not.toBe(syncOwner("account-b", 1));
+	});
+
+	it("separates two profiles of one account", () => {
+		expect(syncOwner("account-a", 1)).not.toBe(syncOwner("account-a", 2));
 	});
 });

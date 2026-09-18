@@ -7,7 +7,12 @@
 	},
 	"files": {
 		"ignoreUnknown": false,
-		"includes": ["**", "!src/lib/nuvio/nuvio-public-api.json"]
+		"includes": [
+			"**",
+			"!src/lib/nuvio/nuvio-public-api.json",
+			"!src/lib/nuvio/nuvio-public-api.types.ts",
+			"!static/e2e"
+		]
 	},
 	"formatter": {
 		"enabled": true,

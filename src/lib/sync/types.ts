@@ -203,3 +203,19 @@ export function historyRecordFromItem(item: WatchedItem): HistoryRecord {
 		watchedAt: item.watched_at,
 	};
 }
+
+/**
+ * Namespace for everything this profile keeps in the browser (IndexedDB rows,
+ * the `BroadcastChannel` name, recent searches).
+ *
+ * **The user id is the load-bearing half.** `profileId` is the profile *index*,
+ * 1..6 within one Nuvio account, so it is not an identity: on a shared browser
+ * or a multi-account instance, two people who both picked profile 1 would read
+ * and write each other's rows. Keying on the account too means another account
+ * simply never matches, rather than inheriting a stale mirror (and, because
+ * `bootstrapped` is persisted alongside it, skipping the full snapshot and
+ * flushing the previous account's queued writes into the new one).
+ */
+export function syncOwner(userId: string, profileId: number): string {
+	return `${userId}:${profileId}`;
+}

@@ -1,23 +1,27 @@
 <script lang="ts">
 	import CheckIcon from "@lucide/svelte/icons/check";
-	import PaletteIcon from "@lucide/svelte/icons/palette";
-	import PlayIcon from "@lucide/svelte/icons/play";
-	import PlugIcon from "@lucide/svelte/icons/plug";
-	import PuzzleIcon from "@lucide/svelte/icons/puzzle";
-	import RefreshCwIcon from "@lucide/svelte/icons/refresh-cw";
 	import { toast } from "svelte-sonner";
-	import * as Tabs from "#lib/components/ui/tabs/index.js";
 	import { pageTitle } from "#lib/core/title.svelte.js";
+	import {
+		SETTINGS_SECTIONS,
+		settingsSectionFrom,
+		settingsSectionQuery,
+	} from "#lib/settings/sections.js";
 	import { saveUiSettings } from "#lib/settings/settings.remote.js";
 	import { theme } from "#lib/settings/theme.svelte.js";
 	import type { UiSettings } from "#lib/settings/ui-settings.js";
-	import { goto, refreshAll } from "$app/navigation";
+	import { cn } from "#lib/utils.js";
+	import { refreshAll } from "$app/navigation";
+	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
 	import SettingsAddons from "./settings-addons.svelte";
 	import SettingsAppearance from "./settings-appearance.svelte";
+	import SettingsHome from "./settings-home.svelte";
 	import SettingsIntegrations from "./settings-integrations.svelte";
 	import SettingsPlayback from "./settings-playback.svelte";
 	import SettingsSync from "./settings-sync.svelte";
+
+	let { data } = $props();
 
 	pageTitle.set("Settings");
 
@@ -47,34 +51,17 @@
 		}
 	}
 
-	// Which section is showing lives in the URL so it survives back/forward
-	// and is shareable/deep-linkable.
-	const tabs = [
-		{ value: "appearance", label: "Appearance", icon: PaletteIcon },
-		{ value: "playback", label: "Playback", icon: PlayIcon },
-		{ value: "sync", label: "Sync", icon: RefreshCwIcon },
-		{ value: "addons", label: "Addons", icon: PuzzleIcon },
-		{ value: "integrations", label: "Integrations", icon: PlugIcon },
-	] as const;
-	type Tab = (typeof tabs)[number]["value"];
-	const tab = $derived<Tab>(
-		(tabs.find((t) => t.value === page.url.searchParams.get("tab"))?.value ??
-			"appearance") as Tab,
+	// Which section is showing lives in the URL so it survives back/forward and
+	// is shareable. The section pills live in the app header (see the app
+	// layout); from `md` up they are the header's nav row, and the row below is
+	// the same navigation for the widths where the header hides its nav.
+	const settingsRoot = resolve("settings");
+	const section = $derived(
+		settingsSectionFrom(page.url.searchParams.get("tab")),
 	);
-
-	function setTab(value: string) {
-		const params = new URLSearchParams(page.url.search);
-		if (value === "appearance") {
-			params.delete("tab");
-		} else {
-			params.set("tab", value);
-		}
-		const query = params.toString();
-		void goto(query ? `?${query}` : "?", { reset: false });
-	}
 </script>
 
-<div class="mx-auto flex max-w-5xl flex-col gap-8">
+<div class="mx-auto flex w-full max-w-3xl flex-col gap-6">
   <div class="flex items-center gap-3">
     <h1 class="text-3xl font-bold tracking-tight">Settings</h1>
     {#if saveState === "saving"}
@@ -86,45 +73,46 @@
     {/if}
   </div>
 
-  <!-- `Tabs.Root` renders as `display:contents` : the actual row/column layout
-	     is owned by this wrapper (stacked on narrow screens, sidebar from lg up)
-	     so it never fights bits-ui's own orientation-driven flex classes. -->
-  <div class="flex flex-col gap-8 lg:flex-row lg:items-start">
-    <Tabs.Root
-      value={tab}
-      onValueChange={setTab}
-      orientation="vertical"
-      class="contents"
-    >
-      <Tabs.List
-        class="h-fit w-full shrink-0 gap-1 rounded-xl border border-foreground/10 bg-card p-2 lg:w-56"
-      >
-        {#each tabs as t (t.value)}
-          <Tabs.Trigger
-            value={t.value}
-            class="gap-2.5 rounded-lg px-3 py-2.5 text-[0.9rem] font-medium data-[state=active]:bg-foreground/10 data-[state=active]:shadow-none"
-          >
-            <t.icon class="size-4" />
-            {t.label}
-          </Tabs.Trigger>
-        {/each}
-      </Tabs.List>
+  <!-- The header owns this navigation from `md` up, where it slides in over
+       the main nav row. Below that the header hides its nav entirely, so the
+       same links render here as a scrollable pill row. -->
+  <nav
+    aria-label="Settings sections"
+    class="-mx-6 overflow-x-auto px-6 md:hidden scrollbar-none [&::-webkit-scrollbar]:hidden"
+  >
+    <div class="flex w-max gap-1 rounded-full border border-foreground/10 bg-card p-1">
+      {#each SETTINGS_SECTIONS as entry (entry.value)}
+        {@const active = section === entry.value}
+        <a
+          href={settingsRoot + settingsSectionQuery(entry.value)}
+          aria-current={active ? "page" : undefined}
+          class={cn(
+            "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors",
+            active
+              ? "bg-foreground/10 text-foreground"
+              : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          <entry.icon class="size-3.5" />
+          {entry.label}
+        </a>
+      {/each}
+    </div>
+  </nav>
 
-      <Tabs.Content value="appearance" class="min-w-0">
-        <SettingsAppearance {update} />
-      </Tabs.Content>
-      <Tabs.Content value="playback" class="min-w-0">
-        <SettingsPlayback {update} />
-      </Tabs.Content>
-      <Tabs.Content value="sync" class="min-w-0">
-        <SettingsSync {update} />
-      </Tabs.Content>
-      <Tabs.Content value="addons" class="min-w-0">
-        <SettingsAddons />
-      </Tabs.Content>
-      <Tabs.Content value="integrations" class="min-w-0">
-        <SettingsIntegrations {update} />
-      </Tabs.Content>
-    </Tabs.Root>
+  <div class="min-w-0">
+    {#if section === "appearance"}
+      <SettingsAppearance {update} />
+    {:else if section === "home" && data.home}
+      <SettingsHome layout={data.home.layout} catalogs={data.home.catalogs} />
+    {:else if section === "playback"}
+      <SettingsPlayback {update} />
+    {:else if section === "sync"}
+      <SettingsSync {update} />
+    {:else if section === "addons"}
+      <SettingsAddons />
+    {:else if section === "integrations"}
+      <SettingsIntegrations {update} />
+    {/if}
   </div>
 </div>

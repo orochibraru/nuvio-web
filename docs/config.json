@@ -27,6 +27,11 @@
 			"pages": [
 				{ "slug": "browsing", "title": "Browsing", "icon": "search" },
 				{ "slug": "player", "title": "The player", "icon": "monitor-play" },
+				{
+					"slug": "downloads",
+					"title": "Downloads and offline",
+					"icon": "download"
+				},
 				{ "slug": "addons", "title": "Addons", "icon": "puzzle" },
 				{
 					"slug": "library-and-sync",

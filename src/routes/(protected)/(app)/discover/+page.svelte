@@ -189,7 +189,7 @@
       description="Add a catalog addon to start browsing movies and series."
     >
       {#snippet actions()}
-        <Button href={resolve("addons")} variant="outline">Manage addons</Button
+        <Button href={`${resolve("settings")}?tab=addons`} variant="outline">Manage addons</Button
         >
       {/snippet}
     </EmptyState>
@@ -267,7 +267,7 @@
               Clear genre filter
             </Button>
           {:else}
-            <Button href={resolve("addons")} variant="outline"
+            <Button href={`${resolve("settings")}?tab=addons`} variant="outline"
               >Manage addons</Button
             >
           {/if}

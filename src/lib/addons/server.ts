@@ -1,4 +1,5 @@
 import { requireProfile } from "#lib/server/guards.js";
+import { pullHomeLayout } from "#lib/settings/settings-data.js";
 import { getRequestEvent } from "$app/server";
 import * as queries from "./catalog-queries.ts";
 import { AddonClient } from "./client.ts";
@@ -16,31 +17,73 @@ const REGISTRY_TTL_MS = 60_000;
 // transient outage recovers in seconds rather than up to a minute.
 const REGISTRY_RETRY_TTL_MS = 5000;
 
-let cache: {
-	profileId: number;
-	at: number;
-	registry: AddonRegistry;
-	errors: AddonLoadError[];
-} | null = null;
+/**
+ * Process-wide, so the key has to identify the *account* and not just the
+ * profile: `profileId` is the profile index, 1..6 within one Nuvio account, so
+ * on an instance with more than one account (which `/admin` exists to support)
+ * keying on it alone hands account B account A's addons, catalogs and streams
+ * for the length of the TTL.
+ */
+function cacheKey(userId: string, profileId: number): string {
+	return `${userId}:${profileId}`;
+}
+
+const cache = new Map<
+	string,
+	{ at: number; registry: AddonRegistry; errors: AddonLoadError[] }
+>();
 
 export async function getRegistry(): Promise<{
 	registry: AddonRegistry;
 	errors: AddonLoadError[];
 }> {
 	const { event, profileId } = requireProfile();
+	const userId = event.locals.session?.user.id;
+	// `requireProfile()` guarantees a session; the check keeps the type honest
+	// and means a future refactor can't silently start sharing one cache entry.
+	if (!userId) {
+		const rows = await event.locals.nuvio.addons.list(profileId);
+		return await buildRegistry(rows, event.fetch);
+	}
+	const key = cacheKey(userId, profileId);
+	const hit = cache.get(key);
 	const ttl =
-		cache && cache.errors.length > 0 ? REGISTRY_RETRY_TTL_MS : REGISTRY_TTL_MS;
-	if (cache && cache.profileId === profileId && Date.now() - cache.at < ttl) {
-		return { registry: cache.registry, errors: cache.errors };
+		hit && hit.errors.length > 0 ? REGISTRY_RETRY_TTL_MS : REGISTRY_TTL_MS;
+	if (hit && Date.now() - hit.at < ttl) {
+		return { registry: hit.registry, errors: hit.errors };
 	}
 	const rows = await event.locals.nuvio.addons.list(profileId);
 	const built = await buildRegistry(rows, event.fetch);
-	cache = { profileId, at: Date.now(), ...built };
+	pruneExpired();
+	cache.set(key, { at: Date.now(), ...built });
 	return built;
 }
 
+/**
+ * Drops entries nothing can serve from any more. One per account × profile is
+ * a handful on a self-hosted instance, but the map lives as long as the
+ * process, so nobody who signs in once should stay in it forever.
+ */
+function pruneExpired(): void {
+	const now = Date.now();
+	for (const [key, entry] of cache) {
+		if (now - entry.at >= REGISTRY_TTL_MS) {
+			cache.delete(key);
+		}
+	}
+}
+
+/**
+ * Invalidates the calling profile's entry only. Clearing the whole map would
+ * make one person's addon edit re-fan-out every other visitor's next page.
+ */
 export function invalidateRegistry(): void {
-	cache = null;
+	const event = getRequestEvent();
+	const userId = event.locals.session?.user.id;
+	const profileId = event.locals.profileId;
+	if (userId && profileId != null) {
+		cache.delete(cacheKey(userId, profileId));
+	}
 }
 
 /** Every catalog across the enabled addons : for the discover / collection loads. */
@@ -98,8 +141,12 @@ export type {
  * after the page has shipped, hydrated and made a second round trip.
  */
 export async function homeCatalogRows(): Promise<queries.HomeRow[]> {
+	const { nuvio, profileId } = requireProfile();
+	// Started before the registry build, not after: the two don't depend on
+	// each other, and the layout pull is one small request.
+	const layout = pullHomeLayout(nuvio, profileId);
 	const { client, registry } = await getAddonClient();
-	return queries.homeCatalogRows(client, registry);
+	return queries.homeCatalogRows(client, registry, await layout);
 }
 
 export async function searchAllCatalogs(

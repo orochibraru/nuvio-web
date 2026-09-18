@@ -70,7 +70,7 @@
 		},
 		{
 			label: "Addons",
-			href: resolve("addons"),
+			href: `${resolve("settings")}?tab=addons`,
 			icon: BlocksIcon,
 			keywords: ["sources", "providers"],
 		},

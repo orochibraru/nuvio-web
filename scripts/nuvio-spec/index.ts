@@ -4,6 +4,7 @@ export type { OpenApiDocument } from "./openapi.ts";
 export { buildOpenApi } from "./openapi.ts";
 
 import { parseSpec } from "./endpoints.ts";
+import { inferEnums } from "./enums.ts";
 import type { OpenApiDocument } from "./openapi.ts";
 import { buildOpenApi } from "./openapi.ts";
 
@@ -12,7 +13,9 @@ export function specToOpenApi(markdown: string): {
 	document: OpenApiDocument;
 	warnings: string[];
 } {
-	return buildOpenApi(parseSpec(markdown));
+	const built = buildOpenApi(parseSpec(markdown));
+	inferEnums(built.document);
+	return built;
 }
 
 /** The serialized form that lands in `nuvio-public-api.json`. Tabs, like the

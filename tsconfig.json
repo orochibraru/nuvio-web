@@ -6,5 +6,6 @@
 		"strict": true,
 		"types": ["node", "bun", "$app/types"]
 	},
-	"include": ["src", "scripts", "./playwright.config.ts"]
+	"include": ["src", "scripts", "./playwright.config.ts"],
+	"exclude": ["src/service-worker"]
 }

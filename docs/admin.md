@@ -33,13 +33,23 @@ lookup.
 This is how you run an instance for a handful of people without leaving sign-up
 open to the internet.
 
+## Activity
+
+Sign-ins and sign-ups per day (UTC) over the last 30 days, with the total above
+it. Days with none are drawn as gaps rather than skipped: a chart built only
+from the days that have rows draws a quiet week as a continuous line and
+misrepresents it. Each bar carries its own date, count and distinct-people
+tally, and **Show the numbers** opens the same data as a table.
+
 ## Storage
 
 SQLite (`bun:sqlite`) under `NUVIO_DATA_DIR`, defaulting to `data` — which is
-`/app/data` in the container. Three tables:
+`/app/data` in the container. Four tables:
 
-- `sign_ins` — one row per person, never one per sign-in: first seen, last seen,
-  and a count.
+- `sign_ins` — one row per **person**: first seen, last seen, and a count.
+- `sign_in_events` — one row per **sign-in**, which is what the activity chart
+  reads. A summary cannot answer "when". Pruned to the last 90 days on write, so
+  an instance that runs for years does not accumulate an unbounded log.
 - `allowlist` — who may sign in while the instance is locked, and who added
   them.
 - `settings` — currently just the lock flag.

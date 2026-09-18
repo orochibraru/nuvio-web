@@ -1,5 +1,8 @@
 import { listCatalogs } from "#lib/addons/server.js";
-import { pullCollections } from "#lib/collections/collections-data.js";
+import {
+	pullCollections,
+	pullFolderContents,
+} from "#lib/collections/collections-data.js";
 import type { PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = ({ params, locals, fetch }) => {
@@ -9,12 +12,17 @@ export const load: PageServerLoad = ({ params, locals, fetch }) => {
 		locals.nuvio.withFetch(fetch),
 		locals.profileId ?? 0,
 	);
+	const collection = collections.then(
+		(list) => list.find((entry) => entry.id === params.id) ?? null,
+	);
 	return {
 		id: params.id,
 		collections,
-		collection: collections.then(
-			(list) => list.find((entry) => entry.id === params.id) ?? null,
-		),
+		collection,
+		// The folders' titles: every catalog source fanned out on the server,
+		// chained off the same pull, rather than a client query that could only
+		// start once the page had shipped and hydrated.
+		contents: collection.then(pullFolderContents).catch(() => []),
 		catalogs: listCatalogs(),
 	};
 };

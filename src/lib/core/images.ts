@@ -12,6 +12,7 @@ const BACKDROP_WIDTHS = [300, 780, 1280];
 
 function tmdbSrcset(url: string, widths: number[]): string | null {
 	const match = TMDB_IMAGE.exec(url);
+	// biome-ignore lint/suspicious/noUnnecessaryConditions: RegExp#exec returns null on no match (Biome 2.5.14 infers it as non-null; TypeScript does not)
 	if (!match) {
 		return null;
 	}

@@ -87,6 +87,12 @@ Nuvio.
 - **Accessible by default** : every route is checked against WCAG 2 A/AA in CI
   (axe), including skip links and focus management.
 
+## Documentation
+
+Full docs live in [`docs/`](docs/) and are published at
+<https://orochibraru.com/nuvio-web> : install and configuration, every screen,
+the self-hosting admin surface, the architecture, and how to work on it.
+
 ## Getting Started
 
 You need a [Nuvio](https://nuvio.tv/) account (you can create one from the app's

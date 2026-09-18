@@ -1,5 +1,10 @@
 import * as v from "valibot";
 import type { NuvioClient } from "#lib/nuvio/index.js";
+import {
+	EMPTY_HOME_LAYOUT,
+	type HomeLayout,
+	parseHomeLayout,
+} from "./home-layout.ts";
 import { PLATFORM, type UiSettings, uiSettingsSchema } from "./ui-settings.ts";
 
 /** The raw `web` settings blob for a profile, or `{}` on any failure. */
@@ -24,4 +29,15 @@ export async function pullUiSettings(
 ): Promise<UiSettings> {
 	const blob = await pullSettingsBlob(nuvio, profileId);
 	return v.parse(uiSettingsSchema, blob.ui ?? {});
+}
+
+/** This profile's home layout for the web client, or the empty one on any failure. */
+export async function pullHomeLayout(
+	nuvio: NuvioClient,
+	profileId: number,
+): Promise<HomeLayout> {
+	const rows = await nuvio.homeCatalog
+		.pull({ p_profile_id: profileId, p_platform: PLATFORM })
+		.catch(() => []);
+	return rows[0] ? parseHomeLayout(rows[0].settings_json) : EMPTY_HOME_LAYOUT;
 }

@@ -1,9 +1,14 @@
 import { pooledMap } from "#lib/core/pool.js";
+import {
+	EMPTY_HOME_LAYOUT,
+	type HomeLayout,
+	homeCatalogs,
+} from "#lib/settings/home-layout.js";
 import type { AddonRegistry } from "./registry.ts";
 import type { Meta, MetaPreview } from "./types.ts";
 
-// Home shows up to 8 catalogs; fetching all of them at once is a burst at
-// whichever addons serve them, so pull them a few at a time.
+// Home shows up to 8 catalogs (16 once the user arranged them); fetching them
+// all at once is a burst at whichever addons serve them, so a few at a time.
 const CATALOG_CONCURRENCY = 4;
 
 /**
@@ -64,14 +69,28 @@ function catalogSupports(
  * The home feed's catalog rows. Rows that error or come back empty are
  * dropped. Pooled so a many-catalog profile doesn't burst every addon at once.
  */
+/**
+ * The home screen's catalog rows. `layout` is the profile's arrangement from
+ * Settings → Home (order, hidden catalogs); without one, the first eight
+ * catalogs in addon order, as before there was an editor.
+ */
 export async function homeCatalogRows(
 	client: CatalogSource,
 	registry: AddonRegistry,
+	layout: HomeLayout = EMPTY_HOME_LAYOUT,
 ): Promise<HomeRow[]> {
-	const catalogs = registry
+	const browsable = registry
 		.catalogs()
-		.filter(({ catalog }) => !catalog.extraRequired?.length)
-		.slice(0, 8);
+		.filter(({ catalog }) => !catalog.extraRequired?.length);
+	const catalogs = homeCatalogs(
+		browsable.map((ref) => ({
+			ref,
+			addonId: ref.addon.manifest.id,
+			type: ref.catalog.type,
+			id: ref.catalog.id,
+		})),
+		layout,
+	).map((entry) => entry.ref);
 
 	const rows = await pooledMap(catalogs, CATALOG_CONCURRENCY, async (ref) => {
 		try {

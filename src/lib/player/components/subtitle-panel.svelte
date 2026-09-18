@@ -82,6 +82,7 @@
             variant="secondary"
             size="icon"
             aria-label="Close subtitles"
+            title="Close (Esc)"
             onclick={onClose}
             class="shrink-0 rounded-full"
           >

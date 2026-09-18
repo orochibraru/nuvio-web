@@ -44,7 +44,14 @@
 		/>
 		{value}
 		{#if label}
-			<span class="ml-0.5 text-[10px] font-semibold tracking-wide opacity-60">
+			<!-- A colour token, not `opacity`: opacity compounds with the parent's
+			     own fade, and in light mode that fell to 3.5:1. -->
+			<span
+				class={cn(
+					"ml-0.5 text-[10px] font-semibold tracking-wide",
+					variant === "badge" ? "text-white/70" : "text-muted-foreground",
+				)}
+			>
 				IMDb
 			</span>
 		{/if}

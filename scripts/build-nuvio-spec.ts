@@ -18,7 +18,8 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import { renderOpenApi } from "./nuvio-spec/index.ts";
+import { renderOpenApi, specToOpenApi } from "./nuvio-spec/index.ts";
+import { renderTypes } from "./nuvio-spec/typescript.ts";
 
 export const SNAPSHOT_PATH = fileURLToPath(
 	new URL("../src/lib/nuvio/nuvio-public-api.snapshot.md", import.meta.url),
@@ -26,6 +27,13 @@ export const SNAPSHOT_PATH = fileURLToPath(
 export const OUTPUT_PATH = fileURLToPath(
 	new URL("../src/lib/nuvio/nuvio-public-api.json", import.meta.url),
 );
+export const TYPES_PATH = fileURLToPath(
+	new URL("../src/lib/nuvio/nuvio-public-api.types.ts", import.meta.url),
+);
+
+function typesFor(markdown: string): string {
+	return renderTypes(specToOpenApi(markdown).document);
+}
 
 /** Shared with check-nuvio-spec.ts, which regenerates after accepting a spec. */
 export function writeOpenApi(markdown: string): {
@@ -34,6 +42,7 @@ export function writeOpenApi(markdown: string): {
 } {
 	const { json, operations, warnings } = renderOpenApi(markdown);
 	writeFileSync(OUTPUT_PATH, json);
+	writeFileSync(TYPES_PATH, typesFor(markdown));
 	return { operations, warnings };
 }
 
@@ -55,11 +64,23 @@ if (import.meta.main) {
 			);
 			process.exit(1);
 		}
+		let currentTypes = "";
+		try {
+			currentTypes = readFileSync(TYPES_PATH, "utf8");
+		} catch {
+			// reported below as stale
+		}
+		if (currentTypes !== typesFor(markdown)) {
+			console.error(
+				"nuvio-public-api.types.ts is out of date with the prose snapshot. Run `bun run nuvio:spec`.",
+			);
+			process.exit(1);
+		}
 		console.log(`Nuvio OpenAPI up to date (${operations} operations).`);
 	} else {
 		const { operations, warnings } = writeOpenApi(markdown);
 		console.log(
-			`Wrote ${operations} operations to src/lib/nuvio/nuvio-public-api.json.`,
+			`Wrote ${operations} operations to src/lib/nuvio/nuvio-public-api.json and nuvio-public-api.types.ts.`,
 		);
 		for (const warning of warnings) {
 			console.warn(`  note: ${warning}`);

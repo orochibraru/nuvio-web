@@ -1,4 +1,5 @@
 import { similarToTitle, titleMeta } from "#lib/addons/server.js";
+import { pullNextToAir } from "#lib/watch/watch-data.js";
 import type { PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = ({ params }) => {
@@ -22,5 +23,11 @@ export const load: PageServerLoad = ({ params }) => {
 		)
 		.catch(() => ({ metas: [] }));
 
-	return { type, id, meta, similar };
+	// Chained the same way: the meta answers when it lists an unaired episode,
+	// and TVmaze only when it has run out.
+	const nextToAir = meta
+		.then((result) => pullNextToAir(result?.meta ?? null))
+		.catch(() => null);
+
+	return { type, id, meta, similar, nextToAir };
 };

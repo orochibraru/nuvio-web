@@ -4,6 +4,13 @@
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, initial-scale=1">
 		<meta name="text-scale" content="scale">
+		<link rel="icon" href="/favicon.png" sizes="32x32">
+		<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+		<link rel="manifest" href="/manifest.webmanifest">
+		<!-- Matches --background in layout.css, so the browser chrome and the
+		     standalone splash do not flash a different colour than the app. -->
+		<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+		<meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)">
 		<script>"use strict";
 			// Paint the cached accent / AMOLED before first render : no flash.
 			(() => {

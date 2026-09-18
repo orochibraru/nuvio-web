@@ -29,6 +29,7 @@
       variant="ghost"
       size="icon"
       aria-label="Back"
+      title="Back"
       onclick={onBack}
       class="shrink-0 rounded-full"
     >
@@ -46,6 +47,7 @@
       variant={infoOpen ? "default" : "secondary"}
       size="sm"
       aria-pressed={infoOpen}
+      title="Stream and playback details (I)"
       onclick={onToggleInfo}
       class="shrink-0 gap-1.5 rounded-full font-medium [&_svg]:size-3.5"
     >
@@ -56,6 +58,7 @@
     <Button
       variant="secondary"
       size="sm"
+      title="Pick another source"
       onclick={onSources}
       class="shrink-0 gap-1.5 rounded-full font-medium [&_svg]:size-3.5"
     >

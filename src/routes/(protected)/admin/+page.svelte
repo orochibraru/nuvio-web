@@ -2,6 +2,7 @@
 	import AlertCircleIcon from "@lucide/svelte/icons/alert-circle";
 	import LockIcon from "@lucide/svelte/icons/lock";
 	import TrashIcon from "@lucide/svelte/icons/trash-2";
+	import SignInsChart from "#lib/admin/sign-ins-chart.svelte";
 	import * as Alert from "#lib/components/ui/alert/index.js";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import * as Card from "#lib/components/ui/card/index.js";
@@ -123,6 +124,7 @@
                   variant="ghost"
                   size="icon"
                   aria-label={`Remove ${entry.email} from the allowlist`}
+                  title="Remove from the allowlist"
                 >
                   <TrashIcon class="size-4" />
                 </Button>
@@ -131,6 +133,19 @@
           {/each}
         </ul>
       {/if}
+    </Card.Content>
+  </Card.Root>
+
+  <Card.Root class="border border-foreground/10">
+    <Card.Header>
+      <Card.Title>Activity</Card.Title>
+      <Card.Description>
+        Sign-ins and sign-ups on this server, by day (UTC). The event log keeps
+        90 days.
+      </Card.Description>
+    </Card.Header>
+    <Card.Content>
+      <SignInsChart days={data.activity} />
     </Card.Content>
   </Card.Root>
 

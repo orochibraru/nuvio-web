@@ -20,7 +20,11 @@ test("admin: the page lists sign-ins and the access controls", async ({
 		page.getByRole("heading", { name: "Server admin" }),
 	).toBeVisible();
 	await expect(page.getByText("Access", { exact: true })).toBeVisible();
-	await expect(page.getByText("Sign-ins", { exact: true })).toBeVisible();
+	// The card's description rather than its title: "Sign-ins" on its own also
+	// matches the activity chart's table column header.
+	await expect(
+		page.getByText("One row per person, newest first."),
+	).toBeVisible();
 
 	expect(errors, "runtime errors").toEqual([]);
 });

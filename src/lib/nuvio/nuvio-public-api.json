@@ -836,7 +836,11 @@
 											},
 											"content_type": {
 												"type": "string",
-												"description": "`movie` or `series`"
+												"description": "`movie` or `series`",
+												"enum": [
+													"movie",
+													"series"
+												]
 											},
 											"name": {
 												"type": "string",
@@ -851,7 +855,12 @@
 											},
 											"poster_shape": {
 												"type": "string",
-												"description": "`POSTER`, `LANDSCAPE`, or `SQUARE`"
+												"description": "`POSTER`, `LANDSCAPE`, or `SQUARE`",
+												"enum": [
+													"POSTER",
+													"LANDSCAPE",
+													"SQUARE"
+												]
 											},
 											"background": {
 												"type": [
@@ -1049,13 +1058,21 @@
 											},
 											"operation": {
 												"type": "string",
-												"description": "`upsert` or `delete`"
+												"description": "`upsert` or `delete`",
+												"enum": [
+													"upsert",
+													"delete"
+												]
 											},
 											"content_id": {
 												"type": "string"
 											},
 											"content_type": {
-												"type": "string"
+												"type": "string",
+												"enum": [
+													"movie",
+													"series"
+												]
 											},
 											"name": {
 												"type": "string"
@@ -1067,7 +1084,12 @@
 												]
 											},
 											"poster_shape": {
-												"type": "string"
+												"type": "string",
+												"enum": [
+													"POSTER",
+													"LANDSCAPE",
+													"SQUARE"
+												]
 											},
 											"background": {
 												"type": [
@@ -1202,7 +1224,11 @@
 													"type": "string"
 												},
 												"content_type": {
-													"type": "string"
+													"type": "string",
+													"enum": [
+														"movie",
+														"series"
+													]
 												},
 												"name": {
 													"type": "string"
@@ -1211,7 +1237,12 @@
 													"type": "string"
 												},
 												"poster_shape": {
-													"type": "string"
+													"type": "string",
+													"enum": [
+														"POSTER",
+														"LANDSCAPE",
+														"SQUARE"
+													]
 												},
 												"background": {
 													"type": "string"
@@ -1323,7 +1354,11 @@
 													"type": "string"
 												},
 												"content_type": {
-													"type": "string"
+													"type": "string",
+													"enum": [
+														"movie",
+														"series"
+													]
 												}
 											}
 										}
@@ -1383,7 +1418,11 @@
 													"type": "string"
 												},
 												"content_type": {
-													"type": "string"
+													"type": "string",
+													"enum": [
+														"movie",
+														"series"
+													]
 												},
 												"name": {
 													"type": "string"
@@ -1392,7 +1431,12 @@
 													"type": "string"
 												},
 												"poster_shape": {
-													"type": "string"
+													"type": "string",
+													"enum": [
+														"POSTER",
+														"LANDSCAPE",
+														"SQUARE"
+													]
 												},
 												"background": {
 													"type": "string"
@@ -1526,7 +1570,11 @@
 											},
 											"content_type": {
 												"type": "string",
-												"description": "`movie` or `series`"
+												"description": "`movie` or `series`",
+												"enum": [
+													"movie",
+													"series"
+												]
 											},
 											"video_id": {
 												"type": "string",
@@ -1661,7 +1709,11 @@
 												"type": "integer"
 											},
 											"operation": {
-												"type": "string"
+												"type": "string",
+												"enum": [
+													"upsert",
+													"delete"
+												]
 											},
 											"progress_key": {
 												"type": "string"
@@ -1670,7 +1722,11 @@
 												"type": "string"
 											},
 											"content_type": {
-												"type": "string"
+												"type": "string",
+												"enum": [
+													"movie",
+													"series"
+												]
 											},
 											"video_id": {
 												"type": "string"
@@ -1823,7 +1879,11 @@
 												},
 												"content_type": {
 													"type": "string",
-													"description": "`movie` or `series`"
+													"description": "`movie` or `series`",
+													"enum": [
+														"movie",
+														"series"
+													]
 												},
 												"video_id": {
 													"type": "string",
@@ -2016,7 +2076,11 @@
 											},
 											"content_type": {
 												"type": "string",
-												"description": "`movie` or `series`"
+												"description": "`movie` or `series`",
+												"enum": [
+													"movie",
+													"series"
+												]
 											},
 											"title": {
 												"type": "string",
@@ -2126,13 +2190,21 @@
 												"type": "integer"
 											},
 											"operation": {
-												"type": "string"
+												"type": "string",
+												"enum": [
+													"upsert",
+													"delete"
+												]
 											},
 											"content_id": {
 												"type": "string"
 											},
 											"content_type": {
-												"type": "string"
+												"type": "string",
+												"enum": [
+													"movie",
+													"series"
+												]
 											},
 											"title": {
 												"type": "string"
@@ -2270,7 +2342,11 @@
 												},
 												"content_type": {
 													"type": "string",
-													"description": "`movie` or `series`"
+													"description": "`movie` or `series`",
+													"enum": [
+														"movie",
+														"series"
+													]
 												},
 												"title": {
 													"type": "string",
@@ -2785,7 +2861,12 @@
 														},
 														"viewMode": {
 															"type": "string",
-															"description": "`TABBED_GRID`, `ROWS`, or `FOLLOW_LAYOUT`"
+															"description": "`TABBED_GRID`, `ROWS`, or `FOLLOW_LAYOUT`",
+															"enum": [
+																"TABBED_GRID",
+																"ROWS",
+																"FOLLOW_LAYOUT"
+															]
 														},
 														"showAllTab": {
 															"type": "boolean",
@@ -2815,7 +2896,12 @@
 																	},
 																	"tileShape": {
 																		"type": "string",
-																		"description": "`POSTER`, `LANDSCAPE`, or `SQUARE`"
+																		"description": "`POSTER`, `LANDSCAPE`, or `SQUARE`",
+																		"enum": [
+																			"POSTER",
+																			"LANDSCAPE",
+																			"SQUARE"
+																		]
 																	},
 																	"hideTitle": {
 																		"type": "boolean",
@@ -2929,7 +3015,12 @@
 													"type": "string"
 												},
 												"viewMode": {
-													"type": "string"
+													"type": "string",
+													"enum": [
+														"TABBED_GRID",
+														"ROWS",
+														"FOLLOW_LAYOUT"
+													]
 												},
 												"folders": {
 													"type": "array",

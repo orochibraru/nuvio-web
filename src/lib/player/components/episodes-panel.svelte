@@ -90,6 +90,7 @@
 					<button
 						type="button"
 						aria-label="Close"
+						title="Close (Esc)"
 						onclick={onClose}
 						class="flex size-8 items-center justify-center rounded-full transition hover:bg-white/10"
 					>

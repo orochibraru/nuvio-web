@@ -27,6 +27,7 @@
 	import { theme } from "#lib/settings/theme.svelte.js";
 	import { sync } from "#lib/sync/store.svelte.js";
 	import { cn } from "#lib/utils.js";
+	import { airDateLabel, episodeLabel } from "#lib/watch/episodes.js";
 	import { playOrder } from "#lib/watch/playback-context.js";
 	import { parseRuntimeMs } from "#lib/watch/runtime.js";
 	import { sourcesPanel } from "#lib/watch/sources-panel.svelte.js";
@@ -101,6 +102,12 @@
 	let synopsisExpanded = $state(false);
 
 	const similarStream = streamed(() => data.similar, { metas: [] });
+	const nextToAirStream = streamed(() => data.nextToAir, null);
+	const nextToAirNotice = $derived(
+		nextToAirStream.current
+			? `${airDateLabel(nextToAirStream.current.airsAt)} : ${episodeLabel(nextToAirStream.current)}`
+			: null,
+	);
 	const similar = $derived(similarStream.current.metas);
 
 	const rating = $derived(
@@ -377,10 +384,11 @@
 </script>
 
 <div class="relative">
+    <!-- `dark`: it always sits on the hero, which is dark media in both themes. -->
     <button
         type="button"
         onclick={() => history.back()}
-        class="absolute top-20 left-0 z-10 flex items-center gap-1.5 rounded-full bg-background/50 px-3 py-1.5 text-sm font-medium text-foreground ring-1 ring-border backdrop-blur-md transition hover:bg-background/80"
+        class="dark absolute top-20 left-0 z-10 flex items-center gap-1.5 rounded-full bg-background/50 px-3 py-1.5 text-sm font-medium text-foreground ring-1 ring-border backdrop-blur-md transition hover:bg-background/80"
     >
         <ArrowLeftIcon class="size-4" /> Back
     </button>
@@ -398,7 +406,7 @@
                     <code>{id}</code>.
                 </p>
 
-                <Button href={resolve("addons")} variant="outline" class="mt-4"
+                <Button href={`${resolve("settings")}?tab=addons`} variant="outline" class="mt-4"
                     >Manage addons</Button
                 >
             </div>
@@ -438,6 +446,7 @@
             runtime={m.runtime}
             genres={m.genres ?? []}
             network={providers.network}
+            notice={nextToAirNotice}
             flag={contentType === "movie"
                 ? progress[id]?.completed
                     ? "Watched"

@@ -3,7 +3,7 @@
 Three levels, each with a different job.
 
 ```bash
-bun run test:unit    # vitest, node env, src/**/*.test.ts
+bun run test:unit    # vitest: unit + runes projects, node env
 bun run test:e2e     # playwright, chromium
 ```
 
@@ -26,6 +26,28 @@ by having edge cases, and most of these are the second kind.
 
 Construct services with fakes, or `provide()` them into a throwaway container,
 rather than `vi.mock`-ing a module path.
+
+### Rune modules
+
+A second Vitest project, `runes`, runs `*.svelte.test.ts` files with the Svelte
+plugin, so `.svelte.ts` modules compile. It exists for rune state that is logic
+rather than UI : the sync store's queue, flush debounce, grace period, cursors,
+owner scoping, cross-tab broadcast and profile-switch races.
+
+It stays in the node environment. The store needs IndexedDB (`fake-indexeddb`),
+`BroadcastChannel` (native in Node) and a `document` that fires
+`visibilitychange` (a twelve-line stub in `src/lib/sync/test-setup.ts`); a full
+DOM shim would be a much larger dependency for that.
+
+Two things that bite:
+
+- The store is a module-level singleton. Each test gets a fresh module
+  (`vi.resetModules()`) and a fresh `IDBFactory`, and every instance a test
+  creates is detached afterwards. One left attached keeps its listener on the
+  shared `document` and answers for the next test.
+- Under fake timers, `vi.waitFor` advances the clock between checks, which fires
+  the store's own timers. Use `vi.advanceTimersByTimeAsync(0)` to flush, or move
+  only `Date` with `vi.setSystemTime` when the behaviour is time-based.
 
 ## End-to-end
 

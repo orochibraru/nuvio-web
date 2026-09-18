@@ -12,7 +12,8 @@ its own skeleton:
 - **continue watching**, enriched with real titles and artwork rather than the
   raw content ids the progress records hold,
 - **your library**,
-- **a row per catalog** your addons expose, up to eight.
+- **a row per catalog** your addons expose: the first eight by default, or the
+  ones you arranged in **Settings → Home**.
 
 None of it blocks the page. Navigation completes on the shell, and each row
 fills in when its addons answer. A row whose addon fails degrades to empty
@@ -37,6 +38,10 @@ A title's page carries:
 
 - synopsis, cast and crew, IMDb rating, trailer,
 - the season and episode carousel for a series,
+- for a series still airing, **when the next episode airs** ("Airs Sep 28 :
+  S38E1 · Title"). From the addon's own listing when it dates an unaired
+  episode; otherwise from [TVmaze](https://www.tvmaze.com), which is looked up
+  by IMDb id, so a series known only by a TMDB or Kitsu id gets no date,
 - a **where to watch** row: the official streaming, rent and buy options for
   your region, from JustWatch. This is availability metadata, and the links send
   you to the rights holder's own paid source. Set your region in **Settings →

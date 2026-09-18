@@ -49,6 +49,35 @@ const seriesMeta: Meta = {
 };
 
 describe("parseVideoId", () => {
+	it("keeps a namespace prefix as part of the content id", () => {
+		expect(parseVideoId("series", "tmdb:1396:2:5")).toEqual({
+			contentId: "tmdb:1396",
+			season: 2,
+			episode: 5,
+		});
+	});
+
+	// Kitsu episodes are absolute and the addon lists them as season 1.
+	it("reads a namespaced id with one trailing number as season 1", () => {
+		expect(parseVideoId("series", "kitsu:46474:5")).toEqual({
+			contentId: "kitsu:46474",
+			season: 1,
+			episode: 5,
+		});
+	});
+
+	it("leaves a bare namespaced series id without an episode", () => {
+		expect(parseVideoId("series", "tmdb:1396")).toEqual({
+			contentId: "tmdb:1396",
+			season: undefined,
+			episode: undefined,
+		});
+	});
+
+	it("returns a namespaced movie id whole", () => {
+		expect(parseVideoId("movie", "tmdb:550").contentId).toBe("tmdb:550");
+	});
+
 	it("returns just the id for a movie", () => {
 		expect(parseVideoId("movie", "tt0137523")).toEqual({
 			contentId: "tt0137523",
@@ -229,5 +258,35 @@ describe("assemblePlaybackContext", () => {
 		expect(ctx.background).toBeNull();
 		expect(ctx.genres).toEqual([]);
 		expect(ctx.resume).toBeNull();
+	});
+});
+
+describe("nextCard and unaired episodes", () => {
+	const ordered = [
+		{
+			id: "z:1:1",
+			title: "One",
+			season: 1,
+			episode: 1,
+			released: "2020-01-01",
+		},
+		{
+			id: "z:1:2",
+			title: "Two",
+			season: 1,
+			episode: 2,
+			released: "2099-01-01",
+		},
+	] as MetaVideo[];
+
+	// The card auto-plays after a countdown: never into an episode with no streams.
+	it("offers no card for an episode that has not aired", () => {
+		expect(nextCard(ordered, 1, 1)).toBeNull();
+	});
+
+	it("offers the card once it has", () => {
+		expect(nextCard(ordered, 1, 1, Date.parse("2099-06-01"))?.videoId).toBe(
+			"z:1:2",
+		);
 	});
 });

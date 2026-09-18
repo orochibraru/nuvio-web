@@ -30,7 +30,14 @@ export interface DocumentedField {
 
 const NAME_CELL = /^`?([A-Za-z_][\w.]*)`?$/;
 
-function firstValue(row: Record<string, string>, keys: string[]): string {
+/**
+ * A table row by column name. `Partial` because a row may lack a column its
+ * table has (a short row, a blank cell): indexing one is `undefined` at
+ * runtime, and the type has to say so or the fallbacks below look redundant.
+ */
+type Row = Partial<Record<string, string>>;
+
+function firstValue(row: Row, keys: string[]): string {
 	for (const key of keys) {
 		if (row[key] !== undefined && row[key] !== "") {
 			return row[key];
@@ -53,7 +60,7 @@ function parseDefault(cell: string): unknown {
 
 export function readTable(table: SpecTable): DocumentedField[] {
 	const fields: DocumentedField[] = [];
-	for (const row of table.rows) {
+	for (const row of table.rows as Row[]) {
 		const rawName = firstValue(row, ["field", "parameter", "name", "key"]);
 		const name = rawName.match(NAME_CELL)?.[1];
 		if (!name) {

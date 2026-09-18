@@ -1,5 +1,30 @@
-// Type model for the Nuvio public API (v1.3).
-// Source: https://nuvio.tv/docs/nuvio-public-api.md
+// Type model for the Nuvio public API.
+//
+// Derived from `nuvio-public-api.types.ts`, which `bun run nuvio:spec`
+// generates from the published spec (https://nuvio.tv/docs/nuvio-public-api.md)
+// and CI keeps fresh. Most wire types here are plain aliases of it, so when the
+// API changes a field the change surfaces as a type error at the call sites.
+//
+// Where a type is not a bare alias, it is the generated type with named
+// fields overridden, for one of three reasons, each said at the site:
+//
+// - the spec's field table under-types what its prose allows (`null`);
+// - the spec's example is the only evidence and is too specific (a settings
+//   blob typed as one client's settings) or too empty (`[]` for a list);
+// - the app is deliberately stricter than the API on what it *sends* (it
+//   always names the profile rather than lean on the server default).
+//
+// The `SpecContract` at the bottom checks, at compile time, that each of those
+// still lines up with the spec in the direction that matters: what the app
+// sends is a valid request, and what the API returns fits what the app reads.
+
+import type * as Api from "./nuvio-public-api.types.ts";
+
+/** The element type of a generated array type. */
+type Row<T> = T extends ReadonlyArray<infer U> ? U : never;
+
+/** Replace the named fields of `T`. */
+type Override<T, U> = Omit<T, keyof U> & U;
 
 /** ISO 8601 timestamp string, for example `2026-01-01T00:00:00Z`. */
 export type IsoTimestamp = string;
@@ -10,12 +35,13 @@ export type EpochMilliseconds = number;
 /** Profile slot in the public client surface. */
 export type ProfileIndex = 1 | 2 | 3 | 4 | 5 | 6;
 
-export type ContentType = "movie" | "series";
+export type ContentType = Row<Api.GetLibraryResponse>["content_type"];
 
-export type PosterShape = "POSTER" | "LANDSCAPE" | "SQUARE";
+export type PosterShape = Row<Api.GetLibraryResponse>["poster_shape"];
 
-export type SyncOperation = "upsert" | "delete";
+export type SyncOperation = Row<Api.GetLibraryDeltaResponse>["operation"];
 
+/** The spec documents `tv`; any client may name its own platform. */
 export type Platform = "tv" | (string & {});
 
 /** Arbitrary application-defined JSON object with no server-enforced schema. */
@@ -23,12 +49,9 @@ export type JsonObject = Record<string, unknown>;
 
 // Authentication
 
-export interface NuvioUser {
-	id: string;
-	email: string;
-	created_at: IsoTimestamp;
-}
+export type NuvioUser = Api.GetCurrentUserResponse;
 
+/** The token endpoints document no response body; this is the Supabase shape. */
 export interface AuthSession {
 	access_token: string;
 	token_type: "bearer";
@@ -44,283 +67,127 @@ export interface EmailPasswordCredentials {
 
 // Profiles
 
-export interface Profile {
-	id: string;
-	user_id: string;
-	profile_index: number;
-	name: string;
-	avatar_color_hex: string;
-	uses_primary_addons: boolean;
-	avatar_id: string | null;
-	avatar_url: string | null;
-	pin_enabled: boolean;
-	pin_locked_until: IsoTimestamp | null;
-	created_at: IsoTimestamp;
-	updated_at: IsoTimestamp;
-}
+export type Profile = Row<Api.ListProfilesResponse>;
 
-export interface ProfileInput {
-	profile_index: number;
-	name: string;
-	avatar_color_hex?: string;
-	uses_primary_addons?: boolean;
-	avatar_id?: string | null;
-	avatar_url?: string | null;
-}
+/** Spec gap: the prose says a `null` `avatar_id` keeps the current one. */
+export type ProfileInput = Override<
+	Row<Api.UpdateProfilesRequest["p_profiles"]>,
+	{ avatar_id?: string | null }
+>;
 
 // Addons
 
-export interface Addon {
-	id: string;
-	user_id: string;
-	profile_id: number;
-	url: string;
-	name: string | null;
-	enabled: boolean;
-	sort_order: number;
-	created_at: IsoTimestamp;
-	updated_at: IsoTimestamp;
-}
+export type Addon = Row<Api.ListAddonsResponse>;
 
-export interface AddonInput {
-	url: string;
-	name?: string;
-	enabled?: boolean;
-	sort_order?: number;
-}
+export type AddonInput = Row<
+	NonNullable<Api.SyncAddonsPushRequest["p_addons"]>
+>;
 
 // Library
 
-export interface LibraryItem {
-	id: string;
-	user_id: string;
-	profile_id: number;
-	content_id: string;
-	content_type: ContentType;
-	name: string;
-	poster: string | null;
-	poster_shape: PosterShape;
-	background: string | null;
-	description: string | null;
-	release_info: string | null;
-	imdb_rating: number | null;
-	genres: string[];
-	addon_base_url: string | null;
-	added_at: EpochMilliseconds;
-	created_at: IsoTimestamp;
-	updated_at: IsoTimestamp;
-}
+export type LibraryItem = Row<Api.GetLibraryResponse>;
 
-export interface LibraryItemInput {
-	content_id: string;
-	content_type: ContentType;
-	name?: string;
-	poster?: string;
-	poster_shape?: PosterShape;
-	background?: string;
-	description?: string;
-	release_info?: string;
-	imdb_rating?: number;
-	genres?: string[];
-	addon_base_url?: string;
-	added_at?: EpochMilliseconds;
-}
+/** Stricter than the spec's table: an item without its identity is no item. */
+export type LibraryItemInput = Override<
+	Row<Api.UpsertLibraryItemsRequest["p_items"]>,
+	{ content_id: string; content_type: ContentType }
+>;
 
-export interface LibraryItemKey {
-	content_id: string;
-	content_type: ContentType;
-}
+/** Same: the table does not mark the identity required, the API needs it. */
+export type LibraryItemKey = Required<
+	Row<Api.DeleteLibraryItemsRequest["p_keys"]>
+>;
 
-export interface LibraryDeltaEvent {
-	event_id: number;
-	operation: SyncOperation;
-	content_id: string;
-	content_type: ContentType;
-	name: string;
-	poster: string | null;
-	poster_shape: PosterShape;
-	background: string | null;
-	description: string | null;
-	release_info: string | null;
-	imdb_rating: number | null;
-	genres: string[];
-	addon_base_url: string | null;
-	added_at: EpochMilliseconds;
-}
+export type LibraryDeltaEvent = Row<Api.GetLibraryDeltaResponse>;
 
 // Watch progress
 
-export interface WatchProgress {
-	id: string;
-	user_id: string;
-	profile_id: number;
-	content_id: string;
-	content_type: ContentType;
-	video_id: string;
-	season: number | null;
-	episode: number | null;
-	progress_key: string;
-	position: number;
-	duration: number;
-	last_watched: EpochMilliseconds;
-}
+export type WatchProgress = Row<Api.GetWatchProgressResponse>;
 
-export interface WatchProgressInput {
-	content_id: string;
-	content_type: ContentType;
-	video_id: string;
-	season?: number;
-	episode?: number;
-	position: number;
-	duration: number;
-	last_watched: EpochMilliseconds;
-}
+export type WatchProgressInput = Row<
+	NonNullable<Api.SyncWatchProgressPushRequest["p_entries"]>
+>;
 
-export interface WatchProgressDeltaEvent {
-	event_id: number;
-	operation: SyncOperation;
-	progress_key: string;
-	content_id: string;
-	content_type: ContentType;
-	video_id: string;
-	season: number | null;
-	episode: number | null;
-	position: number;
-	duration: number;
-	last_watched: EpochMilliseconds;
-}
+export type WatchProgressDeltaEvent = Row<Api.GetWatchProgressDeltaResponse>;
 
 // Watch history
 
-export interface WatchedItem {
-	id: string;
-	user_id: string;
-	profile_id: number;
-	content_id: string;
-	content_type: ContentType;
-	title: string;
-	season: number | null;
-	episode: number | null;
-	watched_at: EpochMilliseconds;
-	created_at: IsoTimestamp;
-}
+export type WatchedItem = Row<Api.GetWatchHistoryResponse>;
 
-export interface WatchedItemInput {
-	content_id: string;
-	content_type: ContentType;
-	title?: string;
-	season?: number;
-	episode?: number;
-	watched_at: EpochMilliseconds;
-}
+export type WatchedItemInput = Row<
+	NonNullable<Api.SyncWatchHistoryPushRequest["p_items"]>
+>;
 
-export interface WatchedItemKey {
-	content_id: string;
-	season?: number;
-	episode?: number;
-}
+export type WatchedItemKey = Row<
+	NonNullable<Api.DeleteWatchHistoryRequest["p_keys"]>
+>;
 
-export interface WatchedItemDeltaEvent {
-	event_id: number;
-	operation: SyncOperation;
-	content_id: string;
-	content_type: ContentType;
-	title: string;
-	season: number | null;
-	episode: number | null;
-	watched_at: EpochMilliseconds;
-}
+export type WatchedItemDeltaEvent = Row<Api.GetWatchHistoryDeltaResponse>;
 
 // Profile settings and home catalog settings
 
-export interface ProfileSettingsBlob {
-	profile_id: number;
-	settings_json: JsonObject;
-	updated_at: IsoTimestamp;
-}
+/** Spec gap: the example shows one client's settings; the blob is free-form. */
+export type ProfileSettingsBlob = Override<
+	Row<Api.GetSettingsResponse>,
+	{ settings_json: JsonObject }
+>;
 
-export interface HomeCatalogSettings {
-	id: string;
-	user_id: string;
-	profile_id: number;
-	platform: string;
-	settings_json: JsonObject;
-	updated_at: IsoTimestamp;
-}
+/** Same as the settings blob. */
+export type HomeCatalogSettings = Override<
+	Row<Api.GetHomeCatalogSettingsResponse>,
+	{ settings_json: JsonObject }
+>;
 
 // Collections
+//
+// The blob is written by every client and only the identity and the folder
+// list are always there, so everything the example happens to show is
+// optional here except those.
 
-export type CollectionViewMode = "TABBED_GRID" | "ROWS" | "FOLLOW_LAYOUT";
+type SpecCollection = Row<Row<Api.GetCollectionsResponse>["collections_json"]>;
+type SpecFolder = Row<SpecCollection["folders"]>;
 
-export interface CatalogSource {
-	addonId: string;
-	type: string;
-	catalogId: string;
-}
+export type CollectionViewMode = SpecCollection["viewMode"];
 
-export interface CollectionFolder {
-	id: string;
-	title: string;
-	coverImageUrl?: string;
-	coverEmoji?: string;
-	tileShape?: PosterShape;
-	hideTitle?: boolean;
-	catalogSources?: CatalogSource[];
-}
+export type CatalogSource = Row<SpecFolder["catalogSources"]>;
 
-export interface Collection {
-	id: string;
-	title: string;
-	backdropImageUrl?: string;
-	pinToTop?: boolean;
-	viewMode?: CollectionViewMode;
-	showAllTab?: boolean;
-	folders: CollectionFolder[];
-}
+export type CollectionFolder = Pick<SpecFolder, "id" | "title"> &
+	Partial<Omit<SpecFolder, "id" | "title">>;
 
-export interface CollectionsBlob {
-	profile_id: number;
-	collections_json: Collection[];
-	updated_at: IsoTimestamp;
-}
+export type Collection = Pick<SpecCollection, "id" | "title"> &
+	Partial<Omit<SpecCollection, "id" | "title" | "folders">> & {
+		folders: CollectionFolder[];
+	};
+
+export type CollectionsBlob = Override<
+	Row<Api.GetCollectionsResponse>,
+	{ collections_json: Collection[] }
+>;
 
 // Avatars
 
-export interface AvatarCatalogEntry {
-	id: string;
-	display_name: string;
-	storage_path: string;
-	category: string;
-	sort_order: number;
-	is_active: boolean;
-	bg_color: string | null;
-	created_at: IsoTimestamp;
-}
+export type AvatarCatalogEntry = Row<Api.ListAvatarsResponse>;
 
 // Supporter wall
 
 export type MembershipLevel = "SUPPORTER" | "SUPPORTER_PLUS" | (string & {});
 
-export interface SupporterMember {
-	displayName: string;
-	avatarUrl: string;
-	membershipLevel: MembershipLevel;
-	supporterSince: IsoTimestamp | null;
-}
+/** Spec gap: `supporterSince` is `null` for members who never had a date. */
+export type SupporterMember = Override<
+	Row<Api.SupporterWallResponse["top"]["members"]>,
+	{ membershipLevel: MembershipLevel; supporterSince: IsoTimestamp | null }
+>;
 
 export interface SupporterList {
 	members: SupporterMember[];
 	totalCount: number;
 }
 
-export interface SupporterWall {
-	top: SupporterList;
-	recent: SupporterList;
-	pagination: {
-		limit: number;
-		offset: number;
-	};
-}
+/** Spec gap: `recent` is an empty list in the example, so typed from `top`. */
+export type SupporterWall = Override<
+	Api.SupporterWallResponse,
+	{ top: SupporterList; recent: SupporterList }
+>;
 
 export interface SupporterWallQuery {
 	limit?: number;
@@ -331,24 +198,17 @@ export interface SupporterWallQuery {
 
 export type ProfileIndexedCounts = Record<string, number>;
 
-export interface SyncOverview {
-	addons: ProfileIndexedCounts;
-	library_items: ProfileIndexedCounts;
-	watch_progress: ProfileIndexedCounts;
-	watched_items: ProfileIndexedCounts;
-	profiles: Record<string, { name: string; color: string }>;
-}
+export type SyncOverview = Api.SyncOverviewResponse;
 
 // Health
 
+/** Spec gap: `status` is a bare string there; these are the values it takes. */
 export type HealthStatus = "healthy" | "slow" | "degraded" | "down";
 
-export interface HealthCheck {
-	status: HealthStatus;
-	database: string;
-	latency_ms: number;
-	timestamp: IsoTimestamp;
-}
+export type HealthCheck = Override<
+	Api.HealthCheckResponse,
+	{ status: HealthStatus }
+>;
 
 // Errors
 
@@ -360,129 +220,111 @@ export interface NuvioApiErrorBody {
 }
 
 // RPC request parameter shapes
+//
+// Aliases where the app sends exactly what the spec allows. `WithProfile`
+// marks the ones where the spec defaults `p_profile_id` and the app always
+// names it anyway: leaning on the server default would quietly write to
+// profile 1.
 
 export type EmptyParams = Record<string, never>;
+
+type WithProfile<T> = Override<T, { p_profile_id: number }>;
 
 export interface ProfileScopedParams {
 	p_profile_id?: number;
 }
 
-export interface PushProfilesParams {
-	p_profiles: ProfileInput[];
-	p_client_max_profiles?: number;
-}
+export type PushProfilesParams = Override<
+	Api.UpdateProfilesRequest,
+	{ p_profiles: ProfileInput[] }
+>;
 
-export interface DeleteProfileDataParams {
-	p_profile_id: number;
-}
+export type DeleteProfileDataParams = WithProfile<Api.DeleteProfileDataRequest>;
 
-export interface PushAddonsParams {
-	p_profile_id: number;
-	p_addons: AddonInput[];
-}
+export type PushAddonsParams = WithProfile<
+	Override<Api.SyncAddonsPushRequest, { p_addons: AddonInput[] }>
+>;
 
-export interface PullLibraryParams {
-	p_profile_id?: number;
-	p_limit?: number;
-	p_offset?: number;
-}
+export type PullLibraryParams = Api.GetLibraryRequest;
 
-export interface PullLibraryDeltaParams {
-	p_profile_id?: number;
-	p_since_event_id?: number;
-	p_limit?: number;
-}
+export type PullLibraryDeltaParams = Api.GetLibraryDeltaRequest;
 
-export interface PushLibraryItemsParams {
-	p_items: LibraryItemInput[];
-	p_profile_id?: number;
-	p_origin_client_id?: string | null;
-}
+export type PushLibraryItemsParams = Override<
+	Api.UpsertLibraryItemsRequest,
+	{ p_items: LibraryItemInput[] }
+>;
 
-export interface DeleteLibraryItemsParams {
-	p_keys: LibraryItemKey[];
-	p_profile_id?: number;
-	p_origin_client_id?: string | null;
-}
+export type DeleteLibraryItemsParams = Override<
+	Api.DeleteLibraryItemsRequest,
+	{ p_keys: LibraryItemKey[] }
+>;
 
-export interface PushLibraryParams {
-	p_profile_id: number;
-	p_items: LibraryItemInput[];
-}
+export type PushLibraryParams = WithProfile<
+	Override<
+		Api.SyncLibraryPushLegacyFullReplaceRequest,
+		{ p_items: LibraryItemInput[] }
+	>
+>;
 
-export interface PullWatchProgressParams {
-	p_profile_id?: number;
-	p_since_last_watched?: EpochMilliseconds | null;
-	p_limit?: number;
-}
+/** Spec gap: the prose treats a `null` cursor as "not set". */
+export type PullWatchProgressParams = Override<
+	Api.GetWatchProgressRequest,
+	{ p_since_last_watched?: EpochMilliseconds | null }
+>;
 
-export interface PullWatchProgressDeltaParams {
-	p_profile_id?: number;
-	p_since_event_id?: number;
-	p_limit?: number;
-}
+export type PullWatchProgressDeltaParams = Api.GetWatchProgressDeltaRequest;
 
-export interface PushWatchProgressParams {
-	p_entries: WatchProgressInput[];
-	p_profile_id?: number;
-}
+export type PushWatchProgressParams = Override<
+	Api.SyncWatchProgressPushRequest,
+	{ p_entries: WatchProgressInput[] }
+>;
 
+/** The spec's two documented payloads, made mutually exclusive. */
 export type DeleteWatchProgressParams =
 	| { p_progress_key: string; p_profile_id?: number; p_keys?: never }
 	| { p_keys: string[]; p_profile_id?: number; p_progress_key?: never };
 
-export interface PullWatchedItemsParams {
-	p_profile_id?: number;
-	p_page?: number;
-	p_page_size?: number;
-}
+export type PullWatchedItemsParams = Api.GetWatchHistoryRequest;
 
-export interface PullWatchedItemsDeltaParams {
-	p_profile_id?: number;
-	p_since_event_id?: number;
-	p_limit?: number;
-}
+export type PullWatchedItemsDeltaParams = Api.GetWatchHistoryDeltaRequest;
 
-export interface PushWatchedItemsParams {
-	p_items: WatchedItemInput[];
-	p_profile_id?: number;
-}
+export type PushWatchedItemsParams = Override<
+	Api.SyncWatchHistoryPushRequest,
+	{ p_items: WatchedItemInput[] }
+>;
 
-export interface DeleteWatchedItemsParams {
-	p_keys: WatchedItemKey[];
-	p_profile_id?: number;
-}
+export type DeleteWatchedItemsParams = Override<
+	Api.DeleteWatchHistoryRequest,
+	{ p_keys: WatchedItemKey[] }
+>;
 
-export interface PullSettingsBlobParams {
-	p_profile_id: number;
-	p_platform?: Platform;
-}
+export type PullSettingsBlobParams = WithProfile<
+	Override<Api.GetSettingsRequest, { p_platform?: Platform }>
+>;
 
-export interface PushSettingsBlobParams {
-	p_profile_id: number;
-	p_settings_json: JsonObject;
-	p_platform?: Platform;
-}
+export type PushSettingsBlobParams = WithProfile<
+	Override<
+		Api.UpdateSettingsRequest,
+		{ p_settings_json: JsonObject; p_platform?: Platform }
+	>
+>;
 
-export interface PullHomeCatalogSettingsParams {
-	p_profile_id: number;
-	p_platform?: Platform;
-}
+export type PullHomeCatalogSettingsParams = WithProfile<
+	Override<Api.GetHomeCatalogSettingsRequest, { p_platform?: Platform }>
+>;
 
-export interface PushHomeCatalogSettingsParams {
-	p_profile_id: number;
-	p_settings_json: JsonObject;
-	p_platform?: Platform;
-}
+export type PushHomeCatalogSettingsParams = WithProfile<
+	Override<
+		Api.UpdateHomeCatalogSettingsRequest,
+		{ p_settings_json: JsonObject; p_platform?: Platform }
+	>
+>;
 
-export interface PullCollectionsParams {
-	p_profile_id: number;
-}
+export type PullCollectionsParams = WithProfile<Api.GetCollectionsRequest>;
 
-export interface PushCollectionsParams {
-	p_profile_id: number;
-	p_collections_json: Collection[];
-}
+export type PushCollectionsParams = WithProfile<
+	Override<Api.UpdateCollectionsRequest, { p_collections_json: Collection[] }>
+>;
 
 /**
  * Maps every documented RPC function to its request parameters and result type.
@@ -598,3 +440,64 @@ export type RpcArgs<Name extends RpcName> =
 
 /** RPC functions that are callable without an access token. */
 export type UnauthenticatedRpcName = "get_avatar_catalog" | "health_ping";
+
+// Spec contract
+//
+// Every override above is checked against the generated type in the direction
+// that matters. `bun run check` fails if the API changes under one of them.
+
+type Fits<A, B> = [A] extends [B] ? true : false;
+
+/**
+ * `Reads<Spec, Hand>` : what the API returns fits what the app reads.
+ * `Sends<Hand, Spec>` : what the app sends is a request the API accepts.
+ * Both are `Fits`, spelled out per entry because a generic wrapper around the
+ * `extends true` check would defer it and check nothing.
+ */
+type Assert<T extends true> = T;
+
+export type SpecContract = [
+	Assert<Fits<Row<Api.GetSettingsResponse>, ProfileSettingsBlob>>,
+	Assert<Fits<Row<Api.GetHomeCatalogSettingsResponse>, HomeCatalogSettings>>,
+	Assert<Fits<Row<Api.GetCollectionsResponse>, CollectionsBlob>>,
+	Assert<
+		Fits<
+			Omit<Api.SupporterWallResponse, "recent">,
+			Omit<SupporterWall, "recent">
+		>
+	>,
+	Assert<Fits<PushAddonsParams, Api.SyncAddonsPushRequest>>,
+	Assert<Fits<PushLibraryItemsParams, Api.UpsertLibraryItemsRequest>>,
+	Assert<Fits<DeleteLibraryItemsParams, Api.DeleteLibraryItemsRequest>>,
+	Assert<Fits<PushLibraryParams, Api.SyncLibraryPushLegacyFullReplaceRequest>>,
+	Assert<Fits<PushWatchProgressParams, Api.SyncWatchProgressPushRequest>>,
+	Assert<Fits<DeleteWatchProgressParams, Api.SyncDeleteWatchProgressRequest>>,
+	Assert<Fits<PushWatchedItemsParams, Api.SyncWatchHistoryPushRequest>>,
+	Assert<Fits<DeleteWatchedItemsParams, Api.DeleteWatchHistoryRequest>>,
+	Assert<Fits<PullSettingsBlobParams, Api.GetSettingsRequest>>,
+	Assert<Fits<PushSettingsBlobParams, Api.UpdateSettingsRequest>>,
+	Assert<
+		Fits<PullHomeCatalogSettingsParams, Api.GetHomeCatalogSettingsRequest>
+	>,
+	Assert<
+		Fits<PushHomeCatalogSettingsParams, Api.UpdateHomeCatalogSettingsRequest>
+	>,
+	Assert<Fits<PullCollectionsParams, Api.GetCollectionsRequest>>,
+	Assert<Fits<DeleteProfileDataParams, Api.DeleteProfileDataRequest>>,
+	// The spec-gap overrides are checked with the gap field set aside.
+	Assert<
+		Fits<
+			Omit<ProfileInput, "avatar_id">,
+			Omit<Row<Api.UpdateProfilesRequest["p_profiles"]>, "avatar_id">
+		>
+	>,
+	Assert<
+		Fits<
+			Omit<PullWatchProgressParams, "p_since_last_watched">,
+			Omit<Api.GetWatchProgressRequest, "p_since_last_watched">
+		>
+	>,
+	Assert<
+		Fits<Omit<Api.HealthCheckResponse, "status">, Omit<HealthCheck, "status">>
+	>,
+];

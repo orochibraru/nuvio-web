@@ -5,7 +5,7 @@
 	import PinIcon from "@lucide/svelte/icons/pin";
 	import PlusIcon from "@lucide/svelte/icons/plus";
 	import { toast } from "svelte-sonner";
-	import { saveCollections } from "#lib/collections/collections.remote.js";
+	import { CollectionsEditor } from "#lib/collections/collections-editor.svelte.js";
 	import EmptyState from "#lib/components/feedback/empty-state.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import * as Dialog from "#lib/components/ui/dialog/index.js";
@@ -15,7 +15,6 @@
 	import { pageTitle } from "#lib/core/title.svelte.js";
 	import type { Collection } from "#lib/nuvio/index.js";
 	import { cn } from "#lib/utils.js";
-	import { refreshAll } from "$app/navigation";
 	import { resolve } from "$app/paths";
 
 	pageTitle.set("Collections");
@@ -27,24 +26,20 @@
 		() => data.collections,
 		[] as Collection[],
 	);
-	const collections = $derived(collectionsStream.current);
+	// Edits are built from, and shown as, the list just saved: see
+	// `CollectionsEditor` for why the load's pull is not enough.
+	const editor = new CollectionsEditor(() => collectionsStream.current);
+	const collections = $derived(editor.current);
 	const collectionsReady = $derived(collectionsStream.ready);
-
-	let saving = $state(false);
+	const saving = $derived(editor.saving);
 	let dialogOpen = $state(false);
 	let newTitle = $state("");
 	let renaming = $state<Collection | null>(null);
 	let renameTitle = $state("");
 
 	async function persist(next: Collection[]) {
-		saving = true;
-		try {
-			await saveCollections(next);
-			await refreshAll();
-		} catch {
+		if (!(await editor.save(next))) {
 			toast.error("Couldn't save collections.");
-		} finally {
-			saving = false;
 		}
 	}
 

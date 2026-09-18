@@ -38,7 +38,7 @@
 
 <Card.Root class="border border-foreground/10">
   <Card.Header>
-    <Card.Title>Appearance</Card.Title>
+    <Card.Title role="heading" aria-level={2}>Appearance</Card.Title>
     <Card.Description
       >Stored on your Nuvio account, per profile.</Card.Description
     >

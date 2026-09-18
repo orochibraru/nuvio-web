@@ -43,6 +43,7 @@ export function regionFromAcceptLanguage(
 	fallback = "US",
 ): string {
 	const match = /[a-z]{2,3}-([A-Z]{2})/.exec(header ?? "");
+	// biome-ignore lint/suspicious/noUnnecessaryConditions: RegExp#exec returns null on no match (Biome 2.5.14 infers it as non-null; TypeScript does not)
 	return match ? match[1] : fallback;
 }
 

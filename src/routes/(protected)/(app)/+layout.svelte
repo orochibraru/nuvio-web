@@ -2,10 +2,12 @@
 	import BookmarkIcon from "@lucide/svelte/icons/bookmark";
 	import CircleUserIcon from "@lucide/svelte/icons/circle-user";
 	import CompassIcon from "@lucide/svelte/icons/compass";
+	import DownloadIcon from "@lucide/svelte/icons/download";
 	import HouseIcon from "@lucide/svelte/icons/house";
 	import LayersIcon from "@lucide/svelte/icons/layers";
 	import LogOutIcon from "@lucide/svelte/icons/log-out";
 	import MenuIcon from "@lucide/svelte/icons/menu";
+	import MonitorDownIcon from "@lucide/svelte/icons/monitor-down";
 	import SearchIcon from "@lucide/svelte/icons/search";
 	import SettingsIcon from "@lucide/svelte/icons/settings";
 	import ShieldIcon from "@lucide/svelte/icons/shield";
@@ -21,8 +23,16 @@
 	import * as DropdownMenu from "#lib/components/ui/dropdown-menu/index.js";
 	import { Separator } from "#lib/components/ui/separator/index.js";
 	import { reduced } from "#lib/core/motion.js";
+	import { downloads } from "#lib/downloads/manager.svelte.js";
+	import { searchHistory } from "#lib/search/search-history.svelte.js";
+	import {
+		SETTINGS_SECTIONS,
+		settingsSectionFrom,
+		settingsSectionQuery,
+	} from "#lib/settings/sections.js";
 	import { theme } from "#lib/settings/theme.svelte.js";
 	import { sync } from "#lib/sync/store.svelte.js";
+	import { syncOwner } from "#lib/sync/types.js";
 	import { cn } from "#lib/utils.js";
 	import { afterNavigate } from "$app/navigation";
 	import { resolve } from "$app/paths";
@@ -49,16 +59,58 @@
 
 	let mobileNavOpen = $state(false);
 
+	// The browser's install offer, held back so the profile menu can make it
+	// (Chromium only; Safari installs from its Share menu).
+	let installPrompt = $state<
+		(Event & { prompt: () => Promise<unknown> }) | null
+	>(null);
+	$effect(() => {
+		const hold = (event: Event) => {
+			event.preventDefault();
+			installPrompt = event as Event & { prompt: () => Promise<unknown> };
+		};
+		const installed = () => {
+			installPrompt = null;
+		};
+		window.addEventListener("beforeinstallprompt", hold);
+		window.addEventListener("appinstalled", installed);
+		return () => {
+			window.removeEventListener("beforeinstallprompt", hold);
+			window.removeEventListener("appinstalled", installed);
+		};
+	});
+
 	function isActive(href: string, exact?: boolean) {
 		return exact
 			? page.url.pathname === href
 			: page.url.pathname.startsWith(href);
 	}
 
+	let scrolled = $state(false);
+
 	// The player is a whole-page surface : no header / footer / page padding.
 	const immersive = $derived(page.url.pathname.startsWith("/player/"));
 
-	let scrolled = $state(false);
+	// Home and a title's page open on a full-bleed hero, which is dark media
+	// whatever the theme (the hero forces `.dark` on itself). While the header
+	// floats transparent over it, it takes the same dark palette : in light
+	// mode its theme-coloured links and search pill were dark-on-dark.
+	const overHero = $derived(
+		page.url.pathname === resolve("/(protected)/(app)") ||
+			page.url.pathname.startsWith("/detail/"),
+	);
+	const headerDark = $derived(overHero && !scrolled);
+
+	// Settings replaces the main nav row with its own sections rather than
+	// stacking a second bar under it: one bar's worth of height, and the row you
+	// are navigating within is the one under your cursor. Below `md` the header
+	// nav is hidden entirely, so the page renders its own pill row there.
+	const settingsRoot = resolve("settings");
+	const onSettings = $derived(page.url.pathname === settingsRoot);
+	const settingsSection = $derived(
+		settingsSectionFrom(page.url.searchParams.get("tab")),
+	);
+
 	let mainEl = $state<HTMLElement | null>(null);
 
 	// On a client navigation SvelteKit resets focus to <body> (or an `autofocus`
@@ -93,8 +145,11 @@
 	// the whole app shell unmounts.
 	$effect(() => {
 		const profileIndex = data.profile?.profile_index;
-		if (profileIndex != null) {
-			void sync.attach(profileIndex);
+		const userId = data.user?.id;
+		if (profileIndex != null && userId) {
+			void sync.attach(profileIndex, userId);
+			searchHistory.attach(syncOwner(userId, profileIndex));
+			void downloads.attach(syncOwner(userId, profileIndex));
 		}
 	});
 	$effect(() => () => sync.detach());
@@ -141,9 +196,14 @@
         style="background: radial-gradient(circle, color-mix(in oklch, var(--primary) 40%, transparent), transparent 70%)"
     ></div>
 
+    <!-- `data-accent` / `data-amoled` repeat the root's: `.dark` redeclares
+         `--primary`, which would otherwise shadow the chosen accent here. -->
     <header
+        data-accent={headerDark ? accent : undefined}
+        data-amoled={headerDark ? amoled : undefined}
         class={cn(
-            "fixed inset-x-0 top-0 z-50 transition-colors duration-300",
+            "fixed inset-x-0 top-0 z-50 text-foreground transition-colors duration-300",
+            headerDark && "dark",
             immersive && "hidden",
             scrolled
                 ? "border-b border-border bg-background/80 backdrop-blur-xl"
@@ -164,26 +224,95 @@
                 class="flex shrink-0 items-center gap-2 text-lg font-bold tracking-tight"
                 aria-label="Nuvio : home"
             >
-                <img alt="Nuvio : home" src="/logo-text.webp" width={100} />
+                <!-- The wordmark is white artwork: a dark copy for light
+                     surfaces. The link's `aria-label` names it. -->
+                <img
+                    alt=""
+                    src="/logo-text-dark.webp"
+                    width={100}
+                    height={32}
+                    class="dark:hidden"
+                />
+                <img
+                    alt=""
+                    src="/logo-text.webp"
+                    width={100}
+                    height={32}
+                    class="hidden dark:block"
+                />
             </a>
 
-            <nav class="hidden items-center gap-1 text-sm md:flex">
-                {#each nav as item (item.href)}
-                    {@const active = isActive(item.href, item.exact)}
+            <!-- Both rows occupy the same grid cell, so the settings row
+                 slides over the main one without changing the header's height
+                 or shifting the search box. `invisible` (not just opacity-0) so
+                 the hidden row cannot be tabbed into or clicked. -->
+            <div class="relative hidden min-w-0 text-sm md:grid">
+                <nav
+                    aria-label="Main"
+                    aria-hidden={onSettings ? "true" : undefined}
+                    class={cn(
+                        "col-start-1 row-start-1 flex items-center gap-1 transition-[opacity,transform,visibility] duration-200",
+                        onSettings
+                            ? "invisible -translate-y-2 opacity-0"
+                            : "translate-y-0 opacity-100",
+                    )}
+                >
+                    {#each nav as item (item.href)}
+                        {@const active = isActive(item.href, item.exact)}
+                        <a
+                            href={item.href}
+                            tabindex={onSettings ? -1 : undefined}
+                            aria-current={active ? "page" : undefined}
+                            class={cn(
+                                "rounded-full px-3 py-1.5 font-medium transition-colors",
+                                active
+                                    ? "bg-primary/15 text-foreground"
+                                    : "text-muted-foreground hover:text-foreground",
+                            )}
+                        >
+                            {item.label}
+                        </a>
+                    {/each}
+                </nav>
+
+                <nav
+                    aria-label="Settings sections"
+                    aria-hidden={onSettings ? undefined : "true"}
+                    class={cn(
+                        "col-start-1 row-start-1 flex items-center gap-1 transition-[opacity,transform,visibility] duration-200",
+                        onSettings
+                            ? "translate-y-0 opacity-100"
+                            : "invisible translate-y-2 opacity-0",
+                    )}
+                >
                     <a
-                        href={item.href}
-                        aria-current={active ? "page" : undefined}
-                        class={cn(
-                            "rounded-full px-3 py-1.5 font-medium transition-colors",
-                            active
-                                ? "bg-primary/15 text-foreground"
-                                : "text-muted-foreground hover:text-foreground",
-                        )}
+                        href={resolve("/(protected)/(app)")}
+                        tabindex={onSettings ? undefined : -1}
+                        title="Leave settings"
+                        class="mr-1 flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground"
                     >
-                        {item.label}
+                        <XIcon class="size-4" />
+                        <span class="sr-only">Leave settings</span>
                     </a>
-                {/each}
-            </nav>
+                    {#each SETTINGS_SECTIONS as section (section.value)}
+                        {@const active = settingsSection === section.value}
+                        <a
+                            href={settingsRoot + settingsSectionQuery(section.value)}
+                            tabindex={onSettings ? undefined : -1}
+                            aria-current={active ? "page" : undefined}
+                            class={cn(
+                                "flex items-center gap-1.5 rounded-full px-3 py-1.5 font-medium transition-colors",
+                                active
+                                    ? "bg-primary/15 text-foreground"
+                                    : "text-muted-foreground hover:text-foreground",
+                            )}
+                        >
+                            <section.icon class="size-3.5" />
+                            {section.label}
+                        </a>
+                    {/each}
+                </nav>
+            </div>
 
             <div class="ml-auto flex items-center gap-3">
                 <a
@@ -251,6 +380,23 @@
                                     >
                                 {/snippet}
                             </DropdownMenu.Item>
+                            <DropdownMenu.Item>
+                                {#snippet child({ props })}
+                                    <a href={resolve("downloads")} {...props}
+                                        ><DownloadIcon />Downloads</a
+                                    >
+                                {/snippet}
+                            </DropdownMenu.Item>
+                            {#if installPrompt}
+                                <DropdownMenu.Item
+                                    onSelect={() => {
+                                        void installPrompt?.prompt();
+                                        installPrompt = null;
+                                    }}
+                                >
+                                    <MonitorDownIcon />Install app
+                                </DropdownMenu.Item>
+                            {/if}
                             {#if data.isAdmin}
                                 <DropdownMenu.Item>
                                     {#snippet child({ props })}
@@ -386,7 +532,7 @@
                 >
 
                 <a
-                    href={resolve("addons")}
+                    href={`${resolve("settings")}?tab=addons`}
                     class="transition hover:text-foreground">Addons</a
                 >
             </div>
