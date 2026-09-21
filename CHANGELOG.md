@@ -1,3 +1,9 @@
+## [1.0.12](https://github.com/orochibraru/nuvio-web/compare/v1.0.11...v1.0.12) (2026-09-18)
+
+### Features
+
+* offline page ([3076344](https://github.com/orochibraru/nuvio-web/commit/30763443ad81ff11b7016711a8aa963ffcd0d7a0))
+
 ## [1.0.11](https://github.com/orochibraru/nuvio-web/compare/v1.0.10...v1.0.11) (2026-09-17)
 
 ### Features
