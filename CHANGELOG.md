@@ -1,3 +1,9 @@
+## [1.0.13](https://github.com/orochibraru/nuvio-web/compare/v1.0.12...v1.0.13) (2026-09-21)
+
+### Features
+
+* smarter precommit + pinact ([7a8b4c9](https://github.com/orochibraru/nuvio-web/commit/7a8b4c99dad1a8f57939d8b8c20ad149bef29a02))
+
 ## [1.0.12](https://github.com/orochibraru/nuvio-web/compare/v1.0.11...v1.0.12) (2026-09-18)
 
 ### Features
