@@ -30,10 +30,11 @@ Installing dependencies sets up the pre-commit hooks (via `prek install`) so the
 linters and formatters run before you commit. This reduces CI minutes spent on
 formatting and prevents commits such as "chore: fix lint".
 
-Two shims are installed, not one: `pre-commit` runs the fixers and checks, and
-`commit-msg` enforces Conventional Commits : semantic-release computes the next
+Three shims are installed: `pre-commit` runs the fast fixers and checks,
+`commit-msg` enforces Conventional Commits (semantic-release computes the next
 version from your commit subjects, so a malformed one silently costs a release
-rather than failing loudly.
+rather than failing loudly), and `pre-push` runs the slow whole-project ones
+(`svelte-check`, the unit suite).
 
 If `prek` is not installed the `prepare` script skips hook installation rather
 than failing the install : you just do not get the hooks.
@@ -62,6 +63,8 @@ The hooks live in `.pre-commit-config.yaml` and are the same set CI runs, so a
 green commit locally is a green Code Quality job. They only look at what you
 staged, except the whole-project ones (`svelte-check`, `tailwint`, the unit
 suite) where the staged paths just decide whether it is worth running at all.
+The type check and unit suite wait for `git push`; run them sooner with
+`prek run --hook-stage pre-push`.
 
 The last group is repo-specific: plain `grep` guards for the conventions in
 `CLAUDE.md` that no linter knows about (`throw redirect(...)`, a `$lib` import,

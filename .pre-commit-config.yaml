@@ -1,36 +1,52 @@
 # Run by prek (https://github.com/j178/prek), a drop-in pre-commit runner.
-# Install the hooks once with `prek install -t pre-commit -t commit-msg`;
-# `bun install` does it for you.
+# `bun install` installs every shim listed below (`prek install`).
+default_install_hook_types: [pre-commit, commit-msg, pre-push]
+default_stages: [pre-commit]
+
 repos:
-  # Cheap, generic hygiene the language tooling below does not cover: biome
-  # owns the code files and prettier the markdown, but nothing was looking at
-  # YAML, the Dockerfile, .editorconfig or a stray conflict marker.
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
       - id: check-merge-conflict
+        name: Look for merge conflicts
+
       - id: check-case-conflict
+        name: Look for case conflicts
+
       - id: detect-private-key
+        name: Look for private keys
+
       - id: check-yaml
+        name: Validate YAML
+
       - id: check-added-large-files
-        # The gallery screenshots are legitimately multi-megabyte; everything
-        # else crossing 500KB is a mistake worth a second look.
+        name: Look for large files
+        # The gallery screenshots are legitimately multi-megabyte.
         exclude: ^gallery/
+
       - id: mixed-line-ending
+        name: Fix line endings
         args: [--fix=lf]
-        exclude: &vendored |-
+        # Verbatim copies of external documents and generated files:
+        # reformatting them makes `bun run nuvio:check` diff our own whitespace
+        # forever, and every regeneration a diff.
+        exclude: &generated |-
           (?x)^(
             src/lib/nuvio/nuvio-public-api\.snapshot\.md|
             introdb-openapi\.yaml|
-            \.agents/
+            \.agents/|
+            CHANGELOG\.md|
+            bun\.lock
           )
+
       - id: end-of-file-fixer
-        # Verbatim copies of external documents: reformatting them makes
-        # `bun run nuvio:check` diff our own whitespace forever.
-        exclude: *vendored
+        name: Fix end of files
+        exclude: *generated
+
       - id: trailing-whitespace
+        name: Fix trailing whitespaces
         args: [--markdown-linebreak-ext=md]
-        exclude: *vendored
+        exclude: *generated
 
   # semantic-release computes the next version from the commit messages, so a
   # malformed subject silently costs a release rather than failing loudly.
@@ -38,29 +54,41 @@ repos:
     rev: v4.4.0
     hooks:
       - id: conventional-pre-commit
+        name: Ensure conventional commits
         stages: [commit-msg]
 
-  # Secrets are introduced at commit time, which is exactly where this runs.
-  # Note it scans the *staged* diff, so it is a no-op under `--all-files` in
-  # CI : GitHub's own push protection is the second line, not this hook.
+  # Scans the *staged* diff, so it is a no-op under `--all-files` in CI.
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.30.1
     hooks:
       - id: gitleaks
+        name: Look for hardcoded secrets
 
   - repo: https://github.com/crate-ci/typos
-    rev: v1.50.1
+    rev: v1.50.2
     hooks:
       - id: typos
-        # Report, do not rewrite. The upstream hook defaults to
-        # --write-changes, and an unattended "fix" to an identifier is worse
-        # than the typo it corrects. Project vocabulary lives in `_typos.toml`.
+        name: Look for typos
+        # Report, do not rewrite: the upstream default is --write-changes.
+        # Project vocabulary lives in `_typos.toml`.
         args: [--force-exclude]
 
   - repo: https://github.com/rhysd/actionlint
     rev: v1.7.12
     hooks:
       - id: actionlint
+        name: Lint GitHub Actions
+
+  - repo: local
+    hooks:
+      - id: pinact
+        name: Pin GitHub Actions
+        entry: pinact run
+        language: golang
+        language_version: 1.27.1
+        additional_dependencies:
+          [github.com/suzuki-shunsuke/pinact/v5/cmd/pinact@v5.0.0]
+        files: ^\.github/workflows/.*\.ya?ml$
 
   # The Docker image, not the system binary: CI runners have a daemon but no
   # hadolint on PATH. Rule exemptions and their reasons are in `.hadolint.yaml`.
@@ -68,103 +96,104 @@ repos:
     rev: v2.15.1
     hooks:
       - id: hadolint-docker
+        name: Lint Docker
 
+  # Binaries straight from node_modules/.bin: `bunx` re-resolves the package on
+  # every invocation, which is most of what made the old hooks slow.
   - repo: local
     hooks:
       # Runs first: nuvio-public-api.json is generated from the committed prose
-      # snapshot, which may itself be part of this commit. Regenerating here
-      # means a stale JSON is fixed in place rather than reported by CI later.
-      # `nuvio:check` is deliberately not a hook : it fetches the live upstream
-      # page, so it belongs in CI, not in front of every commit.
+      # snapshot, which may itself be part of this commit. `nuvio:check` is not a
+      # hook : it fetches the live upstream page, so it belongs in CI.
       - id: nuvio-spec
-        name: regenerate the Nuvio OpenAPI spec
+        name: Regenerate the Nuvio OpenAPI spec
         entry: bun run nuvio:spec
         language: system
         pass_filenames: false
         files: ^(src/lib/nuvio/nuvio-public-api\.snapshot\.md$|scripts/build-nuvio-spec\.ts$|scripts/nuvio-spec/)
 
       - id: biome
-        name: biome check --write --unsafe
-        entry: bunx biome check --write --unsafe --no-errors-on-unmatched
+        name: Lint, format and sort imports (Biome)
+        entry:
+          node_modules/.bin/biome check --write --unsafe
+          --no-errors-on-unmatched --files-ignore-unknown=true
         language: system
+        require_serial: true
         files: \.(ts|tsx|js|jsx|mjs|cjs|json|jsonc|css|svelte|html)$
 
-      - id: prettier-md
-        name: prettier (markdown, yaml)
-        entry: bunx prettier --log-level warn --write
+      - id: format-md
+        name: Formatting (Markdown, YAML)
+        entry: node_modules/.bin/prettier --log-level warn --write
         language: system
         types_or: [markdown, yaml]
 
       - id: markdownlint
-        name: markdownlint-cli2 --fix
-        entry: bunx markdownlint-cli2 --fix
+        name: Markdown lint
+        entry: node_modules/.bin/markdownlint-cli2 --fix
         language: system
         types: [markdown]
 
-      # tailwint discards explicit file arguments (verified: any path/glob form
-      # reports "0 files scanned"), so it always scans the whole repo. Only the
-      # decision to run it at all is staged-scoped.
-      - id: tailwint
-        name: tailwint --fix
-        entry: bunx tailwint --fix
+      # tailwint discards explicit file arguments (any path/glob form reports
+      # "0 files scanned"), so it always scans the whole repo. Only the decision
+      # to run it at all is staged-scoped.
+      - id: lint-tailwind
+        name: Lint (Tailwind)
+        entry: node_modules/.bin/tailwint --fix
         language: system
         pass_filenames: false
         files: \.(svelte|html|css)$
 
-      # A cheap unit suite (432 tests, ~1s) is worth running before the commit
-      # rather than after the push.
-      - id: test-unit
-        name: vitest run
-        entry: bun run test:unit
+      - id: lockfile-in-sync
+        name: Make sure bun.lock matches package.json
+        entry: bun install --frozen-lockfile --dry-run
         language: system
         pass_filenames: false
-        files: ^(src/|scripts/|vitest\.config\.ts$)
+        files: ^(package\.json|bun\.lock)$
 
-      # Type checks last, after the fixers have had their turn. svelte-check is
-      # whole-project by nature (a change in one file can break the types of a
-      # file that imports it), so the staged paths only decide whether it is
-      # worth running at all, never what gets checked.
+      # Whole-project by nature (a change in one file can break the types of a
+      # file that imports it), so the paths only decide whether it runs at all.
       - id: check
-        name: svelte-check
+        name: Type check
         entry: bun run check
         language: system
         pass_filenames: false
+        stages: [pre-push]
         files: ^(src/|e2e/|scripts/|vite\.config\.ts$|tsconfig\.json$|package\.json$)
 
-  # The CLAUDE.md conventions no linter knows about. Each of these is at zero
-  # occurrences today, so they are guards against regression, not a cleanup
-  # backlog.
+      - id: test-unit
+        name: Unit tests
+        entry: bun run test:unit
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
+        files: ^(src/|scripts/|vitest\.config\.ts$)
+
+  # The CLAUDE.md conventions no linter knows about. Each is at zero occurrences
+  # today: guards against regression, not a cleanup backlog.
   - repo: local
     hooks:
       - id: no-thrown-redirect
-        name: "redirect() / error() throw on their own : call them bare"
+        name: "Make sure redirect() / error() are called bare, not thrown"
         language: pygrep
         entry: \bthrow\s+(redirect|error)\s*\(
         files: \.(ts|svelte)$
 
       - id: no-dollar-lib
-        name: "SvelteKit 3 dropped $lib : import through #lib/"
+        name: "Look for $lib imports (SvelteKit 3 uses #lib/)"
         language: pygrep
         entry: |-
           ["']\$lib[/"']
         files: \.(ts|svelte)$
 
       - id: lib-imports-end-js
-        name: "#lib/... specifiers end .js, not .ts"
+        name: "Make sure #lib/... specifiers end .js"
         language: pygrep
         entry: |-
           ["']#lib/[^"']*\.ts["']
         files: \.(ts|svelte)$
 
       - id: internal-links-resolve
-        name: "internal links go through resolve() from $app/paths"
+        name: "Make sure all paths are resolved"
         language: pygrep
         entry: href="/
         files: \.svelte$
-
-      - id: lockfile-in-sync
-        name: bun.lock matches package.json
-        entry: bun install --frozen-lockfile --dry-run
-        language: system
-        pass_filenames: false
-        files: ^(package\.json|bun\.lock)$

@@ -9,9 +9,9 @@ jobs:
     name: Unit
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: oven-sh/setup-bun@v2
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: latest
 
@@ -29,9 +29,9 @@ jobs:
       NUVIO_TEST_EMAIL: ${{ secrets.NUVIO_TEST_EMAIL }}
       NUVIO_TEST_PASSWORD: ${{ secrets.NUVIO_TEST_PASSWORD }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: oven-sh/setup-bun@v2
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: latest
 
@@ -45,7 +45,7 @@ jobs:
       - name: Run e2e
         run: bun run test:e2e
 
-      - uses: orochibraru/upload-artifact@v8
+      - uses: orochibraru/upload-artifact@aeca548ce375fd719f0400e020a3ad90509632bc # v8.0.1
         if: failure()
         with:
           name: playwright-report
