@@ -42,8 +42,9 @@ Then open <http://localhost:3000>.
 
 | Tag      | What it is                                             |
 | -------- | ------------------------------------------------------ |
-| `latest` | The most recent release built from `main`              |
-| `vX.Y.Z` | A specific release, computed by semantic-release       |
+| `latest` | The most recent stable release                         |
+| `vX.Y.Z` | A specific stable release                              |
+| `canary` | The latest build of `main`, ahead of the next release  |
 | `pr-NNN` | A pull request build, for trying a change before merge |
 
 Pin a `vX.Y.Z` tag if you want an upgrade to be a decision rather than a

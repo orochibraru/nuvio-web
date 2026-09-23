@@ -1,9 +1,14 @@
 name: Pull Request
 on:
   pull_request:
+  # releaser opens the release PR with github.token, which triggers no
+  # pull_request run; its deploy-key pushes to this branch do, and the checks
+  # they report on the head commit count for the PR.
+  push:
+    branches: [releaser/release]
 
 concurrency:
-  group: pull-request-${{ github.event.pull_request.number }}
+  group: pull-request-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 env:
@@ -16,18 +21,50 @@ permissions:
   packages: write
 
 jobs:
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.diff.outputs.code }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      # The release PR only bumps CHANGELOG.md and package.json's version on
+      # top of a main that Publish already built and tested.
+      - name: Skip a release-bump-only release PR
+        id: diff
+        env:
+          REF: ${{ github.head_ref || github.ref_name }}
+        run: |
+          set -euo pipefail
+          echo "code=true" >> "$GITHUB_OUTPUT"
+          [ "$REF" = "releaser/release" ] || exit 0
+          base="$(git merge-base HEAD origin/main)"
+          drift="$(git diff --name-only "$base" HEAD -- . ':(exclude)CHANGELOG.md' ':(exclude)package.json')"
+          if [ -z "$drift" ] && [ "$(git show "$base:package.json" | jq -S 'del(.version)')" = "$(jq -S 'del(.version)' package.json)" ]; then
+            echo "Release PR: only CHANGELOG.md and package.json's version change, nothing to rebuild."
+            echo "code=false" >> "$GITHUB_OUTPUT"
+          fi
+
   code_quality:
     name: Code Quality
+    needs: [changes]
+    if: needs.changes.outputs.code == 'true'
     uses: ./.github/workflows/code_quality.yml
 
   tests:
     name: Tests
+    needs: [changes]
+    if: needs.changes.outputs.code == 'true'
     uses: ./.github/workflows/test.yml
     secrets: inherit
 
   build:
     name: Docker Build (App)
     needs: [code_quality, tests]
+    if: github.event_name == 'pull_request'
     uses: ./.github/workflows/docker.yml
     with:
       image_tag: pr-${{ github.event.pull_request.number }}
@@ -41,12 +78,12 @@ jobs:
   gate:
     name: CI Gate
     if: always()
-    needs: [code_quality, tests, build]
+    needs: [changes, code_quality, tests, build]
     runs-on: ubuntu-latest
     steps:
       - name: Check results
         run: |
-          results=("${{ needs.code_quality.result }}" "${{ needs.tests.result }}" "${{ needs.build.result }}")
+          results=("${{ needs.changes.result }}" "${{ needs.code_quality.result }}" "${{ needs.tests.result }}" "${{ needs.build.result }}")
           for result in "${results[@]}"; do
             if [[ "$result" == "failure" || "$result" == "cancelled" ]]; then
               echo "::error::One or more jobs failed or were cancelled"

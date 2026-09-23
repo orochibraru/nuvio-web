@@ -3,6 +3,11 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
+      - ".agents/**"
+      - ".claude/**"
 
 concurrency:
   group: publish
@@ -15,62 +20,138 @@ env:
 
 permissions:
   contents: read
-  packages: write
 
+# Every push to main ships a canary: images `:<sha>` + `:canary` and a GitHub
+# prerelease, then releaser opens or updates the `chore(release): X.Y.Z` PR.
+# Merging that PR promotes the last canary's images to `:vX.Y.Z` + `:latest`
+# and tags the release, without rebuilding.
+#
+# releaser pushes the release branch and tags over RELEASE_DEPLOY_KEY (a deploy
+# key with write access): pushes made with github.token trigger no workflow, so
+# the release PR would never get its "CI Gate" check.
 jobs:
+  resolve:
+    name: Resolve Merged PR
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      checks: read
+    outputs:
+      pr: ${{ steps.resolve.outputs.pr }}
+      promote: ${{ steps.resolve.outputs.promote }}
+      release: ${{ steps.kind.outputs.release }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Tell a merged release PR from a canary push
+        id: kind
+        run: |
+          subject="$(git log -1 --format=%s)"
+          if [[ "$subject" =~ ^chore\(release\):\ [0-9]+\.[0-9]+\.[0-9]+(\ \(#[0-9]+\))?$ ]]; then
+            echo "Merged release PR ($subject): releasing the canary instead of building a new one."
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Find the PR and whether its image can be promoted
+        id: resolve
+        if: steps.kind.outputs.release == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          echo "promote=false" >> "$GITHUB_OUTPUT"
+
+          pr="$(gh api "repos/$REPO/commits/$SHA/pulls" --jq '[.[] | select(.merged_at != null)][0].number // empty')"
+          echo "pr=$pr" >> "$GITHUB_OUTPUT"
+          if [ -z "$pr" ]; then
+            echo "Direct push, no PR to promote from: building from scratch."
+            exit 0
+          fi
+
+          head="$(gh api "repos/$REPO/pulls/$pr" --jq '.head.sha')"
+          git fetch --quiet origin "refs/pull/$pr/head"
+          drift="$(git diff --name-only "$head" "$SHA" -- . ':(exclude)CHANGELOG.md' ':(exclude)package.json')"
+          if [ -n "$drift" ] || [ "$(git show "$head:package.json" | jq -S 'del(.version)')" != "$(git show "$SHA:package.json" | jq -S 'del(.version)')" ]; then
+            echo "PR #$pr differs from this commit beyond a release bump, so its image doesn't match: building from scratch."
+            echo "$drift"
+            exit 0
+          fi
+
+          gate="$(gh api "repos/$REPO/commits/$head/check-runs?check_name=CI%20Gate" --jq '[.check_runs[] | select(.conclusion == "success")] | length')"
+          if [ "$gate" = "0" ]; then
+            echo "CI Gate never passed on PR #$pr's head $head: building from scratch."
+            exit 0
+          fi
+
+          if ! docker buildx imagetools inspect "docker.io/orochibraru/nuvio-web:pr-$pr" > /dev/null 2>&1; then
+            echo "docker.io/orochibraru/nuvio-web:pr-$pr doesn't exist: building from scratch."
+            exit 0
+          fi
+
+          echo "Promoting PR #$pr's already-tested image instead of rebuilding."
+          echo "promote=true" >> "$GITHUB_OUTPUT"
+
   code_quality:
     name: Code Quality
+    needs: [resolve]
+    if:
+      needs.resolve.outputs.release == 'false' && needs.resolve.outputs.promote
+      != 'true'
     uses: ./.github/workflows/code_quality.yml
 
   tests:
     name: Tests
+    needs: [resolve]
+    if:
+      needs.resolve.outputs.release == 'false' && needs.resolve.outputs.promote
+      != 'true'
     uses: ./.github/workflows/test.yml
     secrets: inherit
 
   version:
-    name: Compute Release Version
+    name: Compute Canary Version
+    needs: [resolve]
+    if: needs.resolve.outputs.release == 'false'
     runs-on: ubuntu-latest
     outputs:
-      tag: ${{ steps.compute.outputs.tag }}
       version: ${{ steps.compute.outputs.version }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
-      - name: Setup bun
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-
-      - name: Setup Node.js for semantic-release
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
-        with:
-          node-version: 24
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile --ignore-scripts
-
       - name: Dry-run release to compute the next version
+        id: releaser
+        uses: orochibraru/releaser@8f478365f81c3cb21134515bb4fbc9abc8eb34d9 # v1.5.0
+        with:
+          branch: main
+          rules: breaking=patch,feat=patch,docs=patch,refactor=patch
+          dry-run: "true"
+
+      - name: Resolve canary version
         id: compute
+        env:
+          VERSION: ${{ steps.releaser.outputs.version }}
+          RUN: ${{ github.run_number }}
         run: |
-          output="$(bun run semantic-release --dry-run 2>&1)" || true
-          echo "$output"
-          version="$(echo "$output" | grep -oE 'release version is [0-9]+\.[0-9]+\.[0-9]+' | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | tail -n1)"
-          if [ -n "$version" ]; then
-            echo "This push will release v$version, tagging images accordingly."
-            echo "tag=v$version" >> "$GITHUB_OUTPUT"
-            echo "version=$version" >> "$GITHUB_OUTPUT"
-          else
-            echo "No release-worthy commits, falling back to the commit SHA for image tags"
-            echo "tag=${{ github.sha }}" >> "$GITHUB_OUTPUT"
-            echo "version=" >> "$GITHUB_OUTPUT"
-          fi
+          base="${VERSION:-$(jq -r .version package.json)}"
+          echo "This push publishes canary $base-canary.$RUN."
+          echo "version=$base-canary.$RUN" >> "$GITHUB_OUTPUT"
 
   build-app:
     name: Docker Build (App)
     uses: ./.github/workflows/docker.yml
     needs: [code_quality, tests, version]
     with:
-      image_tag: ${{ needs.version.outputs.tag }}
+      image_tag: ${{ github.sha }}
+      extra_tag: canary
       image_name: orochibraru/nuvio-web
       registry_name: docker.io
       registry_username: orochibraru
@@ -78,38 +159,163 @@ jobs:
     secrets:
       registry_password: ${{ secrets.DOCKER_REGISTRY_PASSWORD }}
 
-  release:
-    name: Release
+  promote:
+    name: Promote pr-${{ needs.resolve.outputs.pr }} to ${{ github.sha }}
+    needs: [resolve, version]
+    if: needs.resolve.outputs.promote == 'true'
     runs-on: ubuntu-latest
-    needs: [build-app]
+    steps:
+      - name: Login to Container registry
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: docker.io
+          username: orochibraru
+          password: ${{ secrets.DOCKER_REGISTRY_PASSWORD }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Tag the tested image
+        env:
+          PR: ${{ needs.resolve.outputs.pr }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          app=docker.io/orochibraru/nuvio-web
+          docker buildx imagetools create -t "$app:$SHA" -t "$app:canary" "$app:pr-$PR"
+          docker buildx imagetools inspect "$app:$SHA"
+
+  canary:
+    name: Canary Release
+    runs-on: ubuntu-latest
+    needs: [version, build-app, promote]
+    if:
+      ${{ !cancelled() && !contains(needs.*.result, 'failure') &&
+      (needs.promote.result == 'success' || needs.build-app.result == 'success')
+      }}
     permissions:
       contents: write
-      issues: write
       pull-requests: write
     steps:
-      # RELEASE_TOKEN (a fine-grained PAT scoped to just this repo, Contents +
-      # Issues + Pull requests: write) is required, not the default
-      # GITHUB_TOKEN: the `main` ruleset blocks direct pushes from anyone but
-      # a repo admin, and the default token's actor (github-actions[bot]) isn't
-      # on the bypass list. Used both for git's push auth here and as GH_TOKEN
-      # below for @semantic-release/github's API calls.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-          token: ${{ secrets.RELEASE_TOKEN }}
+          ssh-key: ${{ secrets.RELEASE_DEPLOY_KEY }}
 
       - name: Setup bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
 
-      - name: Setup Node.js for semantic-release
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: 24
-
       - name: Install dependencies
         run: bun install --frozen-lockfile --ignore-scripts
 
-      - name: Release
+      - name: Publish the canary prerelease
         env:
-          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
-        run: bun run release
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.sha }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          gh release view "v$VERSION" >/dev/null 2>&1 || gh release create "v$VERSION" --prerelease --target "$SHA" \
+            --title "Canary $VERSION" \
+            --notes "Canary build of $SHA, image \`orochibraru/nuvio-web:canary\`. Not a stable release: merge the open chore(release) PR to release it."
+          gh release list --limit 100 --json tagName,isPrerelease --jq '[.[] | select(.isPrerelease)] | .[5:] | .[].tagName' \
+            | xargs -r -n1 gh release delete --cleanup-tag --yes
+
+      - name: Open or update the release PR
+        uses: orochibraru/releaser@8f478365f81c3cb21134515bb4fbc9abc8eb34d9 # v1.5.0
+        with:
+          branch: main
+          rules: breaking=patch,feat=patch,docs=patch,refactor=patch
+          prepare: bunx prettier --write CHANGELOG.md
+          release-pr: "true"
+
+  stable:
+    name: Resolve Stable Release
+    needs: [resolve]
+    if: needs.resolve.outputs.release == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.canary.outputs.sha }}
+      tag: ${{ steps.releaser.outputs.tag }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Check the canary is what this release ships
+        id: canary
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="$(gh release list --exclude-drafts --limit 100 --json tagName,isPrerelease --jq '[.[] | select(.isPrerelease)][0].tagName')"
+          git fetch --quiet --force origin "refs/tags/$tag:refs/tags/$tag"
+          sha="$(git rev-parse "$tag^{commit}")"
+          drift="$(git diff --name-only "$sha" HEAD -- . ':(glob,exclude)docs/**' ':(glob,exclude)**/*.md' ':(glob,exclude).agents/**' ':(glob,exclude).claude/**' ':(exclude)package.json')"
+          if [ -n "$drift" ] || [ "$(git show "$sha:package.json" | jq -S 'del(.version)')" != "$(jq -S 'del(.version)' package.json)" ]; then
+            echo "::error::The release PR carries changes the canary ($sha) wasn't built from. Let Publish finish on main, then re-run this workflow."
+            echo "$drift"
+            exit 1
+          fi
+          echo "Releasing canary $sha."
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+      - name: Dry-run release to read the version
+        id: releaser
+        uses: orochibraru/releaser@8f478365f81c3cb21134515bb4fbc9abc8eb34d9 # v1.5.0
+        with:
+          branch: main
+          rules: breaking=patch,feat=patch,docs=patch,refactor=patch
+          release-pr: "true"
+          dry-run: "true"
+
+      - name: Fail without a version
+        if: steps.releaser.outputs.version == ''
+        run: |
+          echo "::error::releaser found no release to cut from this commit."
+          exit 1
+
+  stable-images:
+    name: Promote Canary Image to ${{ needs.stable.outputs.tag }}
+    needs: [stable]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Login to Container registry
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: docker.io
+          username: orochibraru
+          password: ${{ secrets.DOCKER_REGISTRY_PASSWORD }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Tag the canary image
+        env:
+          SHA: ${{ needs.stable.outputs.sha }}
+          TAG: ${{ needs.stable.outputs.tag }}
+        run: |
+          set -euo pipefail
+          app=docker.io/orochibraru/nuvio-web
+          docker buildx imagetools create -t "$app:$TAG" -t "$app:latest" -t "$app:canary" "$app:$SHA"
+          docker buildx imagetools inspect "$app:$TAG"
+
+  stable-release:
+    name: Release ${{ needs.stable.outputs.tag }}
+    needs: [stable, stable-images]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          ssh-key: ${{ secrets.RELEASE_DEPLOY_KEY }}
+
+      - name: Tag the release commit and publish the release
+        uses: orochibraru/releaser@8f478365f81c3cb21134515bb4fbc9abc8eb34d9 # v1.5.0
+        with:
+          branch: main
+          rules: breaking=patch,feat=patch,docs=patch,refactor=patch
+          release-pr: "true"

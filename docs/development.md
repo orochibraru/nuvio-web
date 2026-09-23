@@ -16,8 +16,8 @@ bun run dev          # dev server on :5173
 
 Installing dependencies runs `prek install`, which wires two shims: `pre-commit`
 runs the fixers and checks, and `commit-msg` enforces Conventional Commits.
-semantic-release computes the next version from commit subjects, so a malformed
-one silently costs a release rather than failing loudly.
+releaser computes the next version from commit subjects, so a malformed one
+silently costs a release rather than failing loudly.
 
 If `prek` is not installed the `prepare` script skips hook installation rather
 than failing the install — you just do not get the hooks.
@@ -107,7 +107,22 @@ value inlined.
 
 ## Releases
 
-semantic-release, driven by commit subjects. A `fix:` bumps the patch, a `feat:`
-the minor, a `!` or `BREAKING CHANGE:` the major. The changelog, the tag, the
-GitHub release and the Docker Hub tags all follow from that, which is why the
-`commit-msg` hook exists.
+[`orochibraru/releaser`](https://github.com/orochibraru/releaser), driven by
+commit subjects. `fix`, `feat`, `perf`, `revert`, `refactor`, `docs` and
+breaking changes all bump the patch; other types don't release. `main` is the
+canary channel:
+
+- Every push to `main` builds the image (or re-tags the merged PR's already
+  tested `pr-NNN` one), pushes it as `:canary`, and publishes an
+  `X.Y.Z-canary.N` GitHub prerelease.
+- The same run opens or updates a `chore(release): X.Y.Z` pull request carrying
+  the version bump and the changelog.
+- Merging that PR releases the last canary as is: its image is re-tagged
+  `:vX.Y.Z` and `:latest`, nothing is rebuilt, and releaser tags the release
+  commit and publishes the GitHub release.
+
+releaser pushes the release branch and tags over a deploy key
+(`RELEASE_DEPLOY_KEY` secret, write access). A push made with `github.token`
+triggers no workflow, so the release PR would never get its required `CI Gate`
+check. To rotate it: `ssh-keygen -t ed25519 -N "" -f release`, add `release.pub`
+as a deploy key with write access, store `release` as the secret.

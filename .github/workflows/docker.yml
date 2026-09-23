@@ -13,6 +13,13 @@ on:
         description:
           "Tag to apply to the built image, e.g. pr-123 or a commit SHA"
         type: string
+      extra_tag:
+        required: false
+        default: ""
+        description:
+          "A second, moving tag applied alongside image_tag, e.g. canary. Empty
+          applies none"
+        type: string
       registry_name:
         required: true
         description:
@@ -62,7 +69,7 @@ jobs:
           images: ${{ env.IMAGE }}
           tags: |
             type=raw,value=${{ inputs.image_tag }}
-            type=raw,value=latest,enable=${{ github.event_name != 'pull_request' }}
+            type=raw,value=${{ inputs.extra_tag }},enable=${{ inputs.extra_tag != '' }}
 
       - name: Rename meta bake definition file
         run: |

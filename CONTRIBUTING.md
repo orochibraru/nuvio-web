@@ -31,9 +31,9 @@ linters and formatters run before you commit. This reduces CI minutes spent on
 formatting and prevents commits such as "chore: fix lint".
 
 Three shims are installed: `pre-commit` runs the fast fixers and checks,
-`commit-msg` enforces Conventional Commits (semantic-release computes the next
-version from your commit subjects, so a malformed one silently costs a release
-rather than failing loudly), and `pre-push` runs the slow whole-project ones
+`commit-msg` enforces Conventional Commits (releaser computes the next version
+from your commit subjects, so a malformed one silently costs a release rather
+than failing loudly), and `pre-push` runs the slow whole-project ones
 (`svelte-check`, the unit suite).
 
 If `prek` is not installed the `prepare` script skips hook installation rather
