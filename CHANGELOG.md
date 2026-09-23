@@ -1,3 +1,90 @@
+# Changelog
+
+## [1.0.14](https://github.com/orochibraru/nuvio-web/compare/v1.0.13...v1.0.14) (2026-09-23)
+
+### ⚠ BREAKING CHANGES
+
+* everyone is signed out once. Sessions live in the data
+directory: mount a volume on /app/data.
+
+* perf(addons): stop waiting on slow addons, skip wrong-title metas
+
+- getMeta returns at the first provider in registry order instead of
+  waiting for every one, and skips a meta whose IMDb / TMDB / Kitsu id
+  contradicts the requested title (the remake-instead-of-original case)
+- Manifest fan-out goes through pooledMap
+- Load failures are reason codes (timed out, HTTP status, invalid,
+  blocked, unreachable) instead of raw upstream messages
+- Drop the dead getStreams / homeRows / searchCatalogs remote queries
+
+* fix(playback): consistent progress, reliable resume, working episode links
+
+- Progress matches across URL ids, episode-derived ids and
+  season/episode, so the detail page, CTA and player agree with the
+  homepage; "mark unwatched" clears the player's rows too
+- playOrder drops unnumbered and duplicate episodes, fixing
+  "Continue S1E1" while on E2
+- Resume seeds from local progress and re-seeks when the position
+  arrives late; finished episodes start from the beginning; saves no
+  longer wait for the meta
+- The playback handoff no longer writes $state inside a $derived
+- The header shows "S1E2 · name" instead of the release filename
+- Episode cards are links; hls.js loads only for HLS sources; streamed()
+  resets on a new path only
+- Detail progress streams from the load; titleProgress and
+  playbackContext are gone
+
+* feat(sync)!: own user-data store with Nuvio mirroring and live updates
+
+Library, watch progress and history live in this instance's SQLite per
+user and profile, and are served from there. NuvioSync mirrors both ways
+in the background: every 5 minutes for active users, immediately on
+sign-in and app open, newer change wins, failed pushes back off. Nuvio
+being down never blocks the web app.
+
+Open tabs get every change over SSE (/api/events); the sync store
+applies it in order, catches up on a gap, and relaxes its poll from
+90 s to 10 min while connected.
+
+- The sync store persists and broadcasts only what changed, with a
+  batched markManyWatched
+- Stats read the local store; deleting a profile's data clears it here
+  after Nuvio
+- docs/sync.md documents source of truth, cadence and conflicts
+
+BREAKING CHANGE: user data lives in the data directory: mount and back
+up /app/data. Browsers rebuild their local cache once.
+
+* feat(i18n): translate the app into French, Spanish and German
+
+paraglide-js with English as the base locale and fr / es / de
+translations of every UI string, toasts, aria labels, page titles and
+the server messages that reach the UI. The locale comes from a cookie,
+then the language the server rendered, then the browser; a switch sits
+in Settings → Appearance. Dates, numbers and language names follow the
+active locale.
+
+- Registry and download failures carry codes the UI translates, so
+  cached or worker-made errors aren't stuck in one language
+- A parity test fails on any missing or mismatched message
+
+* docs: required data volume, i18n and sync conventions
+
+README and the install guide mount /app/data. CLAUDE.md records that
+this server is the source of truth for user data, that only
+NUVIO_TOKENS refreshes Nuvio tokens, and that UI copy goes through
+paraglide. TODO.md tracks what's left.
+
+* chore: docs ([0afe2c4](https://github.com/orochibraru/nuvio-web/commit/0afe2c41a50a2dcf1201fa09abd58e58ef08cd7d))
+
+### Features
+
+* own backend with live sync, i18n, and security hardening (#14) ([0afe2c4](https://github.com/orochibraru/nuvio-web/commit/0afe2c41a50a2dcf1201fa09abd58e58ef08cd7d))
+
+### Bug Fixes
+
+* remove forkpreloads ([78b7b4a](https://github.com/orochibraru/nuvio-web/commit/78b7b4a16aee6b14e25d2ab96135818a652bd28f))
+
 ## [1.0.13](https://github.com/orochibraru/nuvio-web/compare/v1.0.12...v1.0.13) (2026-09-21)
 
 ### Features
