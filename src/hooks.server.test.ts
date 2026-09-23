@@ -9,14 +9,13 @@ vi.mock("$app/env/private", () => ({
 
 // Declared inside `vi.hoisted` : a plain class would not exist yet when the
 // `vi.mock` factory below is hoisted above it.
-const { FakeApiError, nuvio, admin, session } = vi.hoisted(() => ({
+const { FakeApiError, admin, session, store } = vi.hoisted(() => ({
 	FakeApiError: class extends Error {},
-	nuvio: { refreshSession: vi.fn() },
+	store: { deleteAllForUser: vi.fn() },
 	admin: { canSignIn: vi.fn(() => true) },
 	session: {
 		stored: null as unknown,
 		read: vi.fn(),
-		write: vi.fn(),
 		clear: vi.fn(),
 		profileId: null as number | null,
 	},
@@ -24,11 +23,7 @@ const { FakeApiError, nuvio, admin, session } = vi.hoisted(() => ({
 
 vi.mock("#lib/nuvio/index.js", () => ({
 	NuvioApiError: FakeApiError,
-	NuvioClient: class {
-		refreshSession(token: string) {
-			return nuvio.refreshSession(token);
-		}
-	},
+	NuvioClient: class {},
 }));
 
 vi.mock("#lib/admin/admin-data.js", () => ({
@@ -37,7 +32,8 @@ vi.mock("#lib/admin/admin-data.js", () => ({
 
 import { DATABASE, LOGGER, SESSION } from "#lib/services/index.js";
 import { serverServices } from "#lib/services/server.js";
-import { handle, handleError } from "./hooks.server.js";
+import { SESSION_STORE } from "#lib/services/session-store.service.js";
+import { appHandle as handle, handleError } from "./hooks.server.js";
 
 // Swapping implementations is a `register` call now : no module mock, and the
 // scope the hook builds per request inherits these.
@@ -56,12 +52,12 @@ const database = { tryConnect: vi.fn(() => null as unknown) };
 serverServices
 	.register(LOGGER, () => logger as never)
 	.register(DATABASE, () => database as never)
+	.register(SESSION_STORE, () => store as never)
 	.register(
 		SESSION,
 		() =>
 			({
-				read: () => session.read(),
-				write: (value: unknown) => session.write(value),
+				read: async () => session.read(),
 				clear: () => session.clear(),
 				readProfileId: () => session.profileId,
 				createNuvioClient: () => ({ marker: "client" }),
@@ -74,7 +70,7 @@ function storedSession(over: Record<string, unknown> = {}) {
 		access_token: "a",
 		refresh_token: "r",
 		expires_at: Math.floor(Date.now() / 1000) + 3600,
-		user: { email: "someone@example.com" },
+		user: { id: "u1", email: "someone@example.com" },
 		...over,
 	};
 }
@@ -124,41 +120,23 @@ describe("handle", () => {
 		await handle({ event, resolve: ok } as never);
 
 		expect(event.locals.session).toEqual({
-			user: { email: "someone@example.com" },
+			user: { id: "u1", email: "someone@example.com" },
 		});
 		expect(event.locals.profileId).toBe(3);
-		expect(nuvio.refreshSession).not.toHaveBeenCalled();
 	});
 
-	it("refreshes an expired session and keeps the request signed in", async () => {
-		const expired = storedSession({ expires_at: 0 });
-		const refreshed = storedSession({ access_token: "new" });
-		session.read.mockReturnValue(expired);
-		session.write.mockReturnValue(refreshed);
+	it("goes signed-out for this request, keeping the session, when a refresh hits an upstream hiccup", async () => {
+		session.read.mockRejectedValue(new FakeApiError("503"));
 		const event = fakeEvent();
 
 		await handle({ event, resolve: ok } as never);
 
-		expect(nuvio.refreshSession).toHaveBeenCalledWith("r");
-		expect(event.locals.session).toEqual({
-			user: { email: "someone@example.com" },
-		});
-	});
-
-	it("clears the cookie when the upstream refuses the refresh", async () => {
-		session.read.mockReturnValue(storedSession({ expires_at: 0 }));
-		nuvio.refreshSession.mockRejectedValue(new FakeApiError("expired"));
-		const event = fakeEvent();
-
-		await handle({ event, resolve: ok } as never);
-
-		expect(session.clear).toHaveBeenCalled();
+		expect(session.clear).not.toHaveBeenCalled();
 		expect(event.locals.session).toBeNull();
 	});
 
-	it("rethrows a refresh failure that is not an API error", async () => {
-		session.read.mockReturnValue(storedSession({ expires_at: 0 }));
-		nuvio.refreshSession.mockRejectedValue(new TypeError("network down"));
+	it("rethrows a session failure that is not an API error", async () => {
+		session.read.mockRejectedValue(new TypeError("network down"));
 
 		await expect(
 			handle({ event: fakeEvent(), resolve: ok } as never),
@@ -174,6 +152,7 @@ describe("handle", () => {
 		await handle({ event, resolve: ok } as never);
 
 		expect(session.clear).toHaveBeenCalled();
+		expect(store.deleteAllForUser).toHaveBeenCalledWith("u1");
 		expect(event.locals.session).toBeNull();
 		expect(logger.warn).toHaveBeenCalledWith(
 			"Signed out an existing session: instance is locked",

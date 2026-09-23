@@ -35,16 +35,34 @@ CREATE TABLE IF NOT EXISTS sign_in_events (
 );
 
 CREATE INDEX IF NOT EXISTS sign_in_events_at ON sign_in_events (at);
+
+-- Signed-in sessions. The cookie carries only the signed id; the upstream
+-- tokens live here, AES-256-GCM encrypted (see session-store.service.ts), so a
+-- background job can refresh them without a request. Times are unix seconds.
+CREATE TABLE IF NOT EXISTS sessions (
+	id                 TEXT PRIMARY KEY,
+	user_id            TEXT NOT NULL,
+	email              TEXT,
+	user_json          TEXT NOT NULL,
+	access_token_enc   TEXT NOT NULL,
+	refresh_token_enc  TEXT NOT NULL,
+	expires_at         INTEGER NOT NULL,
+	created_at         INTEGER NOT NULL,
+	last_seen_at       INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS sessions_user_id ON sessions (user_id);
+CREATE INDEX IF NOT EXISTS sessions_last_seen_at ON sessions (last_seen_at);
 `;
 
 /**
- * The only server-owned state in the app. Everything else is proxied to
- * api.nuvio.tv and lives in a cookie, but the admin surface needs facts about
- *this* instance : who has signed in here, and whether it is locked to an
- * allowlist. Opens lazily, so constructing it never touches the disk.
+ * The server-owned state: the signed-in sessions (their upstream tokens), and
+ * the facts the admin surface needs about *this* instance : who has signed in
+ * here, and whether it is locked to an allowlist. Everything else is proxied to
+ * api.nuvio.tv. Opens lazily, so constructing it never touches the disk.
  *
  * @param dataDirectory `NUVIO_DATA_DIR`, the container's `/app/data` : mount a
- * volume there or the sign-in log resets with the container.
+ * volume there or every session and the sign-in log reset with the container.
  */
 export class DatabaseService implements DisposableService {
 	#connection: Database | null = null;
@@ -98,7 +116,7 @@ export class DatabaseService implements DisposableService {
 		} catch (error) {
 			this.#unavailableSince = Date.now();
 			this.logger.error(
-				`Admin database unavailable at ${this.directory}; sign-in metrics and the instance lock are disabled.`,
+				`Database unavailable at ${this.directory}; nobody can sign in, and sign-in metrics and the instance lock are disabled.`,
 				{ error: error instanceof Error ? error : "Unknown error" },
 			);
 			return null;

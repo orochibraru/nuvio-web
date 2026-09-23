@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import process from "node:process";
 import { defineConfig, devices } from "@playwright/test";
+import { E2E_SESSION_SECRET } from "./e2e/session-secret.ts";
 
 // Tests run against a *production* build (`bun run build && bun run start`),
 // not `vite dev` : the dev server's cold-start compile made CI flaky and timed
@@ -84,6 +85,8 @@ export default defineConfig({
 			// owns, so a run never touches a real `data/`.
 			NUVIO_ADMIN_EMAILS: fromEnvFile("NUVIO_TEST_EMAIL"),
 			NUVIO_DATA_DIR: "test-results/admin-data",
+			// Fixed session secret; `auth.ts` gets its cookie from /dev/e2e-session.
+			NUVIO_SESSION_SECRET: E2E_SESSION_SECRET,
 		},
 	},
 });

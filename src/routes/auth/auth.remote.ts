@@ -1,33 +1,13 @@
 import { invalid, redirect } from "@sveltejs/kit";
-import * as v from "valibot";
 import { canSignIn, recordSignIn } from "#lib/admin/admin-data.js";
+import { safeRedirectPath } from "#lib/core/url.js";
+import { signInSchema, signUpSchema } from "#lib/forms/schemas.js";
+import { m } from "#lib/i18n/index.js";
 import { NuvioApiError, NuvioClient } from "#lib/nuvio/index.js";
 import { ADMIN, DATABASE, LOGGER, SESSION } from "#lib/services/index.js";
+import { NUVIO_SYNC } from "#lib/userdata/tokens.js";
 import { resolve } from "$app/paths";
 import { form, getRequestEvent } from "$app/server";
-
-const email = v.pipe(
-	v.string(),
-	v.trim(),
-	v.nonEmpty("Enter your email address."),
-	v.email("Enter a valid email address."),
-);
-const redirectTo = v.optional(v.string(), "/");
-
-const signInSchema = v.object({
-	email,
-	password: v.pipe(v.string(), v.nonEmpty("Enter your password.")),
-	redirectTo,
-});
-
-const signUpSchema = v.object({
-	email,
-	password: v.pipe(
-		v.string(),
-		v.minLength(8, "Password must be at least 8 characters."),
-	),
-	redirectTo,
-});
 
 /**
  * The instance lock. Checked before the credentials reach Nuvio, so a locked
@@ -41,9 +21,7 @@ function assertAllowed(email: string): void {
 		return;
 	}
 	services.get(LOGGER).warn("Blocked sign-in: instance is locked", { email });
-	invalid(
-		"This server is invite-only. Ask the server admin to add your email address.",
-	);
+	invalid(m.auth_error_invite_only());
 }
 
 /**
@@ -66,9 +44,7 @@ function record(email: string, userId: string): void {
 }
 
 function safeTarget(value: string): string {
-	return value.startsWith("/") && !value.startsWith("//")
-		? value
-		: resolve("/(protected)/(app)");
+	return safeRedirectPath(value, resolve("/(protected)/(app)"));
 }
 
 export const signIn = form(signInSchema, async (data, issue) => {
@@ -81,6 +57,8 @@ export const signIn = form(signInSchema, async (data, issue) => {
 		});
 		locals.services.get(SESSION).write(session);
 		record(session.user.email ?? data.email, session.user.id);
+		// Pull what the Nuvio apps changed while this browser was away.
+		locals.services.get(NUVIO_SYNC).touch(session.user.id);
 	} catch (error) {
 		if (error instanceof NuvioApiError) {
 			if (
@@ -88,9 +66,9 @@ export const signIn = form(signInSchema, async (data, issue) => {
 				error.status === 401 ||
 				error.status === 403
 			) {
-				invalid(issue.password("Invalid email or password."));
+				invalid(issue.password(m.auth_error_invalid_credentials()));
 			}
-			invalid("Unable to sign in right now. Please try again.");
+			invalid(m.auth_error_sign_in_failed());
 		}
 		throw error;
 	}
@@ -110,13 +88,14 @@ export const signUp = form(signUpSchema, async (data, issue) => {
 		if (hasSession) {
 			locals.services.get(SESSION).write(session);
 			record(session.user.email ?? data.email, session.user.id);
+			locals.services.get(NUVIO_SYNC).touch(session.user.id);
 		}
 	} catch (error) {
 		if (error instanceof NuvioApiError) {
 			if (error.status === 409 || error.status === 422) {
-				invalid(issue.email("An account with this email already exists."));
+				invalid(issue.email(m.auth_error_email_taken()));
 			}
-			invalid("Unable to create your account right now. Please try again.");
+			invalid(m.auth_error_sign_up_failed());
 		}
 		throw error;
 	}

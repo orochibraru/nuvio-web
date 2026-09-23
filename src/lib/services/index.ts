@@ -1,7 +1,9 @@
-// Deliberately does not re-export `./server.ts` (reads `$app/env/private`) or
-// `./database.service.ts` (imports `bun:sqlite` / `node:fs`): neither may reach
-// the browser bundle, and client components import this barrel. Import those
-// two directly from the server. The `DATABASE` token below is safe : it only
+// Deliberately does not re-export `./server.ts` (reads `$app/env/private`),
+// `./database.service.ts` (imports `bun:sqlite` / `node:fs`),
+// `./session.service.ts` (`node:crypto`) or `./session-secret.ts` (`node:fs`):
+// none may reach
+// the browser bundle, and client components may import this barrel. Import
+// those directly from the server. The `DATABASE` token below is safe : it only
 // references `DatabaseService` as a type, which is erased on emit.
 
 export { AdminService } from "./admin.service.ts";
@@ -27,5 +29,4 @@ export {
 } from "./logger.service.ts";
 export { PeopleService, type Person } from "./people.service.ts";
 export { RequestBudget } from "./request-budget.service.ts";
-export { SessionService, type StoredSession } from "./session.service.ts";
 export * from "./tokens.ts";

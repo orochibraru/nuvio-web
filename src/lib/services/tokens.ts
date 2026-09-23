@@ -15,6 +15,19 @@ import type { SessionService } from "./session.service.ts";
 export const LOGGER = serviceToken<Logger>("Logger");
 export const DATABASE = serviceToken<DatabaseService>("DatabaseService");
 export const ADMIN = serviceToken<AdminService>("AdminService");
+/** The key `SessionService` signs the session cookie with. */
+export const SESSION_SECRET = serviceToken<string>("SessionSecret");
+
+/**
+ * A valid Nuvio access token for a user, outside any request: the background
+ * Nuvio sync uses it. The session store implements it and owns refreshing, so
+ * requests and the sync never race on a rotating refresh token. `null` when
+ * the user has no live session on this instance.
+ */
+export interface NuvioTokenSource {
+	accessTokenFor: (userId: string) => Promise<string | null>;
+}
+export const NUVIO_TOKENS = serviceToken<NuvioTokenSource>("NuvioTokenSource");
 
 // -- Server, per request ------------------------------------------------------
 /** The request's cookie jar, provided into each request scope. */

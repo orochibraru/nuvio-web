@@ -1,18 +1,24 @@
 import type { RequestEvent } from "@sveltejs/kit";
-import type { Handle, HandleServerError } from "@sveltejs/kit/hooks";
+import {
+	type Handle,
+	type HandleServerError,
+	sequence,
+} from "@sveltejs/kit/hooks";
 import { canSignIn } from "#lib/admin/admin-data.js";
 import { makeErrorId } from "#lib/core/error-id.js";
-import { NuvioApiError, NuvioClient } from "#lib/nuvio/index.js";
+import { m } from "#lib/i18n/index.js";
+import { i18nHandle } from "#lib/i18n/server.js";
+import { NuvioApiError } from "#lib/nuvio/index.js";
 import {
 	ADMIN,
 	type Container,
 	DATABASE,
 	LOGGER,
 	SESSION,
-	SessionService,
-	type StoredSession,
 } from "#lib/services/index.js";
 import { createRequestScope, serverServices } from "#lib/services/server.js";
+import type { StoredSession } from "#lib/services/session.service.js";
+import { SESSION_STORE } from "#lib/services/session-store.service.js";
 import { dev } from "$app/env";
 
 /**
@@ -94,7 +100,7 @@ export const handleError: HandleServerError = ({ event, error, kind }) => {
 		// non-POJOs" 500.
 		return {
 			errorId,
-			message: dev ? describe(error) : "An unknown error occurred.",
+			message: dev ? describe(error) : m.error_unknown(),
 		};
 	}
 
@@ -140,8 +146,9 @@ function logAccess(
 
 /**
  * Locking the instance has to reach sessions that already exist, or the lock
- * does nothing for 30 days : the cookie outlives the decision. Checked per
- * request against the local database, which is a single indexed lookup.
+ * does nothing for 30 days : the session outlives the decision. Checked per
+ * request against the local database, which is a single indexed lookup. Drops
+ * every session the user has here, so the background sync stops for them too.
  */
 function evictIfLocked(services: Container, stored: StoredSession): boolean {
 	const db = services.get(DATABASE).tryConnect();
@@ -153,30 +160,28 @@ function evictIfLocked(services: Container, stored: StoredSession): boolean {
 	services
 		.get(LOGGER)
 		.warn("Signed out an existing session: instance is locked", { email });
+	services.get(SESSION_STORE).deleteAllForUser(stored.user.id);
 	services.get(SESSION).clear();
 	return true;
 }
 
-export const handle: Handle = async ({ event, resolve }) => {
+export const appHandle: Handle = async ({ event, resolve }) => {
 	const startedAt = performance.now();
 	const services = createRequestScope(event);
 	event.locals.services = services;
 	const session = services.get(SESSION);
-	let stored = session.read();
-
-	if (stored && SessionService.isExpired(stored)) {
-		try {
-			const refreshed = await new NuvioClient({
-				fetch: event.fetch,
-			}).refreshSession(stored.refresh_token);
-			stored = session.write(refreshed);
-		} catch (error) {
-			if (!(error instanceof NuvioApiError)) {
-				throw error;
-			}
-			session.clear();
-			stored = null;
+	let stored: StoredSession | null;
+	try {
+		// Refreshes through the session store when due : the one refresh path
+		// the background sync shares, so the two never race on a rotated token.
+		stored = await session.read();
+	} catch (error) {
+		if (!(error instanceof NuvioApiError)) {
+			throw error;
 		}
+		// Upstream hiccup (5xx, 429) mid-refresh: this request goes signed-out,
+		// the session is kept, and the next request retries.
+		stored = null;
 	}
 
 	if (stored && evictIfLocked(services, stored)) {
@@ -200,3 +205,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 		services.dispose();
 	}
 };
+
+// Locale first, so everything below (and the render) runs in the visitor's
+// language.
+export const handle = sequence(i18nHandle, appHandle);

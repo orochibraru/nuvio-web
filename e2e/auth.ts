@@ -53,23 +53,25 @@ export async function signIn(
 
 	const data = await getToken();
 
-	const session = encodeURIComponent(
-		JSON.stringify({
+	// The server keeps the tokens and hands back a cookie holding only the
+	// session id; going through the context's own request API is what lands
+	// that cookie in the browser. The route exists only under `NUVIO_E2E`, so a
+	// server you started yourself on :3000 without it 404s here : stop it
+	// before a run.
+	const response = await context.request.post("/dev/e2e-session", {
+		data: {
 			access_token: data.access_token,
 			refresh_token: data.refresh_token,
-			expires_at: Math.floor(Date.now() / 1000) + data.expires_in,
+			// The grant is memoised: send what is left of it, not its original life.
+			expires_in: Math.max(0, Math.floor((tokenExpiresAt - Date.now()) / 1000)),
 			user: data.user,
-		}),
-	);
+		},
+	});
+	if (!response.ok()) {
+		throw new Error(`Could not start an e2e session: ${response.status()}`);
+	}
 
 	await context.addCookies([
-		{
-			name: "nuvio_session",
-			value: session,
-			domain: "localhost",
-			path: "/",
-			httpOnly: true,
-		},
 		{
 			name: "nuvio_profile",
 			value: String(profileId),

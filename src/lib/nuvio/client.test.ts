@@ -49,3 +49,19 @@ describe("NuvioClient request timeout", () => {
 		expect(result).toEqual([]);
 	});
 });
+
+describe("NuvioClient.signOut", () => {
+	it("revokes only this session, never the account's other devices", async () => {
+		const seen: string[] = [];
+		const client = new NuvioClient({
+			fetch: vi.fn(async (url: string) => {
+				seen.push(url);
+				return new Response(null, { status: 204 });
+			}) as unknown as typeof fetch,
+			session: fakeSession,
+		});
+		await client.signOut();
+		expect(seen).toHaveLength(1);
+		expect(new URL(seen[0] as string).searchParams.get("scope")).toBe("local");
+	});
+});

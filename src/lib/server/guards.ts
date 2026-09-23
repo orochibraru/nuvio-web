@@ -1,4 +1,5 @@
 import { error } from "@sveltejs/kit";
+import { m } from "#lib/i18n/index.js";
 import { ADMIN } from "#lib/services/index.js";
 import { getRequestEvent } from "$app/server";
 
@@ -11,12 +12,13 @@ import { getRequestEvent } from "$app/server";
 export function requireProfile() {
 	const event = getRequestEvent();
 	if (!event.locals.session || event.locals.profileId == null) {
-		error(401, "No active profile");
+		error(401, m.error_no_active_profile());
 	}
 	return {
 		event,
 		nuvio: event.locals.nuvio,
 		profileId: event.locals.profileId,
+		userId: event.locals.session.user.id,
 	};
 }
 
@@ -28,7 +30,7 @@ export function requireAdmin() {
 	const event = getRequestEvent();
 	const email = event.locals.session?.user.email;
 	if (!event.locals.services.get(ADMIN).isAdmin(email)) {
-		error(404, "Not found");
+		error(404, m.error_not_found());
 	}
 	return { event, email: email as string };
 }
