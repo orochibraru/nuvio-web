@@ -184,6 +184,131 @@ describe("getMeta", () => {
 		expect(result?.addon.manifest.id).toBe("org.two");
 	});
 
+	it("answers from the first provider without waiting on a slower, lower-priority one", async () => {
+		const slow = installed({
+			baseUrl: "https://slow.example",
+			manifest: manifest({ id: "org.slow", name: "Slow" }),
+		});
+		let slowStarted = false;
+		const fetchImpl = (async (url: string) => {
+			if (url.includes("slow.example")) {
+				slowStarted = true;
+				return await new Promise<Response>(() => {});
+			}
+			return new Response(
+				JSON.stringify({ meta: { id: "tt1", type: "movie", name: "A" } }),
+			);
+		}) as unknown as typeof fetch;
+		// Resolves at all only because the pending lower-priority call is not awaited.
+		const result = await client([installed(), slow], fetchImpl).getMeta(
+			"movie",
+			"tt1",
+		);
+		expect(result?.addon.manifest.id).toBe("org.one");
+		expect(slowStarted).toBe(true);
+	});
+
+	describe("a meta for a different title", () => {
+		const two = installed({
+			baseUrl: "https://two.example",
+			manifest: manifest({ id: "org.two", name: "Two" }),
+		});
+		const remake = { id: "tt1267295", type: "series", name: "Remake" };
+
+		it("loses to a lower-priority provider that matches, and is logged", async () => {
+			const warn = vi.fn();
+			const result = await new AddonClient(
+				new AddonRegistry([installed(), two]),
+				fetchStub([
+					["one.example", { meta: remake }],
+					[
+						"two.example",
+						{ meta: { id: "tt0213338", type: "series", name: "Bebop" } },
+					],
+				]),
+				15_000,
+				{ warn },
+			).getMeta("series", "tt0213338");
+			expect(result?.meta.name).toBe("Bebop");
+			expect(result?.addon.manifest.id).toBe("org.two");
+			expect(warn).toHaveBeenCalledWith(
+				expect.any(String),
+				expect.objectContaining({ addon: "org.one", got: "tt1267295" }),
+			);
+		});
+
+		it("checks imdb_id when the id is in another scheme", async () => {
+			const result = await client(
+				[installed(), two],
+				fetchStub([
+					[
+						"one.example",
+						{ meta: { ...remake, id: "tmdb:1", imdb_id: "tt1267295" } },
+					],
+					[
+						"two.example",
+						{ meta: { id: "tmdb:2", type: "series", name: "B" } },
+					],
+				]),
+			).getMeta("series", "tt0213338");
+			expect(result?.addon.manifest.id).toBe("org.two");
+		});
+
+		it("compares tmdb / kitsu ids too", async () => {
+			const result = await client(
+				[installed(), two],
+				fetchStub([
+					[
+						"one.example",
+						{ meta: { id: "kitsu:2", type: "series", name: "A" } },
+					],
+					[
+						"two.example",
+						{ meta: { id: "kitsu:1", type: "series", name: "B" } },
+					],
+				]),
+			).getMeta("series", "kitsu:1");
+			expect(result?.addon.manifest.id).toBe("org.two");
+		});
+
+		it("is still returned when nobody has better", async () => {
+			const result = await client(
+				[installed(), two],
+				fetchStub([
+					["one.example", { meta: remake }],
+					["two.example", { meta: null }],
+				]),
+			).getMeta("series", "tt0213338");
+			expect(result?.meta.name).toBe("Remake");
+			expect(result?.addon.manifest.id).toBe("org.one");
+		});
+
+		it("doesn't count a meta with no comparable id as a mismatch", async () => {
+			const result = await client(
+				[installed(), two],
+				fetchStub([
+					[
+						"one.example",
+						{ meta: { id: "custom-1", type: "series", name: "A" } },
+					],
+					[
+						"two.example",
+						{ meta: { id: "tt0213338", type: "series", name: "B" } },
+					],
+				]),
+			).getMeta("series", "tt0213338");
+			expect(result?.addon.manifest.id).toBe("org.one");
+		});
+
+		it("ignores ids of a scheme the request doesn't use", async () => {
+			const result = await client(
+				[installed()],
+				fetchStub([["one.example", { meta: remake }]]),
+			).getMeta("series", "custom:5");
+			expect(result?.meta.name).toBe("Remake");
+		});
+	});
+
 	it("returns null when nobody has it", async () => {
 		expect(
 			await client(

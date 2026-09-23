@@ -88,6 +88,8 @@ export interface MetaVideo {
 }
 
 export interface Meta extends MetaPreview {
+	/** Set by Cinemeta and most TMDB-backed addons alongside a non-IMDb `id`. */
+	imdb_id?: string;
 	runtime?: string;
 	released?: string;
 	country?: string;

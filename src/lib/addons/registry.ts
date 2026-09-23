@@ -1,3 +1,4 @@
+import { pooledMap } from "#lib/core/pool.js";
 import { fetchManifest } from "./manifest.ts";
 import type { AddonManifest, AddonResourceName, CatalogDef } from "./types.ts";
 
@@ -15,9 +16,50 @@ export interface CatalogRef {
 	catalog: CatalogDef;
 }
 
+/**
+ * Why a manifest didn't load: one of a fixed set of reasons, or the HTTP
+ * status it answered. A code, not text: the registry is cached across
+ * requests, so the settings page words it in the viewer's language.
+ */
+export type LoadFailure =
+	| "timeout"
+	| "invalid"
+	| "blocked"
+	| "unreachable"
+	| number;
+
 export interface AddonLoadError {
 	url: string;
-	message: string;
+	reason: LoadFailure;
+}
+
+/**
+ * What the settings page may say about a manifest that didn't load. Specific
+ * enough to act on ("HTTP 404" vs "Timed out"), never the cause's own text: a
+ * connection error names the host / IP / port it tried.
+ */
+export function loadFailure(error: unknown): LoadFailure {
+	if (error instanceof DOMException && error.name === "TimeoutError") {
+		return "timeout";
+	}
+	if (error instanceof SyntaxError) {
+		return "invalid";
+	}
+	const message = error instanceof Error ? error.message : "";
+	// `fetchManifest`'s non-2xx error.
+	const http = message.match(/^Manifest request failed with (\d{3})$/);
+	if (http) {
+		return Number(http[1]);
+	}
+	// `validateManifest`'s errors.
+	if (message.startsWith("Manifest ")) {
+		return "invalid";
+	}
+	// `safeFetch`'s SSRF guard.
+	if (message === "URL resolves to a disallowed address") {
+		return "blocked";
+	}
+	return "unreachable";
 }
 
 /** A Nuvio addon row (`client.addons.list()` result / `AddonInput`). */
@@ -119,6 +161,10 @@ export class AddonRegistry {
 	}
 }
 
+// Same cap as the resource fan-out in `client.ts`: a profile with a dozen
+// addons must not open a dozen manifest requests at once.
+const MANIFEST_CONCURRENCY = 6;
+
 export async function buildRegistry(
 	rows: NuvioAddonRow[],
 	fetchImpl: typeof fetch,
@@ -128,8 +174,10 @@ export async function buildRegistry(
 		.sort((a, b) => a.sort_order - b.sort_order);
 
 	const errors: AddonLoadError[] = [];
-	const loaded = await Promise.all(
-		enabled.map(async (row): Promise<InstalledAddon | null> => {
+	const loaded = await pooledMap(
+		enabled,
+		MANIFEST_CONCURRENCY,
+		async (row): Promise<InstalledAddon | null> => {
 			try {
 				const { manifest, baseUrl } = await fetchManifest(row.url, fetchImpl);
 				return {
@@ -143,12 +191,11 @@ export async function buildRegistry(
 			} catch (error) {
 				errors.push({
 					url: row.url,
-					message:
-						error instanceof Error ? error.message : "Failed to load addon",
+					reason: loadFailure(error),
 				});
 				return null;
 			}
-		}),
+		},
 	);
 
 	return {

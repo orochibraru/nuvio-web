@@ -1,5 +1,6 @@
 import { pooledMap } from "#lib/core/pool.js";
 import { safeFetch } from "#lib/server/safe-fetch.js";
+import type { Logger } from "#lib/services/index.js";
 
 // Cap on simultaneous upstream addon requests during a fan-out : keeps a
 // many-addon profile from bursting well past a sane per-user request rate.
@@ -181,6 +182,36 @@ function normalizeMeta(raw: Meta): Meta {
 	};
 }
 
+/** `tt0213338`, `tmdb:123`, `kitsu:1` out of a title or episode id; null for anything else. */
+function titleKey(id: unknown): string | null {
+	if (typeof id !== "string") {
+		return null;
+	}
+	const match = id.match(/^(tt\d+|(?:tmdb|kitsu):\d+)(?::|$)/);
+	return match ? match[1] : null;
+}
+
+function idScheme(key: string): string {
+	return key.startsWith("tt") ? "tt" : key.slice(0, key.indexOf(":"));
+}
+
+/**
+ * True when the meta names a *different* title in the requested id's scheme
+ * (an addon answering Cowboy Bebop 1998's `tt0213338` with the 2021 remake's
+ * `tt1267295`). A meta with no comparable id doesn't contradict anything.
+ */
+function contradicts(meta: Meta, requestedId: string): boolean {
+	const wanted = titleKey(requestedId);
+	if (!wanted) {
+		return false;
+	}
+	const scheme = idScheme(wanted);
+	const keys = [meta.id, meta.imdb_id]
+		.map(titleKey)
+		.filter((key): key is string => key !== null && idScheme(key) === scheme);
+	return keys.length > 0 && !keys.includes(wanted);
+}
+
 function errorMessage(error: unknown): string {
 	if (error instanceof DOMException && error.name === "TimeoutError") {
 		return "Addon timed out";
@@ -193,6 +224,7 @@ export class AddonClient {
 		private readonly registry: AddonRegistry,
 		private readonly fetchImpl: typeof fetch,
 		private readonly timeoutMs = 15_000,
+		private readonly logger?: Pick<Logger, "warn">,
 	) {}
 
 	async getCatalog(
@@ -241,24 +273,35 @@ export class AddonClient {
 		type: string,
 		id: string,
 	): Promise<{ meta: Meta; addon: InstalledAddon } | null> {
-		// Query every meta provider at once; keep the first (registry order) that
-		// actually returns a meta object.
-		const providers = [...this.registry.providersFor("meta", type, id)];
-		const responses = await Promise.allSettled(
-			providers.map((addon) =>
-				this.request(addon, { resource: "meta", type, id }),
-			),
+		// Every provider starts at once, then they are awaited in registry order:
+		// the answer is the highest-priority provider with a meta, and it lands
+		// the moment that provider does, not when the slowest one gives up (up
+		// to the 15 s timeout). A failure just hands priority to the next one,
+		// and so does a meta for a different title than the one asked for; that
+		// one is kept only as a last resort.
+		const providers = this.registry.providersFor("meta", type, id);
+		const pending = providers.map((addon) =>
+			this.request(addon, { resource: "meta", type, id }).catch(() => null),
 		);
-		for (const [index, response] of responses.entries()) {
-			if (response.status !== "fulfilled") {
+		let fallback: { meta: Meta; addon: InstalledAddon } | null = null;
+		for (const [index, response] of pending.entries()) {
+			// biome-ignore lint/performance/noAwaitInLoops: the requests already run concurrently; awaiting in order is what makes priority win without waiting on the rest
+			const meta = ((await response) as { meta?: Meta } | null)?.meta;
+			if (!meta) {
 				continue;
 			}
-			const meta = (response.value as { meta?: Meta } | null)?.meta;
-			if (meta) {
-				return { meta: normalizeMeta(meta), addon: providers[index] };
+			const addon = providers[index];
+			if (!contradicts(meta, id)) {
+				return { meta: normalizeMeta(meta), addon };
 			}
+			this.logger?.warn("Addon meta is for a different title, skipped", {
+				addon: addon.manifest.id,
+				requested: id,
+				got: meta.imdb_id ?? meta.id,
+			});
+			fallback ??= { meta: normalizeMeta(meta), addon };
 		}
-		return null;
+		return fallback;
 	}
 
 	async getStreams(

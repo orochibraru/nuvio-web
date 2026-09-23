@@ -14,13 +14,11 @@ const { state } = vi.hoisted(() => ({
 		fetchManifest: vi.fn(),
 		getCatalog: vi.fn(),
 		getMeta: vi.fn(),
-		getStreams: vi.fn(),
 		getAddonCatalog: vi.fn(),
 		catalogPage: vi.fn(),
 		titleMeta: vi.fn(),
-		homeCatalogRows: vi.fn(),
-		searchAllCatalogs: vi.fn(),
 		similarToTitle: vi.fn(),
+		warn: vi.fn(),
 	},
 }));
 
@@ -57,6 +55,7 @@ vi.mock("./server.ts", () => ({
 				nuvio: {
 					addons: { list: state.addonsList, replace: state.addonsReplace },
 				},
+				services: { get: () => ({ warn: state.warn }) },
 			},
 		},
 		profileId: 1,
@@ -66,7 +65,6 @@ vi.mock("./server.ts", () => ({
 		client: {
 			getCatalog: state.getCatalog,
 			getMeta: state.getMeta,
-			getStreams: state.getStreams,
 			getAddonCatalog: state.getAddonCatalog,
 		},
 		registry: state.registry,
@@ -74,22 +72,18 @@ vi.mock("./server.ts", () => ({
 	invalidateRegistry: state.invalidateRegistry,
 	catalogPage: state.catalogPage,
 	titleMeta: state.titleMeta,
-	homeCatalogRows: state.homeCatalogRows,
-	searchAllCatalogs: state.searchAllCatalogs,
 	similarToTitle: state.similarToTitle,
 }));
 
+import { pinnedFetch } from "#lib/server/safe-fetch.js";
 import {
 	addonCatalogSources,
 	browseAddonCatalog,
 	browseCatalog,
 	getMeta,
-	getStreams,
-	homeRows,
 	installedAddons,
 	previewAddon,
 	saveAddons,
-	searchCatalogs,
 	similarTitles,
 } from "./addons.remote.ts";
 
@@ -109,8 +103,6 @@ beforeEach(() => {
 	state.getAddonCatalog.mockReset().mockResolvedValue({ addons: [] });
 	state.catalogPage.mockReset().mockResolvedValue({ metas: [], addon: {} });
 	state.titleMeta.mockReset().mockResolvedValue(null);
-	state.homeCatalogRows.mockReset().mockResolvedValue([]);
-	state.searchAllCatalogs.mockReset().mockResolvedValue({ metas: [] });
 	state.similarToTitle.mockReset().mockResolvedValue({ metas: [] });
 });
 
@@ -178,12 +170,43 @@ describe("previewAddon", () => {
 		});
 	});
 
-	it("returns ok:false with the error message on failure", async () => {
-		state.fetchManifest.mockRejectedValue(new Error("404 not found"));
-		expect(await previewAddon("https://x/manifest.json")).toEqual({
+	it("fetches through the pinned, cookie-less transport", async () => {
+		state.fetchManifest.mockRejectedValue(new Error("x"));
+		await previewAddon("https://x/manifest.json");
+		expect(state.fetchManifest).toHaveBeenCalledWith(
+			"https://x/manifest.json",
+			pinnedFetch,
+			{ force: true },
+		);
+	});
+
+	it("never echoes a network error: that would make it a port scanner", async () => {
+		state.warn.mockReset();
+		state.fetchManifest.mockRejectedValue(
+			new Error("connect ECONNREFUSED 10.0.0.1:6379"),
+		);
+		expect(await previewAddon("https://x/secret-key/manifest.json")).toEqual({
 			ok: false,
-			message: "404 not found",
+			message: "Could not reach this addon.",
 		});
+		expect(state.warn).toHaveBeenCalledWith("Addon preview failed", {
+			origin: "https://x",
+			error: "Error: connect ECONNREFUSED 10.0.0.1:6379",
+		});
+	});
+
+	it("says so when the URL answers with something that isn't a manifest", async () => {
+		for (const cause of [
+			new Error("Manifest is missing `id`"),
+			new Error("Manifest request failed with 404"),
+			new SyntaxError("Unexpected token <"),
+		]) {
+			state.fetchManifest.mockRejectedValue(cause);
+			expect(await previewAddon("https://x/manifest.json")).toEqual({
+				ok: false,
+				message: "That URL doesn't serve a valid addon manifest.",
+			});
+		}
 	});
 });
 
@@ -301,19 +324,10 @@ describe("browseAddonCatalog", () => {
 	});
 });
 
-// These four are kept for parity with the loads that call `server.ts` directly.
-// Thin as they are, they are reachable endpoints, so they get held to the same
+// Kept for parity with the load that calls `server.ts` directly. Thin as it
+// is, it is a reachable endpoint, so it gets held to the same
 // wiring check as the rest.
 describe("pass-through queries", () => {
-	it("getStreams fans out through this request's client", async () => {
-		state.getStreams.mockResolvedValue({ streams: [{ url: "u" }], errors: [] });
-		expect(await getStreams({ type: "movie", id: "tt1" })).toEqual({
-			streams: [{ url: "u" }],
-			errors: [],
-		});
-		expect(state.getStreams).toHaveBeenCalledWith("movie", "tt1");
-	});
-
 	it("similarTitles forwards the genres", async () => {
 		state.similarToTitle.mockResolvedValue({ metas: [{ id: "tt2" }] });
 		expect(
@@ -322,16 +336,5 @@ describe("pass-through queries", () => {
 		expect(state.similarToTitle).toHaveBeenCalledWith("movie", "tt1", [
 			"Drama",
 		]);
-	});
-
-	it("homeRows delegates to the shared row builder", async () => {
-		state.homeCatalogRows.mockResolvedValue([{ id: "row" }]);
-		expect(await homeRows()).toEqual([{ id: "row" }]);
-	});
-
-	it("searchCatalogs delegates with the trimmed term", async () => {
-		state.searchAllCatalogs.mockResolvedValue({ metas: [{ id: "tt3" }] });
-		expect(await searchCatalogs("dune")).toEqual({ metas: [{ id: "tt3" }] });
-		expect(state.searchAllCatalogs).toHaveBeenCalledWith("dune");
 	});
 });
