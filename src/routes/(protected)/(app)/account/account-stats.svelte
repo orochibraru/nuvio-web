@@ -6,6 +6,7 @@
 	import QueryError from "#lib/components/feedback/query-error.svelte";
 	import * as Card from "#lib/components/ui/card/index.js";
 	import { streamed } from "#lib/core/stream.svelte.js";
+	import { m } from "#lib/i18n/index.js";
 	import type { WatchStats } from "#lib/stats/stats-data.js";
 	import { invalidateAll } from "$app/navigation";
 	import { resolve } from "$app/paths";
@@ -24,22 +25,24 @@
 
 	function humanDuration(minutes: number): string {
 		if (minutes < 60) {
-			return `${minutes} min`;
+			return m.account_duration_minutes({ minutes });
 		}
 		const hours = Math.floor(minutes / 60);
 		if (hours < 24) {
 			const rem = minutes % 60;
-			return rem ? `${hours} h ${rem} min` : `${hours} h`;
+			return rem
+				? m.account_duration_hours_minutes({ hours, minutes: rem })
+				: m.account_duration_hours({ hours });
 		}
 		const days = Math.floor(hours / 24);
-		return `${days} d ${hours % 24} h`;
+		return m.account_duration_days_hours({ days, hours: hours % 24 });
 	}
 </script>
 
 <div class="flex flex-col gap-6">
   {#if statsFailed}
     <QueryError
-      message="Couldn't load your stats."
+      message={m.account_stats_failed()}
       onRetry={() => invalidateAll()}
     />
   {:else if !stats}
@@ -53,7 +56,7 @@
       <Card.Root class="border border-foreground/10">
         <Card.Header class="pb-2">
           <Card.Description class="flex items-center gap-1.5">
-            <ClockIcon class="size-3.5" /> Time watched
+            <ClockIcon class="size-3.5" /> {m.account_time_watched()}
           </Card.Description>
         </Card.Header>
         <Card.Content>
@@ -61,8 +64,10 @@
             {humanDuration(totalMinutes)}
           </p>
           <p class="mt-1 text-xs text-muted-foreground">
-            {humanDuration(stats.movieMinutes)} movies ·
-            {humanDuration(stats.seriesMinutes)} shows
+            {m.account_time_split({
+              movies: humanDuration(stats.movieMinutes),
+              shows: humanDuration(stats.seriesMinutes),
+            })}
           </p>
         </Card.Content>
       </Card.Root>
@@ -70,25 +75,25 @@
       <Card.Root class="border border-foreground/10">
         <Card.Header class="pb-2">
           <Card.Description class="flex items-center gap-1.5">
-            <FilmIcon class="size-3.5" /> Movies
+            <FilmIcon class="size-3.5" /> {m.common_movies()}
           </Card.Description>
         </Card.Header>
         <Card.Content>
           <p class="text-2xl font-bold tabular-nums">{stats.movieCount}</p>
-          <p class="mt-1 text-xs text-muted-foreground">finished</p>
+          <p class="mt-1 text-xs text-muted-foreground">{m.account_finished()}</p>
         </Card.Content>
       </Card.Root>
 
       <Card.Root class="border border-foreground/10">
         <Card.Header class="pb-2">
           <Card.Description class="flex items-center gap-1.5">
-            <TvIcon class="size-3.5" /> Shows
+            <TvIcon class="size-3.5" /> {m.account_shows()}
           </Card.Description>
         </Card.Header>
         <Card.Content>
           <p class="text-2xl font-bold tabular-nums">{stats.seriesCount}</p>
           <p class="mt-1 text-xs text-muted-foreground">
-            {stats.episodeCount} episode{stats.episodeCount === 1 ? "" : "s"}
+            {m.account_episodes({ count: stats.episodeCount })}
           </p>
         </Card.Content>
       </Card.Root>
@@ -96,18 +101,20 @@
       <Card.Root class="border border-foreground/10">
         <Card.Header class="pb-2">
           <Card.Description class="flex items-center gap-1.5">
-            <ClapperboardIcon class="size-3.5" /> Prefers
+            <ClapperboardIcon class="size-3.5" /> {m.account_prefers()}
           </Card.Description>
         </Card.Header>
         <Card.Content>
           <p class="text-2xl font-bold capitalize">
             {stats.preferredFormat === "series"
-              ? "Shows"
+              ? m.account_shows()
               : stats.preferredFormat === "movie"
-                ? "Movies"
+                ? m.common_movies()
                 : "—"}
           </p>
-          <p class="mt-1 text-xs text-muted-foreground">by time watched</p>
+          <p class="mt-1 text-xs text-muted-foreground">
+            {m.account_by_time_watched()}
+          </p>
         </Card.Content>
       </Card.Root>
     </div>
@@ -115,9 +122,9 @@
     {#if stats.topGenres.length > 0}
       <Card.Root class="border border-foreground/10">
         <Card.Header>
-          <Card.Title>Top genres</Card.Title>
+          <Card.Title>{m.account_top_genres()}</Card.Title>
           <Card.Description
-            >Across your recently watched titles.</Card.Description
+            >{m.account_top_genres_description()}</Card.Description
           >
         </Card.Header>
         <Card.Content class="flex flex-wrap gap-2">

@@ -3,6 +3,7 @@
 	import * as Card from "#lib/components/ui/card/index.js";
 	import * as Select from "#lib/components/ui/select/index.js";
 	import { Switch } from "#lib/components/ui/switch/index.js";
+	import { getLocale, m } from "#lib/i18n/index.js";
 	import { theme } from "#lib/settings/theme.svelte.js";
 	import {
 		STREAM_QUALITIES,
@@ -19,48 +20,63 @@
 		value: UiSettings["subtitleSize"];
 		label: string;
 	}> = [
-		{ value: "small", label: "Small" },
-		{ value: "medium", label: "Medium" },
-		{ value: "large", label: "Large" },
+		{ value: "small", label: m.subtitle_size_small() },
+		{ value: "medium", label: m.subtitle_size_medium() },
+		{ value: "large", label: m.subtitle_size_large() },
 	];
 
 	const subtitleColors = SUBTITLE_COLORS;
 
+	// Stored as ISO 639-2 codes, named in the viewer's locale by `Intl` (from
+	// the matching ISO 639-1 code). Capitalised: fr / es name them lowercase.
+	const locale = getLocale();
+	const languageNames = new Intl.DisplayNames([locale], { type: "language" });
+	const regionNames = new Intl.DisplayNames([locale], { type: "region" });
+	const capitalise = (text: string) =>
+		text.charAt(0).toLocaleUpperCase(locale) + text.slice(1);
 	const subtitleLanguages: Array<{ value: string; label: string }> = [
-		{ value: "", label: "Off" },
-		{ value: "eng", label: "English" },
-		{ value: "spa", label: "Spanish" },
-		{ value: "fre", label: "French" },
-		{ value: "ger", label: "German" },
-		{ value: "por", label: "Portuguese" },
-		{ value: "ita", label: "Italian" },
-		{ value: "dut", label: "Dutch" },
-		{ value: "rus", label: "Russian" },
-		{ value: "jpn", label: "Japanese" },
-		{ value: "kor", label: "Korean" },
-		{ value: "chi", label: "Chinese" },
-		{ value: "ara", label: "Arabic" },
+		{ value: "", label: m.settings_subtitles_off() },
+		...(
+			[
+				["eng", "en"],
+				["spa", "es"],
+				["fre", "fr"],
+				["ger", "de"],
+				["por", "pt"],
+				["ita", "it"],
+				["dut", "nl"],
+				["rus", "ru"],
+				["jpn", "ja"],
+				["kor", "ko"],
+				["chi", "zh"],
+				["ara", "ar"],
+			] as const
+		).map(([value, iso]) => ({
+			value,
+			label: capitalise(languageNames.of(iso) ?? value),
+		})),
 	];
 
-	const qualityLabel = (q: string) => (q === "auto" ? "Auto (addon order)" : q);
+	const qualityLabel = (q: string) =>
+		q === "auto" ? m.settings_quality_auto() : q;
 	const regionLabel = (code: string) =>
-		WATCH_REGIONS.find(([c]) => c === code)?.[1] ?? code;
+		code === "auto" ? m.settings_region_auto() : (regionNames.of(code) ?? code);
 	const languageLabel = (code: string) =>
-		subtitleLanguages.find((l) => l.value === code)?.label ?? "Off";
+		subtitleLanguages.find((l) => l.value === code)?.label ??
+		m.settings_subtitles_off();
 </script>
 
 <Card.Root class="border border-foreground/10">
   <Card.Header>
-    <Card.Title role="heading" aria-level={2}>Playback</Card.Title>
-    <Card.Description>How the player behaves for this profile.</Card.Description
-    >
+    <Card.Title role="heading" aria-level={2}>{m.settings_section_playback()}</Card.Title>
+    <Card.Description>{m.settings_playback_description()}</Card.Description>
   </Card.Header>
   <Card.Content class="flex flex-col gap-7">
     <label class="flex items-center justify-between gap-4">
       <span class="flex flex-col gap-0.5">
-        <span class="text-sm font-medium">Autoplay next episode</span>
+        <span class="text-sm font-medium">{m.settings_autoplay()}</span>
         <span class="text-xs text-muted-foreground">
-          Start the next episode automatically after one finishes.
+          {m.settings_autoplay_hint()}
         </span>
       </span>
       <Switch
@@ -71,10 +87,9 @@
 
     <label class="flex items-center justify-between gap-4">
       <span class="flex flex-col gap-0.5">
-        <span class="text-sm font-medium">Reuse the last stream link</span>
+        <span class="text-sm font-medium">{m.settings_reuse_link()}</span>
         <span class="text-xs text-muted-foreground">
-          Re-open a title straight to its previous link instead of resolving
-          again : faster for debrid addons.
+          {m.settings_reuse_link_hint()}
         </span>
       </span>
       <Switch
@@ -86,7 +101,7 @@
     {#if theme.current.reuseLastLink}
       <div class="flex flex-col gap-2.5">
         <span class="text-sm font-medium" id="link-cache-label">
-          Keep a remembered link for
+          {m.settings_link_cache_label()}
         </span>
         <Select.Root
           type="single"
@@ -94,27 +109,26 @@
           onValueChange={(v) => update({ linkCacheDays: Number(v) })}
         >
           <Select.Trigger aria-labelledby="link-cache-label" class="w-64">
-            {theme.current.linkCacheDays} day{theme.current.linkCacheDays === 1
-              ? ""
-              : "s"}
+            {m.settings_link_cache_days({ count: theme.current.linkCacheDays })}
           </Select.Trigger>
           <Select.Content>
             {#each [1, 2, 3, 5, 7, 14, 30] as days (days)}
-              <Select.Item value={String(days)} label={`${days} days`}>
-                {days} day{days === 1 ? "" : "s"}
+              {@const label = m.settings_link_cache_days({ count: days })}
+              <Select.Item value={String(days)} {label}>
+                {label}
               </Select.Item>
             {/each}
           </Select.Content>
         </Select.Root>
         <span class="text-xs text-muted-foreground">
-          Debrid links expire : after this, the title resolves fresh.
+          {m.settings_link_cache_hint()}
         </span>
       </div>
     {/if}
 
     <div class="flex flex-col gap-2.5">
       <span class="text-sm font-medium" id="pref-quality-label"
-        >Preferred quality</span
+        >{m.settings_quality()}</span
       >
       <Select.Root
         type="single"
@@ -134,14 +148,13 @@
         </Select.Content>
       </Select.Root>
       <span class="text-xs text-muted-foreground">
-        The player auto-picks the closest match from a source list. You can
-        still choose any source manually.
+        {m.settings_quality_hint()}
       </span>
     </div>
 
     <div class="flex flex-col gap-2.5">
       <span class="text-sm font-medium" id="watch-region-label"
-        >Where to watch region</span
+        >{m.settings_region()}</span
       >
       <Select.Root
         type="single"
@@ -153,20 +166,20 @@
           {regionLabel(theme.current.watchRegion)}
         </Select.Trigger>
         <Select.Content>
-          {#each WATCH_REGIONS as [code, label] (code)}
+          {#each WATCH_REGIONS as code (code)}
+            {@const label = regionLabel(code)}
             <Select.Item value={code} {label}>{label}</Select.Item>
           {/each}
         </Select.Content>
       </Select.Root>
       <span class="text-xs text-muted-foreground">
-        Which country's streaming services the "Available on" list and the
-        official-source Watch button use.
+        {m.settings_region_hint()}
       </span>
     </div>
 
     <div class="flex flex-col gap-2.5">
       <span class="text-sm font-medium" id="sub-lang-label"
-        >Preferred subtitle language</span
+        >{m.settings_subtitle_language()}</span
       >
       <Select.Root
         type="single"
@@ -185,12 +198,12 @@
         </Select.Content>
       </Select.Root>
       <span class="text-xs text-muted-foreground">
-        Turned on automatically when a stream offers a matching track.
+        {m.settings_subtitle_language_hint()}
       </span>
     </div>
 
     <div class="flex flex-col gap-2.5">
-      <span class="text-sm font-medium">Subtitle size</span>
+      <span class="text-sm font-medium">{m.settings_subtitle_size()}</span>
       <div class="flex w-fit gap-1 rounded-full bg-foreground/5 p-1">
         {#each subtitleSizes as option (option.value)}
           <button
@@ -210,12 +223,12 @@
     </div>
 
     <div class="flex flex-col gap-2.5">
-      <span class="text-sm font-medium">Subtitle colour</span>
+      <span class="text-sm font-medium">{m.settings_subtitle_colour()}</span>
       <div class="flex flex-wrap gap-2.5">
         {#each subtitleColors as color (color)}
           <button
             type="button"
-            aria-label={`Subtitle colour ${color}`}
+            aria-label={m.subtitle_colour({ color })}
             aria-pressed={theme.current.subtitleColor === color}
             onclick={() => update({ subtitleColor: color })}
             class={cn(
@@ -237,9 +250,9 @@
 
     <label class="flex items-center justify-between gap-4">
       <span class="flex flex-col gap-0.5">
-        <span class="text-sm font-medium">Subtitle background</span>
+        <span class="text-sm font-medium">{m.settings_subtitle_background()}</span>
         <span class="text-xs text-muted-foreground">
-          A dark plate behind the text for readability.
+          {m.settings_subtitle_background_hint()}
         </span>
       </span>
       <Switch

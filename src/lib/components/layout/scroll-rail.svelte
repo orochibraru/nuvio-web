@@ -3,6 +3,7 @@
 	import ChevronRightIcon from "@lucide/svelte/icons/chevron-right";
 	import type { Snippet } from "svelte";
 	import { prefersReducedMotion } from "#lib/core/motion.js";
+	import { m } from "#lib/i18n/index.js";
 	import { cn } from "#lib/utils.js";
 
 	let {
@@ -188,7 +189,7 @@
   {#if arrows}
     <button
       type="button"
-      aria-label={`Scroll ${label} left`}
+      aria-label={m.rail_scroll_left({ label })}
       disabled={atStart}
       onclick={() => nudge(-1)}
       class={cn(
@@ -200,7 +201,7 @@
     </button>
     <button
       type="button"
-      aria-label={`Scroll ${label} right`}
+      aria-label={m.rail_scroll_right({ label })}
       disabled={atEnd}
       onclick={() => nudge(1)}
       class={cn(

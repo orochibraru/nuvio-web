@@ -1,9 +1,10 @@
 <script lang="ts">
 	import type { SignInDay } from "#lib/admin/admin-data.js";
+	import { getLocale, m } from "#lib/i18n/index.js";
 
 	let {
 		days,
-		label = "Sign-ins per day",
+		label = m.admin_chart_label(),
 	}: { days: SignInDay[]; label?: string } = $props();
 
 	// Geometry in user units; the SVG scales to its container. One series, so
@@ -27,7 +28,7 @@
 	}
 
 	function dayLabel(day: string): string {
-		return new Date(`${day}T00:00:00Z`).toLocaleDateString(undefined, {
+		return new Date(`${day}T00:00:00Z`).toLocaleDateString(getLocale(), {
 			timeZone: "UTC",
 			month: "short",
 			day: "numeric",
@@ -42,7 +43,7 @@
 	<figcaption class="flex items-baseline gap-2">
 		<span class="text-2xl font-semibold tabular-nums">{total}</span>
 		<span class="text-sm text-muted-foreground">
-			{label} · last {days.length} days
+			{m.admin_chart_caption({ label, count: days.length })}
 		</span>
 	</figcaption>
 
@@ -50,7 +51,7 @@
 		<p
 			class="rounded-lg border border-dashed border-foreground/15 px-3 py-6 text-center text-sm text-muted-foreground"
 		>
-			No sign-ins recorded yet.
+			{m.admin_chart_empty()}
 		</p>
 	{:else}
 		<!-- `preserveAspectRatio="none"` lets the bars stretch to the card's
@@ -60,7 +61,7 @@
 			viewBox={`0 0 100 ${HEIGHT}`}
 			preserveAspectRatio="none"
 			role="img"
-			aria-label={`${label}: ${total} in the last ${days.length} days`}
+			aria-label={m.admin_chart_aria({ label, total, count: days.length })}
 			class="h-18 w-full overflow-visible"
 		>
 			{#each days as day, index (day.day)}
@@ -75,9 +76,11 @@
 						class="fill-primary"
 					>
 						<title
-							>{dayLabel(day.day)}: {day.signIns}
-							{day.signIns === 1 ? "sign-in" : "sign-ins"}, {day.people}
-							{day.people === 1 ? "person" : "people"}</title
+							>{m.admin_chart_bar({
+								day: dayLabel(day.day),
+								signIns: day.signIns,
+								people: day.people,
+							})}</title
 						>
 					</rect>
 				{:else}
@@ -90,7 +93,7 @@
 						height={HEIGHT}
 						class="fill-transparent"
 					>
-						<title>{dayLabel(day.day)}: no sign-ins</title>
+						<title>{m.admin_chart_day_empty({ day: dayLabel(day.day) })}</title>
 					</rect>
 				{/if}
 			{/each}
@@ -118,14 +121,14 @@
 			<summary
 				class="cursor-pointer text-muted-foreground transition-colors hover:text-foreground"
 			>
-				Show the numbers
+				{m.admin_chart_show()}
 			</summary>
 			<table class="mt-3 w-full text-left">
 				<thead class="text-xs text-muted-foreground">
 					<tr>
-						<th scope="col" class="py-1 font-medium">Day</th>
-						<th scope="col" class="py-1 text-right font-medium">Sign-ins</th>
-						<th scope="col" class="py-1 text-right font-medium">People</th>
+						<th scope="col" class="py-1 font-medium">{m.admin_chart_day()}</th>
+						<th scope="col" class="py-1 text-right font-medium">{m.admin_sign_ins()}</th>
+						<th scope="col" class="py-1 text-right font-medium">{m.admin_chart_people()}</th>
 					</tr>
 				</thead>
 				<tbody>

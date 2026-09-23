@@ -1,5 +1,6 @@
 <script lang="ts">
 	import StarIcon from "@lucide/svelte/icons/star";
+	import { m } from "#lib/i18n/index.js";
 	import { cn } from "#lib/utils.js";
 
 	let {
@@ -28,7 +29,7 @@
 {#if value}
 	<span
 		aria-hidden={variant === "badge" ? "true" : undefined}
-		title="IMDb rating"
+		title={m.media_imdb_rating()}
 		class={cn(
 			"flex items-center gap-1",
 			variant === "badge" &&

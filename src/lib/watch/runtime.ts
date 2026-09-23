@@ -1,3 +1,5 @@
+import { m } from "#lib/i18n/index.js";
+
 /**
  * Parse an addon `runtime` string ("49 min", "1h 22m", "142") to milliseconds.
  * Falls back to 45 minutes when nothing usable is found.
@@ -23,12 +25,14 @@ export function parseRuntimeMs(runtime: string | null | undefined): number {
 export function formatRemaining(ms: number): string {
 	const totalMinutes = Math.round(ms / 60_000);
 	if (totalMinutes < 1) {
-		return "Almost done";
+		return m.watch_almost_done();
 	}
 	if (totalMinutes < 60) {
-		return `${totalMinutes} min left`;
+		return m.watch_minutes_left({ minutes: totalMinutes });
 	}
 	const hours = Math.floor(totalMinutes / 60);
 	const minutes = totalMinutes % 60;
-	return minutes === 0 ? `${hours} h left` : `${hours} h ${minutes} min left`;
+	return minutes === 0
+		? m.watch_hours_left({ hours })
+		: m.watch_hours_minutes_left({ hours, minutes });
 }

@@ -3,6 +3,7 @@
 	import DownloadIcon from "@lucide/svelte/icons/download";
 	import LoaderIcon from "@lucide/svelte/icons/loader-circle";
 	import { toast } from "svelte-sonner";
+	import { m } from "#lib/i18n/index.js";
 	import { theme } from "#lib/settings/theme.svelte.js";
 	import { getSubtitles } from "#lib/watch/watch.remote.js";
 	import { resolve } from "$app/paths";
@@ -69,8 +70,8 @@
 					url: subtitleUrl,
 				})),
 			});
-			toast.success("Downloading", {
-				description: "Follow it on the Downloads page.",
+			toast.success(m.downloads_started(), {
+				description: m.downloads_started_description(),
 			});
 		} finally {
 			busy = false;
@@ -88,9 +89,11 @@
     href={resolve("downloads")}
     class={base}
     aria-label={existing.status === "done"
-      ? "Downloaded : open Downloads"
-      : "In Downloads : open Downloads"}
-    title={existing.status === "done" ? "Downloaded" : "In Downloads"}
+      ? m.downloads_open_done()
+      : m.downloads_open_pending()}
+    title={existing.status === "done"
+      ? m.media_downloaded()
+      : m.downloads_in_downloads()}
   >
     {#if existing.status === "done"}
       <CheckIcon class="size-4 text-primary" />
@@ -106,8 +109,8 @@
     class={base}
     disabled={busy}
     onclick={start}
-    aria-label={`Download ${label}`}
-    title="Download for offline"
+    aria-label={m.downloads_download_label({ label })}
+    title={m.downloads_download_offline()}
   >
     {#if busy}
       <LoaderIcon class="size-4 animate-spin motion-reduce:animate-none" />

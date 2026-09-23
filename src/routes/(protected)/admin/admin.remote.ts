@@ -5,6 +5,7 @@ import {
 	removeFromAllowlist,
 	setLocked,
 } from "#lib/admin/admin-data.js";
+import { m } from "#lib/i18n/index.js";
 import { requireAdmin } from "#lib/server/guards.js";
 import { DATABASE, LOGGER } from "#lib/services/index.js";
 import { form } from "$app/server";
@@ -30,8 +31,8 @@ export const allowEmail = form(
 		email: v.pipe(
 			v.string(),
 			v.trim(),
-			v.nonEmpty("Enter an email address."),
-			v.email("Enter a valid email address."),
+			v.nonEmpty(() => m.admin_error_email_required()),
+			v.email(() => m.common_email_invalid()),
 		),
 	}),
 	(data) => {
@@ -49,7 +50,7 @@ export const revokeEmail = form(
 	(data) => {
 		const { email, event } = requireAdmin();
 		if (data.email.trim().toLowerCase() === email.toLowerCase()) {
-			invalid("You cannot remove your own address while you are signed in.");
+			invalid(m.admin_error_remove_self());
 		}
 		removeFromAllowlist(
 			event.locals.services.get(DATABASE).connect(),

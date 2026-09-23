@@ -21,6 +21,7 @@
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { streamed } from "#lib/core/stream.svelte.js";
 	import { pageTitle } from "#lib/core/title.svelte.js";
+	import { m } from "#lib/i18n/index.js";
 	import type {
 		Collection,
 		CollectionFolder,
@@ -70,7 +71,7 @@
 	const contentsLoading = $derived(Boolean(collection) && !contentsLoadedOnce);
 
 	$effect(() => {
-		pageTitle.set(collection?.title ?? "Collection");
+		pageTitle.set(collection?.title ?? m.collection_fallback_title());
 	});
 
 	// Titles for folders edited on this page, fetched per folder after the
@@ -154,7 +155,7 @@
 	async function persist(next: Collection[]): Promise<boolean> {
 		const saved = await editor.save(next, { refresh: false });
 		if (!saved) {
-			toast.error("Couldn't save the collection.");
+			toast.error(m.collection_save_error());
 		}
 		return saved;
 	}
@@ -221,12 +222,20 @@
 		label: string;
 		hint: string;
 	}> = [
-		{ value: "TABBED_GRID", label: "Tabs", hint: "One folder at a time" },
-		{ value: "ROWS", label: "Rows", hint: "Every folder as a row" },
+		{
+			value: "TABBED_GRID",
+			label: m.collection_view_tabs(),
+			hint: m.collection_view_tabs_hint(),
+		},
+		{
+			value: "ROWS",
+			label: m.collection_view_rows(),
+			hint: m.collection_view_rows_hint(),
+		},
 		{
 			value: "FOLLOW_LAYOUT",
-			label: "Default",
-			hint: "Follow the app's own layout (tabs here)",
+			label: m.collection_view_default(),
+			hint: m.collection_view_default_hint(),
 		},
 	];
 
@@ -242,17 +251,17 @@
   onclick={() => goto(resolve("collections"))}
   class="mb-4 flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition hover:text-foreground"
 >
-  <ArrowLeftIcon class="size-4" /> Collections
+  <ArrowLeftIcon class="size-4" /> {m.nav_collections()}
 </button>
 
 {#if notFound}
   <EmptyState
     icon={FolderPlusIcon}
-    title="Collection not found"
-    description="This collection may have been renamed or removed."
+    title={m.collection_not_found_title()}
+    description={m.collection_not_found_description()}
   >
     {#snippet actions()}
-      <Button href={resolve("collections")} variant="outline">All collections</Button>
+      <Button href={resolve("collections")} variant="outline">{m.collection_all_collections()}</Button>
     {/snippet}
   </EmptyState>
 {:else}
@@ -262,7 +271,7 @@
       <div class="flex items-center gap-2">
         <div
           role="radiogroup"
-          aria-label="Layout"
+          aria-label={m.collection_layout()}
           class="flex gap-1 rounded-full bg-foreground/5 p-1 text-sm"
         >
           {#each VIEW_MODES as mode (mode.value)}
@@ -287,7 +296,7 @@
         </div>
 
         <Button size="sm" variant="outline" onclick={openAdd}>
-          <PlusIcon data-icon="inline-start" />Add folder
+          <PlusIcon data-icon="inline-start" />{m.collection_add_folder()}
         </Button>
       </div>
     </div>
@@ -295,12 +304,12 @@
     {#if collection && folders.length === 0}
       <EmptyState
         icon={FolderPlusIcon}
-        title="No folders yet"
-        description="Add a folder and attach one or more catalogs to fill it."
+        title={m.collection_no_folders_title()}
+        description={m.collection_no_folders_description()}
       >
         {#snippet actions()}
           <Button variant="outline" onclick={openAdd}>
-            <PlusIcon data-icon="inline-start" />Add folder
+            <PlusIcon data-icon="inline-start" />{m.collection_add_folder()}
           </Button>
         {/snippet}
       </EmptyState>
@@ -319,8 +328,8 @@
             />
             <button
               type="button"
-              aria-label={`Edit folder ${folder.title}`}
-              title="Edit folder"
+              aria-label={m.collection_edit_folder_named({ title: folder.title })}
+              title={m.collection_edit_folder()}
               onclick={() => openEdit(folder)}
               class="absolute top-0 right-0 rounded-md p-1.5 text-muted-foreground opacity-0 transition group-hover/folder:opacity-100 hover:bg-foreground/10 hover:text-foreground focus-visible:opacity-100"
             >
@@ -335,7 +344,7 @@
       >
         {#if folders.length > 1}
           <FolderTile
-            folder={{ title: "All" }}
+            folder={{ title: m.collection_tab_all() }}
             active={activeTab === -1}
             count={allMetas.length}
             onSelect={() => (activeTab = -1)}
@@ -351,8 +360,10 @@
         {#if activeTab >= 0 && folders[activeTab]}
           <button
             type="button"
-            aria-label={`Edit folder ${folders[activeTab].title}`}
-            title="Edit folder"
+            aria-label={m.collection_edit_folder_named({
+              title: folders[activeTab].title,
+            })}
+            title={m.collection_edit_folder()}
             onclick={() => openEdit(folders[activeTab])}
             class="ml-auto shrink-0 self-center rounded-md p-1.5 text-muted-foreground hover:bg-foreground/10 hover:text-foreground"
           >

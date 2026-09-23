@@ -7,6 +7,7 @@
 	import * as Dialog from "#lib/components/ui/dialog/index.js";
 	import * as Field from "#lib/components/ui/field/index.js";
 	import { Input } from "#lib/components/ui/input/index.js";
+	import { m } from "#lib/i18n/index.js";
 	import type {
 		CatalogSource,
 		CollectionFolder,
@@ -45,9 +46,9 @@
 	} = $props();
 
 	const SHAPES: Array<{ value: PosterShape; label: string }> = [
-		{ value: "POSTER", label: "Poster" },
-		{ value: "LANDSCAPE", label: "Landscape" },
-		{ value: "SQUARE", label: "Square" },
+		{ value: "POSTER", label: m.folder_shape_poster() },
+		{ value: "LANDSCAPE", label: m.folder_shape_landscape() },
+		{ value: "SQUARE", label: m.folder_shape_square() },
 	];
 
 	const keyOf = (source: CatalogSource) =>
@@ -102,21 +103,21 @@
 <Dialog.Root bind:open>
   <Dialog.Content class="sm:max-w-lg">
     <Dialog.Header>
-      <Dialog.Title>{folder ? "Edit folder" : "Add folder"}</Dialog.Title>
+      <Dialog.Title>{folder ? m.collection_edit_folder() : m.collection_add_folder()}</Dialog.Title>
       <Dialog.Description>
-        Pick one or more catalogs to feed this folder, and how its tile looks.
+        {m.folder_dialog_description()}
       </Dialog.Description>
     </Dialog.Header>
 
     <div class="flex max-h-[60vh] flex-col gap-5 overflow-y-auto pr-1">
       <Field.Field>
-        <Field.Label for="folder-title">Name</Field.Label>
-        <Input id="folder-title" bind:value={title} placeholder="Folder name" />
+        <Field.Label for="folder-title">{m.social_name()}</Field.Label>
+        <Input id="folder-title" bind:value={title} placeholder={m.folder_name_placeholder()} />
       </Field.Field>
 
       <div class="grid grid-cols-[5rem_1fr] gap-3">
         <Field.Field>
-          <Field.Label for="folder-emoji">Emoji</Field.Label>
+          <Field.Label for="folder-emoji">{m.folder_emoji()}</Field.Label>
           <Input
             id="folder-emoji"
             bind:value={coverEmoji}
@@ -126,7 +127,7 @@
           />
         </Field.Field>
         <Field.Field data-invalid={imageInvalid || undefined}>
-          <Field.Label for="folder-cover">Cover image URL</Field.Label>
+          <Field.Label for="folder-cover">{m.folder_cover_url()}</Field.Label>
           <Input
             id="folder-cover"
             type="url"
@@ -135,13 +136,13 @@
             aria-invalid={imageInvalid || undefined}
           />
           {#if imageInvalid}
-            <Field.FieldError>Use an http(s) address.</Field.FieldError>
+            <Field.FieldError>{m.folder_cover_invalid()}</Field.FieldError>
           {/if}
         </Field.Field>
       </div>
 
       <Field.Field>
-        <Field.Label id="folder-shape-label">Tile shape</Field.Label>
+        <Field.Label id="folder-shape-label">{m.folder_tile_shape()}</Field.Label>
         <div
           role="radiogroup"
           aria-labelledby="folder-shape-label"
@@ -165,7 +166,7 @@
           {/each}
         </div>
         <Field.Description>
-          Used when the folder has a cover image or an emoji.
+          {m.folder_shape_hint()}
         </Field.Description>
       </Field.Field>
 
@@ -175,11 +176,11 @@
           checked={hideTitle}
           onCheckedChange={(value) => (hideTitle = value === true)}
         />
-        <Field.Label for="folder-hide-title">Hide the title on the tile</Field.Label>
+        <Field.Label for="folder-hide-title">{m.folder_hide_title()}</Field.Label>
       </Field.Field>
 
       <fieldset class="flex flex-col gap-1">
-        <legend class="mb-1 text-sm font-medium">Catalogs</legend>
+        <legend class="mb-1 text-sm font-medium">{m.folder_catalogs()}</legend>
         {#each catalogs as catalog (`${catalog.addonId}|${catalog.type}|${catalog.id}`)}
           {@const key = `${catalog.addonId}|${catalog.type}|${catalog.id}`}
           <label
@@ -197,12 +198,12 @@
             <!-- An addon usually serves the same catalog name for movies and
                  for series : without the type the two rows are identical. -->
             <span class="text-xs text-muted-foreground"
-              >· {catalog.type === "series" ? "Series" : catalog.type === "movie" ? "Movies" : catalog.type} · {catalog.addonName}</span
+              >· {catalog.type === "series" ? m.common_series() : catalog.type === "movie" ? m.common_movies() : catalog.type} · {catalog.addonName}</span
             >
           </label>
         {:else}
           <p class="text-sm text-muted-foreground">
-            No catalogs yet : install an addon that serves some.
+            {m.folder_no_catalogs()}
           </p>
         {/each}
       </fieldset>
@@ -214,8 +215,8 @@
           <Button
             variant="ghost"
             size="icon"
-            aria-label="Move folder earlier"
-            title="Move earlier"
+            aria-label={m.folder_move_earlier_label()}
+            title={m.folder_move_earlier()}
             disabled={position.index === 0 || saving}
             onclick={() => onMove?.(-1)}
           >
@@ -224,8 +225,8 @@
           <Button
             variant="ghost"
             size="icon"
-            aria-label="Move folder later"
-            title="Move later"
+            aria-label={m.folder_move_later_label()}
+            title={m.folder_move_later()}
             disabled={position.index === position.total - 1 || saving}
             onclick={() => onMove?.(1)}
           >
@@ -234,8 +235,8 @@
           <Button
             variant="ghost"
             size="icon"
-            aria-label="Delete folder"
-            title="Delete folder"
+            aria-label={m.folder_delete()}
+            title={m.folder_delete()}
             disabled={saving}
             onclick={() => onDelete?.()}
             class="text-destructive hover:bg-destructive/10 hover:text-destructive"
@@ -245,8 +246,8 @@
         </div>
       {/if}
       <div class="flex gap-2">
-        <Button variant="ghost" onclick={() => (open = false)}>Cancel</Button>
-        <Button disabled={!canSave} onclick={save}>{folder ? "Save" : "Add"}</Button>
+        <Button variant="ghost" onclick={() => (open = false)}>{m.common_cancel()}</Button>
+        <Button disabled={!canSave} onclick={save}>{folder ? m.common_save() : m.common_add()}</Button>
       </div>
     </Dialog.Footer>
   </Dialog.Content>

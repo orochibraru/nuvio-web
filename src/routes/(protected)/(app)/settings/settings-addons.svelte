@@ -19,6 +19,7 @@
 		previewAddon,
 		saveAddons,
 	} from "#lib/addons/addons.remote.js";
+	import type { LoadFailure } from "#lib/addons/registry.js";
 	import * as Alert from "#lib/components/ui/alert/index.js";
 	import { Badge } from "#lib/components/ui/badge/index.js";
 	import { Button } from "#lib/components/ui/button/index.js";
@@ -28,9 +29,10 @@
 	import { Input } from "#lib/components/ui/input/index.js";
 	import { Spinner } from "#lib/components/ui/spinner/index.js";
 	import { pageTitle } from "#lib/core/title.svelte.js";
+	import { m } from "#lib/i18n/index.js";
 	import { cn } from "#lib/utils.js";
 
-	pageTitle.set("Addons");
+	pageTitle.set(m.settings_section_addons());
 
 	interface Row {
 		url: string;
@@ -77,7 +79,7 @@
 			await saveAddons(rows);
 			await addonsQuery.refresh();
 		} catch {
-			toast.error("Couldn't save addon changes.");
+			toast.error(m.settings_addons_save_failed());
 		} finally {
 			saving = false;
 		}
@@ -94,7 +96,7 @@
 	function removeAddon(url: string) {
 		confirmRemove = null;
 		void persist(toRows().filter((row) => row.url !== url));
-		toast.success("Addon removed");
+		toast.success(m.settings_addons_removed());
 	}
 
 	function move(url: string, delta: number) {
@@ -143,7 +145,7 @@
 		try {
 			preview = await previewAddon(addUrl);
 		} catch {
-			preview = { ok: false, message: "Enter a valid addon URL." };
+			preview = { ok: false, message: m.settings_addons_invalid_url() };
 		} finally {
 			previewing = false;
 		}
@@ -153,7 +155,7 @@
 		}
 		const rows = toRows();
 		if (rows.some((row) => row.url === current.baseUrl)) {
-			toast.info("That addon is already installed.");
+			toast.info(m.settings_addons_already_installed());
 			dialogOpen = false;
 			return;
 		}
@@ -165,7 +167,7 @@
 				enabled: true,
 			},
 		]);
-		toast.success(`Added ${current.manifest.name}.`);
+		toast.success(m.settings_addons_added({ name: current.manifest.name }));
 		dialogOpen = false;
 		addUrl = "";
 		preview = null;
@@ -176,12 +178,12 @@
 		{
 			name: "Cinemeta",
 			url: "https://v3-cinemeta.strem.io/manifest.json",
-			blurb: "Catalogs, posters and metadata for films and TV (IMDb ids).",
+			blurb: m.settings_addons_blurb_cinemeta(),
 		},
 		{
 			name: "TMDB",
 			url: "https://94c8cb9f702d-tmdb-addon.baby-beamup.club/manifest.json",
-			blurb: "The Movie Database catalogs and artwork, many languages.",
+			blurb: m.settings_addons_blurb_tmdb(),
 		},
 	];
 
@@ -193,7 +195,7 @@
 		}
 		const rows = toRows();
 		if (rows.some((row) => `${row.url}/manifest.json` === entry.url)) {
-			toast.info("That addon is already installed.");
+			toast.info(m.settings_addons_already_installed());
 			return;
 		}
 		addingSuggested = entry.url;
@@ -210,14 +212,14 @@
 	) {
 		const result = await previewAddon(entry.url).catch(() => null);
 		if (!result?.ok) {
-			toast.error(`Couldn't reach ${entry.name}.`);
+			toast.error(m.settings_addons_unreachable_named({ name: entry.name }));
 			return;
 		}
 		await persist([
 			...rows,
 			{ url: result.baseUrl, name: result.manifest.name, enabled: true },
 		]);
-		toast.success(`Added ${result.manifest.name}.`);
+		toast.success(m.settings_addons_added({ name: result.manifest.name }));
 	}
 
 	// "Discover more addons" : addons that themselves advertise an
@@ -254,14 +256,16 @@
 		}
 		const rows = toRows();
 		if (rows.some((row) => row.url === entry.transportUrl)) {
-			toast.info("That addon is already installed.");
+			toast.info(m.settings_addons_already_installed());
 			return;
 		}
 		installingUrl = entry.transportUrl;
 		try {
 			const result = await previewAddon(entry.transportUrl).catch(() => null);
 			if (!result?.ok) {
-				toast.error(`Couldn't reach ${entry.manifest.name}.`);
+				toast.error(
+					m.settings_addons_unreachable_named({ name: entry.manifest.name }),
+				);
 				return;
 			}
 			await persist([
@@ -272,33 +276,57 @@
 					enabled: true,
 				},
 			]);
-			toast.success(`Added ${result.manifest.name}.`);
+			toast.success(m.settings_addons_added({ name: result.manifest.name }));
 		} finally {
 			installingUrl = null;
+		}
+	}
+
+	/** Host only: an addon URL's path often carries a debrid or API key. */
+	function addonHost(url: string): string {
+		try {
+			return new URL(url).host;
+		} catch {
+			return m.settings_addons_invalid_host();
+		}
+	}
+
+	function failureText(reason: LoadFailure): string {
+		switch (reason) {
+			case "timeout":
+				return m.settings_addons_failure_timeout();
+			case "invalid":
+				return m.settings_addons_failure_invalid();
+			case "blocked":
+				return m.settings_addons_failure_blocked();
+			case "unreachable":
+				return m.settings_addons_failure_unreachable();
+			default:
+				return m.settings_addons_failure_http({ status: reason });
 		}
 	}
 </script>
 
 <Card.Root class="border border-foreground/10">
     <Card.Header>
-        <Card.Title role="heading" aria-level={2}>Addons</Card.Title>
+        <Card.Title role="heading" aria-level={2}
+            >{m.settings_section_addons()}</Card.Title
+        >
         <Card.Description>
-            Catalogs, metadata, streams and subtitles for this profile.
+            {m.settings_addons_description()}
         </Card.Description>
     </Card.Header>
     <Card.Content class="flex flex-col gap-7">
         <div class="flex flex-col gap-6">
             <Button onclick={() => (dialogOpen = true)}>
                 <PlusIcon data-icon="inline-start" />
-                Add addon
+                {m.settings_addons_add()}
             </Button>
 
             <Alert.Root>
                 <InfoIcon />
                 <Alert.Description>
-                    Nuvio Web hosts nothing. Everything you see comes from the
-                    addons you install : you choose them and are responsible for
-                    what they return. Only add addons you have the right to use.
+                    {m.settings_addons_disclaimer()}
                 </Alert.Description>
             </Alert.Root>
 
@@ -306,7 +334,7 @@
                 <Alert.Root variant="destructive">
                     <TriangleAlertIcon />
                     <Alert.Description
-                        >Couldn't load your addons. Reload to try again.</Alert.Description
+                        >{m.settings_addons_load_failed()}</Alert.Description
                     >
                 </Alert.Root>
             {:else if !addonsQuery.current}
@@ -320,11 +348,14 @@
                     <Alert.Root variant="destructive">
                         <TriangleAlertIcon />
                         <Alert.Description>
-                            {addonsQuery.current.errors.length} addon(s) couldn't
-                            be reached:
-                            {addonsQuery.current.errors
-                                .map((entry) => entry.url)
-                                .join(", ")}
+                            {m.settings_addons_errors({
+                                count: addonsQuery.current.errors.length,
+                            })}
+                            <ul class="mt-1 list-disc pl-5">
+                                {#each addonsQuery.current.errors as entry (entry.url)}
+                                    <li>{addonHost(entry.url)}: {failureText(entry.reason)}</li>
+                                {/each}
+                            </ul>
                         </Alert.Description>
                     </Alert.Root>
                 {/if}
@@ -332,11 +363,9 @@
                 {#if addonsQuery.current.addons.length === 0}
                     <Card.Root>
                         <Card.Header>
-                            <Card.Title>No addons yet</Card.Title>
+                            <Card.Title>{m.settings_addons_empty_title()}</Card.Title>
                             <Card.Description>
-                                Start with a metadata provider : catalogs,
-                                posters and details. Add a stream provider
-                                yourself once you're set up.
+                                {m.settings_addons_empty_description()}
                             </Card.Description>
                         </Card.Header>
                         <Card.Content class="flex flex-col gap-2">
@@ -360,7 +389,7 @@
                                         disabled={saving}
                                         onclick={() => addSuggested(entry)}
                                     >
-                                        <PlusIcon data-icon="inline-start" /> Add
+                                        <PlusIcon data-icon="inline-start" /> {m.common_add()}
                                     </Button>
                                 </div>
                             {/each}
@@ -396,7 +425,7 @@
                                     >
                                         <button
                                             type="button"
-                                            aria-label="Drag to reorder"
+                                            aria-label={m.settings_addons_drag()}
                                             class="hidden shrink-0 cursor-grab touch-none text-muted-foreground active:cursor-grabbing sm:block"
                                             draggable="true"
                                             ondragstart={() =>
@@ -434,12 +463,12 @@
                                                 >
                                                 {#if !addon.enabled}
                                                     <Badge variant="outline"
-                                                        >Disabled</Badge
+                                                        >{m.settings_addons_disabled()}</Badge
                                                     >
                                                 {/if}
                                                 {#if !addon.reachable}
                                                     <Badge variant="secondary"
-                                                        >unreachable</Badge
+                                                        >{m.settings_addons_unreachable()}</Badge
                                                     >
                                                 {/if}
                                             </div>
@@ -464,7 +493,9 @@
                                                     <Badge
                                                         variant="secondary"
                                                         class="text-[10px]"
-                                                        >{addon.catalogCount} catalogs</Badge
+                                                        >{m.settings_addons_catalog_count({
+                                                            count: addon.catalogCount,
+                                                        })}</Badge
                                                     >
                                                 {/if}
                                             </div>
@@ -478,8 +509,8 @@
                                                     href={addon.configureUrl}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
-                                                    aria-label={`Configure ${addon.name}`}
-                                                    title="Open this addon's configuration page"
+                                                    aria-label={m.settings_addons_configure({ name: addon.name })}
+                                                    title={m.settings_addons_configure_title()}
                                                 >
                                                     <SettingsIcon />
                                                 </Button>
@@ -488,7 +519,7 @@
                                                 variant="ghost"
                                                 size="icon-sm"
                                                 disabled={index === 0 || saving}
-                                                aria-label="Move up"
+                                                aria-label={m.settings_move_up()}
                                                 onclick={() =>
                                                     move(addon.url, -1)}
                                             >
@@ -501,7 +532,7 @@
                                                     addonsQuery.current.addons
                                                         .length -
                                                         1 || saving}
-                                                aria-label="Move down"
+                                                aria-label={m.settings_move_down()}
                                                 onclick={() =>
                                                     move(addon.url, 1)}
                                             >
@@ -515,8 +546,8 @@
                                                 disabled={saving}
                                                 aria-pressed={addon.enabled}
                                                 aria-label={addon.enabled
-                                                    ? `Disable ${addon.name}`
-                                                    : `Enable ${addon.name}`}
+                                                    ? m.settings_addons_disable({ name: addon.name })
+                                                    : m.settings_addons_enable({ name: addon.name })}
                                                 class="w-20"
                                                 onclick={() =>
                                                     setEnabled(
@@ -527,18 +558,18 @@
                                                 {#if addon.enabled}
                                                     <PowerIcon
                                                         data-icon="inline-start"
-                                                    /> On
+                                                    /> {m.settings_addons_on()}
                                                 {:else}
                                                     <PowerOffIcon
                                                         data-icon="inline-start"
-                                                    /> Off
+                                                    /> {m.settings_addons_off()}
                                                 {/if}
                                             </Button>
                                             <Button
                                                 variant="ghost"
                                                 size="icon-sm"
                                                 disabled={saving}
-                                                aria-label="Remove"
+                                                aria-label={m.common_remove()}
                                                 onclick={() =>
                                                     (confirmRemove = {
                                                         url: addon.url,
@@ -561,10 +592,9 @@
             {#if (catalogSourcesQuery.current?.length ?? 0) > 0}
                 <Card.Root>
                     <Card.Header>
-                        <Card.Title>Discover more addons</Card.Title>
+                        <Card.Title>{m.settings_addons_discover_title()}</Card.Title>
                         <Card.Description>
-                            These addons list other addons : browse each
-                            directory and install what you want.
+                            {m.settings_addons_discover_description()}
                         </Card.Description>
                     </Card.Header>
                     <Card.Content class="flex flex-col gap-2">
@@ -579,7 +609,7 @@
                                     <p
                                         class="truncate text-xs text-muted-foreground"
                                     >
-                                        From {source.addonName}
+                                        {m.settings_addons_from({ name: source.addonName })}
                                     </p>
                                 </div>
                                 <Button
@@ -587,7 +617,7 @@
                                     variant="outline"
                                     onclick={() => openBrowse(source)}
                                 >
-                                    <CompassIcon data-icon="inline-start" /> Browse
+                                    <CompassIcon data-icon="inline-start" /> {m.settings_addons_browse()}
                                 </Button>
                             </div>
                         {/each}
@@ -601,15 +631,17 @@
 <Dialog.Root bind:open={dialogOpen}>
     <Dialog.Content class="sm:max-w-lg">
         <Dialog.Header>
-            <Dialog.Title>Add addon</Dialog.Title>
+            <Dialog.Title>{m.settings_addons_add()}</Dialog.Title>
             <Dialog.Description
-                >Paste a Stremio addon manifest URL.</Dialog.Description
+                >{m.settings_addons_dialog_description()}</Dialog.Description
             >
         </Dialog.Header>
 
         <Field.FieldGroup>
             <Field.Field>
-                <Field.FieldLabel for="addon-url">Addon URL</Field.FieldLabel>
+                <Field.FieldLabel for="addon-url"
+                    >{m.settings_addons_url_label()}</Field.FieldLabel
+                >
                 <Input
                     id="addon-url"
                     bind:value={addUrl}
@@ -671,10 +703,9 @@
                             <p
                                 class="text-xs font-medium text-muted-foreground"
                             >
-                                {preview.manifest.catalogCount} catalog{preview
-                                    .manifest.catalogCount === 1
-                                    ? ""
-                                    : "s"}
+                                {m.settings_addons_catalog_count_exact({
+                                    count: preview.manifest.catalogCount,
+                                })}
                             </p>
                             <div
                                 class="flex max-h-24 flex-wrap gap-1 overflow-y-auto"
@@ -699,7 +730,7 @@
 
         <Dialog.Footer class="mt-4">
             <Button variant="ghost" onclick={() => (dialogOpen = false)}
-                >Cancel</Button
+                >{m.common_cancel()}</Button
             >
             <Button
                 disabled={!addUrl || previewing || saving}
@@ -708,7 +739,7 @@
                 {#if previewing || saving}<Spinner
                         data-icon="inline-start"
                     />{/if}
-                Add addon
+                {m.settings_addons_add()}
             </Button>
         </Dialog.Footer>
     </Dialog.Content>
@@ -720,22 +751,25 @@
 >
     <Dialog.Content class="sm:max-w-sm">
         <Dialog.Header>
-            <Dialog.Title>Remove {confirmRemove?.name}?</Dialog.Title>
+            <Dialog.Title
+                >{m.settings_addons_remove_title({
+                    name: confirmRemove?.name ?? "",
+                })}</Dialog.Title
+            >
             <Dialog.Description>
-                Its catalogs, metadata and streams stop appearing across the
-                app. You can add it back any time.
+                {m.settings_addons_remove_description()}
             </Dialog.Description>
         </Dialog.Header>
         <Dialog.Footer class="mt-4">
             <Button variant="ghost" onclick={() => (confirmRemove = null)}
-                >Cancel</Button
+                >{m.common_cancel()}</Button
             >
             <Button
                 variant="destructive"
                 disabled={saving}
                 onclick={() => confirmRemove && removeAddon(confirmRemove.url)}
             >
-                Remove
+                {m.common_remove()}
             </Button>
         </Dialog.Footer>
     </Dialog.Content>
@@ -744,10 +778,11 @@
 <Dialog.Root bind:open={browseOpen}>
     <Dialog.Content class="sm:max-w-lg">
         <Dialog.Header>
-            <Dialog.Title>{browseSource?.name ?? "Browse addons"}</Dialog.Title>
+            <Dialog.Title>{browseSource?.name ?? m.settings_addons_browse_title()}</Dialog.Title>
             <Dialog.Description>
-                From {browseSource?.addonName}. Installing re-checks each
-                manifest before adding it.
+                {m.settings_addons_browse_description({
+                    name: browseSource?.addonName ?? "",
+                })}
             </Dialog.Description>
         </Dialog.Header>
 
@@ -755,7 +790,7 @@
             <Alert.Root variant="destructive">
                 <TriangleAlertIcon />
                 <Alert.Description
-                    >Couldn't load this directory.</Alert.Description
+                    >{m.settings_addons_directory_failed()}</Alert.Description
                 >
             </Alert.Root>
         {:else if !browseQuery?.current}
@@ -766,7 +801,7 @@
             </div>
         {:else if browseQuery.current.addons.length === 0}
             <p class="py-6 text-center text-sm text-muted-foreground">
-                This directory is empty right now.
+                {m.settings_addons_directory_empty()}
             </p>
         {:else}
             <div class="flex max-h-96 flex-col gap-2 overflow-y-auto">
@@ -812,7 +847,7 @@
                             {:else}
                                 <PlusIcon data-icon="inline-start" />
                             {/if}
-                            Install
+                            {m.settings_addons_install()}
                         </Button>
                     </div>
                 {/each}
@@ -821,7 +856,7 @@
 
         <Dialog.Footer class="mt-4">
             <Button variant="ghost" onclick={() => (browseOpen = false)}
-                >Close</Button
+                >{m.common_close()}</Button
             >
         </Dialog.Footer>
     </Dialog.Content>

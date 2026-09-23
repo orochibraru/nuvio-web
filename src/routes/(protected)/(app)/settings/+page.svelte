@@ -2,6 +2,7 @@
 	import CheckIcon from "@lucide/svelte/icons/check";
 	import { toast } from "svelte-sonner";
 	import { pageTitle } from "#lib/core/title.svelte.js";
+	import { m } from "#lib/i18n/index.js";
 	import {
 		SETTINGS_SECTIONS,
 		settingsSectionFrom,
@@ -23,7 +24,7 @@
 
 	let { data } = $props();
 
-	pageTitle.set("Settings");
+	pageTitle.set(m.nav_settings());
 
 	// "idle" → "saving" → "saved" (auto-clears); "error" reverts the preview.
 	let saveState = $state<"idle" | "saving" | "saved" | "error">("idle");
@@ -47,7 +48,7 @@
 		} catch {
 			theme.preview(previous); // roll the optimistic change back
 			saveState = "error";
-			toast.error("Couldn't save : reverted.");
+			toast.error(m.settings_save_failed());
 		}
 	}
 
@@ -63,12 +64,12 @@
 
 <div class="mx-auto flex w-full max-w-3xl flex-col gap-6">
   <div class="flex items-center gap-3">
-    <h1 class="text-3xl font-bold tracking-tight">Settings</h1>
+    <h1 class="text-3xl font-bold tracking-tight">{m.nav_settings()}</h1>
     {#if saveState === "saving"}
-      <span class="text-xs text-muted-foreground">Saving…</span>
+      <span class="text-xs text-muted-foreground">{m.settings_saving()}</span>
     {:else if saveState === "saved"}
       <span class="flex items-center gap-1 text-xs text-muted-foreground">
-        <CheckIcon class="size-3.5" /> Saved
+        <CheckIcon class="size-3.5" /> {m.settings_saved()}
       </span>
     {/if}
   </div>
@@ -77,7 +78,7 @@
        the main nav row. Below that the header hides its nav entirely, so the
        same links render here as a scrollable pill row. -->
   <nav
-    aria-label="Settings sections"
+    aria-label={m.settings_sections_label()}
     class="-mx-6 overflow-x-auto px-6 md:hidden scrollbar-none [&::-webkit-scrollbar]:hidden"
   >
     <div class="flex w-max gap-1 rounded-full border border-foreground/10 bg-card p-1">

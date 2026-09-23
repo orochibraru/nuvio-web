@@ -1,9 +1,10 @@
 <script lang="ts">
 	import RefreshCwIcon from "@lucide/svelte/icons/refresh-cw";
 	import { Button } from "#lib/components/ui/button/index.js";
+	import { m } from "#lib/i18n/index.js";
 
 	let {
-		message = "Couldn't load this.",
+		message = m.shell_couldnt_load(),
 		onRetry,
 		class: className = "",
 	}: {
@@ -33,6 +34,6 @@
 			data-icon="inline-start"
 			class={retrying ? "animate-spin" : ""}
 		/>
-		Try again
+		{m.common_try_again()}
 	</Button>
 </div>

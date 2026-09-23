@@ -44,26 +44,11 @@ export type StreamQuality = (typeof STREAM_QUALITIES)[number];
 export const SYNC_SOURCES = ["nuvio", "trakt", "simkl"] as const;
 export type SyncSource = (typeof SYNC_SOURCES)[number];
 
-/** Regions the "where to watch" (JustWatch) lookup supports in the settings UI. */
+/**
+ * Regions the "where to watch" (JustWatch) lookup supports in the settings UI.
+ * The UI names them with `Intl.DisplayNames` in the viewer's locale.
+ */
 export const WATCH_REGIONS = [
-	["auto", "Detect from browser"],
-	["US", "United States"],
-	["GB", "United Kingdom"],
-	["CA", "Canada"],
-	["AU", "Australia"],
-	["IE", "Ireland"],
-	["FR", "France"],
-	["DE", "Germany"],
-	["ES", "Spain"],
-	["IT", "Italy"],
-	["NL", "Netherlands"],
-	["BR", "Brazil"],
-	["MX", "Mexico"],
-	["IN", "India"],
-	["JP", "Japan"],
-] as const satisfies ReadonlyArray<readonly [string, string]>;
-
-const WATCH_REGION_CODES = [
 	"auto",
 	"US",
 	"GB",
@@ -80,7 +65,7 @@ const WATCH_REGION_CODES = [
 	"IN",
 	"JP",
 ] as const;
-export type WatchRegion = (typeof WATCH_REGION_CODES)[number];
+export type WatchRegion = (typeof WATCH_REGIONS)[number];
 
 export const uiSettingsSchema = v.object({
 	mode: v.fallback(v.picklist(["light", "dark", "system"]), "system"),
@@ -97,7 +82,7 @@ export const uiSettingsSchema = v.object({
 	/** ISO-ish language code auto-selected when a stream has matching subs; "" = off. */
 	subtitleLanguage: v.fallback(v.string(), ""),
 	/** Country for the "where to watch" lookup; "auto" = derive from the browser. */
-	watchRegion: v.fallback(v.picklist(WATCH_REGION_CODES), "auto"),
+	watchRegion: v.fallback(v.picklist(WATCH_REGIONS), "auto"),
 	/** Backend the library is read from / written to. */
 	librarySource: v.fallback(v.picklist(SYNC_SOURCES), "nuvio"),
 	/** Backend watch progress + history are read from / written to. */

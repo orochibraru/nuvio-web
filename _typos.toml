@@ -11,6 +11,10 @@ extend-exclude = [
 	"CHANGELOG.md",
 	# Vendored, pinned by skills-lock.json.
 	".agents/",
+	# Translations: French / Spanish / German words read as English misspellings.
+	"messages/fr.json",
+	"messages/es.json",
+	"messages/de.json",
 ]
 
 [default.extend-words]
@@ -21,3 +25,5 @@ Reacher = "Reacher"
 fre = "fre"
 # A real variant spelling, used deliberately in the spec parser's warning.
 unparseable = "unparseable"
+# French for "Appearance": `e2e/i18n.spec.ts` asserts the French settings nav.
+Apparence = "Apparence"

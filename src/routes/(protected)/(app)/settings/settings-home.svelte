@@ -7,6 +7,7 @@
 	import * as Card from "#lib/components/ui/card/index.js";
 	import { Switch } from "#lib/components/ui/switch/index.js";
 	import { streamed } from "#lib/core/stream.svelte.js";
+	import { m } from "#lib/i18n/index.js";
 	import {
 		catalogKey,
 		catalogTitles,
@@ -62,23 +63,25 @@
 			await saveHomeLayout(next);
 		} catch {
 			draft = previous;
-			toast.error("Couldn't save your home layout : reverted.");
+			toast.error(m.settings_home_save_failed());
 		} finally {
 			saving = false;
 		}
 	}
 
 	const typeLabel = (type: string) =>
-		type === "series" ? "Series" : type === "movie" ? "Movies" : type;
+		type === "series"
+			? m.common_series()
+			: type === "movie"
+				? m.common_movies()
+				: type;
 </script>
 
 <Card.Root class="border border-foreground/10">
   <Card.Header>
-    <Card.Title role="heading" aria-level={2}>Home</Card.Title>
+    <Card.Title role="heading" aria-level={2}>{m.nav_home()}</Card.Title>
     <Card.Description>
-      Which catalogs your home screen shows, and in what order. Stored on your
-      Nuvio account for this web app; catalogs from addons you install later
-      appear at the end until you move them.
+      {m.settings_home_description()}
     </Card.Description>
     {#if isCustomized(layout)}
       <Card.Action>
@@ -88,7 +91,7 @@
           disabled={saving}
           onclick={() => apply(EMPTY_HOME_LAYOUT)}
         >
-          <RotateCcwIcon data-icon="inline-start" />Reset
+          <RotateCcwIcon data-icon="inline-start" />{m.settings_home_reset()}
         </Button>
       </Card.Action>
     {/if}
@@ -102,16 +105,15 @@
       </div>
     {:else if ordered.length === 0}
       <p class="py-6 text-center text-sm text-muted-foreground">
-        None of your addons serve a catalog yet.
+        {m.settings_home_empty()}
       </p>
     {:else}
       {#if !isCustomized(layout)}
         <p class="mb-3 text-sm text-muted-foreground">
-          Showing the first {DEFAULT_HOME_ROWS} catalogs in addon order. Move or hide
-          any of them to arrange your own.
+          {m.settings_home_default_hint({ count: DEFAULT_HOME_ROWS })}
         </p>
       {/if}
-      <ol class="flex flex-col gap-1.5" aria-label="Home catalogs, in order">
+      <ol class="flex flex-col gap-1.5" aria-label={m.settings_home_list_label()}>
         {#each ordered as catalog, index (catalogKey(catalog))}
           {@const key = catalogKey(catalog)}
           {@const isHidden = hidden.has(key)}
@@ -126,7 +128,7 @@
               <p class="truncate text-xs text-muted-foreground">
                 {typeLabel(catalog.type)} · {catalog.addonName}
                 {#if !isHidden && !shown.has(key)}
-                  · past the home screen's limit
+                  · {m.settings_home_past_limit()}
                 {/if}
               </p>
             </div>
@@ -134,8 +136,8 @@
               <Button
                 variant="ghost"
                 size="icon"
-                aria-label={`Move ${title} up`}
-                title="Move up"
+                aria-label={m.settings_home_move_title_up({ title })}
+                title={m.settings_move_up()}
                 disabled={index === 0 || saving}
                 onclick={() => apply(moveCatalog(catalogsStream.current, layout, key, -1))}
               >
@@ -144,8 +146,8 @@
               <Button
                 variant="ghost"
                 size="icon"
-                aria-label={`Move ${title} down`}
-                title="Move down"
+                aria-label={m.settings_home_move_title_down({ title })}
+                title={m.settings_move_down()}
                 disabled={index === ordered.length - 1 || saving}
                 onclick={() => apply(moveCatalog(catalogsStream.current, layout, key, 1))}
               >
@@ -153,7 +155,7 @@
               </Button>
               <Switch
                 checked={!isHidden}
-                aria-label={`Show ${title} on Home`}
+                aria-label={m.settings_home_show_title({ title })}
                 disabled={saving}
                 onCheckedChange={(on) => apply(setHidden(layout, key, !on))}
               />

@@ -6,6 +6,7 @@
 	import { fade, fly } from "svelte/transition";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { reduced } from "#lib/core/motion.js";
+	import { m } from "#lib/i18n/index.js";
 	import type {
 		SubtitleAppearance,
 		SubtitleOption,
@@ -17,10 +18,10 @@
 	} from "#lib/settings/ui-settings.js";
 	import { cn } from "#lib/utils.js";
 
-	const sizeLabels: Record<SubtitleSize, string> = {
-		small: "Small",
-		medium: "Medium",
-		large: "Large",
+	const sizeLabels: Record<SubtitleSize, () => string> = {
+		small: m.subtitle_size_small,
+		medium: m.subtitle_size_medium,
+		large: m.subtitle_size_large,
 	};
 	const swatches = SUBTITLE_COLORS;
 
@@ -76,13 +77,13 @@
             class="flex flex-1 items-center gap-1.5 text-xs font-semibold tracking-[0.2em] text-white/50 uppercase"
           >
             <CaptionsIcon class="size-3.5" />
-            Subtitles
+            {m.player_subtitles()}
           </span>
           <Button
             variant="secondary"
             size="icon"
-            aria-label="Close subtitles"
-            title="Close (Esc)"
+            aria-label={m.player_close_subtitles()}
+            title={m.player_close_hint()}
             onclick={onClose}
             class="shrink-0 rounded-full"
           >
@@ -103,7 +104,7 @@
             <CheckIcon
               class={cn("size-4 shrink-0", activeCaption && "invisible")}
             />
-            Off
+            {m.player_off()}
           </Button>
           {#each options as option (option.key)}
             <Button
@@ -134,7 +135,7 @@
                     <span
                       class="rounded bg-destructive/20 px-1 text-[10px] font-medium tracking-wide text-destructive"
                     >
-                      unavailable
+                      {m.player_subtitle_unavailable()}
                     </span>
                   {/if}
                   {#if pendingCaption === option.key}
@@ -155,7 +156,7 @@
           <p
             class="text-xs font-semibold tracking-wide text-white/50 uppercase"
           >
-            Appearance
+            {m.player_appearance()}
           </p>
           <div class="flex gap-1.5">
             {#each SUBTITLE_SIZES as size (size)}
@@ -165,7 +166,7 @@
                 onclick={() => onAppearance({ subtitleSize: size })}
                 class="flex-1"
               >
-                {sizeLabels[size]}
+                {sizeLabels[size]()}
               </Button>
             {/each}
           </div>
@@ -173,7 +174,7 @@
             {#each swatches as swatch (swatch)}
               <button
                 type="button"
-                aria-label={`Subtitle colour ${swatch}`}
+                aria-label={m.subtitle_colour({ color: swatch })}
                 aria-pressed={subtitleColor === swatch}
                 onclick={() => onAppearance({ subtitleColor: swatch })}
                 class={cn(
@@ -191,7 +192,7 @@
               onAppearance({ subtitleBackground: !subtitleBackground })}
             class="w-full justify-between"
           >
-            Background plate
+            {m.player_background_plate()}
             <span
               class={cn(
                 "rounded-full px-2 py-0.5 text-[10px]",
@@ -200,7 +201,7 @@
                   : "bg-white/10 text-white/60",
               )}
             >
-              {subtitleBackground ? "On" : "Off"}
+              {subtitleBackground ? m.player_on() : m.player_off()}
             </span>
           </Button>
 
@@ -208,12 +209,12 @@
             <div
               class="flex items-center justify-between gap-2 rounded-md border border-white/10 px-3 py-2 text-xs font-medium text-white/60"
             >
-              <span>Timing</span>
+              <span>{m.player_timing()}</span>
               <div class="flex items-center gap-2">
                 <Button
                   variant="secondary"
                   size="icon-xs"
-                  aria-label="Subtitles earlier"
+                  aria-label={m.player_subtitles_earlier()}
                   onclick={() => onNudgeOffset(-0.5)}
                 >
                   −
@@ -224,7 +225,7 @@
                 <Button
                   variant="secondary"
                   size="icon-xs"
-                  aria-label="Subtitles later"
+                  aria-label={m.player_subtitles_later()}
                   onclick={() => onNudgeOffset(0.5)}
                 >
                   +

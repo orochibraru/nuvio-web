@@ -18,11 +18,11 @@ export function formatTime(seconds: number): string {
 }
 
 /** Human name for a subtitle language code (`en` → `English`), or the code upper-cased. */
-export function languageName(code: string): string {
+export function languageName(code: string, locale = "en"): string {
 	const raw = code.trim();
 	const short = raw.toLowerCase().slice(0, 2);
 	try {
-		const resolved = new Intl.DisplayNames(["en"], { type: "language" }).of(
+		const resolved = new Intl.DisplayNames([locale], { type: "language" }).of(
 			short,
 		);
 		if (resolved && resolved.toLowerCase() !== short) {

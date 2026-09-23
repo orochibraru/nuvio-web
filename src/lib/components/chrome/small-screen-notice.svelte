@@ -1,6 +1,7 @@
 <script lang="ts">
 	import SmartphoneIcon from "@lucide/svelte/icons/smartphone";
 	import XIcon from "@lucide/svelte/icons/x";
+	import { m } from "#lib/i18n/index.js";
 	import { NUVIO_WEBSITE_URL } from "#lib/nuvio/index.js";
 	import { browser } from "$app/env";
 	import { page } from "$app/state";
@@ -39,15 +40,15 @@
   >
     <SmartphoneIcon class="size-5 shrink-0 text-muted-foreground" />
     <p class="flex-1 text-muted-foreground">
-      Nuvio web is built for the desktop. On a phone, the
+      {m.small_screen_before()}
       <a href={NUVIO_WEBSITE_URL} class="font-medium text-foreground underline">
-        mobile app
+        {m.small_screen_link()}
       </a>
-      works better.
+      {m.small_screen_after()}
     </p>
     <button
       type="button"
-      aria-label="Dismiss"
+      aria-label={m.common_dismiss()}
       onclick={dismiss}
       class="shrink-0 rounded-md p-1.5 text-muted-foreground transition hover:bg-foreground/5 hover:text-foreground"
     >

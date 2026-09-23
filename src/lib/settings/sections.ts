@@ -5,6 +5,7 @@ import PlugIcon from "@lucide/svelte/icons/plug";
 import PuzzleIcon from "@lucide/svelte/icons/puzzle";
 import RefreshCwIcon from "@lucide/svelte/icons/refresh-cw";
 import type { Component } from "svelte";
+import { m } from "#lib/i18n/index.js";
 
 /**
  * The Settings sections, in order.
@@ -16,17 +17,54 @@ import type { Component } from "svelte";
  */
 export interface SettingsSection {
 	value: string;
-	label: string;
+	/** A getter: resolves in the current request's locale on every read. */
+	readonly label: string;
 	icon: Component;
 }
 
 export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
-	{ value: "appearance", label: "Appearance", icon: PaletteIcon },
-	{ value: "home", label: "Home", icon: HouseIcon },
-	{ value: "playback", label: "Playback", icon: PlayIcon },
-	{ value: "sync", label: "Sync", icon: RefreshCwIcon },
-	{ value: "addons", label: "Addons", icon: PuzzleIcon },
-	{ value: "integrations", label: "Integrations", icon: PlugIcon },
+	{
+		value: "appearance",
+		get label() {
+			return m.settings_section_appearance();
+		},
+		icon: PaletteIcon,
+	},
+	{
+		value: "home",
+		get label() {
+			return m.nav_home();
+		},
+		icon: HouseIcon,
+	},
+	{
+		value: "playback",
+		get label() {
+			return m.settings_section_playback();
+		},
+		icon: PlayIcon,
+	},
+	{
+		value: "sync",
+		get label() {
+			return m.settings_section_sync();
+		},
+		icon: RefreshCwIcon,
+	},
+	{
+		value: "addons",
+		get label() {
+			return m.settings_section_addons();
+		},
+		icon: PuzzleIcon,
+	},
+	{
+		value: "integrations",
+		get label() {
+			return m.settings_section_integrations();
+		},
+		icon: PlugIcon,
+	},
 ] as const;
 
 /** The first section is the default, and is spelled as a bare `/settings`. */

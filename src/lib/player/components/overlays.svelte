@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Button } from "#lib/components/ui/button/index.js";
+	import { m } from "#lib/i18n/index.js";
 	import type { PlayerInfo } from "#lib/player/info.js";
 	import type { AudioIssue } from "#lib/player/state/silent-audio.svelte.js";
 	import FatalErrorScreen from "./fatal-error-screen.svelte";
@@ -70,7 +71,7 @@
     {title}
     {certification}
     {genres}
-    label="Loading stream"
+    label={m.player_loading_stream()}
   />
 {/if}
 
@@ -95,7 +96,7 @@
     onclick={onSkipIntro}
     class="absolute right-4 bottom-20 z-20 shadow-lg sm:right-6 sm:bottom-24"
   >
-    Skip intro
+    {m.player_skip_intro()}
   </Button>
 {/if}
 

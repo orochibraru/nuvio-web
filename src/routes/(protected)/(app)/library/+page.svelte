@@ -11,23 +11,24 @@
 	import { reduced } from "#lib/core/motion.js";
 	import { streamed } from "#lib/core/stream.svelte.js";
 	import { pageTitle } from "#lib/core/title.svelte.js";
+	import { m } from "#lib/i18n/index.js";
 	import { sync } from "#lib/sync/store.svelte.js";
 	import { cn } from "#lib/utils.js";
 	import { goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
 
-	pageTitle.set("Library");
+	pageTitle.set(m.nav_library());
 
 	let { data } = $props();
 
 	// Filter + sort live in the URL so they survive back/forward and are shareable.
 	const filters = [
-		{ value: "all", label: "All" },
-		{ value: "movie", label: "Movies" },
-		{ value: "series", label: "Series" },
-		{ value: "watched", label: "Watched" },
-		{ value: "unwatched", label: "Unwatched" },
+		{ value: "all", label: m.library_filter_all() },
+		{ value: "movie", label: m.common_movies() },
+		{ value: "series", label: m.common_series() },
+		{ value: "watched", label: m.media_watched() },
+		{ value: "unwatched", label: m.library_filter_unwatched() },
 	] as const;
 	type Filter = (typeof filters)[number]["value"];
 	const filter = $derived<Filter>(
@@ -36,9 +37,9 @@
 	);
 
 	const sorts = [
-		{ value: "added", label: "Recently added" },
-		{ value: "name", label: "A–Z" },
-		{ value: "rating", label: "Top rated" },
+		{ value: "added", label: m.library_sort_added() },
+		{ value: "name", label: m.library_sort_name() },
+		{ value: "rating", label: m.library_sort_rating() },
 	] as const;
 	type Sort = (typeof sorts)[number]["value"];
 	const sort = $derived<Sort>(
@@ -121,9 +122,9 @@
 			contentType: item.type,
 			remove: true,
 		});
-		toast(`Removed ${item.name}`, {
+		toast(m.common_removed_title({ title: item.name }), {
 			action: {
-				label: "Undo",
+				label: m.common_undo(),
 				onClick: () =>
 					sync.toggleLibrary({
 						contentId: item.id,
@@ -140,9 +141,9 @@
 <div class="flex flex-col gap-6">
 	<div class="flex flex-wrap items-end justify-between gap-3">
 		<div class="flex flex-col gap-1">
-			<h1 class="text-3xl font-bold tracking-tight">Library</h1>
+			<h1 class="text-3xl font-bold tracking-tight">{m.nav_library()}</h1>
 			<p class="text-sm text-muted-foreground">
-				{items.length} title{items.length === 1 ? "" : "s"} saved
+				{m.library_titles_saved({ count: items.length })}
 			</p>
 		</div>
 		<div class="flex items-center gap-2">
@@ -187,7 +188,7 @@
 
 	{#if shown.length === 0 && items.length > 0}
 		<p class="py-16 text-center text-sm text-muted-foreground">
-			No titles match this filter.
+			{m.library_no_match()}
 		</p>
 	{:else if shown.length === 0 && !itemsStream.ready && !sync.authoritative}
 		<div
@@ -200,11 +201,11 @@
 	{:else if shown.length === 0}
 		<EmptyState
 			icon={BookmarkIcon}
-			title="Your library is empty"
-			description="Add movies and series from any detail page and they'll show up here."
+			title={m.library_empty_title()}
+			description={m.library_empty_description()}
 		>
 			{#snippet actions()}
-				<Button href={resolve('discover')} variant="outline">Browse catalogs</Button>
+				<Button href={resolve('discover')} variant="outline">{m.library_browse_catalogs()}</Button>
 			{/snippet}
 		</EmptyState>
 	{:else}
@@ -219,7 +220,7 @@
 					<MediaPoster item={item} progress={progress[item.id]} />
 					<button
 						type="button"
-						aria-label="Remove from library"
+						aria-label={m.library_remove()}
 						onclick={() => remove(item)}
 						class="absolute top-1.5 right-1.5 flex size-9 items-center justify-center rounded-full bg-black/70 text-white transition sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 hover:bg-black/90"
 					>

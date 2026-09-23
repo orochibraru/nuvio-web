@@ -4,6 +4,7 @@
 	import * as Card from "#lib/components/ui/card/index.js";
 	import * as Field from "#lib/components/ui/field/index.js";
 	import { Input } from "#lib/components/ui/input/index.js";
+	import { m } from "#lib/i18n/index.js";
 	import { theme } from "#lib/settings/theme.svelte.js";
 	import type { UiSettings } from "#lib/settings/ui-settings.js";
 
@@ -30,8 +31,12 @@
 
 <Card.Root class="border border-foreground/10">
   <Card.Header>
-    <Card.Title role="heading" aria-level={2}>Integrations</Card.Title>
-    <Card.Description>Optional keys for third-party services.</Card.Description>
+    <Card.Title role="heading" aria-level={2}
+      >{m.settings_section_integrations()}</Card.Title
+    >
+    <Card.Description
+      >{m.settings_integrations_description()}</Card.Description
+    >
   </Card.Header>
   <Card.Content>
     <Field.FieldGroup>
@@ -45,7 +50,7 @@
           >
             TheIntroDB
           </a>
-          API key
+          {m.settings_introdb_key_suffix()}
         </Field.FieldLabel>
         <div class="relative">
           <Input
@@ -53,7 +58,7 @@
             type={visible ? "text" : "password"}
             autocomplete="off"
             spellcheck="false"
-            placeholder="Not set : public data is used"
+            placeholder={m.settings_introdb_placeholder()}
             class="pr-10"
             {value}
             oninput={(event) => (draft = event.currentTarget.value)}
@@ -63,7 +68,7 @@
           />
           <button
             type="button"
-            aria-label={visible ? "Hide key" : "Show key"}
+            aria-label={visible ? m.settings_key_hide() : m.settings_key_show()}
             onclick={() => (visible = !visible)}
             class="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-muted-foreground hover:text-foreground"
           >
@@ -73,8 +78,7 @@
           </button>
         </div>
         <Field.FieldDescription>
-          Skip-intro / outro timestamps already work without one : this only
-          folds in your own pending submissions and raises your rate limit.
+          {m.settings_introdb_hint()}
         </Field.FieldDescription>
       </Field.Field>
     </Field.FieldGroup>

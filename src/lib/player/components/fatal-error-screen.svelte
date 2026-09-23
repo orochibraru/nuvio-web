@@ -5,6 +5,7 @@
 	import LayersIcon from "@lucide/svelte/icons/layers";
 	import TriangleAlertIcon from "@lucide/svelte/icons/triangle-alert";
 	import { Button } from "#lib/components/ui/button/index.js";
+	import { m } from "#lib/i18n/index.js";
 	import { externalPlayerHandoff } from "#lib/player/external-player.js";
 	import { browser } from "$app/env";
 
@@ -57,34 +58,34 @@
   class="absolute inset-0 z-40 flex flex-col items-center justify-center gap-3 bg-black/95 px-6 text-center text-white"
 >
   <TriangleAlertIcon class="size-8 text-destructive" />
-  <h2 class="text-lg font-semibold">Can't play this source</h2>
+  <h2 class="text-lg font-semibold">{m.player_cant_play()}</h2>
   <p class="max-w-sm text-sm text-white/70">{message}</p>
   <div class="mt-1 flex flex-wrap items-center justify-center gap-2">
     {#if onSources}
       <Button onclick={onSources}>
-        <LayersIcon data-icon="inline-start" /> Choose another source
+        <LayersIcon data-icon="inline-start" /> {m.player_choose_another_source()}
       </Button>
     {/if}
     {#if externalUrl}
       {#if handoff?.kind === "link"}
         <Button variant="secondary" href={handoff.href}>
-          <ExternalLinkIcon data-icon="inline-start" /> Play in external player
+          <ExternalLinkIcon data-icon="inline-start" /> {m.common_play_external()}
         </Button>
       {:else if handoff?.kind === "copy"}
         <Button variant="secondary" onclick={playExternally}>
-          <ExternalLinkIcon data-icon="inline-start" /> Play in external player
+          <ExternalLinkIcon data-icon="inline-start" /> {m.common_play_external()}
         </Button>
       {/if}
       <Button variant="ghost" onclick={copyExternal}>
         {#if linkCopied}
-          <CheckIcon data-icon="inline-start" /> Copied
+          <CheckIcon data-icon="inline-start" /> {m.common_copied()}
         {:else}
-          <CopyIcon data-icon="inline-start" /> Copy link
+          <CopyIcon data-icon="inline-start" /> {m.common_copy_link()}
         {/if}
       </Button>
     {/if}
     {#if onBack}
-      <Button variant="secondary" onclick={onBack}>Back</Button>
+      <Button variant="secondary" onclick={onBack}>{m.common_back()}</Button>
     {/if}
   </div>
 </div>

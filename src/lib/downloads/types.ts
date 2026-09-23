@@ -11,6 +11,20 @@ export type DownloadStatus =
 	| "done"
 	| "error";
 
+/**
+ * Why a download failed. A code, not text: the worker has no locale, so the
+ * page words it (see `failure.ts`). `http:<status>`; `storage:<needed>:<free>`
+ * in bytes; `failed` for anything unexpected.
+ */
+export type DownloadFailure =
+	| "drm"
+	| "live"
+	| "playlist"
+	| "no-data"
+	| "failed"
+	| `http:${number}`
+	| `storage:${number}:${number}`;
+
 /** `file` : one direct media file. `hls` : a playlist and its segments. */
 export type DownloadKind = "file" | "hls";
 
@@ -49,6 +63,7 @@ export interface DownloadRecord {
 	mimeType: string | null;
 
 	status: DownloadStatus;
+	/** A `DownloadFailure` code (older records may hold English text). */
 	error: string | null;
 	bytes: number;
 	/** Known for a direct file with a length; unknown for HLS. */
@@ -95,5 +110,5 @@ export type WorkerCommand =
 export type WorkerEvent =
 	| { type: "progress"; id: string; patch: Partial<DownloadRecord> }
 	| { type: "done"; id: string; patch: Partial<DownloadRecord> }
-	| { type: "failed"; id: string; error: string }
+	| { type: "failed"; id: string; error: DownloadFailure }
 	| { type: "aborted"; id: string };

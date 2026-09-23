@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { m } from "#lib/i18n/index.js";
 	import { formatTime } from "#lib/player/format.js";
 	import type { PlayerTransportState } from "#lib/player/state/transport-state.svelte.js";
 
@@ -74,7 +75,7 @@
     max={transport.duration || 0}
     step="0.1"
     value={transport.currentTime}
-    aria-label="Seek"
+    aria-label={m.player_seek()}
     oninput={handleScrub}
     class="relative h-5 w-full cursor-pointer appearance-none bg-transparent focus-visible:outline-none [&::-moz-range-thumb]:size-4 [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-transparent [&::-webkit-slider-thumb]:size-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-transparent"
   />

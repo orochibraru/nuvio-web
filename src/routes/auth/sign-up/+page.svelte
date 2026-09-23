@@ -7,10 +7,12 @@
 	import { Input } from "#lib/components/ui/input/index.js";
 	import { Spinner } from "#lib/components/ui/spinner/index.js";
 	import { pageTitle } from "#lib/core/title.svelte.js";
+	import { m } from "#lib/i18n/index.js";
+	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
 	import { signUp } from "../auth.remote.ts";
 
-	pageTitle.set("Sign up");
+	pageTitle.set(m.auth_sign_up());
 
 	const redirectTo = $derived(page.url.searchParams.get("redirectTo") ?? "/");
 	const formIssue = $derived(signUp.fields.issues()?.[0]?.message);
@@ -18,15 +20,15 @@
 	const passwordIssue = $derived(signUp.fields.password.issues()?.[0]?.message);
 	const signInHref = $derived(
 		redirectTo === "/"
-			? "/auth/sign-in"
-			: `/auth/sign-in?redirectTo=${encodeURIComponent(redirectTo)}`,
+			? resolve("auth/sign-in")
+			: `${resolve("auth/sign-in")}?redirectTo=${encodeURIComponent(redirectTo)}`,
 	);
 </script>
 
 <Card.Root>
 	<Card.Header>
-		<Card.Title>Create an account</Card.Title>
-		<Card.Description>Sign up with your email and a password.</Card.Description>
+		<Card.Title>{m.auth_create_an_account()}</Card.Title>
+		<Card.Description>{m.auth_sign_up_description()}</Card.Description>
 	</Card.Header>
 	<Card.Content>
 		<form {...signUp}>
@@ -39,7 +41,7 @@
 				{/if}
 
 				<Field.Field data-invalid={emailIssue ? true : undefined}>
-					<Field.FieldLabel for="email">Email</Field.FieldLabel>
+					<Field.FieldLabel for="email">{m.common_email()}</Field.FieldLabel>
 					<Input
 						id="email"
 						{...signUp.fields.email.as('email')}
@@ -52,7 +54,7 @@
 				</Field.Field>
 
 				<Field.Field data-invalid={passwordIssue ? true : undefined}>
-					<Field.FieldLabel for="password">Password</Field.FieldLabel>
+					<Field.FieldLabel for="password">{m.auth_password()}</Field.FieldLabel>
 					<Input
 						id="password"
 						{...signUp.fields.password.as('password')}
@@ -62,7 +64,7 @@
 						<Field.FieldError>{passwordIssue}</Field.FieldError>
 					{:else}
 						<Field.FieldDescription
-							>At least 8 characters.</Field.FieldDescription
+							>{m.auth_password_hint()}</Field.FieldDescription
 						>
 					{/if}
 				</Field.Field>
@@ -74,7 +76,7 @@
 						{#if signUp.pending > 0}
 							<Spinner data-icon="inline-start" />
 						{/if}
-						Create account
+						{m.auth_create_account()}
 					</Button>
 				</Field.Field>
 			</Field.FieldGroup>
@@ -82,8 +84,8 @@
 	</Card.Content>
 	<Card.Footer class="justify-center">
 		<p class="text-sm text-muted-foreground">
-			Already have an account?
-			<a class="underline underline-offset-4" href={signInHref}>Sign in</a>
+			{m.auth_have_account()}
+			<a class="underline underline-offset-4" href={signInHref}>{m.auth_sign_in()}</a>
 		</p>
 	</Card.Footer>
 </Card.Root>

@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { Button } from "#lib/components/ui/button/index.js";
+	import { m } from "#lib/i18n/index.js";
 	import { goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
 
 	const status = $derived(page.status);
-	const defaultErrorMessage = "Something went wrong.";
 
 	// Cloudflare's own block page text reaches us verbatim through the API
 	// client; it names the wrong audience (it is written for the site owner) and
@@ -14,7 +14,7 @@
 	// on the server and only be swapped out after hydration.
 	function readable(raw: string): string {
 		if (raw.includes("api.nuvio.tv used Cloudflare to restrict access")) {
-			return "The Nuvio Servers have restricted access to this client via Cloudflare. Please wait a few minutes before retrying.";
+			return m.error_cloudflare();
 		}
 		return raw;
 	}
@@ -23,9 +23,7 @@
 	// deliberate `error(...)` keeps its own message, and only an unknown error
 	// is replaced outside dev. Second-guessing it here only hid the message in
 	// the one environment that wants it.
-	const message = $derived(
-		readable(page.error?.message ?? defaultErrorMessage),
-	);
+	const message = $derived(readable(page.error?.message ?? m.error_default()));
 	const errorId = $derived(page.error?.errorId);
 </script>
 
@@ -37,12 +35,12 @@
         style="background: radial-gradient(50% 45% at 50% 0%, color-mix(in oklch, var(--primary) 12%, transparent), transparent 70%)"
     ></div>
     <p class="relative text-7xl font-bold tracking-tight text-foreground">
-        Error {status}
+        {m.error_status({ status })}
     </p>
     <h1 class="relative text-xl font-semibold tracking-tight">{message}</h1>
     {#if errorId}
         <p class="text-muted-foreground relative font-mono text-xs">
-            Error ID: {errorId}
+            {m.error_id({ id: errorId })}
         </p>
     {/if}
     <div class="relative mt-2 flex gap-2">
@@ -53,8 +51,8 @@
                     ? history.back()
                     : goto(resolve("/(protected)/(app)"))}
         >
-            Go back
+            {m.common_go_back()}
         </Button>
-        <Button href={resolve("/(protected)/(app)")}>Home</Button>
+        <Button href={resolve("/(protected)/(app)")}>{m.nav_home()}</Button>
     </div>
 </div>

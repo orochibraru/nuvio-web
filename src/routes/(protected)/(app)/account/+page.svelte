@@ -5,6 +5,7 @@
 	import HardDriveIcon from "@lucide/svelte/icons/hard-drive";
 	import * as Tabs from "#lib/components/ui/tabs/index.js";
 	import { pageTitle } from "#lib/core/title.svelte.js";
+	import { m } from "#lib/i18n/index.js";
 	import { goto } from "$app/navigation";
 	import { page } from "$app/state";
 	import AccountHistory from "./account-history.svelte";
@@ -12,17 +13,21 @@
 	import AccountStats from "./account-stats.svelte";
 	import AccountStorage from "./account-storage.svelte";
 
-	pageTitle.set("Account");
+	pageTitle.set(m.nav_account());
 
 	let { data } = $props();
 
 	// Which section is showing lives in the URL so it survives back/forward
 	// and is shareable/deep-linkable (e.g. from the command palette).
 	const tabs = [
-		{ value: "overview", label: "Overview", icon: CircleUserIcon },
-		{ value: "history", label: "Watch history", icon: ClockIcon },
-		{ value: "stats", label: "Stats", icon: ChartColumnIcon },
-		{ value: "storage", label: "Storage & sync", icon: HardDriveIcon },
+		{
+			value: "overview",
+			label: m.account_tab_overview(),
+			icon: CircleUserIcon,
+		},
+		{ value: "history", label: m.nav_watch_history(), icon: ClockIcon },
+		{ value: "stats", label: m.account_tab_stats(), icon: ChartColumnIcon },
+		{ value: "storage", label: m.account_tab_storage(), icon: HardDriveIcon },
 	] as const;
 	type Tab = (typeof tabs)[number]["value"];
 	const tab = $derived<Tab>(
@@ -43,7 +48,7 @@
 </script>
 
 <div class="mx-auto flex max-w-5xl flex-col gap-8">
-  <h1 class="text-3xl font-bold tracking-tight">Account</h1>
+  <h1 class="text-3xl font-bold tracking-tight">{m.nav_account()}</h1>
 
   <!-- `Tabs.Root` renders as `display:contents` : the actual row/column layout
 	     is owned by this wrapper (stacked on narrow screens, sidebar from lg up)

@@ -11,6 +11,7 @@
 	import { listDownloads } from "#lib/downloads/store.js";
 	import { playbackSubtitles } from "#lib/downloads/subtitles.js";
 	import type { DownloadRecord } from "#lib/downloads/types.js";
+	import { getLocale, m } from "#lib/i18n/index.js";
 	import VideoPlayer from "#lib/player/components/video-player.svelte";
 	import { resolve } from "$app/paths";
 
@@ -21,7 +22,11 @@
 	 * progress made here isn't recorded.
 	 */
 
-	pageTitle.set("Offline");
+	pageTitle.set(m.offline_title());
+	// The shell was cached without cookies, so its `<html lang>` is whatever
+	// the browser asked for at install time. The copy itself follows the
+	// locale cookie (client-rendered, `ssr = false`): make `lang` agree.
+	document.documentElement.lang = getLocale();
 
 	let items = $state<DownloadRecord[]>([]);
 	let loaded = $state(false);
@@ -67,25 +72,24 @@
 		{/if}
 	{:else}
 		<div class="flex flex-col gap-1">
-			<h1 class="text-3xl font-bold tracking-tight">You're offline</h1>
+			<h1 class="text-3xl font-bold tracking-tight">{m.offline_heading()}</h1>
 			<p class="text-sm text-muted-foreground">
-				Your downloads still play. Everything else comes back with the
-				connection.
+				{m.offline_body()}
 			</p>
 		</div>
 
 		{#if loaded && items.length === 0}
 			<EmptyState
 				icon={WifiOffIcon}
-				title="No downloads on this device"
-				description="Download a title from its sources while you're online to watch it here."
+				title={m.offline_empty_title()}
+				description={m.offline_empty_description()}
 			/>
 		{:else}
 			<DownloadList {items} onPlay={(record) => (playing = record)} />
 		{/if}
 
 		<Button variant="secondary" href={resolve("/(protected)/(app)")}>
-			Try again
+			{m.common_try_again()}
 		</Button>
 	{/if}
 </main>

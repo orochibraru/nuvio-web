@@ -5,11 +5,12 @@
 	import DownloadList from "#lib/downloads/download-list.svelte";
 	import { downloads } from "#lib/downloads/manager.svelte.js";
 	import type { DownloadRecord } from "#lib/downloads/types.js";
+	import { m } from "#lib/i18n/index.js";
 	import { formatFileSize } from "#lib/watch/stream-format.js";
 	import { goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
 
-	pageTitle.set("Downloads");
+	pageTitle.set(m.nav_downloads());
 
 	// Everything here is on this device (IndexedDB + the Origin Private File
 	// System), so there is nothing for a server load to fetch.
@@ -36,13 +37,14 @@
 
 <div class="flex flex-col gap-6">
 	<div class="flex flex-col gap-1">
-		<h1 class="text-3xl font-bold tracking-tight">Downloads</h1>
+		<h1 class="text-3xl font-bold tracking-tight">{m.nav_downloads()}</h1>
 		<p class="text-sm text-muted-foreground">
-			Saved on this device, playable without a connection.
+			{m.downloads_subtitle()}
 			{#if estimate}
-				{formatFileSize(estimate.usage) ?? "0 B"} used of {formatFileSize(
-					estimate.quota,
-				) ?? "?"} available.
+				{m.downloads_usage({
+					used: formatFileSize(estimate.usage) ?? "0 B",
+					quota: formatFileSize(estimate.quota) ?? "?",
+				})}
 			{/if}
 		</p>
 	</div>
@@ -50,14 +52,14 @@
 	{#if !downloads.supported}
 		<EmptyState
 			icon={DownloadIcon}
-			title="Downloads aren't available here"
-			description="This browser can't store files for offline viewing."
+			title={m.downloads_unsupported_title()}
+			description={m.downloads_unsupported_description()}
 		/>
 	{:else if downloads.ready && downloads.items.length === 0}
 		<EmptyState
 			icon={DownloadIcon}
-			title="Nothing downloaded yet"
-			description="Open a title's sources and use the download button next to one to watch it offline."
+			title={m.downloads_empty_title()}
+			description={m.downloads_empty_description()}
 		/>
 	{:else if downloads.ready}
 		<DownloadList
