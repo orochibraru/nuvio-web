@@ -8,6 +8,7 @@
 	import type { MetaVideo } from "#lib/addons/index.js";
 	import ScrollRail from "#lib/components/layout/scroll-rail.svelte";
 	import * as ContextMenu from "#lib/components/ui/context-menu/index.js";
+	import { getLocale, m } from "#lib/i18n/index.js";
 	import { cn } from "#lib/utils.js";
 	import ImdbRating from "./imdb-rating.svelte";
 
@@ -16,7 +17,7 @@
 		seriesRuntime = null,
 		progress = {},
 		initialSeason = null,
-		onPlay,
+		playerHref,
 		onToggleWatched,
 		onPrefetch,
 		onMarkUpTo,
@@ -26,7 +27,9 @@
 		seriesRuntime?: string | null;
 		progress?: Record<string, { fraction: number; completed: boolean }>;
 		initialSeason?: number | null;
-		onPlay: (videoId: string) => void;
+		/** The player URL for an episode (already `resolve`d). A link, not a
+		 *  click handler, so hover preload warms the player route. */
+		playerHref: (videoId: string) => string;
 		onToggleWatched: (
 			videoId: string,
 			season: number | null,
@@ -95,7 +98,7 @@
 		const date = new Date(value);
 		return Number.isNaN(date.getTime())
 			? null
-			: date.toLocaleDateString(undefined, {
+			: date.toLocaleDateString(getLocale(), {
 					day: "numeric",
 					month: "short",
 					year: "numeric",
@@ -106,23 +109,26 @@
 <div class="flex flex-col gap-4">
   <div class="flex flex-wrap items-center justify-between gap-3">
     <div class="flex items-baseline gap-2">
-      <h2 class="text-xl font-semibold tracking-tight">Episodes</h2>
+      <h2 class="text-xl font-semibold tracking-tight">{m.common_episodes()}</h2>
       {#if current}
         <span class="text-sm text-muted-foreground">
           {#if grouped.length > 1}
-            {grouped.length} seasons · {totalEpisodes} episodes
+            {m.watch_seasons_episodes({
+              seasons: grouped.length,
+              episodes: totalEpisodes,
+            })}
           {:else}
-            {current.episodes.length} episode{current.episodes.length === 1
-              ? ""
-              : "s"}
-          {/if}{watchedCount > 0 ? ` · ${watchedCount} watched` : ""}
+            {m.watch_episode_count({ count: current.episodes.length })}
+          {/if}{watchedCount > 0
+            ? m.watch_watched_suffix({ count: watchedCount })
+            : ""}
         </span>
       {/if}
     </div>
 
     {#if grouped.length > 1}
       <ScrollRail
-        label="Seasons"
+        label={m.watch_seasons()}
         class="-mx-1 max-w-full"
         trackClass="gap-1.5 px-1"
         arrows={false}
@@ -140,7 +146,7 @@
                     : "bg-foreground/5 text-muted-foreground hover:text-foreground",
                 )}
               >
-                Season {group.season}
+                {m.watch_season_n({ number: group.season })}
               </button>
             </ContextMenu.Trigger>
             {#if onMarkSeason}
@@ -148,13 +154,15 @@
                 <ContextMenu.Item
                   onSelect={() => onMarkSeason(group.season, false)}
                 >
-                  <CheckIcon /> Mark season {group.season} watched
+                  <CheckIcon />
+                  {m.watch_mark_season_watched({ number: group.season })}
                 </ContextMenu.Item>
                 {#if group.season > grouped[0].season}
                   <ContextMenu.Item
                     onSelect={() => onMarkSeason(group.season, true)}
                   >
-                    <ListChecksIcon /> Mark through season {group.season}
+                    <ListChecksIcon />
+                    {m.watch_mark_through_season({ number: group.season })}
                   </ContextMenu.Item>
                 {/if}
               </ContextMenu.Content>
@@ -167,7 +175,7 @@
 
   {#if current}
     <ScrollRail
-      label="Episodes"
+      label={m.common_episodes()}
       resetKey={activeSeason}
       arrowTop="top-1/3"
       trackClass="snap-x scroll-px-2 gap-4 pt-1 pb-2"
@@ -183,11 +191,7 @@
               onfocusin={() => onPrefetch?.(episode.id)}
               role="presentation"
             >
-              <button
-                type="button"
-                onclick={() => onPlay(episode.id)}
-                class="flex flex-col text-left"
-              >
+              <a href={playerHref(episode.id)} class="flex flex-col text-left">
                 <div
                   class="relative aspect-video w-full overflow-hidden bg-muted"
                 >
@@ -268,13 +272,15 @@
                     </p>
                   {/if}
                 </div>
-              </button>
+              </a>
               <button
                 type="button"
                 aria-label={ep?.completed
-                  ? "Mark as unwatched"
-                  : "Mark as watched"}
-                title={ep?.completed ? "Mark as unwatched" : "Mark as watched"}
+                  ? m.common_mark_unwatched()
+                  : m.common_mark_watched()}
+                title={ep?.completed
+                  ? m.common_mark_unwatched()
+                  : m.common_mark_watched()}
                 onclick={() =>
                   onToggleWatched(
                     episode.id,
@@ -304,14 +310,14 @@
                 )}
             >
               {#if ep?.completed}
-                <EyeOffIcon /> Mark as unwatched
+                <EyeOffIcon /> {m.common_mark_unwatched()}
               {:else}
-                <EyeIcon /> Mark as watched
+                <EyeIcon /> {m.common_mark_watched()}
               {/if}
             </ContextMenu.Item>
             {#if onMarkUpTo}
               <ContextMenu.Item onSelect={() => onMarkUpTo(episode.id)}>
-                <ListChecksIcon /> Mark up to here watched
+                <ListChecksIcon /> {m.watch_mark_up_to_here()}
               </ContextMenu.Item>
             {/if}
           </ContextMenu.Content>

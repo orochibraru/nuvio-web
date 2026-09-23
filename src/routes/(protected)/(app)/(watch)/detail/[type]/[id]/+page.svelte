@@ -23,19 +23,21 @@
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { streamed } from "#lib/core/stream.svelte.js";
 	import { pageTitle } from "#lib/core/title.svelte.js";
+	import { getLocale, m } from "#lib/i18n/index.js";
 	import { libraryIds } from "#lib/library/library.remote.js";
 	import { theme } from "#lib/settings/theme.svelte.js";
 	import { sync } from "#lib/sync/store.svelte.js";
 	import { cn } from "#lib/utils.js";
 	import { airDateLabel, episodeLabel } from "#lib/watch/episodes.js";
-	import { playOrder } from "#lib/watch/playback-context.js";
+	import {
+		parseVideoId,
+		playOrder,
+		resumeTarget,
+		titleProgressFor,
+	} from "#lib/watch/playback-context.js";
 	import { parseRuntimeMs } from "#lib/watch/runtime.js";
 	import { sourcesPanel } from "#lib/watch/sources-panel.svelte.js";
-	import {
-		playbackContext,
-		resolveStreams,
-		titleProgress,
-	} from "#lib/watch/watch.remote.js";
+	import { resolveStreams } from "#lib/watch/watch.remote.js";
 	import { EMPTY_PROVIDERS } from "#lib/watch/watch-providers.js";
 	import { watchProviders } from "#lib/watch/watch-providers.remote.js";
 	import WatchProvidersList from "#lib/watch/watch-providers-list.svelte";
@@ -64,12 +66,19 @@
 		null as Awaited<typeof data.meta>,
 	);
 	const metaFailed = $derived(metaStream.ready && metaStream.current === null);
+	// The sentence is one message so translators can reorder it; the markers
+	// are swapped back for the `<code>` spans in the template.
+	const noMetadataParts = m
+		.watch_detail_no_metadata_body({ type: "@@type@@", id: "@@id@@" })
+		.split(/(@@type@@|@@id@@)/);
 	const libraryQuery = libraryIds();
-	const progressQuery = $derived(titleProgress({ contentId: id }));
-	const progress = $derived(
-		sync.authoritative ? sync.titleProgress(id) : (progressQuery.current ?? {}),
-	);
 	const meta = $derived(metaStream.current?.meta);
+	const progressStream = streamed(() => data.progress, {});
+	const progress = $derived(
+		sync.authoritative
+			? titleProgressFor(sync.progress, type, id, meta?.videos)
+			: progressStream.current,
+	);
 
 	// A non-reactive-in-template mirror of `meta`: only ever set to a real object,
 	// cleared only when the query has no result. A `forkPreloads` speculative
@@ -105,7 +114,7 @@
 	const nextToAirStream = streamed(() => data.nextToAir, null);
 	const nextToAirNotice = $derived(
 		nextToAirStream.current
-			? `${airDateLabel(nextToAirStream.current.airsAt)} : ${episodeLabel(nextToAirStream.current)}`
+			? `${airDateLabel(nextToAirStream.current.airsAt, undefined, getLocale())} : ${episodeLabel(nextToAirStream.current)}`
 			: null,
 	);
 	const similar = $derived(similarStream.current.metas);
@@ -140,47 +149,25 @@
 			return null;
 		}
 		if (watchedEpisodes >= orderedEpisodes.length) {
-			return "Watched";
+			return m.watch_flag_watched();
 		}
-		return `${watchedEpisodes}/${orderedEpisodes.length} watched`;
+		return m.watch_flag_progress({
+			watched: watchedEpisodes,
+			total: orderedEpisodes.length,
+		});
 	});
 
-	// Series CTA target. Priority: an episode actually mid-watch → the episode
-	// after the furthest one finished (in play order) → nothing (falls to the
-	// "start from episode 1" CTA).
-	const resumeEpisode = $derived.by(() => {
-		if (contentType !== "series" || orderedEpisodes.length === 0) {
-			return null;
-		}
-
-		const tag = (episode: { season?: number; episode?: number }) =>
-			`S${episode.season ?? 1}E${episode.episode ?? 1}`;
-
-		const inProgress = orderedEpisodes.find((episode) => {
-			const p = progress[episode.id];
-			return p && !p.completed && p.fraction > 0.02;
-		});
-		if (inProgress) {
-			return { id: inProgress.id, label: `Resume ${tag(inProgress)}` };
-		}
-
-		let lastFinished = -1;
-		orderedEpisodes.forEach((episode, index) => {
-			if (progress[episode.id]?.completed) {
-				lastFinished = index;
-			}
-		});
-		const upNext = orderedEpisodes[lastFinished + 1];
-		if (lastFinished >= 0 && upNext) {
-			return { id: upNext.id, label: `Continue ${tag(upNext)}` };
-		}
-		return null;
-	});
+	const resumeEpisode = $derived(
+		contentType === "series" ? resumeTarget(orderedEpisodes, progress) : null,
+	);
 
 	// Primary CTA: jump straight to the player, which auto-resolves the preferred
 	// stream (first available, browser-friendly audio) on a cold load.
+	function playerHref(videoId: string) {
+		return resolve(`player/${type}/${encodeURIComponent(videoId)}`);
+	}
 	function watch(videoId: string) {
-		void goto(resolve(`player/${type}/${encodeURIComponent(videoId)}`));
+		void goto(playerHref(videoId));
 	}
 
 	// Secondary CTA: let the viewer pick the exact source themselves.
@@ -188,9 +175,9 @@
 		openSources(videoId);
 	}
 
-	// Warm the stream fan-out (and playback context) in the background so opening
-	// the source drawer : or landing on the player : feels instant. Remote
-	// queries are client-cached by args, so the drawer/player reuse this result.
+	// Warm the stream fan-out in the background so opening the source drawer :
+	// or landing on the player : feels instant. Remote queries are client-cached
+	// by args, so the drawer/player reuse this result.
 	// One id at a time on purpose: a full episode-by-episode sweep would hammer
 	// the addons. `prefetch()` skips already-warmed and in-flight ids.
 	const warmed = new Set<string>();
@@ -202,7 +189,6 @@
 		// `.catch` subscribes the resource, which kicks off the request; the
 		// result lands in the shared client cache for the drawer / player.
 		void resolveStreams({ type, id: videoId }).catch(() => undefined);
-		void playbackContext({ type, id: videoId }).catch(() => undefined);
 	}
 
 	const ctaVideoId = $derived(
@@ -281,7 +267,14 @@
 		watched: boolean,
 	) {
 		if (watched) {
-			sync.clearProgress({ contentId: id, season, episode });
+			// The row may sit under the URL id (marked here) or the id parsed from
+			// the episode id (saved by the player) : clear both.
+			for (const contentId of new Set([
+				id,
+				parseVideoId(type, videoId).contentId,
+			])) {
+				sync.clearProgress({ contentId, season, episode });
+			}
 		} else {
 			sync.markWatched({
 				contentId: id,
@@ -294,18 +287,24 @@
 		}
 	}
 
-	function markEpisode(video: (typeof orderedEpisodes)[number]) {
-		if (progress[video.id]?.completed) {
-			return;
-		}
-		sync.markWatched({
-			contentId: id,
-			contentType: "series",
-			videoId: video.id,
-			season: video.season ?? null,
-			episode: video.episode ?? null,
-			durationMs: runtimeMs,
-		});
+	/** Marks the unwatched ones in one sync write; returns how many that was. */
+	function markEpisodes(videos: typeof orderedEpisodes): number {
+		const unwatched = videos.filter((v) => !progress[v.id]?.completed);
+		sync.markManyWatched(
+			unwatched.map((video) => ({
+				contentId: id,
+				contentType: "series" as const,
+				videoId: video.id,
+				season: video.season ?? null,
+				episode: video.episode ?? null,
+				durationMs: runtimeMs,
+			})),
+		);
+		return unwatched.length;
+	}
+
+	function markedToast(added: number, none: string) {
+		toast.success(added > 0 ? m.watch_marked_episodes({ count: added }) : none);
 	}
 
 	function markUpTo(videoId: string) {
@@ -313,15 +312,9 @@
 		if (index < 0) {
 			return;
 		}
-		const targets = orderedEpisodes.slice(0, index + 1);
-		const added = targets.filter((v) => !progress[v.id]?.completed).length;
-		for (const video of targets) {
-			markEpisode(video);
-		}
-		toast.success(
-			added > 0
-				? `Marked ${added} episode${added === 1 ? "" : "s"} watched`
-				: "Those episodes are already watched",
+		markedToast(
+			markEpisodes(orderedEpisodes.slice(0, index + 1)),
+			m.watch_episodes_already_watched(),
 		);
 	}
 
@@ -330,29 +323,11 @@
 			const s = v.season ?? 0;
 			return includeEarlier ? s <= season : s === season;
 		});
-		const added = targets.filter((v) => !progress[v.id]?.completed).length;
-		for (const video of targets) {
-			markEpisode(video);
-		}
-		toast.success(
-			added > 0
-				? `Marked ${added} episode${added === 1 ? "" : "s"} watched`
-				: "Already watched",
-		);
+		markedToast(markEpisodes(targets), m.watch_already_watched());
 	}
 
 	function markAllWatched() {
-		const added = orderedEpisodes.filter(
-			(v) => !progress[v.id]?.completed,
-		).length;
-		for (const video of orderedEpisodes) {
-			markEpisode(video);
-		}
-		toast.success(
-			added > 0
-				? `Marked ${added} episode${added === 1 ? "" : "s"} watched`
-				: "Already watched",
-		);
+		markedToast(markEpisodes(orderedEpisodes), m.watch_already_watched());
 	}
 
 	function toggle() {
@@ -377,8 +352,8 @@
 		});
 		toast.success(
 			removing
-				? `Removed ${meta.name} from library`
-				: `Added ${meta.name} to library`,
+				? m.watch_library_removed({ name: meta.name })
+				: m.watch_library_added({ name: meta.name }),
 		);
 	}
 </script>
@@ -390,7 +365,7 @@
         onclick={() => history.back()}
         class="dark absolute top-20 left-0 z-10 flex items-center gap-1.5 rounded-full bg-background/50 px-3 py-1.5 text-sm font-medium text-foreground ring-1 ring-border backdrop-blur-md transition hover:bg-background/80"
     >
-        <ArrowLeftIcon class="size-4" /> Back
+        <ArrowLeftIcon class="size-4" /> {m.common_back()}
     </button>
 
     {#if metaFailed}
@@ -399,15 +374,14 @@
                 class="mx-auto max-w-md rounded-2xl border border-border/60 bg-linear-to-b from-muted/40 to-transparent px-6 py-14 text-center"
             >
                 <p class="text-lg font-semibold tracking-tight">
-                    No metadata for this title
+                    {m.watch_detail_no_metadata()}
                 </p>
                 <p class="mt-1 text-sm text-muted-foreground">
-                    No installed addon provides <code>{type}</code> metadata for
-                    <code>{id}</code>.
+                    {#each noMetadataParts as part, i (i)}{#if part === "@@type@@"}<code>{type}</code>{:else if part === "@@id@@"}<code>{id}</code>{:else}{part}{/if}{/each}
                 </p>
 
                 <Button href={`${resolve("settings")}?tab=addons`} variant="outline" class="mt-4"
-                    >Manage addons</Button
+                    >{m.common_manage_addons()}</Button
                 >
             </div>
         </div>
@@ -431,25 +405,25 @@
             </div>
         </div>
     {:else if stableMeta}
-        {@const m = stableMeta}
+        {@const details = stableMeta}
         <MediaHero
-            title={m.name}
-            logo={m.logo}
-            background={m.background}
-            poster={m.poster}
+            title={details.name}
+            logo={details.logo}
+            background={details.background}
+            poster={details.poster}
             showPoster
-            description={m.description}
+            description={details.description}
             {rating}
-            year={contentType === "series" && m.status
-                ? `${m.releaseInfo ?? ""} · ${m.status}`.replace(/^ · /, "")
-                : m.releaseInfo}
-            runtime={m.runtime}
-            genres={m.genres ?? []}
+            year={contentType === "series" && details.status
+                ? `${details.releaseInfo ?? ""} · ${details.status}`.replace(/^ · /, "")
+                : details.releaseInfo}
+            runtime={details.runtime}
+            genres={details.genres ?? []}
             network={providers.network}
             notice={nextToAirNotice}
             flag={contentType === "movie"
                 ? progress[id]?.completed
-                    ? "Watched"
+                    ? m.watch_flag_watched()
                     : null
                 : seriesFlag}
         >
@@ -470,7 +444,7 @@
                             data-icon="inline-start"
                             class="fill-current"
                         />
-                        Watch on {officialCta.provider}
+                        {m.watch_on_provider({ provider: officialCta.provider })}
                         <ExternalLinkIcon
                             data-icon="inline-end"
                             class="size-3.5 opacity-70"
@@ -483,9 +457,9 @@
                             class="fill-current"
                         />
                         {#if progress[id] && !progress[id].completed && progress[id].fraction > 0.02}
-                            Resume
+                            {m.common_resume()}
                         {:else}
-                            Watch
+                            {m.watch_detail_watch()}
                         {/if}
                     </Button>
                 {:else if resumeEpisode}
@@ -502,8 +476,10 @@
                             data-icon="inline-start"
                             class="fill-current"
                         />
-                        Play S{firstEpisode.season ??
-                            1}E{firstEpisode.episode ?? 1}
+                        {m.watch_detail_play_episode({
+                            season: firstEpisode.season ?? 1,
+                            episode: firstEpisode.episode ?? 1,
+                        })}
                     </Button>
                 {/if}
                 {#if ctaVideoId}
@@ -512,7 +488,8 @@
                         variant="outline"
                         onclick={() => selectStream(ctaVideoId)}
                     >
-                        <ListVideoIcon data-icon="inline-start" /> Select stream
+                        <ListVideoIcon data-icon="inline-start" />
+                        {m.watch_detail_select_stream()}
                     </Button>
                 {/if}
                 <Button
@@ -540,7 +517,9 @@
                             data-icon="inline-start"
                         />
                     {/if}
-                    {inLibrary ? "Remove from library" : "Add to library"}
+                    {inLibrary
+                        ? m.library_remove()
+                        : m.library_add()}
                 </Button>
                 {#if contentType === "movie"}
                     <Button
@@ -564,7 +543,7 @@
                                 class="block group-hover:hidden"
                                 data-icon="inline-start"
                             />
-                            Mark not Watched
+                            {m.watch_detail_mark_not_watched()}
                         {:else}
                             <EyeIcon
                                 class="hidden group-hover:block"
@@ -574,7 +553,7 @@
                                 class="block group-hover:hidden"
                                 data-icon="inline-start"
                             />
-                            Mark watched
+                            {m.watch_detail_mark_watched()}
                         {/if}
                     </Button>
                 {:else if orderedEpisodes.length > 0}
@@ -592,14 +571,14 @@
                             class="block group-hover:hidden"
                             data-icon="inline-start"
                         />
-                        Mark all watched
+                        {m.common_mark_all_watched()}
                     </Button>
                 {/if}
             {/snippet}
         </MediaHero>
 
         <div class="flex flex-col gap-10 pt-2">
-            {#if m.description}
+            {#if details.description}
                 <div class="flex flex-col items-start gap-1.5 sm:hidden">
                     <p
                         class={cn(
@@ -607,14 +586,16 @@
                             !synopsisExpanded && "line-clamp-3",
                         )}
                     >
-                        {m.description}
+                        {details.description}
                     </p>
                     <button
                         type="button"
                         class="text-sm font-semibold text-primary"
                         onclick={() => (synopsisExpanded = !synopsisExpanded)}
                     >
-                        {synopsisExpanded ? "Less" : "More"}
+                        {synopsisExpanded
+                            ? m.watch_detail_less()
+                            : m.watch_detail_more()}
                     </button>
                 </div>
             {/if}
@@ -625,14 +606,14 @@
 
             {#if contentType === "series" && seasons.length > 0}
                 <SeasonCarousel
-                    videos={m.videos ?? []}
-                    seriesRuntime={m.runtime ?? null}
+                    videos={details.videos ?? []}
+                    seriesRuntime={details.runtime ?? null}
                     {progress}
                     initialSeason={resumeEpisode
-                        ? (m.videos?.find((v) => v.id === resumeEpisode.id)
+                        ? (details.videos?.find((v) => v.id === resumeEpisode.id)
                               ?.season ?? null)
                         : null}
-                    onPlay={watch}
+                    {playerHref}
                     onToggleWatched={toggleWatched}
                     onPrefetch={prefetch}
                     onMarkUpTo={markUpTo}
@@ -643,9 +624,9 @@
             {#if trailers.length > 0}
                 <div class="flex flex-col gap-3">
                     <h2 class="text-xl font-semibold tracking-tight">
-                        Trailers
+                        {m.watch_detail_trailers()}
                     </h2>
-                    <ScrollRail label="Trailers" trackClass="gap-4 pb-2">
+                    <ScrollRail label={m.watch_detail_trailers()} trackClass="gap-4 pb-2">
                         {#each trailers.slice(0, 8) as trailer, i (trailer.ytId)}
                             <button
                                 type="button"
@@ -672,7 +653,8 @@
                                 <span
                                     class="absolute bottom-2 left-3 text-xs font-medium text-white drop-shadow"
                                 >
-                                    {trailer.title || `Trailer ${i + 1}`}
+                                    {trailer.title ||
+                                        m.watch_detail_trailer_n({ number: i + 1 })}
                                 </span>
                             </button>
                         {/each}
@@ -680,59 +662,61 @@
                 </div>
             {/if}
 
-            {#if m.cast?.length}
+            {#if details.cast?.length}
                 <div class="flex flex-col gap-3">
-                    <h2 class="text-xl font-semibold tracking-tight">Cast</h2>
-                    <CastRow names={m.cast.slice(0, 18)} />
+                    <h2 class="text-xl font-semibold tracking-tight">
+                        {m.common_cast()}
+                    </h2>
+                    <CastRow names={details.cast.slice(0, 18)} />
                 </div>
             {/if}
 
-            {#if m.director?.length || m.writer?.length || m.country || m.awards || m.released}
+            {#if details.director?.length || details.writer?.length || details.country || details.awards || details.released}
                 <div class="grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
-                    {#if m.director?.length}
+                    {#if details.director?.length}
                         <div>
                             <p
                                 class="text-xs font-medium tracking-wide text-muted-foreground uppercase"
                             >
-                                Director
+                                {m.credits_director()}
                             </p>
                             <p class="mt-1 text-foreground/90">
-                                {m.director.join(", ")}
+                                {details.director.join(", ")}
                             </p>
                         </div>
                     {/if}
-                    {#if m.writer?.length}
+                    {#if details.writer?.length}
                         <div>
                             <p
                                 class="text-xs font-medium tracking-wide text-muted-foreground uppercase"
                             >
-                                Writer
+                                {m.credits_writer()}
                             </p>
                             <p class="mt-1 text-foreground/90">
-                                {m.writer.slice(0, 3).join(", ")}
+                                {details.writer.slice(0, 3).join(", ")}
                             </p>
                         </div>
                     {/if}
-                    {#if m.country}
+                    {#if details.country}
                         <div>
                             <p
                                 class="text-xs font-medium tracking-wide text-muted-foreground uppercase"
                             >
-                                Country
+                                {m.credits_country()}
                             </p>
-                            <p class="mt-1 text-foreground/90">{m.country}</p>
+                            <p class="mt-1 text-foreground/90">{details.country}</p>
                         </div>
                     {/if}
-                    {#if m.released}
+                    {#if details.released}
                         <div>
                             <p
                                 class="text-xs font-medium tracking-wide text-muted-foreground uppercase"
                             >
-                                Released
+                                {m.watch_detail_released()}
                             </p>
                             <p class="mt-1 text-foreground/90">
-                                {new Date(m.released).toLocaleDateString(
-                                    undefined,
+                                {new Date(details.released).toLocaleDateString(
+                                    getLocale(),
                                     {
                                         day: "numeric",
                                         month: "long",
@@ -742,29 +726,29 @@
                             </p>
                         </div>
                     {/if}
-                    {#if m.awards}
+                    {#if details.awards}
                         <div class="sm:col-span-2 lg:col-span-4">
                             <p
                                 class="text-xs font-medium tracking-wide text-muted-foreground uppercase"
                             >
-                                Awards
+                                {m.credits_awards()}
                             </p>
-                            <p class="mt-1 text-foreground/90">{m.awards}</p>
+                            <p class="mt-1 text-foreground/90">{details.awards}</p>
                         </div>
                     {/if}
                 </div>
             {/if}
 
-            {#if contentType === "movie" && !m.description}
+            {#if contentType === "movie" && !details.description}
                 <div
                     class="flex items-center gap-2 text-sm text-muted-foreground"
                 >
-                    <FilmIcon class="size-4" /> No synopsis available for this title.
+                    <FilmIcon class="size-4" /> {m.watch_detail_no_synopsis()}
                 </div>
             {/if}
 
             {#if similar.length > 0}
-                <MediaRow title="More like this" items={similar} />
+                <MediaRow title={m.common_more_like_this()} items={similar} />
             {/if}
         </div>
     {/if}
@@ -772,6 +756,6 @@
 
 <TrailerModal
     ytId={trailerId}
-    title={meta?.name ?? "Trailer"}
+    title={meta?.name ?? m.common_trailer()}
     onClose={() => (trailerId = null)}
 />

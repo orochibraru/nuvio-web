@@ -14,8 +14,10 @@
 	import type { MetaPreview } from "#lib/addons/index.js";
 	import * as ContextMenu from "#lib/components/ui/context-menu/index.js";
 	import { posterSrcset } from "#lib/core/images.js";
+	import { m } from "#lib/i18n/index.js";
 	import { sync } from "#lib/sync/store.svelte.js";
 	import { cn } from "#lib/utils.js";
+	import { titleProgressFor } from "#lib/watch/playback-context.js";
 	import { parseRuntimeMs } from "#lib/watch/runtime.js";
 	import { goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
@@ -84,7 +86,10 @@
 	);
 	const watched = $derived(
 		contentType === "movie" &&
-			Boolean(sync.titleProgress(item.id)[item.id]?.completed),
+			Boolean(
+				titleProgressFor(sync.progress, "movie", item.id, undefined)[item.id]
+					?.completed,
+			),
 	);
 
 	// The link's visible content (poster, title, badges) is all decorative once
@@ -93,9 +98,9 @@
 		[
 			`${item.name} (${item.type})`,
 			item.releaseInfo,
-			rating ? `rated ${rating}` : null,
-			watched ? "watched" : null,
-			inLibrary ? "in your library" : null,
+			rating ? m.media_poster_rated({ rating }) : null,
+			watched ? m.media_poster_watched() : null,
+			inLibrary ? m.media_poster_in_library() : null,
 		]
 			.filter(Boolean)
 			.join(", "),
@@ -117,15 +122,15 @@
 		});
 		toast.success(
 			removing
-				? `Removed ${item.name} from library`
-				: `Added ${item.name} to library`,
+				? m.library_removed_title({ title: item.name })
+				: m.library_added_title({ title: item.name }),
 		);
 	}
 
 	function toggleWatched() {
 		if (watched) {
 			sync.clearProgress({ contentId: item.id, season: null, episode: null });
-			toast.success(`Marked ${item.name} unwatched`);
+			toast.success(m.media_marked_unwatched({ title: item.name }));
 		} else {
 			sync.markWatched({
 				contentId: item.id,
@@ -135,7 +140,7 @@
 				episode: null,
 				durationMs: parseRuntimeMs(null),
 			});
-			toast.success(`Marked ${item.name} watched`);
+			toast.success(m.media_marked_watched({ title: item.name }));
 		}
 	}
 
@@ -155,21 +160,21 @@
 			);
 			const videos = result?.meta.videos ?? [];
 			if (videos.length === 0) {
-				toast.error(`Couldn't load episodes for ${item.name}.`);
+				toast.error(m.media_episodes_load_failed({ title: item.name }));
 				return;
 			}
 			const durationMs = parseRuntimeMs(result?.meta.runtime ?? null);
-			for (const video of videos) {
-				sync.markWatched({
+			sync.markManyWatched(
+				videos.map((video) => ({
 					contentId: item.id,
-					contentType: "series",
+					contentType: "series" as const,
 					videoId: video.id,
 					season: video.season ?? null,
 					episode: video.episode ?? null,
 					durationMs,
-				});
-			}
-			toast.success(`Marked ${item.name} watched`);
+				})),
+			);
+			toast.success(m.media_marked_watched({ title: item.name }));
 		} finally {
 			markingAllWatched = false;
 		}
@@ -250,7 +255,7 @@
           <div aria-hidden="true" class="absolute top-2 right-2 flex gap-1">
             {#if watched}
               <span
-                title="Watched"
+                title={m.media_watched()}
                 class="flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground ring-1 ring-black/10"
               >
                 <CheckIcon class="size-3" />
@@ -258,7 +263,7 @@
             {/if}
             {#if inLibrary}
               <span
-                title="In your library"
+                title={m.media_in_library()}
                 class="flex size-5 items-center justify-center rounded-full bg-black/55 text-white ring-1 ring-white/15 backdrop-blur-md"
               >
                 <BookmarkIcon class="size-3 fill-current" />
@@ -295,29 +300,29 @@
   <ContextMenu.Content class="w-52">
     <ContextMenu.Item onSelect={toggleLibrary}>
       {#if inLibrary}
-        <BookmarkXIcon /> Remove from library
+        <BookmarkXIcon /> {m.library_remove()}
       {:else}
-        <PlusIcon /> Add to library
+        <PlusIcon /> {m.library_add()}
       {/if}
     </ContextMenu.Item>
     {#if contentType === "movie"}
       <ContextMenu.Item onSelect={toggleWatched}>
         {#if watched}
-          <EyeOffIcon /> Mark as unwatched
+          <EyeOffIcon /> {m.common_mark_unwatched()}
         {:else}
-          <EyeIcon /> Mark as watched
+          <EyeIcon /> {m.common_mark_watched()}
         {/if}
       </ContextMenu.Item>
     {:else}
       <ContextMenu.Item disabled={markingAllWatched} onSelect={markAllWatched}>
-        <EyeIcon /> Mark all watched
+        <EyeIcon /> {m.common_mark_all_watched()}
       </ContextMenu.Item>
     {/if}
     <ContextMenu.Separator />
     <ContextMenu.Item
       onSelect={() =>
         goto(resolve(`detail/${item.type}/${encodeURIComponent(item.id)}`))}
-      ><InfoIcon />View details</ContextMenu.Item
+      ><InfoIcon />{m.media_view_details()}</ContextMenu.Item
     >
   </ContextMenu.Content>
 </ContextMenu.Root>

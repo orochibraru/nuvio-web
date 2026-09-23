@@ -3,20 +3,18 @@ import { getAddonClient, titleMeta } from "#lib/addons/server.js";
 import { httpUrlOrNull } from "#lib/core/url.js";
 import { requireProfile } from "#lib/server/guards.js";
 import { query } from "$app/server";
-import { pullPlaybackContext } from "./watch-data.ts";
+import { pullPlaybackMeta } from "./watch-data.ts";
 
 /**
- * The player page gets its context from the load; this is the client-initiated
- * path : the detail page's stream panel and its hover prefetch, which ask for
- * another video's context than the one the load resolved.
+ * A video's meta context (heading, art, episode tag) for the source drawer,
+ * which opens on a user gesture for any video. The player page gets the same
+ * payload from its load.
  */
-export const playbackContext = query(
+export const playbackMeta = query(
 	v.object({ type: v.string(), id: v.string() }),
 	({ type, id }) => {
-		const { nuvio, profileId } = requireProfile();
-		return pullPlaybackContext(
-			nuvio,
-			profileId,
+		requireProfile();
+		return pullPlaybackMeta(
 			{ type, id },
 			async (metaType: string, metaId: string) =>
 				(await titleMeta(metaType, metaId))?.meta ?? null,
@@ -52,31 +50,6 @@ export const resolveStreams = query(
 				message: entry.message,
 			})),
 		};
-	},
-);
-
-/** Progress for every video of one title, keyed by `video_id`. Powers resume bars. */
-export const titleProgress = query(
-	v.object({ contentId: v.string() }),
-	async ({ contentId }) => {
-		const { nuvio, profileId } = requireProfile();
-		const rows = await nuvio.watchProgress.pull({
-			p_profile_id: profileId,
-			p_limit: 500,
-		});
-		const byVideo: Record<string, { fraction: number; completed: boolean }> =
-			{};
-		for (const row of rows) {
-			if (row.content_id !== contentId || row.duration <= 0) {
-				continue;
-			}
-			const fraction = Math.min(1, row.position / row.duration);
-			byVideo[row.video_id] = {
-				fraction,
-				completed: fraction >= 0.9 && row.duration >= 60_000,
-			};
-		}
-		return byVideo;
 	},
 );
 

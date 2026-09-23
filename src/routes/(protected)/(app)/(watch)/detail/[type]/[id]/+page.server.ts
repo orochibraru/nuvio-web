@@ -1,8 +1,13 @@
 import { similarToTitle, titleMeta } from "#lib/addons/server.js";
-import { pullNextToAir } from "#lib/watch/watch-data.js";
+import { profileData } from "#lib/userdata/server.js";
+import {
+	type TitleProgress,
+	titleProgressFor,
+} from "#lib/watch/playback-context.js";
+import { pullNextToAir, pullProgressRows } from "#lib/watch/watch-data.js";
 import type { PageServerLoad } from "./$types";
 
-export const load: PageServerLoad = ({ params }) => {
+export const load: PageServerLoad = ({ params, locals, fetch }) => {
 	const { type, id } = params;
 
 	// Streamed (unawaited): navigation completes on the shell and the hero
@@ -29,5 +34,16 @@ export const load: PageServerLoad = ({ params }) => {
 		.then((result) => pullNextToAir(result?.meta ?? null))
 		.catch(() => null);
 
-	return { type, id, meta, similar, nextToAir };
+	// Started now, alongside the meta, and joined to it once both land: which
+	// rows belong to this title (URL id or `tmdb:…` episode ids) is only
+	// decidable against the meta's videos. The page reads the sync store
+	// instead once it's authoritative.
+	const rows = pullProgressRows(profileData(locals, fetch)).catch(() => []);
+	const progress = meta
+		.then(async (result) =>
+			titleProgressFor(await rows, type, id, result?.meta.videos),
+		)
+		.catch((): TitleProgress => ({}));
+
+	return { type, id, meta, similar, nextToAir, progress };
 };
