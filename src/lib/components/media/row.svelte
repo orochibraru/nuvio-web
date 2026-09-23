@@ -4,6 +4,7 @@
 	import type { MetaPreview } from "#lib/addons/index.js";
 	import ScrollRail from "#lib/components/layout/scroll-rail.svelte";
 	import { reduced } from "#lib/core/motion.js";
+	import { m } from "#lib/i18n/index.js";
 	import MediaPoster from "./poster.svelte";
 
 	let {
@@ -33,7 +34,7 @@
 					{href}
 					class="flex shrink-0 items-center gap-0.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
 				>
-					See all
+					{m.media_see_all()}
 					<ChevronRightIcon class="size-4" />
 				</a>
 			{/if}

@@ -1,9 +1,10 @@
 <script lang="ts">
 	import XIcon from "@lucide/svelte/icons/x";
+	import { m } from "#lib/i18n/index.js";
 
 	let {
 		ytId = null,
-		title = "Trailer",
+		title = m.common_trailer(),
 		onClose,
 	}: {
 		ytId?: string | null;
@@ -28,14 +29,14 @@
 	>
 		<button
 			type="button"
-			aria-label="Close trailer"
+			aria-label={m.media_close_trailer()}
 			onclick={onClose}
 			class="absolute inset-0"
 		></button>
 		<div class="relative aspect-video w-full max-w-4xl overflow-hidden rounded-xl bg-black shadow-2xl ring-1 ring-white/10">
 			<iframe
 				src={`https://www.youtube-nocookie.com/embed/${safeId}?autoplay=1&rel=0`}
-				title={`${title} trailer`}
+				title={m.media_trailer_title({ title })}
 				allow="autoplay; encrypted-media; picture-in-picture"
 				allowfullscreen
 				class="size-full"
@@ -43,7 +44,7 @@
 		</div>
 		<button
 			type="button"
-			aria-label="Close"
+			aria-label={m.common_close()}
 			onclick={onClose}
 			class="absolute top-4 right-4 flex size-9 items-center justify-center rounded-full bg-white/10 text-white ring-1 ring-white/20 backdrop-blur-md transition hover:bg-white/20"
 		>

@@ -297,7 +297,9 @@ test("player info overlay: Info button + auto-on-pause", async ({ page }) => {
 
 	// ...and resuming then re-pausing surfaces it again.
 	await page.evaluate(() => document.querySelector("video")?.play());
-	await page.waitForTimeout(300);
+	await expect
+		.poll(() => page.evaluate(() => document.querySelector("video")?.paused))
+		.toBe(false);
 	await page.evaluate(() => document.querySelector("video")?.pause());
 	await expect(synopsis).toBeVisible({ timeout: 4000 });
 	await page.evaluate(() => document.querySelector("video")?.play());

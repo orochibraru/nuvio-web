@@ -1,5 +1,6 @@
 <script lang="ts">
 	import * as Card from "#lib/components/ui/card/index.js";
+	import { m } from "#lib/i18n/index.js";
 	import { theme } from "#lib/settings/theme.svelte.js";
 	import type { UiSettings } from "#lib/settings/ui-settings.js";
 	import { cn } from "#lib/utils.js";
@@ -31,14 +32,13 @@
 
 <Card.Root class="border border-foreground/10">
 	<Card.Header>
-		<Card.Title role="heading" aria-level={2}>Sync</Card.Title>
+		<Card.Title role="heading" aria-level={2}>{m.settings_section_sync()}</Card.Title>
 		<Card.Description>
-			Choose where your library and watch progress live. Trakt and SIMKL need
-			to be connected first.
+			{m.settings_sync_description()}
 		</Card.Description>
 	</Card.Header>
 	<Card.Content class="flex flex-col gap-7">
-		{#each [{ key: "librarySource", label: "Library from" }, { key: "progressSource", label: "Watch progress from" }] as const as row (row.key)}
+		{#each [{ key: "librarySource", label: m.settings_sync_library_from() }, { key: "progressSource", label: m.settings_sync_progress_from() }] as const as row (row.key)}
 			<div class="flex flex-col gap-2.5">
 				<span class="text-sm font-medium">{row.label}</span>
 				<div
@@ -50,7 +50,7 @@
 							disabled={!option.ready}
 							title={option.ready
 								? undefined
-								: `Connect ${option.label} in the Nuvio app first`}
+								: m.settings_sync_connect_first({ name: option.label })}
 							onclick={() => setSyncSource(row.key, option.value)}
 							class={cn(
 								"rounded-full px-4 py-1.5 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-40",
@@ -68,8 +68,7 @@
 			</div>
 		{/each}
 		<p class="text-xs text-muted-foreground">
-			Nuvio Sync is always the cross-device mirror. Trakt / SIMKL integration
-			is coming.
+			{m.settings_sync_footnote()}
 		</p>
 	</Card.Content>
 </Card.Root>

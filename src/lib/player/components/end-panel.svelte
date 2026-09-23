@@ -4,6 +4,7 @@
 	import PlayIcon from "@lucide/svelte/icons/play";
 	import RotateCcwIcon from "@lucide/svelte/icons/rotate-ccw";
 	import { Button } from "#lib/components/ui/button/index.js";
+	import { m } from "#lib/i18n/index.js";
 	import { theme } from "#lib/settings/theme.svelte.js";
 	import {
 		airDateLabel,
@@ -52,17 +53,17 @@
 >
   <div class="flex flex-col gap-1 sm:pl-72">
     <p class="text-xs font-semibold tracking-[0.2em] text-white/50 uppercase">
-      You finished
+      {m.player_end_finished()}
     </p>
     <h2 class="text-2xl font-bold sm:text-3xl">{heading}</h2>
     {#if upcoming}
       <p class="mt-1 text-sm text-white/70">
         <span class="font-semibold text-white">{airDateLabel(upcoming.airsAt)}</span>
-        : {episodeLabel(upcoming)}. Meanwhile, these titles could interest you.
+        {m.player_end_upcoming_rest({ episode: episodeLabel(upcoming) })}
       </p>
     {:else}
       <p class="mt-1 text-sm text-white/70">
-        It's over : but these titles could interest you.
+        {m.player_end_over()}
       </p>
     {/if}
   </div>
@@ -70,7 +71,7 @@
   <div class="flex flex-wrap items-center gap-2 sm:pl-72">
     {#if onResume}
       <Button size="lg" onclick={onResume}>
-        <PlayIcon data-icon="inline-start" class="fill-current" /> Back to video
+        <PlayIcon data-icon="inline-start" class="fill-current" /> {m.player_back_to_video()}
       </Button>
     {/if}
     <Button
@@ -78,19 +79,19 @@
       variant={onResume ? "secondary" : "default"}
       onclick={onWatchAgain}
     >
-      <RotateCcwIcon data-icon="inline-start" /> Watch again
+      <RotateCcwIcon data-icon="inline-start" /> {m.player_watch_again()}
     </Button>
     <Button size="lg" variant="secondary" onclick={onBack}>
-      <ArrowLeftIcon data-icon="inline-start" /> Go back
+      <ArrowLeftIcon data-icon="inline-start" /> {m.common_go_back()}
     </Button>
     <Button size="lg" variant="ghost" href={detailHref}>
-      <InfoIcon data-icon="inline-start" /> Details
+      <InfoIcon data-icon="inline-start" /> {m.player_details()}
     </Button>
   </div>
 
   {#if suggestions.length > 0}
     <div class="flex flex-col gap-3">
-      <p class="text-sm font-semibold text-white/70">More like this</p>
+      <p class="text-sm font-semibold text-white/70">{m.common_more_like_this()}</p>
       <div
         class="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8"
       >

@@ -1,3 +1,4 @@
+import { getLocale } from "#lib/i18n/index.js";
 import { languageName } from "#lib/player/format.js";
 import type { SubtitleTrack } from "#lib/player/types.js";
 import { createSubtitleTracks } from "./subtitle-tracks.svelte.ts";
@@ -16,7 +17,7 @@ export function createSubtitleCatalog(deps: { tracks: () => SubtitleTrack[] }) {
 		deps.tracks().map((track, index) => ({
 			...track,
 			key: trackKey(track, index),
-			name: languageName(track.lang),
+			name: languageName(track.lang, getLocale()),
 		})),
 	);
 

@@ -1,7 +1,11 @@
 import { invalid, redirect } from "@sveltejs/kit";
 import * as v from "valibot";
+import { safeRedirectPath } from "#lib/core/url.js";
+import { profileName } from "#lib/forms/schemas.js";
+import { m } from "#lib/i18n/index.js";
 import type { Profile, ProfileInput } from "#lib/nuvio/index.js";
 import { SESSION } from "#lib/services/index.js";
+import { USER_DATA_STORE } from "#lib/userdata/tokens.js";
 import { resolve } from "$app/paths";
 import { form, getRequestEvent } from "$app/server";
 
@@ -11,9 +15,7 @@ const redirectTo = v.optional(v.string(), "");
 
 /** Only allow same-origin path redirects; anything else → the app root. */
 function safeTarget(value: string | undefined): string {
-	return value?.startsWith("/") && !value.startsWith("//")
-		? value
-		: resolve("/(protected)/(app)");
+	return safeRedirectPath(value, resolve("/(protected)/(app)"));
 }
 
 const profileIndex = v.pipe(
@@ -51,12 +53,7 @@ export const selectProfile = form(
 
 export const createProfile = form(
 	v.object({
-		name: v.pipe(
-			v.string(),
-			v.trim(),
-			v.nonEmpty("Enter a name."),
-			v.maxLength(30, "Keep it under 30 characters."),
-		),
+		name: profileName,
 		avatarId: v.optional(v.string()),
 		colorHex: v.fallback(
 			v.pipe(v.string(), v.regex(/^#[0-9a-fA-F]{6}$/)),
@@ -68,7 +65,7 @@ export const createProfile = form(
 		const { locals } = getRequestEvent();
 		const existing = await locals.nuvio.profiles.list();
 		if (existing.length >= MAX_PROFILES) {
-			invalid(issue.name("You already have the maximum of 6 profiles."));
+			invalid(issue.name(m.profiles_error_limit()));
 		}
 
 		const used = new Set(existing.map((profile) => profile.profile_index));
@@ -97,12 +94,7 @@ export const createProfile = form(
 export const updateProfile = form(
 	v.object({
 		profileId: profileIndex,
-		name: v.pipe(
-			v.string(),
-			v.trim(),
-			v.nonEmpty("Enter a name."),
-			v.maxLength(30, "Keep it under 30 characters."),
-		),
+		name: profileName,
 		colorHex: v.fallback(
 			v.pipe(v.string(), v.regex(/^#[0-9a-fA-F]{6}$/)),
 			"#2563EB",
@@ -117,7 +109,7 @@ export const updateProfile = form(
 			(profile) => profile.profile_index === profileId,
 		);
 		if (!target) {
-			invalid(issue.name("That profile no longer exists."));
+			invalid(issue.name(m.profiles_error_gone()));
 		}
 
 		const nextUsesPrimary =
@@ -148,7 +140,7 @@ export const deleteProfile = form(
 	v.object({ profileId: profileIndex }),
 	async ({ profileId }, issue) => {
 		if (profileId === 1) {
-			invalid(issue.profileId("The primary profile can't be deleted."));
+			invalid(issue.profileId(m.profiles_error_primary()));
 		}
 		const { locals } = getRequestEvent();
 		const existing = await locals.nuvio.profiles.list();
@@ -156,10 +148,14 @@ export const deleteProfile = form(
 			redirect(303, resolve("profiles"));
 		}
 		if (existing.length <= 1) {
-			invalid(issue.profileId("You need at least one profile."));
+			invalid(issue.profileId(m.profiles_error_last()));
 		}
 
 		await locals.nuvio.profiles.deleteData(profileId);
+		const userId = locals.session?.user.id;
+		if (userId !== undefined) {
+			locals.services.get(USER_DATA_STORE).clearProfile(userId, profileId);
+		}
 		await locals.nuvio.profiles.replace({
 			p_client_max_profiles: MAX_PROFILES,
 			p_profiles: existing

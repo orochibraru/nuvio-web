@@ -1,8 +1,9 @@
+import { m } from "#lib/i18n/index.js";
 import type { PlayerTransportState } from "./transport-state.svelte.ts";
 
 /**
  * The `<video>` element's load lifecycle: seeking to a saved `startTime` on
- * first metadata, the buffering flag, and the one-silent-reload-then-fatal
+ * first metadata (or when it arrives later), the buffering flag, and the one-silent-reload-then-fatal
  * error recovery. Reads and writes the shared transport state rather than
  * owning any of its own.
  */
@@ -36,6 +37,26 @@ export function createPlayerLoadLifecycle(deps: {
 		}
 	}
 
+	// The resume position can land after metadata did (the page seeds
+	// `startTime` from a streamed load / the sync store): seek once when it
+	// turns positive, unless the viewer is already past the opening seconds.
+	$effect(() => {
+		const startTime = deps.startTime();
+		const video = deps.video();
+		if (
+			seeded ||
+			startTime <= 0 ||
+			!video ||
+			video.readyState < HTMLMediaElement.HAVE_METADATA
+		) {
+			return;
+		}
+		seeded = true;
+		if (video.currentTime < 5) {
+			video.currentTime = startTime;
+		}
+	});
+
 	function onWaiting() {
 		deps.state.loading = true;
 	}
@@ -52,9 +73,7 @@ export function createPlayerLoadLifecycle(deps: {
 		// `SRC_NOT_SUPPORTED` (4) means the container/codec can't be played at
 		// all : no point retrying.
 		if (!mediaError || code === mediaError.MEDIA_ERR_SRC_NOT_SUPPORTED) {
-			deps.onFatal(
-				"This source can't play in the browser. Its container or codec isn't supported.",
-			);
+			deps.onFatal(m.player_error_unsupported());
 			deps.state.loading = false;
 			return;
 		}
@@ -71,7 +90,7 @@ export function createPlayerLoadLifecycle(deps: {
 			return;
 		}
 
-		deps.onFatal("This source stopped playing and couldn't be recovered.");
+		deps.onFatal(m.player_error_stopped());
 		deps.state.loading = false;
 	}
 

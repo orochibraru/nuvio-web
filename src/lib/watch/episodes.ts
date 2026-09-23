@@ -1,4 +1,5 @@
 import type { Meta } from "#lib/addons/index.js";
+import { getLocale, m } from "#lib/i18n/index.js";
 
 type Videos = NonNullable<Meta["videos"]>;
 type Video = Videos[number];
@@ -119,7 +120,7 @@ const DAY_MS = 86_400_000;
 export function airDateLabel(
 	airsAt: string,
 	now = Date.now(),
-	locale?: string,
+	locale: string = getLocale(),
 	timeZone?: string,
 ): string {
 	const dayOf = (at: number) =>
@@ -134,10 +135,10 @@ export function airDateLabel(
 		(Date.parse(dayOf(at)) - Date.parse(dayOf(now))) / DAY_MS,
 	);
 	if (days <= 0) {
-		return "Airs today";
+		return m.watch_airs_today();
 	}
 	if (days === 1) {
-		return "Airs tomorrow";
+		return m.watch_airs_tomorrow();
 	}
 	const sameYear =
 		new Date(at).getUTCFullYear() === new Date(now).getUTCFullYear();
@@ -148,7 +149,7 @@ export function airDateLabel(
 		day: "numeric",
 		...(sameYear ? {} : { year: "numeric" }),
 	}).format(at);
-	return `Airs ${date}`;
+	return m.watch_airs_on({ date });
 }
 
 /** "S38E1", plus " · Title" when the title is known. */

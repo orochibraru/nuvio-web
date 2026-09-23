@@ -6,6 +6,7 @@
 	import { toast } from "svelte-sonner";
 	import * as ContextMenu from "#lib/components/ui/context-menu/index.js";
 	import { downloads } from "#lib/downloads/manager.svelte.js";
+	import { m } from "#lib/i18n/index.js";
 	import { sync } from "#lib/sync/store.svelte.js";
 	import { formatRemaining } from "#lib/watch/runtime.js";
 	import { goto } from "$app/navigation";
@@ -56,7 +57,7 @@
 			episode: item.episode,
 		});
 		onClear?.(item.id);
-		toast.success(`Removed ${item.name} from Continue watching`);
+		toast.success(m.media_cw_removed({ title: item.name }));
 	}
 </script>
 
@@ -91,7 +92,7 @@
           class="pointer-events-none absolute top-2 right-2 z-10 flex items-center gap-1 rounded-full bg-black/60 px-2 py-0.5 text-[11px] font-medium text-white ring-1 ring-white/20 backdrop-blur-md"
         >
           <DownloadIcon class="size-3" aria-hidden="true" />
-          Downloaded
+          {m.media_downloaded()}
         </span>
       {/if}
 
@@ -106,7 +107,9 @@
 
       <a
         href={playHref}
-        aria-label={`${started ? "Resume" : "Play"} ${item.name}`}
+        aria-label={started
+          ? m.media_resume_title({ title: item.name })
+          : m.media_play_title({ title: item.name })}
         class="absolute top-1/2 left-1/2 z-10 flex size-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white/15 text-white opacity-100 ring-1 ring-white/25 backdrop-blur-md transition hover:scale-105 hover:bg-white/25 sm:pointer-events-none sm:opacity-0 sm:group-hover/cw:pointer-events-auto sm:group-hover/cw:opacity-100 sm:group-focus-within/cw:pointer-events-auto sm:group-focus-within/cw:opacity-100"
       >
         <PlayIcon class="size-5 translate-x-px fill-white" />
@@ -119,9 +122,9 @@
           <p class="truncate text-sm font-semibold text-white">{item.name}</p>
           <p class="text-xs text-white/70">
             {#if item.season != null && item.episode != null}
-              S{item.season} · E{item.episode} ·
+              {m.media_episode_prefix({ season: item.season, episode: item.episode })}
             {/if}
-            {started ? formatRemaining(item.remainingMs) : "Not started"}
+            {started ? formatRemaining(item.remainingMs) : m.media_not_started()}
           </p>
         </div>
         <div class="h-1 overflow-hidden rounded-full bg-white/25">
@@ -137,14 +140,14 @@
   <ContextMenu.Content class="w-52">
     <ContextMenu.Item onSelect={() => goto(playHref)}>
       <PlayIcon />
-      {started ? "Resume" : "Play"}
+      {started ? m.common_resume() : m.common_play()}
     </ContextMenu.Item>
     <ContextMenu.Item onSelect={() => goto(detailHref)}>
-      <InfoIcon /> View details
+      <InfoIcon /> {m.media_view_details()}
     </ContextMenu.Item>
     <ContextMenu.Separator />
     <ContextMenu.Item onSelect={clearProgress}>
-      <Trash2Icon /> Remove from row
+      <Trash2Icon /> {m.media_remove_from_row()}
     </ContextMenu.Item>
   </ContextMenu.Content>
 </ContextMenu.Root>

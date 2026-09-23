@@ -1,3 +1,5 @@
+import type { DownloadFailure } from "./types.ts";
+
 /**
  * HLS for downloads: read a remote playlist, choose what to keep, and plan the
  * local copy. Pure : the worker does the fetching and the service worker does
@@ -18,10 +20,13 @@
  * cannot be taken offline).
  */
 
-export class HlsDownloadError extends Error {
-	constructor(message: string) {
+/** A refusal the page can word: `code` is what it shows, `message` is for logs. */
+export class DownloadError extends Error {
+	readonly code: DownloadFailure;
+	constructor(message: string, code: DownloadFailure = "playlist") {
 		super(message);
-		this.name = "HlsDownloadError";
+		this.name = "DownloadError";
+		this.code = code;
 	}
 }
 
@@ -253,12 +258,13 @@ function planKey(planner: Planner, line: string): void {
 	}
 	const keyFormat = attributes.KEYFORMAT ?? "identity";
 	if (method !== "AES-128" || keyFormat !== "identity") {
-		throw new HlsDownloadError(
+		throw new DownloadError(
 			"This stream is DRM-protected, so it can't be downloaded.",
+			"drm",
 		);
 	}
 	if (!attributes.URI) {
-		throw new HlsDownloadError("An encryption key has no address.");
+		throw new DownloadError("An encryption key has no address.");
 	}
 	planner.keys++;
 	const name = `${planner.prefix}key-${planner.keys}.bin`;
@@ -274,7 +280,7 @@ function planKey(planner: Planner, line: string): void {
 function planMap(planner: Planner, line: string): void {
 	const attributes = parseAttributes(tagValue(line));
 	if (!attributes.URI) {
-		throw new HlsDownloadError("An initialisation segment has no address.");
+		throw new DownloadError("An initialisation segment has no address.");
 	}
 	planner.maps++;
 	const name = `${planner.prefix}init-${planner.maps}.${extensionOf(attributes.URI, "mp4")}`;
@@ -333,13 +339,14 @@ export function planMediaPlaylist(
 	prefix = "",
 ): MediaPlan {
 	if (isMasterPlaylist(text)) {
-		throw new HlsDownloadError(
+		throw new DownloadError(
 			"Expected a media playlist, got a master playlist.",
 		);
 	}
 	if (!/^#EXT-X-ENDLIST/m.test(text)) {
-		throw new HlsDownloadError(
+		throw new DownloadError(
 			"This is a live stream : it never ends, so it can't be downloaded.",
+			"live",
 		);
 	}
 	const planner: Planner = {
@@ -361,7 +368,7 @@ export function planMediaPlaylist(
 		}
 	}
 	if (planner.segments === 0) {
-		throw new HlsDownloadError("The playlist lists no segments.");
+		throw new DownloadError("The playlist lists no segments.");
 	}
 	return {
 		playlist: `${planner.out.join("\n")}\n`,

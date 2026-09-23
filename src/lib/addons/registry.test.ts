@@ -8,6 +8,7 @@ import {
 	AddonRegistry,
 	buildRegistry,
 	type InstalledAddon,
+	loadFailure,
 	type NuvioAddonRow,
 } from "./registry.ts";
 import type { AddonManifest } from "./types.ts";
@@ -159,6 +160,23 @@ describe("AddonRegistry catalogs", () => {
 		);
 		expect(registry.findCatalog("a", "movie", "missing")).toBeUndefined();
 	});
+
+	it("lists addon catalogs and knows when it is empty", () => {
+		const directory = new AddonRegistry([
+			installed({
+				manifest: manifest({
+					id: "d",
+					addonCatalogs: [{ type: "all", id: "community" }],
+				}),
+			}),
+			installed(),
+		]);
+		expect(directory.addonCatalogs().map((ref) => ref.catalog.id)).toEqual([
+			"community",
+		]);
+		expect(directory.isEmpty).toBe(false);
+		expect(new AddonRegistry([]).isEmpty).toBe(true);
+	});
 });
 
 describe("buildRegistry", () => {
@@ -227,6 +245,65 @@ describe("buildRegistry", () => {
 		);
 		expect(registry.addons.map((entry) => entry.manifest.id)).toEqual(["ok"]);
 		expect(errors).toHaveLength(1);
-		expect(errors[0].url).toBe("https://198.51.100.7/manifest.json");
+		expect(errors[0]).toEqual({
+			url: "https://198.51.100.7/manifest.json",
+			reason: 404,
+		});
+	});
+
+	it("reports a fixed reason, never the raw cause", async () => {
+		const bad = "https://198.51.100.7/manifest.json";
+		const reason = async (fetchImpl: typeof fetch, url = bad) =>
+			(await buildRegistry([row({ url })], fetchImpl)).errors[0]?.reason;
+		const answer = (body: string) =>
+			(async () =>
+				new Response(body, { status: 200 })) as unknown as typeof fetch;
+		const fail = (error: unknown) =>
+			(async () => {
+				throw error;
+			}) as unknown as typeof fetch;
+
+		expect(await reason(stubFetch({ [bad]: { id: "x" } }))).toBe("invalid");
+		expect(await reason(answer("<html>"))).toBe("invalid");
+		expect(await reason(fail(new DOMException("slow", "TimeoutError")))).toBe(
+			"timeout",
+		);
+		expect(
+			await reason(
+				fail(new TypeError("connect ECONNREFUSED 198.51.100.7:443")),
+			),
+		).toBe("unreachable");
+		// The SSRF guard refuses before any fetch.
+		expect(
+			await reason(fail(new Error("unreached")), "http://127.0.0.1:8080/x"),
+		).toBe("blocked");
+	});
+
+	it("maps a non-Error cause to unreachable", () => {
+		expect(loadFailure("boom")).toBe("unreachable");
+	});
+
+	it("caps concurrent manifest fetches and keeps profile order", async () => {
+		let inFlight = 0;
+		let peak = 0;
+		const fetchImpl = (async (input: string | URL | Request) => {
+			inFlight += 1;
+			peak = Math.max(peak, inFlight);
+			await new Promise((resolve) => setTimeout(resolve, 5));
+			inFlight -= 1;
+			const id = new URL(String(input)).pathname.split("/")[1];
+			return new Response(JSON.stringify(manifest({ id })), { status: 200 });
+		}) as typeof fetch;
+		const rows = Array.from({ length: 10 }, (_, index) =>
+			row({
+				url: `https://93.184.216.34/a${index}/manifest.json`,
+				sort_order: index,
+			}),
+		);
+		const { registry } = await buildRegistry(rows, fetchImpl);
+		expect(peak).toBe(6);
+		expect(registry.addons.map((entry) => entry.manifest.id)).toEqual(
+			rows.map((_, index) => `a${index}`),
+		);
 	});
 });

@@ -30,7 +30,11 @@ test("light mode: no WCAG A/AA violations", async ({ page, context }) => {
 		const button = page.getByRole("button", { name: mode, exact: true });
 		await button.click();
 		await expect(button).toHaveClass(/bg-primary/);
-		await page.waitForTimeout(1000);
+		// The mode is stored on the account: navigating before the save lands
+		// would render the next route in the old mode.
+		await expect(page.getByText("Saved", { exact: true })).toBeVisible({
+			timeout: 15_000,
+		});
 	};
 
 	await setMode("Light");

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { m } from "#lib/i18n/index.js";
 	import { handlePlayerKey } from "#lib/player/keymap.js";
 	import { createPlayerBroadcastSync } from "#lib/player/state/broadcast.svelte.js";
 	import { createPlayerController } from "#lib/player/state/controller.svelte.js";
@@ -201,7 +202,7 @@
 <div
   bind:this={container}
   role="region"
-  aria-label="Video player"
+  aria-label={m.player_region()}
   data-accent={theme.current.accent}
   data-amoled={theme.current.darkStyle === "amoled"}
   class={cn(

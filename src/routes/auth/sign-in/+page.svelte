@@ -9,11 +9,13 @@
 	import { Input } from "#lib/components/ui/input/index.js";
 	import { Spinner } from "#lib/components/ui/spinner/index.js";
 	import { pageTitle } from "#lib/core/title.svelte.js";
+	import { m } from "#lib/i18n/index.js";
 	import { NUVIO_WEBSITE_URL } from "#lib/nuvio/index.js";
+	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
 	import { signIn } from "../auth.remote.ts";
 
-	pageTitle.set("Sign in");
+	pageTitle.set(m.auth_sign_in());
 
 	let showPassword = $state(false);
 
@@ -26,16 +28,16 @@
 	const passwordIssue = $derived(signIn.fields.password.issues()?.[0]?.message);
 	const signUpHref = $derived(
 		redirectTo === "/"
-			? "/auth/sign-up"
-			: `/auth/sign-up?redirectTo=${encodeURIComponent(redirectTo)}`,
+			? resolve("auth/sign-up")
+			: `${resolve("auth/sign-up")}?redirectTo=${encodeURIComponent(redirectTo)}`,
 	);
 </script>
 
 <Card.Root>
 	<Card.Header>
-		<Card.Title>Sign in</Card.Title>
+		<Card.Title>{m.auth_sign_in()}</Card.Title>
 		<Card.Description
-			>Enter your email and password to continue.</Card.Description
+			>{m.auth_sign_in_description()}</Card.Description
 		>
 	</Card.Header>
 	<Card.Content>
@@ -44,7 +46,7 @@
 				{#if justRegistered}
 					<Alert.Root>
 						<Alert.Description
-							>Account created. Sign in to continue.</Alert.Description
+							>{m.auth_registered()}</Alert.Description
 						>
 					</Alert.Root>
 				{/if}
@@ -56,7 +58,7 @@
 				{/if}
 
 				<Field.Field data-invalid={emailIssue ? true : undefined}>
-					<Field.FieldLabel for="email">Email</Field.FieldLabel>
+					<Field.FieldLabel for="email">{m.common_email()}</Field.FieldLabel>
 					<Input
 						id="email"
 						{...signIn.fields.email.as('email')}
@@ -70,14 +72,14 @@
 
 				<Field.Field data-invalid={passwordIssue ? true : undefined}>
 					<div class="flex items-center justify-between">
-						<Field.FieldLabel for="password">Password</Field.FieldLabel>
+						<Field.FieldLabel for="password">{m.auth_password()}</Field.FieldLabel>
 						<a
 							href={NUVIO_WEBSITE_URL}
 							target="_blank"
 							rel="noopener noreferrer"
 							class="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground"
 						>
-							Forgot password?
+							{m.auth_forgot_password()}
 						</a>
 					</div>
 					<div class="relative">
@@ -89,7 +91,7 @@
 						/>
 						<button
 							type="button"
-							aria-label={showPassword ? "Hide password" : "Show password"}
+							aria-label={showPassword ? m.auth_hide_password() : m.auth_show_password()}
 							onclick={() => (showPassword = !showPassword)}
 							class="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-muted-foreground hover:text-foreground"
 						>
@@ -108,7 +110,7 @@
 						{#if signIn.pending > 0}
 							<Spinner data-icon="inline-start" />
 						{/if}
-						Sign in
+						{m.auth_sign_in()}
 					</Button>
 				</Field.Field>
 			</Field.FieldGroup>
@@ -116,9 +118,9 @@
 	</Card.Content>
 	<Card.Footer class="justify-center">
 		<p class="text-sm text-muted-foreground">
-			New to Nuvio?
+			{m.auth_new_to_nuvio()}
 			<a class="underline underline-offset-4" href={signUpHref}
-				>Create an account</a
+				>{m.auth_create_an_account()}</a
 			>
 		</p>
 	</Card.Footer>

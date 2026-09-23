@@ -2,9 +2,12 @@
 
 Nuvio Web is distributed as a multi-arch Docker image
 ([`orochibraru/nuvio-web`](https://hub.docker.com/r/orochibraru/nuvio-web)) for
-`linux/amd64` and `linux/arm64`. There is no database to provision and no volume
-to mount unless you want the optional admin page's sign-in log to survive a
-restart.
+`linux/amd64` and `linux/arm64`. There is no database to provision, but mount a
+volume on `/app/data`: the app keeps signed-in sessions and each profile's
+library, watch progress and history there, in SQLite, and syncs them with your
+Nuvio account in the background ([Sync](sync.md)). Without it, a restart signs
+everyone out and drops changes not yet pushed to Nuvio. One container per data
+directory.
 
 You will need a [Nuvio](https://nuvio.tv/) account. You can create one from the
 app's own sign-up screen.
@@ -13,6 +16,7 @@ app's own sign-up screen.
 
 ```bash
 docker run -p 3000:3000 -e ORIGIN=http://localhost:3000 \
+  -v ./data:/app/data \
   orochibraru/nuvio-web:latest
 ```
 
@@ -25,6 +29,9 @@ services:
     restart: unless-stopped
     ports:
       - 3000:3000
+    volumes:
+      # Sessions, and your library / progress / history. Back it up.
+      - ./data:/app/data
     environment:
       # The URL you actually browse to. See Configuration.
       ORIGIN: http://localhost:3000

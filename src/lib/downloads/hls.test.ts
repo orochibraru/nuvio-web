@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
 	chooseAudio,
 	chooseVariant,
-	HlsDownloadError,
+	DownloadError,
 	isHlsPlaylist,
 	isMasterPlaylist,
 	localMasterPlaylist,
@@ -206,7 +206,7 @@ main.mp4
 					`#EXTM3U\n${key}\n#EXTINF:4,\na.ts\n#EXT-X-ENDLIST`,
 					BASE,
 				),
-			).toThrow(HlsDownloadError);
+			).toThrow(DownloadError);
 		}
 	});
 

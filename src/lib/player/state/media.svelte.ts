@@ -1,4 +1,5 @@
-import Hls from "hls.js";
+import type Hls from "hls.js";
+import { m } from "#lib/i18n/index.js";
 import {
 	attachNativeAudioTracks,
 	type VideoWithAudioTracks,
@@ -12,22 +13,113 @@ interface MediaDeps {
 	onFatal: (message: string) => void;
 }
 
+type AudioTrackList = Array<{ id: number; label: string }>;
+
+interface AttachHooks {
+	onFatal: (message: string) => void;
+	onAudio: (tracks: AudioTrackList, active: number) => void;
+	onHls: (instance: Hls | null) => void;
+}
+
+/** A plain `src`: a direct file, or HLS the browser plays itself (Safari). */
+function attachNative(el: HTMLVideoElement, src: string, hooks: AttachHooks) {
+	el.src = src;
+	el.load();
+	const cleanupNative = attachNativeAudioTracks(
+		el as VideoWithAudioTracks,
+		hooks.onAudio,
+	);
+	return () => {
+		cleanupNative?.();
+		el.removeAttribute("src");
+		el.load();
+	};
+}
+
 /**
- * Attach a source to the `<video>` : hls.js for `.m3u8`, a plain `src`
- * otherwise : and expose an audio-track list for the settings menu. HLS
- * multi-language streams come from hls.js's own track list; a direct file
- * (mp4/mkv/…) that muxes more than one audio track comes from the browser's
- * native `HTMLMediaElement.audioTracks` instead (see `attachNativeAudioTracks`
- * in `player-media.ts`) : Chromium and Firefox both populate it, Safari
- * doesn't, so a single-track or unsupported source just never grows past the
- * empty list and the settings menu hides that section. Tears the HLS
- * instance / native listeners down and clears the element `src` when the
- * source changes or the component unmounts.
+ * An HLS source through hls.js, which is ~190 KB gzip while most streams are
+ * mp4/mkv : so it's imported here, on demand. The source can change, or the
+ * player unmount, while the chunk downloads: the returned cleanup cancels a
+ * late arrival as well as tearing down a live instance.
+ */
+function attachHls(el: HTMLVideoElement, src: string, hooks: AttachHooks) {
+	let cancelled = false;
+	let cleanup: (() => void) | undefined;
+	import("hls.js")
+		.then(({ default: HlsClass }) => {
+			if (cancelled) {
+				return;
+			}
+			if (!HlsClass.isSupported()) {
+				cleanup = attachNative(el, src, hooks);
+				return;
+			}
+			const instance = new HlsClass({ maxBufferLength: 30 });
+			instance.loadSource(src);
+			instance.attachMedia(el);
+			instance.on(HlsClass.Events.ERROR, (_event, data) => {
+				if (data.fatal) {
+					hooks.onFatal(m.player_error_stream());
+				}
+			});
+			const syncAudio = () =>
+				hooks.onAudio(
+					instance.audioTracks.map((track, index) => ({
+						id: index,
+						label:
+							track.name ||
+							track.lang ||
+							m.player_audio_track_fallback({ number: index + 1 }),
+					})),
+					instance.audioTrack,
+				);
+			instance.on(HlsClass.Events.AUDIO_TRACKS_UPDATED, syncAudio);
+			instance.on(HlsClass.Events.AUDIO_TRACK_SWITCHED, syncAudio);
+			hooks.onHls(instance);
+			cleanup = () => {
+				instance.destroy();
+				hooks.onHls(null);
+			};
+		})
+		.catch(() => {
+			// The chunk failed to load (offline, a new deploy): let the browser try.
+			if (!cancelled) {
+				cleanup = attachNative(el, src, hooks);
+			}
+		});
+	return () => {
+		cancelled = true;
+		cleanup?.();
+	};
+}
+
+/**
+ * Attach a source to the `<video>` : hls.js (loaded on demand) for `.m3u8`, a
+ * plain `src` otherwise : and expose an audio-track list for the settings
+ * menu. HLS multi-language streams come from hls.js's own track list; a direct
+ * file (mp4/mkv/…) that muxes more than one audio track comes from the
+ * browser's native `HTMLMediaElement.audioTracks` instead (see
+ * `attachNativeAudioTracks` in `player-media.ts`) : Chromium and Firefox both
+ * populate it, Safari doesn't, so a single-track or unsupported source just
+ * never grows past the empty list and the settings menu hides that section.
+ * Tears the HLS instance / native listeners down and clears the element `src`
+ * when the source changes or the component unmounts.
  */
 export function createPlayerMedia(deps: MediaDeps) {
 	let hls = $state<Hls | null>(null);
-	let audioTracks = $state<Array<{ id: number; label: string }>>([]);
+	let audioTracks = $state<AudioTrackList>([]);
 	let activeAudioTrack = $state(-1);
+
+	const hooks: AttachHooks = {
+		onFatal: (message) => deps.onFatal(message),
+		onAudio: (tracks, active) => {
+			audioTracks = tracks;
+			activeAudioTrack = active;
+		},
+		onHls: (instance) => {
+			hls = instance;
+		},
+	};
 
 	$effect(() => {
 		const el = deps.video();
@@ -38,47 +130,9 @@ export function createPlayerMedia(deps: MediaDeps) {
 		deps.onLoad();
 		audioTracks = [];
 		activeAudioTrack = -1;
-
-		if (src.toLowerCase().includes(".m3u8") && Hls.isSupported()) {
-			const instance = new Hls({ maxBufferLength: 30 });
-			hls = instance;
-			instance.loadSource(src);
-			instance.attachMedia(el);
-			instance.on(Hls.Events.ERROR, (_event, data) => {
-				if (data.fatal) {
-					deps.onFatal("This stream could not be played.");
-				}
-			});
-			const syncAudio = () => {
-				audioTracks = instance.audioTracks.map((track, index) => ({
-					id: index,
-					label: track.name || track.lang || `Track ${index + 1}`,
-				}));
-				activeAudioTrack = instance.audioTrack;
-			};
-			instance.on(Hls.Events.AUDIO_TRACKS_UPDATED, syncAudio);
-			instance.on(Hls.Events.AUDIO_TRACK_SWITCHED, syncAudio);
-			return () => {
-				instance.destroy();
-				hls = null;
-			};
-		}
-
-		el.src = src;
-		el.load();
-		const cleanupNative = attachNativeAudioTracks(
-			el as VideoWithAudioTracks,
-			(tracks, active) => {
-				audioTracks = tracks;
-				activeAudioTrack = active;
-			},
-		);
-
-		return () => {
-			cleanupNative?.();
-			el.removeAttribute("src");
-			el.load();
-		};
+		return src.toLowerCase().includes(".m3u8")
+			? attachHls(el, src, hooks)
+			: attachNative(el, src, hooks);
 	});
 
 	return {

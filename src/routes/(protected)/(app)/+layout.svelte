@@ -24,6 +24,7 @@
 	import { Separator } from "#lib/components/ui/separator/index.js";
 	import { reduced } from "#lib/core/motion.js";
 	import { downloads } from "#lib/downloads/manager.svelte.js";
+	import { m } from "#lib/i18n/index.js";
 	import { searchHistory } from "#lib/search/search-history.svelte.js";
 	import {
 		SETTINGS_SECTIONS,
@@ -44,15 +45,15 @@
 	const nav = [
 		{
 			href: resolve("/(protected)/(app)"),
-			label: "Home",
+			label: m.nav_home(),
 			exact: true,
 			icon: HouseIcon,
 		},
-		{ href: resolve("discover"), label: "Discover", icon: CompassIcon },
-		{ href: resolve("library"), label: "Library", icon: BookmarkIcon },
+		{ href: resolve("discover"), label: m.nav_discover(), icon: CompassIcon },
+		{ href: resolve("library"), label: m.nav_library(), icon: BookmarkIcon },
 		{
 			href: resolve("collections"),
-			label: "Collections",
+			label: m.nav_collections(),
 			icon: LayersIcon,
 		},
 	];
@@ -179,7 +180,7 @@
     href="#main-content"
     class="sr-only z-100 rounded-md bg-background px-4 py-2 text-sm font-medium ring-2 ring-primary focus:not-sr-only focus:fixed focus:top-3 focus:left-3"
 >
-    Skip to content
+    {m.shell_skip_to_content()}
 </a>
 
 <div
@@ -213,7 +214,7 @@
         <div class="flex h-14 items-center gap-6 px-6">
             <button
                 type="button"
-                aria-label="Menu"
+                aria-label={m.shell_menu()}
                 onclick={() => (mobileNavOpen = true)}
                 class="flex size-9 items-center justify-center rounded-full text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring md:hidden"
             >
@@ -222,7 +223,7 @@
             <a
                 href={resolve("/(protected)/(app)")}
                 class="flex shrink-0 items-center gap-2 text-lg font-bold tracking-tight"
-                aria-label="Nuvio : home"
+                aria-label={m.shell_logo_home()}
             >
                 <!-- The wordmark is white artwork: a dark copy for light
                      surfaces. The link's `aria-label` names it. -->
@@ -248,7 +249,7 @@
                  the hidden row cannot be tabbed into or clicked. -->
             <div class="relative hidden min-w-0 text-sm md:grid">
                 <nav
-                    aria-label="Main"
+                    aria-label={m.shell_nav_main()}
                     aria-hidden={onSettings ? "true" : undefined}
                     class={cn(
                         "col-start-1 row-start-1 flex items-center gap-1 transition-[opacity,transform,visibility] duration-200",
@@ -276,7 +277,7 @@
                 </nav>
 
                 <nav
-                    aria-label="Settings sections"
+                    aria-label={m.settings_sections_label()}
                     aria-hidden={onSettings ? undefined : "true"}
                     class={cn(
                         "col-start-1 row-start-1 flex items-center gap-1 transition-[opacity,transform,visibility] duration-200",
@@ -288,11 +289,11 @@
                     <a
                         href={resolve("/(protected)/(app)")}
                         tabindex={onSettings ? undefined : -1}
-                        title="Leave settings"
+                        title={m.shell_leave_settings()}
                         class="mr-1 flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground"
                     >
                         <XIcon class="size-4" />
-                        <span class="sr-only">Leave settings</span>
+                        <span class="sr-only">{m.shell_leave_settings()}</span>
                     </a>
                     {#each SETTINGS_SECTIONS as section (section.value)}
                         {@const active = settingsSection === section.value}
@@ -317,7 +318,7 @@
             <div class="ml-auto flex items-center gap-3">
                 <a
                     href={resolve("search")}
-                    aria-label="Search"
+                    aria-label={m.nav_search()}
                     aria-current={isActive("/search") ? "page" : undefined}
                     onclick={(e) => {
                         if (
@@ -338,7 +339,7 @@
                     )}
                 >
                     <SearchIcon class="size-4" />
-                    <span class="hidden sm:inline">Search</span>
+                    <span class="hidden sm:inline">{m.nav_search()}</span>
                     <kbd
                         class="ml-1 hidden rounded border border-border bg-muted px-1.5 font-sans text-[10px] text-muted-foreground sm:inline"
                     >
@@ -348,7 +349,7 @@
 
                 <DropdownMenu.Root>
                     <DropdownMenu.Trigger
-                        aria-label="Profile menu"
+                        aria-label={m.shell_profile_menu()}
                         class="size-8 overflow-hidden rounded-lg ring-1 ring-white/10 outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
                     >
                         <ProfileAvatar profile={data.profile} />
@@ -362,28 +363,28 @@
                             <DropdownMenu.Item>
                                 {#snippet child({ props })}
                                     <a href={resolve("profiles")} {...props}
-                                        ><UsersIcon />Switch profile</a
+                                        ><UsersIcon />{m.shell_switch_profile()}</a
                                     >
                                 {/snippet}
                             </DropdownMenu.Item>
                             <DropdownMenu.Item>
                                 {#snippet child({ props })}
                                     <a href={resolve("settings")} {...props}
-                                        ><SettingsIcon />Settings</a
+                                        ><SettingsIcon />{m.nav_settings()}</a
                                     >
                                 {/snippet}
                             </DropdownMenu.Item>
                             <DropdownMenu.Item>
                                 {#snippet child({ props })}
                                     <a href={resolve("account")} {...props}
-                                        ><CircleUserIcon />Account</a
+                                        ><CircleUserIcon />{m.nav_account()}</a
                                     >
                                 {/snippet}
                             </DropdownMenu.Item>
                             <DropdownMenu.Item>
                                 {#snippet child({ props })}
                                     <a href={resolve("downloads")} {...props}
-                                        ><DownloadIcon />Downloads</a
+                                        ><DownloadIcon />{m.nav_downloads()}</a
                                     >
                                 {/snippet}
                             </DropdownMenu.Item>
@@ -394,14 +395,14 @@
                                         installPrompt = null;
                                     }}
                                 >
-                                    <MonitorDownIcon />Install app
+                                    <MonitorDownIcon />{m.shell_install_app()}
                                 </DropdownMenu.Item>
                             {/if}
                             {#if data.isAdmin}
                                 <DropdownMenu.Item>
                                     {#snippet child({ props })}
                                         <a href={resolve("admin")} {...props}
-                                            ><ShieldIcon />Server admin</a
+                                            ><ShieldIcon />{m.admin_title()}</a
                                         >
                                     {/snippet}
                                 </DropdownMenu.Item>
@@ -415,7 +416,7 @@
                                         type="submit"
                                         class="w-full text-left"
                                         {...props}
-                                        ><LogOutIcon />Sign out</button
+                                        ><LogOutIcon />{m.common_sign_out()}</button
                                     >
                                 {/snippet}
                             </DropdownMenu.Item>
@@ -448,17 +449,17 @@
                 {#snippet child({ props })}
                     <div
                         {...props}
-                        aria-label="Menu"
+                        aria-label={m.shell_menu()}
                         class="fixed inset-y-0 left-0 z-100 flex w-72 max-w-[85vw] flex-col border-r border-border bg-background outline-none md:hidden"
                         transition:fly={reduced({ x: -24, duration: 220 })}
                     >
                         <div
                             class="flex h-14 shrink-0 items-center justify-between border-b border-border px-4"
                         >
-                            <span class="text-sm font-semibold">Menu</span>
+                            <span class="text-sm font-semibold">{m.shell_menu()}</span>
                             <button
                                 type="button"
-                                aria-label="Close menu"
+                                aria-label={m.shell_close_menu()}
                                 onclick={() => (mobileNavOpen = false)}
                                 class="flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                             >
@@ -516,24 +517,23 @@
         >
             <Separator class="mb-4 bg-border/60" />
             <span class="font-medium text-foreground/70">Nuvio</span>
-            <span>A web client for your Nuvio library, addons and streams.</span
-            >
+            <span>{m.shell_footer_tagline()}</span>
             <div class="flex items-center gap-4">
                 <a
                     href="https://nuvio.tv/support"
                     target="_blank"
                     rel="noopener noreferrer"
-                    class="transition hover:text-foreground">Support Nuvio</a
+                    class="transition hover:text-foreground">{m.shell_support_nuvio()}</a
                 >
 
                 <a
                     href={resolve("settings")}
-                    class="transition hover:text-foreground">Appearance</a
+                    class="transition hover:text-foreground">{m.shell_appearance()}</a
                 >
 
                 <a
                     href={`${resolve("settings")}?tab=addons`}
-                    class="transition hover:text-foreground">Addons</a
+                    class="transition hover:text-foreground">{m.settings_section_addons()}</a
                 >
             </div>
         </footer>

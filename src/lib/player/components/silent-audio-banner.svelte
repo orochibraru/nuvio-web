@@ -2,6 +2,7 @@
 	import VolumeXIcon from "@lucide/svelte/icons/volume-x";
 	import XIcon from "@lucide/svelte/icons/x";
 	import { Button } from "#lib/components/ui/button/index.js";
+	import { m } from "#lib/i18n/index.js";
 
 	let {
 		noTrack,
@@ -20,24 +21,24 @@
   <div class="flex items-start gap-2.5">
     <VolumeXIcon class="mt-0.5 size-5 shrink-0" />
     <div class="min-w-0">
-      <p class="font-medium">No sound from this source</p>
+      <p class="font-medium">{m.player_no_sound()}</p>
       <p class="text-white/70">
         {#if noTrack}
-          It has no audio track.
+          {m.player_no_audio_track()}
         {:else}
-          Its audio codec (Dolby Digital, DTS or Atmos) can't be decoded here.
+          {m.player_audio_codec_unsupported()}
         {/if}
       </p>
     </div>
   </div>
   <div class="flex shrink-0 items-center gap-1.5">
     {#if onSources}
-      <Button size="xs" onclick={onSources}>Other sources</Button>
+      <Button size="xs" onclick={onSources}>{m.player_other_sources()}</Button>
     {/if}
     <Button
       variant="ghost"
       size="icon-xs"
-      aria-label="Dismiss"
+      aria-label={m.common_dismiss()}
       onclick={onDismiss}
       class="text-white hover:bg-white/15"
     >

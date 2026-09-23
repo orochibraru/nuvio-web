@@ -1,5 +1,6 @@
 import { tick } from "svelte";
 import { toast } from "svelte-sonner";
+import { m } from "#lib/i18n/index.js";
 import type { SubtitleCatalog } from "./subtitle-catalog.svelte.ts";
 
 export interface SubtitleSelectionState {
@@ -35,9 +36,7 @@ export function createSubtitleSelection(deps: {
 			const ok = await deps.catalog.resolve(key);
 			state.pendingCaption = null;
 			if (!ok) {
-				toast.error(
-					"That subtitle file couldn't be loaded. Try another track.",
-				);
+				toast.error(m.player_subtitle_load_failed());
 				return;
 			}
 		}

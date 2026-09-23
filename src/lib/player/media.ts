@@ -1,3 +1,4 @@
+import { m } from "#lib/i18n/index.js";
 /** The native multi-audio-track API : real in Chromium/Firefox for a file
  *  that muxes more than one audio track, but missing from lib.dom's types. */
 export interface NativeAudioTrack {
@@ -25,7 +26,10 @@ export function nativeAudioSnapshot(list: NativeAudioTrackList): {
 		const track = list[index];
 		tracks.push({
 			id: index,
-			label: track.label || track.language || `Track ${index + 1}`,
+			label:
+				track.label ||
+				track.language ||
+				m.player_audio_track_fallback({ number: index + 1 }),
 		});
 		if (track.enabled) {
 			active = index;

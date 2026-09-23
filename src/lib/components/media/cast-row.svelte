@@ -1,5 +1,6 @@
 <script lang="ts">
 	import ScrollRail from "#lib/components/layout/scroll-rail.svelte";
+	import { m } from "#lib/i18n/index.js";
 	import { browserServices } from "#lib/services/browser.js";
 	import type { Person } from "#lib/services/people.service.js";
 	import { PEOPLE } from "#lib/services/tokens.js";
@@ -38,7 +39,7 @@
 	}
 </script>
 
-<ScrollRail label="Cast" class={className} trackClass="gap-3 pb-2">
+<ScrollRail label={m.common_cast()} class={className} trackClass="gap-3 pb-2">
 	{#each names as name (name)}
 		{@const person = people[name]}
 		<a

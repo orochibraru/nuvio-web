@@ -8,7 +8,7 @@ const state = {
 	// cache entries from the next one's.
 	userId: "user-a",
 	list: vi.fn(async (_profileId: number) => [] as unknown[]),
-	manifest: vi.fn(async (url: string) => ({
+	manifest: vi.fn(async (url: string, _impl?: unknown) => ({
 		manifest: {} as AddonManifest,
 		baseUrl: url,
 	})),
@@ -16,8 +16,12 @@ const state = {
 };
 
 const event = {
-	fetch: (async () => new Response("{}")) as unknown as typeof fetch,
+	// Forwards the visitor's cookies: the addon layer must never be handed it.
+	fetch: (async () => {
+		throw new Error("event.fetch reached the addon layer");
+	}) as unknown as typeof fetch,
 	locals: {
+		services: { get: () => ({ warn: () => {} }) },
 		nuvio: {
 			addons: { list: (id: number) => state.list(id) },
 			// The home rows read the profile's saved layout.
@@ -50,7 +54,7 @@ vi.mock("#lib/server/guards.js", () => ({
 // The registry is built for real (that is the part worth exercising here); only
 // the network hop for each manifest is stubbed.
 vi.mock("./manifest.ts", () => ({
-	fetchManifest: (url: string) => state.manifest(url),
+	fetchManifest: (url: string, impl: unknown) => state.manifest(url, impl),
 }));
 
 // `catalog-queries.ts` has its own suite. Here we only care that each wrapper
@@ -73,6 +77,7 @@ vi.mock("./catalog-queries.ts", () => ({
 	})),
 }));
 
+import { pinnedFetch } from "#lib/server/safe-fetch.js";
 import * as queries from "./catalog-queries.ts";
 import { AddonClient } from "./client.ts";
 import {
@@ -286,9 +291,13 @@ describe("listCatalogs", () => {
 });
 
 describe("getAddonClient", () => {
-	it("hands back a client bound to this request's fetch", async () => {
+	it("hands back a client on the pinned, cookie-less fetch", async () => {
 		const { client, registry, errors } = await getAddonClient();
 		expect(client).toBeInstanceOf(AddonClient);
+		expect((client as unknown as { fetchImpl: unknown }).fetchImpl).toBe(
+			pinnedFetch,
+		);
+		expect(state.manifest.mock.calls.at(-1)?.[1]).toBe(pinnedFetch);
 		expect(registry.addons).toHaveLength(1);
 		expect(errors).toEqual([]);
 	});

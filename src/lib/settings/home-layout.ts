@@ -1,4 +1,5 @@
 import * as v from "valibot";
+import { m } from "#lib/i18n/index.js";
 
 /**
  * Which addon catalogs the home screen shows, and in what order.
@@ -129,8 +130,9 @@ export function catalogTitles(
 	}
 	return entries.map((entry) => {
 		if ((counts.get(entry.title) ?? 0) > 1) {
-			const noun = entry.type === "series" ? "series" : "movies";
-			return `${entry.title} ${noun}`;
+			return entry.type === "series"
+				? m.settings_catalog_title_series({ title: entry.title })
+				: m.settings_catalog_title_movies({ title: entry.title });
 		}
 		return entry.title;
 	});

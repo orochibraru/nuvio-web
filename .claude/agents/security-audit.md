@@ -21,9 +21,15 @@ instead. State your scope at the top of the report.
 
 ## What this codebase looks like
 
-- **Auth / session**: `src/hooks.server.ts`, `src/lib/server/session.ts`,
-  `src/lib/server/guards.ts`. Sessions are Nuvio API tokens stored in cookies,
-  refreshed in `handle`. Route group `src/routes/(protected)/` is the gate.
+- **Auth / session**: `src/hooks.server.ts`,
+  `src/lib/services/session.service.ts`, `src/lib/server/guards.ts`. Sessions
+  are Nuvio API tokens stored in cookies, refreshed in `handle`. Route group
+  `src/routes/(protected)/` is the gate. Services are resolved per request from
+  `locals.services`; a request-scoped service resolved at module level would
+  leak one visitor's state to another.
+- **Server-side fetch of untrusted URLs**: `src/lib/server/safe-fetch.ts` is the
+  SSRF guard : check every server fetch of an addon-supplied URL goes through
+  it.
 - **Remote functions**: every `*.remote.ts` file. These are the real RPC
   surface. Each `query` / `command` / `form` runs on the server with the
   caller's session. `.remote.ts` files may export only remote functions; schemas
@@ -32,8 +38,9 @@ instead. State your scope at the top of the report.
   Stremio-style addon URLs (manifests, catalogs, streams, subtitles) and renders
   the results. This is the largest untrusted-input surface.
 - **Sync store**: `src/lib/sync/` : IndexedDB mirror + optimistic write queue.
-- **Player**: `src/lib/components/video-player.svelte`, `src/lib/watch/`,
-  hls.js. Plays stream URLs and loads subtitle tracks from addons.
+- **Player**: `src/lib/player/` (`components/video-player.svelte`, `state/`),
+  `src/lib/watch/`, hls.js. Plays stream URLs and loads subtitle tracks from
+  addons.
 - **API client**: `src/lib/nuvio/client.ts`.
 
 ## Checklist
@@ -75,8 +82,8 @@ instead. State your scope at the top of the report.
 
 **Session / cookies**
 
-- Cookie flags in `session.ts`: `httpOnly`, `secure`, `sameSite`, `path`,
-  sensible `maxAge`. Refresh tokens must be `httpOnly`.
+- Cookie flags in `session.service.ts`: `httpOnly`, `secure`, `sameSite`,
+  `path`, sensible `maxAge`. Refresh tokens must be `httpOnly`.
 - Tokens never logged (`handleError`, `console.*`) or serialised into `+page`
   data sent to the browser.
 - Logout / refresh-failure clears every session cookie.
@@ -89,10 +96,11 @@ instead. State your scope at the top of the report.
 **Secrets / config**
 
 - No credentials, API keys, or tokens committed. `.env` stays out of git.
-- `$env/static/private` vs `$env/static/public` : nothing private imported into
-  client-reachable code.
-- Check `svelte.config.js` / response headers for CSP and other security
-  headers.
+- `$app/env/private` (declared in `src/env.ts`) : nothing private imported into
+  client-reachable code. `src/lib/services/index.ts` must never re-export
+  `services/server.ts`.
+- Check the kit config in `vite.config.ts` / response headers for CSP and other
+  security headers.
 
 **Client-side**
 

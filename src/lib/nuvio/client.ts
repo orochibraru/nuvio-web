@@ -229,7 +229,10 @@ export class NuvioClient {
 
 	async signOut(): Promise<void> {
 		if (this.currentSession) {
-			await this.http<void>(`${this.baseUrl}/auth/v1/logout`, {
+			// `local`: revoke this session only. GoTrue's default (`global`)
+			// revokes every refresh token the account has, signing the user
+			// out of the mobile app and killing the background Nuvio sync.
+			await this.http<void>(`${this.baseUrl}/auth/v1/logout?scope=local`, {
 				method: "POST",
 			});
 		}

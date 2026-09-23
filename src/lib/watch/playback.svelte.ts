@@ -66,8 +66,10 @@ class PlaybackHandoff {
 				const raw = sessionStorage.getItem(STORAGE_KEY);
 				if (raw) {
 					const parsed = JSON.parse(raw) as SelectedStream;
+					// Read-only on purpose: the player calls this inside a
+					// `$derived`, where writing `#current` throws
+					// `state_unsafe_mutation`. Re-reading storage is cheap.
 					if (parsed.videoId === videoId) {
-						this.#current = parsed;
 						return parsed;
 					}
 				}

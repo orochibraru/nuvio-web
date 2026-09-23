@@ -1,37 +1,47 @@
-import { describe, expect, it, vi } from "vitest";
-import type { NuvioClient } from "#lib/nuvio/index.js";
+import { describe, expect, it } from "vitest";
+import type { LibraryRecord, ProgressRecord } from "#lib/sync/types.js";
+import type { ProfileData } from "#lib/userdata/types.js";
 import { pullLibraryItems, pullLibraryProgress } from "./library-data.ts";
 
-function client(over: Partial<NuvioClient>): NuvioClient {
-	return over as NuvioClient;
+function data(over: Partial<ProfileData>): ProfileData {
+	return {
+		library: async () => [],
+		progress: async () => [],
+		history: async () => [],
+		...over,
+	};
+}
+
+const failing = async (): Promise<never> => {
+	throw new Error("down");
+};
+
+function film(over: Partial<LibraryRecord>): LibraryRecord {
+	return {
+		contentId: "tt1",
+		contentType: "movie",
+		name: "One",
+		poster: null,
+		background: null,
+		description: null,
+		releaseInfo: null,
+		imdbRating: null,
+		genres: [],
+		addedAt: 1,
+		...over,
+	};
 }
 
 describe("pullLibraryItems", () => {
-	it("maps API rows to poster-card data", async () => {
-		const nuvio = client({
-			library: {
-				pull: vi.fn().mockResolvedValue([
-					{
-						content_id: "tt1",
-						content_type: "movie",
-						name: "One",
-						poster: "p1",
-						release_info: "2020",
-						imdb_rating: 7.5,
-					},
-					{
-						content_id: "tt2",
-						content_type: "series",
-						name: "Two",
-						poster: null,
-						release_info: null,
-						imdb_rating: null,
-					},
-				]),
-			},
-		} as unknown as NuvioClient);
-
-		const items = await pullLibraryItems(nuvio, 1);
+	it("maps stored rows to poster-card data", async () => {
+		const items = await pullLibraryItems(
+			data({
+				library: async () => [
+					film({ poster: "p1", releaseInfo: "2020", imdbRating: 7.5 }),
+					film({ contentId: "tt2", contentType: "series", name: "Two" }),
+				],
+			}),
+		);
 		expect(items).toEqual([
 			{
 				id: "tt1",
@@ -52,35 +62,26 @@ describe("pullLibraryItems", () => {
 		]);
 	});
 
-	it("degrades to an empty list when the pull rejects", async () => {
-		const nuvio = client({
-			library: { pull: vi.fn().mockRejectedValue(new Error("down")) },
-		} as unknown as NuvioClient);
-		expect(await pullLibraryItems(nuvio, 1)).toEqual([]);
+	it("degrades to an empty list when the read fails", async () => {
+		expect(await pullLibraryItems(data({ library: failing }))).toEqual([]);
 	});
 });
 
 describe("pullLibraryProgress", () => {
 	it("keeps only incomplete rows, furthest fraction per title", async () => {
-		const nuvio = client({
-			watchProgress: {
-				pull: vi.fn().mockResolvedValue([
-					{ content_id: "a", position: 30, duration: 100 }, // 0.30 keep
-					{ content_id: "a", position: 55, duration: 100 }, // 0.55 wins
-					{ content_id: "b", position: 95, duration: 100 }, // 0.95 drop (>=0.9)
-					{ content_id: "c", position: 1, duration: 100 }, // 0.01 drop (<=0.02)
-					{ content_id: "d", position: 10, duration: 0 }, // no duration drop
-				]),
-			},
-		} as unknown as NuvioClient);
-
-		expect(await pullLibraryProgress(nuvio, 1)).toEqual({ a: 0.55 });
+		const row = (contentId: string, position: number, duration = 100) =>
+			({ contentId, position, duration }) as ProgressRecord;
+		const progress = async () => [
+			row("a", 30), // 0.30 keep
+			row("a", 55), // 0.55 wins
+			row("b", 95), // 0.95 drop (>=0.9)
+			row("c", 1), // 0.01 drop (<=0.02)
+			row("d", 10, 0), // no duration drop
+		];
+		expect(await pullLibraryProgress(data({ progress }))).toEqual({ a: 0.55 });
 	});
 
 	it("degrades to {} on failure", async () => {
-		const nuvio = client({
-			watchProgress: { pull: vi.fn().mockRejectedValue(new Error("x")) },
-		} as unknown as NuvioClient);
-		expect(await pullLibraryProgress(nuvio, 1)).toEqual({});
+		expect(await pullLibraryProgress(data({ progress: failing }))).toEqual({});
 	});
 });

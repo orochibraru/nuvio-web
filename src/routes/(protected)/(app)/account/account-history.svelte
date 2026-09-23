@@ -9,6 +9,7 @@
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { streamed } from "#lib/core/stream.svelte.js";
 	import type { HistoryRow } from "#lib/history/history-data.js";
+	import { getLocale, m } from "#lib/i18n/index.js";
 	import { sync } from "#lib/sync/store.svelte.js";
 	import { resolve } from "$app/paths";
 
@@ -73,15 +74,15 @@
 		).getTime();
 		const dayMs = 86_400_000;
 		if (ts >= startOfToday) {
-			return "Today";
+			return m.account_today();
 		}
 		if (ts >= startOfToday - dayMs) {
-			return "Yesterday";
+			return m.account_yesterday();
 		}
 		if (ts >= startOfToday - 6 * dayMs) {
-			return date.toLocaleDateString(undefined, { weekday: "long" });
+			return date.toLocaleDateString(getLocale(), { weekday: "long" });
 		}
-		return date.toLocaleDateString(undefined, {
+		return date.toLocaleDateString(getLocale(), {
 			day: "numeric",
 			month: "long",
 			year: "numeric",
@@ -123,9 +124,9 @@
 			season: item.season,
 			episode: item.episode,
 		});
-		toast(`Removed ${item.title}`, {
+		toast(m.common_removed_title({ title: item.title }), {
 			action: {
-				label: "Undo",
+				label: m.common_undo(),
 				onClick: () =>
 					sync.restoreHistory({
 						id: item.id,
@@ -143,7 +144,7 @@
 
 <div class="flex flex-col gap-8">
   <p class="text-sm text-muted-foreground">
-    {rows.length} title{rows.length === 1 ? "" : "s"} watched, newest first
+    {m.account_history_count({ count: rows.length })}
   </p>
 
   {#if groups.length === 0 && !rowsStream.ready && !sync.authoritative}
@@ -155,12 +156,12 @@
   {:else if groups.length === 0}
     <EmptyState
       icon={ClockIcon}
-      title="Nothing watched yet"
-      description="Titles you finish will be listed here, newest first."
+      title={m.account_history_empty_title()}
+      description={m.account_history_empty_description()}
     >
       {#snippet actions()}
         <Button href={resolve("discover")} variant="outline"
-          >Find something to watch</Button
+          >{m.account_find_something()}</Button
         >
       {/snippet}
     </EmptyState>
@@ -227,7 +228,7 @@
                     </span>
                   {/if}
                   <span>
-                    {new Date(item.watchedAt).toLocaleTimeString(undefined, {
+                    {new Date(item.watchedAt).toLocaleTimeString(getLocale(), {
                       hour: "numeric",
                       minute: "2-digit",
                     })}
@@ -238,13 +239,15 @@
                   class="mt-1 inline-flex w-fit items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-xs font-medium text-foreground/80 transition hover:border-primary/40 hover:text-foreground"
                 >
                   <PlayIcon class="size-3 fill-primary" />
-                  {item.type === "series" ? "Rewatch episode" : "Rewatch"}
+                  {item.type === "series"
+                    ? m.account_rewatch_episode()
+                    : m.account_rewatch()}
                 </a>
               </div>
 
               <button
                 type="button"
-                aria-label="Remove from history"
+                aria-label={m.account_remove_from_history()}
                 onclick={() => remove(item)}
                 class="absolute top-2 right-2 rounded-md p-2 text-muted-foreground transition sm:opacity-0 sm:group-hover/row:opacity-100 sm:group-focus-within/row:opacity-100 hover:bg-destructive/10 hover:text-destructive"
               >

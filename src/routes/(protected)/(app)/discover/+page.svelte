@@ -9,12 +9,13 @@
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { streamed } from "#lib/core/stream.svelte.js";
 	import { pageTitle } from "#lib/core/title.svelte.js";
+	import { m } from "#lib/i18n/index.js";
 	import { cn } from "#lib/utils.js";
 	import { goto, invalidateAll } from "$app/navigation";
 	import { resolve } from "$app/paths";
 	import { navigating, page } from "$app/state";
 
-	pageTitle.set("Discover");
+	pageTitle.set(m.nav_discover());
 
 	let { data } = $props();
 
@@ -109,7 +110,8 @@
 			catalogs.map((entry) => {
 				const key = `${entry.addonId}|${entry.type}|${entry.id}`;
 				if ((counts.get(entry.name) ?? 0) > 1) {
-					const noun = entry.type === "series" ? "Series" : "Movies";
+					const noun =
+						entry.type === "series" ? m.common_series() : m.common_movies();
 					return [key, `${entry.name} · ${noun}`];
 				}
 				return [key, entry.name];
@@ -169,9 +171,9 @@
 
 <div class="flex flex-col gap-6">
   <div class="flex flex-col gap-1">
-    <h1 class="text-3xl font-bold tracking-tight">Discover</h1>
+    <h1 class="text-3xl font-bold tracking-tight">{m.nav_discover()}</h1>
     <p class="text-sm text-muted-foreground">
-      Browse every catalog your addons provide.
+      {m.discover_subtitle()}
     </p>
   </div>
 
@@ -185,16 +187,16 @@
   {:else if catalogs.length === 0}
     <EmptyState
       icon={CompassIcon}
-      title="No catalogs available"
-      description="Add a catalog addon to start browsing movies and series."
+      title={m.discover_no_catalogs_title()}
+      description={m.discover_no_catalogs_description()}
     >
       {#snippet actions()}
-        <Button href={`${resolve("settings")}?tab=addons`} variant="outline">Manage addons</Button
+        <Button href={`${resolve("settings")}?tab=addons`} variant="outline">{m.common_manage_addons()}</Button
         >
       {/snippet}
     </EmptyState>
   {:else if selected}
-    <ScrollRail label="Catalogs" arrows={false} trackClass="gap-2 py-1">
+    <ScrollRail label={m.discover_catalogs()} arrows={false} trackClass="gap-2 py-1">
       {#each catalogs as entry (`${entry.addonId}|${entry.type}|${entry.id}`)}
         {@const key = `${entry.addonId}|${entry.type}|${entry.id}`}
         <a
@@ -216,7 +218,7 @@
     </ScrollRail>
 
     {#if selected.genres.length > 0}
-      <ScrollRail label="Genres" arrows={false} trackClass="gap-1.5 pb-1">
+      <ScrollRail label={m.discover_genres()} arrows={false} trackClass="gap-1.5 pb-1">
         <a
           href={genreHref("")}
           aria-current={pendingGenre ? undefined : "true"}
@@ -227,7 +229,7 @@
               : "bg-secondary text-secondary-foreground",
           )}
         >
-          All
+          {m.library_filter_all()}
         </a>
         {#each selected.genres as option (option)}
           <a
@@ -250,25 +252,25 @@
       <MediaGrid items={[]} loading skeletonCount={12} />
     {:else if firstPageFailed}
       <QueryError
-        message="Couldn't load this catalog."
+        message={m.discover_catalog_failed()}
         onRetry={() => invalidateAll()}
       />
     {:else if items.length === 0}
       <EmptyState
         icon={CompassIcon}
-        title="Nothing in this catalog"
+        title={m.discover_catalog_empty_title()}
         description={genre
-          ? `No "${genre}" titles here.`
-          : "This catalog came back empty."}
+          ? m.discover_genre_empty({ genre })
+          : m.discover_catalog_empty()}
       >
         {#snippet actions()}
           {#if genre}
             <Button variant="outline" href={genreHref("")}>
-              Clear genre filter
+              {m.discover_clear_genre()}
             </Button>
           {:else}
             <Button href={`${resolve("settings")}?tab=addons`} variant="outline"
-              >Manage addons</Button
+              >{m.common_manage_addons()}</Button
             >
           {/if}
         {/snippet}
@@ -279,7 +281,7 @@
       {#if !exhausted && (firstPage?.metas.length ?? 0) > 0}
         <div class="flex justify-center pt-2">
           <Button variant="outline" disabled={loadingMore} onclick={loadMore}>
-            {loadingMore ? "Loading…" : "Load more"}
+            {loadingMore ? m.common_loading() : m.discover_load_more()}
           </Button>
         </div>
       {/if}

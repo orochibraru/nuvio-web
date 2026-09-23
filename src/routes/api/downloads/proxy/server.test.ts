@@ -1,6 +1,21 @@
 import { describe, expect, it, vi } from "vitest";
 import { GET } from "./+server.ts";
 
+// The route connects through `pinnedFetch` (never `event.fetch`); swap its
+// transport so no test touches the network. `safeFetch`'s own checks stay real.
+const transport = vi.hoisted(() => ({ current: null as typeof fetch | null }));
+vi.mock("#lib/server/safe-fetch.js", async (importOriginal) => {
+	const actual =
+		await importOriginal<typeof import("#lib/server/safe-fetch.js")>();
+	return {
+		...actual,
+		pinnedFetch: ((...args: Parameters<typeof fetch>) =>
+			(transport.current as typeof fetch)(...args)) as typeof fetch,
+	};
+});
+
+const logger = { warn: vi.fn() };
+
 const SOURCE = "http://93.184.216.34/film.mp4";
 
 function call(
@@ -15,12 +30,15 @@ function call(
 	if (options.range) {
 		headers.set("range", options.range);
 	}
+	transport.current = options.fetch ?? (vi.fn() as unknown as typeof fetch);
 	return Promise.resolve(
 		GET({
 			url,
 			request: new Request(url, { headers }),
-			locals: { session: options.session === false ? null : { user: {} } },
-			fetch: options.fetch ?? vi.fn(),
+			locals: {
+				session: options.session === false ? null : { user: {} },
+				services: { get: () => logger },
+			},
 		} as unknown as Parameters<typeof GET>[0]),
 	);
 }
@@ -89,6 +107,20 @@ describe("GET /api/downloads/proxy", () => {
 		});
 		const init = upstream.mock.calls[0] as unknown as [string, RequestInit];
 		expect(new Headers(init[1].headers).has("range")).toBe(false);
+	});
+
+	it("keeps the upstream error out of the response", async () => {
+		const upstream = vi.fn(() =>
+			Promise.reject(new Error("connect ECONNREFUSED 10.0.0.5:8080")),
+		);
+		let message = "";
+		try {
+			await call(SOURCE, { fetch: upstream as unknown as typeof fetch });
+		} catch (thrown) {
+			message = (thrown as { body: { message: string } }).body.message;
+		}
+		expect(message).toBe("The source refused.");
+		expect(logger.warn).toHaveBeenCalled();
 	});
 
 	it("reports a failure without an Error as a plain refusal", async () => {

@@ -3,6 +3,7 @@
 	import InfoIcon from "@lucide/svelte/icons/info";
 	import LayersIcon from "@lucide/svelte/icons/layers";
 	import { Button } from "#lib/components/ui/button/index.js";
+	import { m } from "#lib/i18n/index.js";
 
 	let {
 		title,
@@ -28,8 +29,8 @@
     <Button
       variant="ghost"
       size="icon"
-      aria-label="Back"
-      title="Back"
+      aria-label={m.common_back()}
+      title={m.common_back()}
       onclick={onBack}
       class="shrink-0 rounded-full"
     >
@@ -47,22 +48,22 @@
       variant={infoOpen ? "default" : "secondary"}
       size="sm"
       aria-pressed={infoOpen}
-      title="Stream and playback details (I)"
+      title={m.player_info_hint()}
       onclick={onToggleInfo}
       class="shrink-0 gap-1.5 rounded-full font-medium [&_svg]:size-3.5"
     >
-      <InfoIcon data-icon="inline-start" />Info
+      <InfoIcon data-icon="inline-start" />{m.player_info()}
     </Button>
   {/if}
   {#if onSources}
     <Button
       variant="secondary"
       size="sm"
-      title="Pick another source"
+      title={m.player_pick_source_hint()}
       onclick={onSources}
       class="shrink-0 gap-1.5 rounded-full font-medium [&_svg]:size-3.5"
     >
-      <LayersIcon data-icon="inline-start" />Sources
+      <LayersIcon data-icon="inline-start" />{m.common_sources()}
     </Button>
   {/if}
 </div>

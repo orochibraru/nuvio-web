@@ -3,6 +3,7 @@
 	import TriangleAlertIcon from "@lucide/svelte/icons/triangle-alert";
 	import WifiOffIcon from "@lucide/svelte/icons/wifi-off";
 	import XIcon from "@lucide/svelte/icons/x";
+	import { m } from "#lib/i18n/index.js";
 	import { sync } from "#lib/sync/store.svelte.js";
 	import { apiHealth } from "#lib/system/health.remote.js";
 	import { browser } from "$app/env";
@@ -33,12 +34,12 @@
 
 	const copy = $derived(
 		mode === "offline"
-			? "You're offline. Browsing shows the last synced data; changes are queued and sync when you reconnect."
+			? m.health_offline()
 			: mode === "stalled"
-				? "Some of your changes haven't synced. They're saved locally and will retry : check your connection or sign in again."
+				? m.health_stalled()
 				: report?.status === "down"
-					? "Can't reach the Nuvio API. Your library and history may be out of date; changes are queued and will sync when it's back."
-					: "The Nuvio API is degraded. Syncing library, progress and history may be slow or delayed.",
+					? m.health_down()
+					: m.health_degraded(),
 	);
 
 	async function retry() {
@@ -97,12 +98,12 @@
         class="flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 font-medium transition hover:bg-warning/15 disabled:opacity-50"
       >
         <RefreshCwIcon class="size-3.5 {retrying ? 'animate-spin' : ''}" />
-        Retry
+        {m.shell_retry()}
       </button>
     {/if}
     <button
       type="button"
-      aria-label="Dismiss"
+      aria-label={m.common_dismiss()}
       onclick={() => (dismissed = true)}
       class="flex size-9 shrink-0 items-center justify-center rounded-md transition hover:bg-warning/15"
     >

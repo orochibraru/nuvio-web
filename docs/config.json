@@ -52,6 +52,11 @@
 			"pages": [
 				{ "slug": "admin", "title": "The admin page", "icon": "shield-user" },
 				{
+					"slug": "sync",
+					"title": "Your data and Nuvio",
+					"icon": "database"
+				},
+				{
 					"slug": "troubleshooting",
 					"title": "Troubleshooting",
 					"icon": "life-buoy"

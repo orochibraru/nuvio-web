@@ -4,7 +4,9 @@
 	import RotateCwIcon from "@lucide/svelte/icons/rotate-cw";
 	import Trash2Icon from "@lucide/svelte/icons/trash-2";
 	import { Button } from "#lib/components/ui/button/index.js";
+	import { m } from "#lib/i18n/index.js";
 	import { formatFileSize } from "#lib/watch/stream-format.js";
+	import { failureText } from "./failure.ts";
 	import type { DownloadRecord } from "./types.ts";
 
 	/**
@@ -45,17 +47,19 @@
 		const size = formatFileSize(record.bytes);
 		switch (record.status) {
 			case "done":
-				return size ?? "Downloaded";
+				return size ?? m.media_downloaded();
 			case "queued":
-				return "Waiting";
+				return m.downloads_waiting();
 			case "paused":
-				return size ? `Paused · ${size}` : "Paused";
+				return size ? m.downloads_paused_size({ size }) : m.downloads_paused();
 			case "error":
-				return record.error ?? "Failed";
+				return failureText(record.error);
 			default: {
 				const part = fraction(record);
 				const percent = part === null ? null : `${Math.floor(part * 100)}%`;
-				return [percent, size].filter(Boolean).join(" · ") || "Starting…";
+				return (
+					[percent, size].filter(Boolean).join(" · ") || m.downloads_starting()
+				);
 			}
 		}
 	}
@@ -95,7 +99,7 @@
           <div
             class="h-1 overflow-hidden rounded-full bg-foreground/10"
             role="progressbar"
-            aria-label={`${record.title} download progress`}
+            aria-label={m.downloads_progress_label({ title: record.title })}
             aria-valuemin={0}
             aria-valuemax={100}
             aria-valuenow={part === null ? undefined : Math.floor(part * 100)}
@@ -117,7 +121,7 @@
           <Button
             size="icon"
             variant="secondary"
-            aria-label={`Play ${record.title}`}
+            aria-label={m.media_play_title({ title: record.title })}
             onclick={() => onPlay(record)}
           >
             <PlayIcon class="fill-current" />
@@ -126,7 +130,7 @@
           <Button
             size="icon"
             variant="ghost"
-            aria-label={`Pause ${record.title}`}
+            aria-label={m.downloads_pause_title({ title: record.title })}
             onclick={() => manage.pause(record.id)}
           >
             <PauseIcon />
@@ -135,7 +139,7 @@
           <Button
             size="icon"
             variant="ghost"
-            aria-label={`Resume ${record.title}`}
+            aria-label={m.media_resume_title({ title: record.title })}
             onclick={() => manage.resume(record.id)}
           >
             <RotateCwIcon />
@@ -148,8 +152,8 @@
             size={armed ? "sm" : "icon"}
             variant={armed ? "destructive" : "ghost"}
             aria-label={armed
-              ? `Confirm deleting ${record.title}`
-              : `Delete ${record.title}`}
+              ? m.downloads_confirm_delete({ title: record.title })
+              : m.downloads_delete_title({ title: record.title })}
             onclick={() => {
               if (armed) {
                 confirming = null;
@@ -164,7 +168,7 @@
               }
             }}
           >
-            {#if armed}Delete{:else}<Trash2Icon />{/if}
+            {#if armed}{m.common_delete()}{:else}<Trash2Icon />{/if}
           </Button>
         {/if}
       </div>

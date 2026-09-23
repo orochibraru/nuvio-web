@@ -21,6 +21,7 @@
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { reduced } from "#lib/core/motion.js";
 	import { streamed } from "#lib/core/stream.svelte.js";
+	import { m } from "#lib/i18n/index.js";
 	import { catalogTitles } from "#lib/settings/home-layout.js";
 	import { sync } from "#lib/sync/store.svelte.js";
 	import { cn } from "#lib/utils.js";
@@ -334,8 +335,8 @@
 		});
 		toast.success(
 			removing
-				? `Removed ${spotlight.name} from library`
-				: `Added ${spotlight.name} to library`,
+				? m.library_removed_title({ title: spotlight.name })
+				: m.library_added_title({ title: spotlight.name }),
 		);
 	}
 
@@ -347,13 +348,13 @@
 <div class="flex flex-col gap-12">
   <!-- Stable page heading : the hero title rotates, so a screen reader must not
 	     hear a changing movie name as the `h1`. -->
-  <h1 class="sr-only">Home</h1>
+  <h1 class="sr-only">{m.nav_home()}</h1>
   {#if spotlight}
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
       role="group"
-      aria-roledescription="carousel"
-      aria-label="Featured titles"
+      aria-roledescription={m.home_carousel()}
+      aria-label={m.home_featured_titles()}
       onmouseenter={() => (heroPaused = true)}
       onmouseleave={() => (heroPaused = false)}
       onfocusin={() => (heroPaused = true)}
@@ -382,7 +383,7 @@
             logo={spotlight.logo}
             background={spotlight.background}
             poster={spotlight.poster}
-            eyebrow="Featured"
+            eyebrow={m.home_featured()}
             description={spotlight.description}
             rating={spotlightRating}
             year={spotlight.releaseInfo}
@@ -390,7 +391,7 @@
           >
             {#snippet actions()}
               <Button size="lg" href={spotlightHref}>
-                <PlayIcon data-icon="inline-start" class="fill-current" /> Watch now
+                <PlayIcon data-icon="inline-start" class="fill-current" /> {m.home_watch_now()}
               </Button>
               <Button
                 size="lg"
@@ -407,7 +408,7 @@
                     class="hidden group-hover:block"
                     data-icon="inline-start"
                   />
-                  Remove from Library
+                  {m.home_remove_from_library()}
                 {:else}
                   <BookmarkIcon
                     class="block group-hover:hidden"
@@ -417,12 +418,12 @@
                     class="hidden group-hover:block"
                     data-icon="inline-start"
                   />
-                  Add to library
+                  {m.library_add()}
                 {/if}
               </Button>
               <Button size="lg" variant="outline" href={spotlightHref}>
                 <InfoIcon data-icon="inline-start" />
-                More info
+                {m.home_more_info()}
               </Button>
             {/snippet}
 
@@ -433,7 +434,7 @@
                     {#each spotlights as item, index (item.id)}
                       <button
                         type="button"
-                        aria-label={`Show ${item.name}`}
+                        aria-label={m.home_show_title({ title: item.name })}
                         aria-current={index === heroIndex ? "true" : undefined}
                         onclick={() => goToHero(index)}
                         class={cn(
@@ -448,7 +449,7 @@
                   <div class="hidden gap-1 sm:flex">
                     <button
                       type="button"
-                      aria-label="Previous featured title"
+                      aria-label={m.home_previous_featured()}
                       onclick={() => stepHero(-1)}
                       class="flex size-8 items-center justify-center rounded-full bg-background/60 ring-1 ring-border backdrop-blur-md transition hover:bg-background"
                     >
@@ -456,7 +457,7 @@
                     </button>
                     <button
                       type="button"
-                      aria-label="Next featured title"
+                      aria-label={m.home_next_featured()}
                       onclick={() => stepHero(1)}
                       class="flex size-8 items-center justify-center rounded-full bg-background/60 ring-1 ring-border backdrop-blur-md transition hover:bg-background"
                     >
@@ -500,7 +501,7 @@
     </section>
   {:else}
     <h2 class="text-3xl font-bold tracking-tight">
-      Welcome back, {profileName}
+      {m.home_welcome_back({ name: profileName })}
     </h2>
   {/if}
 
@@ -515,7 +516,7 @@
 
     {#if resume.length > 0}
       <section class="flex flex-col gap-3">
-        <h2 class="text-xl font-semibold tracking-tight">Continue watching</h2>
+        <h2 class="text-xl font-semibold tracking-tight">{m.home_continue_watching()}</h2>
         <div
           class="no-scrollbar -mx-2 flex gap-4 overflow-x-auto scroll-smooth px-2 pt-1 pb-2"
         >
@@ -527,12 +528,12 @@
     {/if}
 
     {#if library.length > 0}
-      <MediaRow title="My library" items={library} href={resolve("library")} />
+      <MediaRow title={m.home_my_library()} items={library} href={resolve("library")} />
     {/if}
 
     {#if rowsFailed}
       <QueryError
-        message="Couldn't load your catalog rows."
+        message={m.home_rows_failed()}
         onRetry={() => invalidateAll()}
       />
     {:else if rowsLoading}
@@ -561,14 +562,14 @@
             <SparklesIcon class="size-7" />
           </span>
           <p class="mt-4 text-lg font-semibold tracking-tight">
-            Your home feed is empty
+            {m.home_empty_title()}
           </p>
           <p class="mt-1 text-sm text-muted-foreground">
-            Add a catalog addon and rows of movies and series fill in here.
+            {m.home_empty_description()}
           </p>
 
           <Button href={`${resolve("settings")}?tab=addons`} variant="outline" class="mt-4"
-            >Manage addons</Button
+            >{m.common_manage_addons()}</Button
           >
         </div>
       </div>

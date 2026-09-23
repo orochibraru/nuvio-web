@@ -1,5 +1,6 @@
 <script lang="ts">
 	import * as DropdownMenu from "#lib/components/ui/dropdown-menu/index.js";
+	import { m } from "#lib/i18n/index.js";
 
 	const rates = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
@@ -25,7 +26,7 @@
 >
 	<DropdownMenu.Group>
 		<DropdownMenu.GroupHeading class="text-xs font-medium text-muted-foreground">
-			Playback speed
+			{m.player_playback_speed()}
 		</DropdownMenu.GroupHeading>
 		<DropdownMenu.RadioGroup
 			value={String(rate)}
@@ -33,7 +34,7 @@
 		>
 			{#each rates as option (option)}
 				<DropdownMenu.RadioItem value={String(option)}>
-					{option === 1 ? "Normal" : `${option}×`}
+					{option === 1 ? m.player_speed_normal() : `${option}×`}
 				</DropdownMenu.RadioItem>
 			{/each}
 		</DropdownMenu.RadioGroup>
@@ -43,7 +44,7 @@
 		<DropdownMenu.Separator />
 		<DropdownMenu.Group>
 			<DropdownMenu.GroupHeading class="text-xs font-medium text-muted-foreground">
-				Audio
+				{m.player_audio()}
 			</DropdownMenu.GroupHeading>
 			<DropdownMenu.RadioGroup
 				value={String(activeAudioTrack)}

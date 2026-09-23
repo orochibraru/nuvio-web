@@ -3,7 +3,7 @@ import { DOWNLOADS_DIR, PLAN_FILE, proxiedUrl } from "./files.ts";
 import {
 	chooseAudio,
 	chooseVariant,
-	HlsDownloadError,
+	DownloadError,
 	isHlsPlaylist,
 	isMasterPlaylist,
 	localMasterPlaylist,
@@ -198,7 +198,10 @@ function checkedResponse(response: Response, what: string): Response {
 	if (response.status === 416) {
 		return response;
 	}
-	throw new Error(`${what} answered ${response.status}.`);
+	throw new DownloadError(
+		`${what} answered ${response.status}.`,
+		`http:${response.status}`,
+	);
 }
 
 async function ensureRoom(bytesNeeded: number): Promise<void> {
@@ -209,8 +212,9 @@ async function ensureRoom(bytesNeeded: number): Promise<void> {
 	const free = quota - usage;
 	if (bytesNeeded > free) {
 		const gb = (bytes: number) => `${(bytes / 1024 ** 3).toFixed(1)} GB`;
-		throw new Error(
+		throw new DownloadError(
 			`Not enough storage: this needs ${gb(bytesNeeded)}, ${gb(free)} is free.`,
+			`storage:${bytesNeeded}:${free}`,
 		);
 	}
 }
@@ -311,7 +315,7 @@ async function planMaster(job: Job, playlist: string): Promise<void> {
 	const master = parseMasterPlaylist(playlist, job.record.sourceUrl);
 	const variant = chooseVariant(master.variants, job.record.quality);
 	if (!variant) {
-		throw new HlsDownloadError("The playlist lists no video.");
+		throw new DownloadError("The playlist lists no video.");
 	}
 	await planPlaylist(
 		job,
@@ -348,7 +352,7 @@ async function planDownload(job: Job): Promise<void> {
 		return;
 	}
 	if (!isHlsPlaylist(playlist)) {
-		throw new HlsDownloadError("The source is not a playlist.");
+		throw new DownloadError("The source is not a playlist.");
 	}
 	const { plan } = job;
 	plan.kind = "hls";
@@ -434,7 +438,7 @@ async function downloadFile(job: Job): Promise<number> {
 		}
 		const reader = response.body?.getReader();
 		if (!reader) {
-			throw new Error("The source sent no data.");
+			throw new DownloadError("The source sent no data.", "no-data");
 		}
 		for (;;) {
 			// biome-ignore lint/performance/noAwaitInLoops: reading a stream is sequential by nature
@@ -581,7 +585,7 @@ scope.addEventListener("message", (event) => {
 			post({
 				type: "failed",
 				id: command.record.id,
-				error: error instanceof Error ? error.message : "The download failed.",
+				error: error instanceof DownloadError ? error.code : "failed",
 			});
 		})
 		.finally(() => {

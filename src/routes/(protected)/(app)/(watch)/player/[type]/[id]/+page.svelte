@@ -12,6 +12,7 @@
 	import { pageTitle } from "#lib/core/title.svelte.js";
 	import { downloads, playbackUrl } from "#lib/downloads/manager.svelte.js";
 	import { playbackSubtitles } from "#lib/downloads/subtitles.js";
+	import { m } from "#lib/i18n/index.js";
 	import { browserCanPlayCodec } from "#lib/player/codec-support.js";
 	import PlayerEndPanel from "#lib/player/components/end-panel.svelte";
 	import PlayerEpisodesPanel from "#lib/player/components/episodes-panel.svelte";
@@ -29,7 +30,12 @@
 		recallLink,
 		rememberLink,
 	} from "#lib/watch/playback.svelte.js";
-	import { parseVideoId } from "#lib/watch/playback-context.js";
+	import {
+		parseVideoId,
+		resumePoint,
+		resumeRowFor,
+		titleProgressFor,
+	} from "#lib/watch/playback-context.js";
 	import { sourcesPanel } from "#lib/watch/sources-panel.svelte.js";
 	import {
 		audioSupport,
@@ -37,11 +43,7 @@
 		pickPreferredStream,
 		riskyVideoCodec,
 	} from "#lib/watch/stream-format.js";
-	import {
-		getSubtitles,
-		resolveStreams,
-		titleProgress,
-	} from "#lib/watch/watch.remote.js";
+	import { getSubtitles, resolveStreams } from "#lib/watch/watch.remote.js";
 	import { EMPTY_PROVIDERS } from "#lib/watch/watch-providers.js";
 	import { watchProviders } from "#lib/watch/watch-providers.remote.js";
 	import WatchProvidersList from "#lib/watch/watch-providers-list.svelte";
@@ -54,6 +56,14 @@
 
 	const type = $derived(page.params.type ?? "movie");
 	const id = $derived(page.params.id ?? "");
+	// Everything progress needs is in the URL: saves and the resume lookup
+	// never wait on the meta.
+	const parsed = $derived(parseVideoId(type, id));
+	const episodeTag = $derived(
+		type === "series" && parsed.season != null && parsed.episode != null
+			? `S${parsed.season}E${parsed.episode}`
+			: null,
+	);
 
 	// Meta / resume / next-episode context comes from the load, streamed, so
 	// the player shell still paints on navigation but doesn't then pay for a
@@ -64,6 +74,20 @@
 	);
 	type PlaybackCtx = NonNullable<Awaited<typeof data.context>>;
 	const upcomingStream = streamed(() => data.upcoming, null);
+	// Resume: the local sync store answers instantly (and knows this tab's
+	// latest save); the streamed server pull covers a cold store.
+	const resumeStream = streamed(() => data.resume, null);
+	// Any key spelling counts (an episode marked from /detail under the URL
+	// id); saves still go under this video's own progress key.
+	const localResume = $derived(
+		resumePoint(resumeRowFor(sync.progress, type, id)),
+	);
+	const resume = $derived(localResume ?? resumeStream.current);
+	// Until the resume position is known, a save could overwrite it with the
+	// first few seconds of a fresh start.
+	const resumeKnown = $derived(
+		localResume !== null || sync.authoritative || resumeStream.ready,
+	);
 	const contextReady = $derived(contextStream.ready);
 	const contextFallback = $derived({
 		metaType: type === "series" ? "series" : "movie",
@@ -71,7 +95,7 @@
 		season: null,
 		episode: null,
 		videoId: id,
-		heading: "Loading…",
+		heading: m.common_loading(),
 		subheading: null,
 		background: null,
 		poster: null,
@@ -95,7 +119,6 @@
 		episodes: [],
 		next: null,
 		upcoming: null,
-		resume: null,
 	} satisfies PlaybackCtx);
 	const context = $derived<PlaybackCtx>(
 		contextStream.current ?? contextFallback,
@@ -125,13 +148,23 @@
 		episodesOpen = false;
 	});
 
-	const episodeProgressQuery = $derived(
-		hasEpisodes ? titleProgress({ contentId: context.contentId }) : undefined,
-	);
+	// Matched by (season, episode) as well as id, so rows saved under a
+	// namespaced episode id and rows marked from the detail page both count.
+	// Local only: empty until the sync store has loaded, milliseconds in.
 	const episodeProgress = $derived(
-		sync.authoritative
-			? sync.titleProgress(context.contentId)
-			: (episodeProgressQuery?.current ?? {}),
+		hasEpisodes
+			? titleProgressFor(
+					sync.progress,
+					type,
+					context.contentId,
+					context.episodes.map((entry) => ({
+						id: entry.videoId,
+						title: entry.title,
+						season: entry.season,
+						episode: entry.episode,
+					})),
+				)
+			: {},
 	);
 
 	function playVideo(videoId: string) {
@@ -235,8 +268,27 @@
 	// Always pick up where the viewer left off : no "resume vs start over" prompt.
 	// "Watch again" (replayNonce > 0) restarts from the top.
 	const startTime = $derived(
-		replayNonce === 0 && context.resume ? context.resume.position / 1000 : 0,
+		replayNonce === 0 && resume ? resume.position / 1000 : 0,
 	);
+
+	// "S1E2 · Name" from the meta, never the stream's release name (that lives
+	// in the Sources drawer). Addons that don't name episodes send "Episode 2",
+	// which would only repeat the tag.
+	const episodeName = $derived(
+		context.info.episodeTitle &&
+			!/^episode\s*\d+$/i.test(context.info.episodeTitle.trim())
+			? context.info.episodeTitle
+			: null,
+	);
+	const subheading = $derived(
+		episodeTag && episodeName ? `${episodeTag} · ${episodeName}` : episodeTag,
+	);
+	const playerInfo = $derived({
+		...context.info,
+		episodeTitle: episodeTag
+			? (episodeName ?? m.watch_episode_n({ number: parsed.episode ?? 0 }))
+			: null,
+	});
 
 	const subtitlesQuery = $derived(
 		playableSrc
@@ -270,15 +322,15 @@
 				videoCodec,
 			});
 		}
-		if (!contextReady) {
+		if (!resumeKnown) {
 			return;
 		}
 		sync.saveProgress({
-			contentId: context.contentId,
-			contentType: context.metaType,
-			videoId: context.videoId,
-			season: context.season,
-			episode: context.episode,
+			contentId: parsed.contentId,
+			contentType: type === "series" ? "series" : "movie",
+			videoId: id,
+			season: parsed.season ?? null,
+			episode: parsed.episode ?? null,
 			position: position * 1000,
 			duration: duration * 1000,
 		});
@@ -456,10 +508,10 @@
 		try {
 			await navigator.clipboard.writeText(handoff.url);
 			copied = true;
-			toast.success("Link copied : paste it into your player");
+			toast.success(m.watch_link_copied_paste());
 			setTimeout(() => (copied = false), 2000);
 		} catch {
-			toast.error("Couldn't copy the link");
+			toast.error(m.watch_copy_failed());
 		}
 	}
 
@@ -471,10 +523,10 @@
 		try {
 			await navigator.clipboard.writeText(externalLink);
 			copied = true;
-			toast.success("Stream link copied");
+			toast.success(m.watch_stream_link_copied());
 			setTimeout(() => (copied = false), 2000);
 		} catch {
-			toast.error("Couldn't copy the link");
+			toast.error(m.watch_copy_failed());
 		}
 	}
 </script>
@@ -495,7 +547,7 @@
       onclick={goBack}
       class="absolute top-4 left-4 z-20 flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-sm font-medium ring-1 ring-white/15 backdrop-blur-md transition hover:bg-white/20"
     >
-      <ArrowLeftIcon class="size-4" /> Back
+      <ArrowLeftIcon class="size-4" /> {m.common_back()}
     </button>
   {/if}
 
@@ -527,11 +579,11 @@
         drawerOpen={Boolean(sourcesPanel.target) || episodesOpen}
         poster={context.background ?? context.poster}
         posterImage={context.poster}
-        info={context.info}
+        info={playerInfo}
         {detailHref}
         logo={context.logo}
         title={context.heading}
-        subheading={active?.label ?? context.subheading}
+        {subheading}
         {startTime}
         subtitles={[
           ...(offlineSrc && download ? playbackSubtitles(download) : []),
@@ -569,7 +621,7 @@
         <p
           class="text-xs font-semibold tracking-[0.2em] text-white/60 uppercase"
         >
-          Up next
+          {m.watch_up_next()}
         </p>
         {#if upNext.thumbnail}
           <img
@@ -583,11 +635,11 @@
           <Button size="lg" onclick={goToNext}>
             <PlayIcon data-icon="inline-start" class="fill-current" />
             {upNextCountdown != null && upNextCountdown > 0
-              ? `Play now (${upNextCountdown})`
-              : "Play next episode"}
+              ? m.watch_play_now_countdown({ seconds: upNextCountdown })
+              : m.watch_play_next_episode()}
           </Button>
           <Button size="lg" variant="secondary" onclick={cancelUpNext}>
-            Not now
+            {m.watch_not_now()}
           </Button>
         </div>
       </div>
@@ -599,23 +651,23 @@
       title={context.heading}
       certification={context.certification}
       genres={context.genres}
-      label="Finding a stream"
+      label={m.watch_finding_stream()}
     />
   {:else if streamsError}
     <div
       class="relative z-10 flex max-w-md flex-col items-center gap-3 px-6 text-center"
     >
       <TriangleAlertIcon class="size-8 text-destructive" />
-      <p class="text-lg font-semibold">Couldn't reach your addons</p>
+      <p class="text-lg font-semibold">{m.watch_addons_unreachable()}</p>
       <p class="text-sm text-white/60">
-        Something went wrong finding a stream for this title.
+        {m.watch_stream_error_body()}
       </p>
       <div class="flex flex-wrap items-center justify-center gap-2">
         <Button onclick={() => streamsQuery?.refresh()}>
-          <RotateCcwIcon data-icon="inline-start" /> Try again
+          <RotateCcwIcon data-icon="inline-start" /> {m.common_try_again()}
         </Button>
         <Button variant="secondary" onclick={openSources}
-          >Choose a source</Button
+          >{m.watch_choose_source()}</Button
         >
       </div>
     </div>
@@ -625,23 +677,22 @@
     >
       <p class="text-lg font-semibold">
         {#if !active}
-          No playable stream
+          {m.watch_no_playable_stream()}
         {:else if codecBlocked}
-          This browser can't decode this source's video
+          {m.watch_codec_blocked_title()}
         {:else}
-          This source can't play in the browser
+          {m.watch_not_web_ready_title()}
         {/if}
       </p>
       <p class="text-sm text-white/60">
         {#if active && codecBlocked}
-          Its {videoCodec} video isn't supported here. Open it in an external player,
-          or pick a different source.
+          {m.watch_codec_blocked_body({ codec: videoCodec ?? "" })}
         {:else if active}
-          Pick a different source, or open it in an external player.
+          {m.watch_not_web_ready_body()}
         {:else if officialCta}
-          {context.heading} is available to watch officially.
+          {m.watch_official_available({ title: context.heading })}
         {:else}
-          None of your addons returned a stream that plays here.
+          {m.watch_no_stream_plays_here()}
         {/if}
       </p>
       <div class="flex flex-wrap items-center justify-center gap-2">
@@ -652,28 +703,28 @@
             rel="noopener noreferrer"
           >
             <PlayIcon data-icon="inline-start" class="fill-current" />
-            Watch on {officialCta.provider}
+            {m.watch_on_provider({ provider: officialCta.provider })}
           </Button>
         {/if}
         <Button
           variant={officialCta ? "secondary" : "default"}
           onclick={openSources}
         >
-          Choose a source
+          {m.watch_choose_source()}
         </Button>
         {#if handoff?.kind === "link"}
           <Button variant="secondary" href={handoff.href}>
-            <ExternalLinkIcon data-icon="inline-start" /> Play in external player
+            <ExternalLinkIcon data-icon="inline-start" /> {m.common_play_external()}
           </Button>
         {:else if handoff?.kind === "copy"}
           <Button variant="secondary" onclick={playExternally}>
-            <ExternalLinkIcon data-icon="inline-start" /> Play in external player
+            <ExternalLinkIcon data-icon="inline-start" /> {m.common_play_external()}
           </Button>
         {/if}
         {#if externalLink}
           <Button variant="ghost" onclick={copyStreamLink}>
             <CopyIcon data-icon="inline-start" />
-            {copied ? "Copied" : "Copy link"}
+            {copied ? m.common_copied() : m.common_copy_link()}
           </Button>
         {/if}
       </div>

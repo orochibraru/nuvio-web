@@ -5,6 +5,7 @@
 	import * as Dialog from "#lib/components/ui/dialog/index.js";
 	import { Spinner } from "#lib/components/ui/spinner/index.js";
 	import { streamed } from "#lib/core/stream.svelte.js";
+	import { m } from "#lib/i18n/index.js";
 	import { sync } from "#lib/sync/store.svelte.js";
 	import { refreshAll } from "$app/navigation";
 	import { deleteProfileData } from "./account.remote.ts";
@@ -25,10 +26,10 @@
 	const stats = $derived(overviewStream.current.profiles);
 
 	const columns: Array<{ key: keyof (typeof stats)[number]; label: string }> = [
-		{ key: "addons", label: "Addons" },
-		{ key: "library", label: "Library" },
-		{ key: "watchProgress", label: "In progress" },
-		{ key: "watched", label: "Watched" },
+		{ key: "addons", label: m.settings_section_addons() },
+		{ key: "library", label: m.nav_library() },
+		{ key: "watchProgress", label: m.account_in_progress() },
+		{ key: "watched", label: m.account_watched() },
 	];
 
 	let confirmOpen = $state(false);
@@ -40,10 +41,10 @@
 			await deleteProfileData({ profileIndex: data.profile.profile_index });
 			await sync.clear();
 			await refreshAll();
-			toast.success(`Cleared all synced data for ${data.profile.name}.`);
+			toast.success(m.account_cleared({ name: data.profile.name }));
 			confirmOpen = false;
 		} catch {
-			toast.error("Couldn't clear this profile's data.");
+			toast.error(m.account_clear_failed());
 		} finally {
 			deleting = false;
 		}
@@ -53,15 +54,15 @@
 <div class="flex flex-col gap-6">
 	<Card.Root class="border border-foreground/10">
 		<Card.Header>
-			<Card.Title>Storage &amp; sync</Card.Title>
-			<Card.Description>What's synced to your account, per profile.</Card.Description>
+			<Card.Title>{m.account_tab_storage()}</Card.Title>
+			<Card.Description>{m.account_storage_description()}</Card.Description>
 		</Card.Header>
 		<Card.Content>
 			<div class="overflow-x-auto">
 				<table class="w-full text-sm">
 					<thead>
 						<tr class="border-b border-border text-left text-xs tracking-wide text-muted-foreground uppercase">
-							<th class="py-2 pr-4 font-medium">Profile</th>
+							<th class="py-2 pr-4 font-medium">{m.account_profile()}</th>
 							{#each columns as column (column.key)}
 								<th class="py-2 pr-4 text-right font-medium">{column.label}</th>
 							{/each}
@@ -78,7 +79,7 @@
 										></span>
 										<span class="truncate font-medium">{row.name}</span>
 										{#if row.index === data.profile.profile_index}
-											<span class="text-xs text-muted-foreground">(current)</span>
+											<span class="text-xs text-muted-foreground">{m.account_current()}</span>
 										{/if}
 									</span>
 								</td>
@@ -95,16 +96,16 @@
 
 	<Card.Root class="border-destructive/30">
 		<Card.Header>
-			<Card.Title class="text-destructive">Danger zone</Card.Title>
+			<Card.Title class="text-destructive">{m.account_danger_zone()}</Card.Title>
 			<Card.Description>
-				Clear every synced library item, watch-progress entry and history row for the
-				<span class="font-medium text-foreground">{data.profile.name}</span> profile. Other
-				profiles and your account are untouched. This cannot be undone.
+				{m.account_danger_before()}
+				<span class="font-medium text-foreground">{data.profile.name}</span
+				>{m.account_danger_after()}
 			</Card.Description>
 		</Card.Header>
 		<Card.Content>
 			<Button variant="destructive" onclick={() => (confirmOpen = true)}>
-				Clear {data.profile.name}'s data
+				{m.account_clear_named({ name: data.profile.name })}
 			</Button>
 		</Card.Content>
 	</Card.Root>
@@ -113,17 +114,16 @@
 <Dialog.Root bind:open={confirmOpen}>
 	<Dialog.Content class="sm:max-w-md">
 		<Dialog.Header>
-			<Dialog.Title>Clear {data.profile.name}'s data?</Dialog.Title>
+			<Dialog.Title>{m.account_clear_named_confirm({ name: data.profile.name })}</Dialog.Title>
 			<Dialog.Description>
-				This wipes the library, watch progress and history for this profile from every
-				device. Installed addons and appearance settings stay.
+				{m.account_clear_confirm_description()}
 			</Dialog.Description>
 		</Dialog.Header>
 		<Dialog.Footer class="mt-4">
-			<Button variant="ghost" onclick={() => (confirmOpen = false)}>Cancel</Button>
+			<Button variant="ghost" onclick={() => (confirmOpen = false)}>{m.common_cancel()}</Button>
 			<Button variant="destructive" disabled={deleting} onclick={wipeCurrentProfile}>
 				{#if deleting}<Spinner data-icon="inline-start" />{/if}
-				Clear data
+				{m.account_clear_data()}
 			</Button>
 		</Dialog.Footer>
 	</Dialog.Content>

@@ -1,6 +1,12 @@
 import type { HandleClientError } from "@sveltejs/kit/hooks";
 import { makeErrorId } from "#lib/core/error-id.js";
+import { defineHtmlLangStrategy } from "#lib/i18n/client.js";
+import { m } from "#lib/i18n/index.js";
 import { dev } from "$app/env";
+
+// Before anything calls `getLocale()`: hydration must speak the language the
+// server rendered.
+defineHtmlLangStrategy(document.documentElement);
 
 export const handleError: HandleClientError = ({ error, event }) => {
 	const errorId = makeErrorId();
@@ -8,7 +14,7 @@ export const handleError: HandleClientError = ({ error, event }) => {
 	// A fetch failing while the browser says it's offline is the expected
 	// outcome, not a bug : the layout's banner already says so.
 	if (!navigator.onLine && error instanceof TypeError) {
-		return { errorId, message: "You're offline." };
+		return { errorId, message: m.error_offline() };
 	}
 
 	// The id is the only handle the user has on this error : it's what the error
@@ -33,6 +39,6 @@ export const handleError: HandleClientError = ({ error, event }) => {
 
 	return {
 		errorId,
-		message: "Whoops!",
+		message: m.error_whoops(),
 	};
 };

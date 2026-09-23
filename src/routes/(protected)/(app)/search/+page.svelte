@@ -9,6 +9,7 @@
 	import { Input } from "#lib/components/ui/input/index.js";
 	import { streamed } from "#lib/core/stream.svelte.js";
 	import { pageTitle } from "#lib/core/title.svelte.js";
+	import { m } from "#lib/i18n/index.js";
 	import { searchHistory } from "#lib/search/search-history.svelte.js";
 	import { browser } from "$app/env";
 	import {
@@ -36,7 +37,7 @@
 
 	let input = $state((page.url.searchParams.get("q") ?? "").trim());
 	$effect(() => {
-		pageTitle.set(term ? `Search: ${term}` : "Search");
+		pageTitle.set(term ? m.search_title_term({ term }) : m.nav_search());
 	});
 
 	function runSearch(value: string, replace: boolean) {
@@ -147,7 +148,7 @@
 
 <div class="flex flex-col gap-8">
   <div class="flex flex-col gap-4">
-    <h1 class="text-3xl font-bold tracking-tight">Search</h1>
+    <h1 class="text-3xl font-bold tracking-tight">{m.nav_search()}</h1>
     <form onsubmit={submit} class="relative">
       <SearchIcon
         class="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-muted-foreground"
@@ -155,7 +156,7 @@
       <Input
         bind:ref={searchInput}
         bind:value={input}
-        placeholder="Search movies and series"
+        placeholder={m.search_placeholder()}
         autocomplete="off"
         class="h-12 rounded-full pl-12 text-base"
       />
@@ -169,14 +170,14 @@
           <h2
             class="flex items-center gap-1.5 text-sm font-semibold text-muted-foreground"
           >
-            <ClockIcon class="size-3.5" /> Recent searches
+            <ClockIcon class="size-3.5" /> {m.search_recent()}
           </h2>
           <button
             type="button"
             onclick={() => searchHistory.clear()}
             class="text-xs text-muted-foreground transition hover:text-foreground"
           >
-            Clear
+            {m.search_clear()}
           </button>
         </div>
         <div class="flex flex-wrap gap-2">
@@ -193,7 +194,7 @@
               </button>
               <button
                 type="button"
-                aria-label={`Remove ${entry}`}
+                aria-label={m.search_remove_entry({ entry })}
                 onclick={() => searchHistory.remove(entry)}
                 class="flex size-5 items-center justify-center rounded-full text-muted-foreground transition hover:bg-foreground/10 hover:text-foreground"
               >
@@ -207,7 +208,7 @@
     {@render discoverRows()}
   {:else if resultsFailed}
     <QueryError
-      message="Search failed."
+      message={m.search_failed()}
       onRetry={() => invalidateAll()}
       class="mt-6"
     />
@@ -216,26 +217,26 @@
   {:else if results.metas.length === 0}
     <div class="flex flex-col gap-8">
       <p class="text-sm text-muted-foreground">
-        No results for "{term}". You might like:
+        {m.search_no_results({ term })}
       </p>
       {@render discoverRows()}
     </div>
   {:else}
     {#if groups.movies.length > 0}
       <section class="flex flex-col gap-3">
-        <h2 class="text-xl font-semibold tracking-tight">Movies</h2>
+        <h2 class="text-xl font-semibold tracking-tight">{m.common_movies()}</h2>
         <MediaGrid items={groups.movies} />
       </section>
     {/if}
     {#if groups.series.length > 0}
       <section class="flex flex-col gap-3">
-        <h2 class="text-xl font-semibold tracking-tight">Series</h2>
+        <h2 class="text-xl font-semibold tracking-tight">{m.common_series()}</h2>
         <MediaGrid items={groups.series} />
       </section>
     {/if}
     {#if groups.other.length > 0}
       <section class="flex flex-col gap-3">
-        <h2 class="text-xl font-semibold tracking-tight">Other</h2>
+        <h2 class="text-xl font-semibold tracking-tight">{m.search_other()}</h2>
         <MediaGrid items={groups.other} />
       </section>
     {/if}

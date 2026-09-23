@@ -78,17 +78,20 @@ import {
 	Logger,
 	SESSION,
 } from "#lib/services/index.js";
+import { NUVIO_SYNC } from "#lib/userdata/tokens.js";
 import * as authForms from "./auth.remote.js";
 
 // The handlers resolve their collaborators off the request scope, so the fakes
 // go in through a real container rather than module mocks. `tryConnect()`
 // returning null is the documented "no admin database" path.
 const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
+const nuvioSync = { touch: vi.fn() };
 const testServices = new Container("test")
 	.provide(SESSION, session as never)
 	.provide(DATABASE, { tryConnect: () => null } as never)
 	.provide(ADMIN, new AdminService(""))
-	.provide(LOGGER, new Logger("error", { out: () => {}, err: () => {} }));
+	.provide(LOGGER, new Logger("error", { out: () => {}, err: () => {} }))
+	.provide(NUVIO_SYNC, nuvioSync as never);
 
 // The same scope with an admin database present : the lock check and the
 // sign-in metrics only exist on this path.
@@ -96,7 +99,8 @@ const withDatabase = new Container("test-db")
 	.provide(SESSION, session as never)
 	.provide(DATABASE, { tryConnect: () => ({ marker: "db" }) } as never)
 	.provide(ADMIN, new AdminService(""))
-	.provide(LOGGER, logger as never);
+	.provide(LOGGER, logger as never)
+	.provide(NUVIO_SYNC, nuvioSync as never);
 
 // What `/auth/v1/token` actually returns : a token *and* the user. The thin
 // `{ access_token }` stub only passed because `writeStoredSession` is mocked.
@@ -149,6 +153,8 @@ describe("signIn", () => {
 			),
 		).rejects.toMatchObject({ status: 303, location: "/library" });
 		expect(session.write).toHaveBeenCalled();
+		// Kicks off a Nuvio pull so the mobile apps' changes show up at once.
+		expect(nuvioSync.touch).toHaveBeenCalledWith(apiSession.user.id);
 	});
 
 	it("rewrites an off-site redirectTo to the app root", async () => {

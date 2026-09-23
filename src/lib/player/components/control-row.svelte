@@ -17,6 +17,7 @@
 	import VolumeXIcon from "@lucide/svelte/icons/volume-x";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import * as DropdownMenu from "#lib/components/ui/dropdown-menu/index.js";
+	import { m } from "#lib/i18n/index.js";
 	import { formatTime } from "#lib/player/format.js";
 	import type { createPlayerTransportActions } from "#lib/player/state/transport-actions.svelte.js";
 	import type { PlayerTransportState } from "#lib/player/state/transport-state.svelte.js";
@@ -69,15 +70,15 @@
     variant="ghost"
     size="icon"
     aria-label={transport.ended
-      ? "Replay"
+      ? m.player_replay()
       : transport.paused
-        ? "Play"
-        : "Pause"}
+        ? m.common_play()
+        : m.player_pause()}
     title={transport.ended
-      ? "Replay (Space)"
+      ? m.player_replay_hint()
       : transport.paused
-        ? "Play (Space)"
-        : "Pause (Space)"}
+        ? m.player_play_hint()
+        : m.player_pause_hint()}
     onclick={player.togglePlay}
     class="rounded-full [&_svg]:size-5"
   >
@@ -94,8 +95,8 @@
     <Button
       variant="ghost"
       size="icon"
-      aria-label={transport.muted ? "Unmute" : "Mute"}
-      title={transport.muted ? "Unmute (M)" : "Mute (M)"}
+      aria-label={transport.muted ? m.player_unmute() : m.player_mute()}
+      title={transport.muted ? m.player_unmute_hint() : m.player_mute_hint()}
       onclick={() => (transport.muted = !transport.muted)}
       class="rounded-full [&_svg]:size-5"
     >
@@ -113,8 +114,8 @@
       max="1"
       step="0.05"
       bind:value={transport.volume}
-      aria-label="Volume"
-      title="Volume (Up / Down)"
+      aria-label={m.player_volume()}
+      title={m.player_volume_hint()}
       class="hidden h-1 w-16 cursor-pointer appearance-none rounded-full bg-white/30 sm:block [&::-webkit-slider-thumb]:size-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white"
     />
   </div>
@@ -131,8 +132,8 @@
       <Button
         variant="ghost"
         size="icon"
-        aria-label="Next episode"
-        title="Next episode (N)"
+        aria-label={m.player_next_episode()}
+        title={m.player_next_episode_hint()}
         onclick={onNext}
         class="rounded-full [&_svg]:size-5"
       >
@@ -143,8 +144,8 @@
       <Button
         variant="ghost"
         size="icon"
-        aria-label="Episodes"
-        title="Episodes (E)"
+        aria-label={m.common_episodes()}
+        title={m.player_episodes_hint()}
         onclick={onEpisodes}
         class="rounded-full [&_svg]:size-5"
       >
@@ -155,10 +156,10 @@
       <Button
         variant="ghost"
         size="icon"
-        aria-label="Subtitles"
+        aria-label={m.player_subtitles()}
         title={activeCaption
-          ? `Subtitles: ${activeCaption} (C)`
-          : "Subtitles: off (C)"}
+          ? m.player_subtitles_on_hint({ caption: activeCaption })
+          : m.player_subtitles_off_hint()}
         aria-pressed={subtitlesOpen}
         onclick={onToggleSubtitles}
         class={cn(
@@ -180,8 +181,8 @@
           <Button
             variant="ghost"
             size="icon"
-            aria-label="Settings"
-            title="Speed and audio track"
+            aria-label={m.nav_settings()}
+            title={m.player_settings_hint()}
             class="rounded-full [&_svg]:size-5"
             {...props}
           >
@@ -202,8 +203,8 @@
       <Button
         variant="ghost"
         size="icon"
-        aria-label={casting ? "Stop casting" : "Cast"}
-        title={casting ? "Stop casting" : "Cast to a TV"}
+        aria-label={casting ? m.player_stop_casting() : m.common_cast()}
+        title={casting ? m.player_stop_casting() : m.player_cast_hint()}
         aria-pressed={casting}
         onclick={onCast}
         class={cn("rounded-full [&_svg]:size-5", casting && "text-primary")}
@@ -220,8 +221,8 @@
       <Button
         variant="ghost"
         size="icon"
-        aria-label="Picture in picture"
-        title="Picture in picture"
+        aria-label={m.player_pip()}
+        title={m.player_pip()}
         onclick={player.togglePip}
         class="rounded-full [&_svg]:size-5"
       >
@@ -232,8 +233,12 @@
     <Button
       variant="ghost"
       size="icon"
-      aria-label={transport.fullscreen ? "Exit fullscreen" : "Fullscreen"}
-      title={transport.fullscreen ? "Exit fullscreen (F)" : "Fullscreen (F)"}
+      aria-label={transport.fullscreen
+        ? m.player_exit_fullscreen()
+        : m.player_fullscreen()}
+      title={transport.fullscreen
+        ? m.player_exit_fullscreen_hint()
+        : m.player_fullscreen_hint()}
       onclick={player.toggleFullscreen}
       class="rounded-full [&_svg]:size-5"
     >

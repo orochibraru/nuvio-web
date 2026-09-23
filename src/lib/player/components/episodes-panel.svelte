@@ -5,6 +5,7 @@
 	import XIcon from "@lucide/svelte/icons/x";
 	import { Dialog as DialogPrimitive } from "bits-ui";
 	import ImdbRating from "#lib/components/media/imdb-rating.svelte";
+	import { getLocale, m } from "#lib/i18n/index.js";
 	import { cn } from "#lib/utils.js";
 
 	interface Episode {
@@ -60,7 +61,7 @@
 		const date = new Date(released);
 		return Number.isNaN(date.getTime())
 			? null
-			: date.toLocaleDateString(undefined, {
+			: date.toLocaleDateString(getLocale(), {
 					day: "numeric",
 					month: "short",
 					year: "numeric",
@@ -82,15 +83,15 @@
 		{#snippet child({ props })}
 			<aside
 				{...props}
-				aria-label="Episodes"
+				aria-label={m.common_episodes()}
 				class="fixed inset-y-0 right-0 z-50 flex w-full max-w-105 flex-col border-l border-white/10 bg-neutral-950 text-white outline-none"
 			>
 				<header class="flex items-center justify-between border-b border-white/10 p-4">
-					<p class="text-sm font-semibold">Episodes</p>
+					<p class="text-sm font-semibold">{m.common_episodes()}</p>
 					<button
 						type="button"
-						aria-label="Close"
-						title="Close (Esc)"
+						aria-label={m.common_close()}
+						title={m.player_close_hint()}
 						onclick={onClose}
 						class="flex size-8 items-center justify-center rounded-full transition hover:bg-white/10"
 					>
@@ -111,7 +112,7 @@
 										: "bg-white/5 text-white/70 hover:text-white",
 								)}
 							>
-								Season {season}
+								{m.player_season({ season })}
 							</button>
 						{/each}
 					</div>
@@ -165,7 +166,7 @@
 									{/if}
 									{#if isCurrent}
 										<span class="shrink-0 rounded bg-primary/20 px-1 text-[10px] font-semibold text-primary">
-											Now
+											{m.player_now()}
 										</span>
 									{/if}
 								</p>

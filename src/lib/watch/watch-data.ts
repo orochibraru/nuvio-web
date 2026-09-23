@@ -1,8 +1,14 @@
 import type { Meta } from "#lib/addons/index.js";
 import { pooledMap } from "#lib/core/pool.js";
-import type { NuvioClient } from "#lib/nuvio/index.js";
+import type { ProfileData } from "#lib/userdata/types.js";
 import { nextEpisode, nextToAir, type UpcomingEpisode } from "./episodes.ts";
-import { assemblePlaybackContext, parseVideoId } from "./playback-context.ts";
+import {
+	assemblePlaybackContext,
+	type ProgressLike,
+	parseVideoId,
+	resumePoint,
+	resumeRowFor,
+} from "./playback-context.ts";
 import { nextAiring, upcomingAfter } from "./schedule.ts";
 
 // Each row fans out to every meta-providing addon inside `getMeta`; an
@@ -31,47 +37,6 @@ export interface ResumeRow {
 }
 
 /**
- * Raw in-progress rows for the home "continue watching" row : user data only, no
- * addon calls, so the home page load never blocks on a slow provider. The page
- * enriches these (poster / name / next-episode roll-forward) from the local sync
- * store and the client-side `continueWatching` query.
- */
-export async function pullResumeRows(
-	nuvio: NuvioClient,
-	profileId: number,
-): Promise<ResumeRow[]> {
-	const rows = await nuvio.watchProgress
-		.pull({ p_profile_id: profileId, p_limit: 30 })
-		.catch(() => []);
-
-	const seen = new Set<string>();
-	return rows
-		.filter((row) => row.duration > 60_000 && row.position < row.duration * 0.9)
-		.sort((a, b) => b.last_watched - a.last_watched)
-		.filter((row) => {
-			if (seen.has(row.content_id)) {
-				return false;
-			}
-			seen.add(row.content_id);
-			return true;
-		})
-		.slice(0, 16)
-		.map((row) => ({
-			id: row.content_id,
-			type: row.content_type,
-			name: row.content_id,
-			poster: null,
-			background: null,
-			logo: null,
-			videoId: row.video_id,
-			season: row.season,
-			episode: row.episode,
-			progress: row.position / row.duration,
-			remainingMs: Math.max(0, row.duration - row.position),
-		}));
-}
-
-/**
  * The continue-watching row, fully resolved: in-progress rows joined to
  * addon meta (name / art) with a finished series episode rolled forward to
  * the next one. Called from the home load (streamed, not awaited) so the
@@ -79,26 +44,23 @@ export async function pullResumeRows(
  * client query lands.
  */
 export async function pullContinueWatching(
-	nuvio: NuvioClient,
-	profileId: number,
+	data: ProfileData,
 	lookupMeta: MetaLookup,
 ): Promise<ResumeRow[]> {
-	// A hiccup on the progress pull must not blank the whole home page : the
-	// local store still fills the row on the client.
-	const rows = await nuvio.watchProgress
-		.pull({ p_profile_id: profileId, p_limit: 30 })
-		.catch(() => [] as Awaited<ReturnType<typeof nuvio.watchProgress.pull>>);
+	// A failed read must not blank the whole home page : the client sync
+	// store still fills the row.
+	const rows = (await data.progress().catch(() => [])).slice(0, 30);
 	// Most-recent row per title (completed or not : a finished episode of a
 	// running show still points at the next one to watch).
 	const seen = new Set<string>();
 	const latestPerTitle = rows
 		.filter((row) => row.duration > 60_000)
-		.sort((a, b) => b.last_watched - a.last_watched)
+		.sort((a, b) => b.lastWatched - a.lastWatched)
 		.filter((row) => {
-			if (seen.has(row.content_id)) {
+			if (seen.has(row.contentId)) {
 				return false;
 			}
-			seen.add(row.content_id);
+			seen.add(row.contentId);
 			return true;
 		})
 		.slice(0, 16);
@@ -110,17 +72,17 @@ export async function pullContinueWatching(
 			// `getMeta` : an unbounded outer `Promise.all` over up to 16 rows
 			// could burst 30-50+ concurrent requests at a shared addon like
 			// Cinemeta, timing some out and silently falling back to the bare
-			// content id as the "name" (`row.content_id` below). Capped like
+			// content id as the "name" (`row.contentId` below). Capped like
 			// `AddonClient`'s own internal fan-out.
 			CONTINUE_WATCHING_CONCURRENCY,
 			async (row) => {
-				const meta = await lookupMeta(row.content_type, row.content_id).catch(
+				const meta = await lookupMeta(row.contentType, row.contentId).catch(
 					() => null,
 				);
 				const base = {
-					id: row.content_id,
-					type: row.content_type,
-					name: meta?.name ?? row.content_id,
+					id: row.contentId,
+					type: row.contentType,
+					name: meta?.name ?? row.contentId,
 					poster: meta?.poster ?? null,
 					background: meta?.background ?? meta?.poster ?? null,
 					logo: meta?.logo ?? null,
@@ -132,7 +94,7 @@ export async function pullContinueWatching(
 				if (!complete) {
 					return {
 						...base,
-						videoId: row.video_id,
+						videoId: row.videoId,
 						season: row.season,
 						episode: row.episode,
 						progress: row.position / row.duration,
@@ -141,12 +103,12 @@ export async function pullContinueWatching(
 				}
 
 				// Finished. For a series, roll forward to the next episode.
-				if (row.content_type === "series" && meta?.videos) {
+				if (row.contentType === "series" && meta?.videos) {
 					const next = nextEpisode(meta.videos, row.season, row.episode);
 					if (next) {
 						return {
 							...base,
-							videoId: `${row.content_id}:${next.season}:${next.episode}`,
+							videoId: `${row.contentId}:${next.season}:${next.episode}`,
 							season: next.season,
 							episode: next.episode,
 							progress: 0,
@@ -165,35 +127,33 @@ export async function pullContinueWatching(
 }
 
 /**
- * Everything the player screen needs *except* the streams themselves : meta,
- * where to resume, what's next. Called from the player load (streamed), so
- * the shell paints immediately and this fills in behind it without costing a
- * second round trip. Both halves are best-effort: a missing addon or a hiccup
- * on the progress pull must not stop the player from painting.
+ * The player's meta half : heading, art, episodes, what's next (resume is
+ * `pullPlaybackResume`). Best-effort: a missing addon still yields a context
+ * the player can paint.
  */
-export async function pullPlaybackContext(
-	nuvio: NuvioClient,
-	profileId: number,
+export async function pullPlaybackMeta(
 	video: { type: string; id: string },
 	lookupMeta: MetaLookup,
 ) {
 	const { type, id } = video;
 	const { contentId } = parseVideoId(type, id);
 	const metaType: "movie" | "series" = type === "series" ? "series" : "movie";
+	const meta = await lookupMeta(metaType, contentId).catch(() => null);
+	return assemblePlaybackContext({ type, id, meta: meta ?? undefined });
+}
 
-	const [meta, progressRows] = await Promise.all([
-		lookupMeta(metaType, contentId).catch(() => null),
-		nuvio.watchProgress
-			.pull({ p_profile_id: profileId })
-			.catch(() => [] as Awaited<ReturnType<typeof nuvio.watchProgress.pull>>),
-	]);
-
-	return assemblePlaybackContext({
-		type,
-		id,
-		meta: meta ?? undefined,
-		progressRows,
-	});
+/**
+ * Where to resume this video, from the profile's progress rows, whichever id
+ * they were saved under (see `resumeRowFor`). Its own promise so the player
+ * load streams it separately from the meta: the resume seek must not wait on
+ * the slowest meta addon.
+ */
+export async function pullPlaybackResume(
+	data: ProfileData,
+	video: { type: string; id: string },
+) {
+	const rows = await data.progress().catch(() => []);
+	return resumePoint(resumeRowFor(rows, video.type, video.id));
 }
 
 /**
@@ -271,4 +231,14 @@ export async function pullNextToAir(
 				fetchImpl,
 			)
 		: await nextAiring(meta.id, fetchImpl);
+}
+
+/**
+ * The profile's progress rows in the shape `titleProgressFor` matches on. The
+ * detail load joins them to the meta's videos; the read is unfiltered because
+ * a title's rows can sit under the URL id or an episode-derived id
+ * (`tmdb:…`), which only the meta can tell apart.
+ */
+export function pullProgressRows(data: ProfileData): Promise<ProgressLike[]> {
+	return data.progress();
 }

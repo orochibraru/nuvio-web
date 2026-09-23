@@ -1,139 +1,118 @@
+import { Database } from "bun:sqlite";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { Container } from "#lib/services/index.js";
+import { UserDataEvents } from "#lib/userdata/events.js";
+import { UserDataStore } from "#lib/userdata/store.js";
+import { NUVIO_SYNC, USER_DATA_STORE } from "#lib/userdata/tokens.js";
 
-const nuvio = {
-	library: {
-		deltaCursor: vi.fn(),
-		pull: vi.fn(),
-		pullDelta: vi.fn(),
-		upsertItems: vi.fn(),
-		deleteItems: vi.fn(),
-	},
-	watchProgress: {
-		deltaCursor: vi.fn(),
-		pull: vi.fn(),
-		pullDelta: vi.fn(),
-		push: vi.fn(),
-		deleteMany: vi.fn(),
-	},
-	watchHistory: {
-		deltaCursor: vi.fn(),
-		pull: vi.fn(),
-		pullDelta: vi.fn(),
-		delete: vi.fn(),
-	},
-};
+const state = vi.hoisted(() => ({ services: null as unknown }));
+const nuvio = { marker: "request client" };
+const nuvioSync = { ensureImported: vi.fn(), touch: vi.fn() };
 
 vi.mock("$app/server", () => ({
 	query: (schemaOrFn: unknown, fn?: unknown) => fn ?? schemaOrFn,
 	command: (schemaOrFn: unknown, fn?: unknown) => fn ?? schemaOrFn,
-	getRequestEvent: () => ({ locals: {}, fetch }),
 }));
 
 vi.mock("#lib/server/guards.js", () => ({
-	requireProfile: () => ({ event: { locals: {}, fetch }, nuvio, profileId: 9 }),
+	requireProfile: () => ({
+		event: { locals: { services: state.services } },
+		nuvio,
+		profileId: 9,
+		userId: "user-1",
+	}),
 }));
 
 import { flushWrites, syncDeltas, syncSnapshot } from "./sync.remote.ts";
 
+const empty = {
+	libraryUpserts: [],
+	libraryDeletes: [],
+	progressPushes: [],
+	progressDeletes: [],
+	historyDeletes: [],
+};
+
+let store: UserDataStore;
+
 beforeEach(() => {
-	for (const domain of Object.values(nuvio)) {
-		for (const fn of Object.values(domain)) {
-			fn.mockReset().mockResolvedValue([]);
-		}
-	}
-	nuvio.library.deltaCursor.mockResolvedValue(10);
-	nuvio.watchProgress.deltaCursor.mockResolvedValue(20);
-	nuvio.watchHistory.deltaCursor.mockResolvedValue(30);
+	const db = new Database(":memory:");
+	store = new UserDataStore({ connect: () => db }, new UserDataEvents());
+	nuvioSync.ensureImported.mockReset().mockResolvedValue(true);
+	nuvioSync.touch.mockReset();
+	state.services = new Container("test")
+		.provide(USER_DATA_STORE, store)
+		.provide(NUVIO_SYNC, nuvioSync as never);
 });
 
 describe("syncSnapshot", () => {
-	it("reads delta cursors before the snapshot pulls", async () => {
-		const order: string[] = [];
-		nuvio.library.deltaCursor.mockImplementation(async () => {
-			order.push("cursor");
-			return 10;
-		});
-		nuvio.library.pull.mockImplementation(async () => {
-			order.push("pull");
-			return [];
+	it("imports the profile first, then serves the local store", async () => {
+		await flushWrites({
+			...empty,
+			libraryUpserts: [
+				{ content_id: "tt1", content_type: "movie", added_at: 5 },
+			],
 		});
 
-		const out = await syncSnapshot();
-		expect(out.cursors).toEqual({
-			library: 10,
-			watchProgress: 20,
-			watchHistory: 30,
-		});
-		expect(order.indexOf("cursor")).toBeLessThan(order.indexOf("pull"));
+		const snap = await syncSnapshot();
+		expect(nuvioSync.ensureImported).toHaveBeenCalledWith("user-1", 9, nuvio);
+		expect(nuvioSync.touch).toHaveBeenCalledWith("user-1");
+		expect(snap.library.map((item) => item.contentId)).toEqual(["tt1"]);
+		expect(snap.cursors.library).toBe(1);
 	});
 });
 
 describe("syncDeltas", () => {
-	it("passes each domain's cursor through as the since-id", async () => {
-		await syncDeltas({ library: 1, watchProgress: 2, watchHistory: 3 });
-		expect(nuvio.library.pullDelta).toHaveBeenCalledWith(
-			expect.objectContaining({ p_since_event_id: 1, p_profile_id: 9 }),
-		);
-		expect(nuvio.watchHistory.pullDelta).toHaveBeenCalledWith(
-			expect.objectContaining({ p_since_event_id: 3 }),
-		);
+	it("returns what changed past the client's cursors", async () => {
+		await flushWrites({
+			...empty,
+			libraryUpserts: [
+				{ content_id: "tt1", content_type: "movie", added_at: 5 },
+			],
+			progressDeletes: ["tt2"],
+		});
+
+		const out = await syncDeltas({
+			library: 0,
+			watchProgress: 0,
+			watchHistory: 0,
+		});
+		expect(Object.keys(out.changes.library ?? {})).toEqual(["movie:tt1"]);
+		expect(out.changes.progress).toEqual({ tt2: null });
+		expect(out.cursors).toEqual({
+			library: 2,
+			watchProgress: 2,
+			watchHistory: 2,
+		});
+		expect(nuvioSync.touch).toHaveBeenCalled();
 	});
 });
 
 describe("flushWrites", () => {
-	const empty = {
-		libraryUpserts: [],
-		libraryDeletes: [],
-		progressPushes: [],
-		progressDeletes: [],
-		historyDeletes: [],
-	};
+	it("writes to the store and queues the rows for Nuvio", async () => {
+		expect(
+			await flushWrites({
+				...empty,
+				progressPushes: [
+					{
+						content_id: "tt1",
+						content_type: "movie",
+						video_id: "tt1",
+						position: 1234.7,
+						duration: 5678.2,
+						last_watched: 42,
+					},
+				],
+				historyDeletes: [{ content_id: "tt3", season: 1, episode: 2 }],
+			}),
+		).toEqual({ ok: true });
 
-	it("skips every domain call when the batch is empty", async () => {
-		expect(await flushWrites({ ...empty })).toEqual({ ok: true });
-		expect(nuvio.library.upsertItems).not.toHaveBeenCalled();
-		expect(nuvio.watchProgress.push).not.toHaveBeenCalled();
-		expect(nuvio.watchProgress.deleteMany).not.toHaveBeenCalled();
-	});
-
-	it("rounds progress position/duration and forwards the origin id", async () => {
-		await flushWrites({
-			...empty,
-			progressPushes: [
-				{
-					content_id: "tt1",
-					content_type: "movie",
-					video_id: "tt1",
-					position: 1234.7,
-					duration: 5678.2,
-					last_watched: 42,
-				},
-			],
-		});
-		const arg = nuvio.watchProgress.push.mock.calls[0][0];
-		expect(arg.p_entries[0]).toMatchObject({ position: 1235, duration: 5678 });
-	});
-
-	it("chunks library upserts over the 500 limit", async () => {
-		const libraryUpserts = Array.from({ length: 501 }, (_, i) => ({
-			content_id: `tt${i}`,
-			content_type: "movie" as const,
-			added_at: 0,
-		}));
-		await flushWrites({ ...empty, libraryUpserts });
-		expect(nuvio.library.upsertItems).toHaveBeenCalledTimes(2);
-	});
-
-	it("routes progress + history deletes to their own calls", async () => {
-		await flushWrites({
-			...empty,
-			progressDeletes: ["a", "b"],
-			historyDeletes: [{ content_id: "tt1", season: 1, episode: 2 }],
-		});
-		expect(nuvio.watchProgress.deleteMany).toHaveBeenCalledWith(["a", "b"], 9);
-		expect(nuvio.watchHistory.delete).toHaveBeenCalledWith(
-			[{ content_id: "tt1", season: 1, episode: 2 }],
-			9,
-		);
+		const [row] = store.list("user-1", 9, "progress");
+		expect(row).toMatchObject({ position: 1235, duration: 5678 });
+		expect(
+			store
+				.dueOutbox("user-1", 9)
+				.map((entry) => `${entry.entity}:${entry.key}`),
+		).toEqual(["progress:tt1", "history:tt3:1:2"]);
 	});
 });

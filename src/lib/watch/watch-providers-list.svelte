@@ -1,10 +1,11 @@
 <script lang="ts">
 	import ExternalLinkIcon from "@lucide/svelte/icons/external-link";
+	import { m } from "#lib/i18n/index.js";
 	import type { WatchOffer, WatchProviders } from "./watch-providers.ts";
 
 	let {
 		providers,
-		heading = "Available on",
+		heading = m.watch_available_on(),
 		class: className = "",
 	}: {
 		providers: WatchProviders;
@@ -15,11 +16,11 @@
 	const groups = $derived(
 		(
 			[
-				["Stream", providers.stream],
-				["Rent", providers.rent],
-				["Buy", providers.buy],
-			] as Array<[string, WatchOffer[]]>
-		).filter(([, offers]) => offers.length > 0),
+				["stream", m.watch_offer_stream(), providers.stream],
+				["rent", m.watch_offer_rent(), providers.rent],
+				["buy", m.watch_offer_buy(), providers.buy],
+			] as Array<[string, string, WatchOffer[]]>
+		).filter(([, , offers]) => offers.length > 0),
 	);
 </script>
 
@@ -31,7 +32,7 @@
 			</p>
 		{/if}
 		<div class="flex flex-col gap-3">
-			{#each groups as [label, offers] (label)}
+			{#each groups as [key, label, offers] (key)}
 				<div class="grid grid-cols-[3rem_1fr] items-start gap-x-2 gap-y-2">
 					<span class="pt-1 text-xs font-medium text-muted-foreground">
 						{label}
@@ -70,7 +71,7 @@
 				rel="noopener noreferrer"
 				class="flex items-center gap-1 text-xs text-muted-foreground transition hover:text-foreground"
 			>
-				More options on JustWatch
+				{m.watch_more_on_justwatch()}
 				<ExternalLinkIcon class="size-3" />
 			</a>
 		{/if}

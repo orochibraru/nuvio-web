@@ -70,6 +70,27 @@ export interface SyncBroadcastMessage {
 	bootstrapped: boolean;
 }
 
+/** Records one local mutation touched, per store, keyed by identity; `null`
+ *  means the row was deleted. Structured-cloneable, so the same object is
+ *  applied locally, persisted, and broadcast to other tabs. */
+export interface SyncChanges {
+	library?: Record<string, LibraryRecord | null>;
+	progress?: Record<string, ProgressRecord | null>;
+	history?: Record<string, HistoryRecord | null>;
+}
+
+/** A local mutation broadcast to other same-profile tabs: only the touched
+ *  records, plus the small shared bits (queue, cursors) whole. */
+export interface SyncPatchMessage {
+	patch: SyncChanges;
+	cursors: SyncCursors;
+	queue: PendingWrite[];
+	bootstrapped: boolean;
+}
+
+/** Anything on the sync `BroadcastChannel`: a full resync or a patch. */
+export type SyncChannelMessage = SyncBroadcastMessage | SyncPatchMessage;
+
 /** A queued optimistic mutation awaiting flush to the API. */
 export type PendingWrite =
 	| { kind: "library.upsert"; record: LibraryRecord; queuedAt: number }
@@ -82,6 +103,49 @@ export type PendingWrite =
 	| { kind: "progress.push"; record: ProgressRecord; queuedAt: number }
 	| { kind: "progress.delete"; progressKey: string; queuedAt: number }
 	| { kind: "history.delete"; record: HistoryRecord; queuedAt: number };
+
+/** What a queued write targets : two writes with the same target collapse,
+ *  the later one wins. The keyed form of `sameTarget` in `reconcile.ts`. */
+export function writeTarget(write: PendingWrite): string {
+	switch (write.kind) {
+		case "library.upsert":
+			return `library:${libraryKey(write.record.contentType, write.record.contentId)}`;
+		case "library.delete":
+			return `library:${libraryKey(write.contentType, write.contentId)}`;
+		case "progress.push":
+			return `progress:${write.record.progressKey}`;
+		case "progress.delete":
+			return `progress:${write.progressKey}`;
+		default:
+			return `history:${write.record.id}`;
+	}
+}
+
+/** Set or (for `null`) delete each row `touched` names. */
+export function applyTouched<T>(
+	map: Map<string, T>,
+	touched: Record<string, T | null> | undefined,
+): void {
+	for (const [key, record] of Object.entries(touched ?? {})) {
+		if (record === null) {
+			map.delete(key);
+		} else {
+			map.set(key, record);
+		}
+	}
+}
+
+/** A progress save : everything but the key and timestamp the store stamps. */
+export type ProgressInput = Omit<ProgressRecord, "progressKey" | "lastWatched">;
+
+export interface MarkWatchedInput {
+	contentId: string;
+	contentType: ContentType;
+	videoId: string;
+	season: number | null;
+	episode: number | null;
+	durationMs: number;
+}
 
 export function contentType(value: string): ContentType {
 	return value === "series" ? "series" : "movie";

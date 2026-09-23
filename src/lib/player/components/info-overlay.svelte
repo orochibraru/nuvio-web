@@ -7,6 +7,7 @@
 	import ImdbRating from "#lib/components/media/imdb-rating.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { reduced } from "#lib/core/motion.js";
+	import { m } from "#lib/i18n/index.js";
 	import type { PlayerInfo } from "#lib/player/info.js";
 
 	let {
@@ -40,8 +41,15 @@
 	let logoBroken = $state(false);
 
 	const headline = $derived(info.episodeTitle ?? title);
+	// The episode's name is the heading below, so the eyebrow keeps only the
+	// "S1E2" tag of "S1E2 · Name".
+	const eyebrow = $derived(
+		info.episodeTitle
+			? subheading?.split(" · ")[0] || m.player_info_episode()
+			: m.player_info_about(),
+	);
 	const synopsis = $derived(
-		info.episodeOverview ?? info.description ?? "No synopsis available.",
+		info.episodeOverview ?? info.description ?? m.player_info_no_synopsis(),
 	);
 	const metaBits = $derived(
 		[info.releaseInfo, info.runtime, certification, info.status].filter(
@@ -50,11 +58,11 @@
 	);
 	const facts = $derived(
 		[
-			["Cast", info.cast.join(", ")],
-			["Director", info.director.join(", ")],
-			["Writer", info.writer.join(", ")],
-			["Country", info.country ?? ""],
-			["Awards", info.awards ?? ""],
+			[m.common_cast(), info.cast.join(", ")],
+			[m.credits_director(), info.director.join(", ")],
+			[m.credits_writer(), info.writer.join(", ")],
+			[m.credits_country(), info.country ?? ""],
+			[m.credits_awards(), info.awards ?? ""],
 		].filter(([, value]) => value.length > 0) as Array<[string, string]>,
 	);
 
@@ -94,15 +102,13 @@
                 class="flex flex-1 items-center gap-1.5 text-xs font-semibold tracking-[0.2em] text-white/50 uppercase"
               >
                 <InfoIcon class="size-3.5" />
-                {info.episodeTitle
-                  ? subheading || "Episode"
-                  : "About this title"}
+                {eyebrow}
               </span>
               <Button
                 variant="secondary"
                 size="icon"
-                aria-label="Close"
-                title="Close (Esc)"
+                aria-label={m.common_close()}
+                title={m.player_close_hint()}
                 onclick={onClose}
                 class="shrink-0 rounded-full"
               >
@@ -208,7 +214,7 @@
                   <PlayIcon
                     data-icon="inline-start"
                     class="size-4 fill-current"
-                  />Resume
+                  />{m.common_resume()}
                 </Button>
               {:else}
                 <Button
@@ -219,7 +225,7 @@
                   <PlayIcon
                     data-icon="inline-start"
                     class="size-4 fill-current"
-                  />Keep watching
+                  />{m.player_keep_watching()}
                 </Button>
               {/if}
               <Button
@@ -228,7 +234,7 @@
                 href={detailHref}
                 class="rounded-full font-medium"
               >
-                Full details
+                {m.player_full_details()}
               </Button>
             </div>
           </div>

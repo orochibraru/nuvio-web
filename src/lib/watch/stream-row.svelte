@@ -5,6 +5,7 @@
 	import PuzzleIcon from "@lucide/svelte/icons/puzzle";
 	import UsersIcon from "@lucide/svelte/icons/users";
 	import VolumeXIcon from "@lucide/svelte/icons/volume-x";
+	import { m } from "#lib/i18n/index.js";
 	import {
 		isPlayable,
 		type ResolvedStream,
@@ -23,7 +24,7 @@
 		onclick: () => void;
 	} = $props();
 
-	const m = $derived(row.info);
+	const info = $derived(row.info);
 	const playable = $derived(isPlayable(row));
 </script>
 
@@ -44,7 +45,7 @@
   </span>
   <div class="min-w-0 flex-1">
     <p class="line-clamp-2 text-xs font-medium leading-snug">
-      {m.title}
+      {info.title}
     </p>
 
     <div
@@ -55,64 +56,64 @@
         ><PuzzleIcon class="size-2.5" />{row.addonName}</span
       >
 
-      {#if m.quality}
+      {#if info.quality}
         <span
           class="rounded bg-foreground/10 px-1 py-px font-medium text-foreground/80"
         >
-          {m.quality}
+          {info.quality}
         </span>
       {/if}
-      {#if m.source}<span class="rounded bg-foreground/5 px-1 py-px"
-          >{m.source}</span
+      {#if info.source}<span class="rounded bg-foreground/5 px-1 py-px"
+          >{info.source}</span
         >{/if}
-      {#if m.videoCodec}<span
+      {#if info.videoCodec}<span
           class="rounded bg-foreground/5 px-1 py-px"
-          >{m.videoCodec}</span
+          >{info.videoCodec}</span
         >{/if}
-      {#if m.hdr}<span class="rounded bg-foreground/5 px-1 py-px"
-          >{m.hdr}</span
+      {#if info.hdr}<span class="rounded bg-foreground/5 px-1 py-px"
+          >{info.hdr}</span
         >{/if}
-      {#if m.tenBit}<span class="rounded bg-foreground/5 px-1 py-px"
+      {#if info.tenBit}<span class="rounded bg-foreground/5 px-1 py-px"
           >10-bit</span
         >{/if}
-      {#if m.audioCodec}<span
+      {#if info.audioCodec}<span
           class="rounded bg-foreground/5 px-1 py-px"
-          >{m.audioCodec}</span
+          >{info.audioCodec}</span
         >{/if}
-      {#each m.languages as lang (lang)}
+      {#each info.languages as lang (lang)}
         <span class="rounded bg-foreground/5 px-1 py-px">{lang}</span>
       {/each}
 
-      {#if m.size}<span class="text-foreground/60">{m.size}</span
+      {#if info.size}<span class="text-foreground/60">{info.size}</span
         >{/if}
-      {#if row.kind === "p2p" && m.seeders != null}
+      {#if row.kind === "p2p" && info.seeders != null}
         <span class="flex items-center gap-0.5">
-          <UsersIcon class="size-2.5" />{m.seeders}
+          <UsersIcon class="size-2.5" />{info.seeders}
         </span>
       {/if}
       {#if row.kind === "p2p"}
         <span class="rounded bg-foreground/5 px-1 py-px">P2P</span>
       {/if}
 
-      {#if playable && m.audio === "risky"}
+      {#if playable && info.audio === "risky"}
         <span
           class="flex items-center gap-0.5 rounded bg-warning/15 px-1 py-px text-warning-foreground"
-          title="This audio codec may not play in the browser (no sound)"
+          title={m.watch_row_audio_risky_title()}
         >
-          <VolumeXIcon class="size-2.5" /> may be silent
+          <VolumeXIcon class="size-2.5" /> {m.watch_row_may_be_silent()}
         </span>
       {/if}
-      {#if playable && m.video === "risky"}
+      {#if playable && info.video === "risky"}
         <span
           class="flex items-center gap-0.5 rounded bg-warning/15 px-1 py-px text-warning-foreground"
-          title="This video codec (HEVC / AV1) may not decode in the browser"
+          title={m.watch_row_video_risky_title()}
         >
-          <FilmIcon class="size-2.5" /> may not play
+          <FilmIcon class="size-2.5" /> {m.watch_row_may_not_play()}
         </span>
       {/if}
       {#if !playable}<span
           class="rounded bg-warning/15 px-1 py-px text-warning-foreground"
-          >external</span
+          >{m.watch_row_external()}</span
         >{/if}
     </div>
   </div>

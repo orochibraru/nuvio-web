@@ -227,3 +227,45 @@ export async function purgeOtherOwners(keep: string | null): Promise<void> {
 		}),
 	);
 }
+
+/** Puts and deletes for one store, keyed by identity (no owner prefix). */
+export interface StorePatch {
+	put?: Iterable<[string, unknown]>;
+	delete?: Iterable<string>;
+}
+
+/**
+ * Apply puts / deletes for one owner across several stores in a single
+ * transaction : the incremental counterpart of `replaceAll`, so one changed
+ * row costs one row, not a rewrite of the owner's whole store.
+ */
+export async function patchStores(
+	owner: string,
+	patches: Partial<Record<StoreName, StorePatch>>,
+): Promise<void> {
+	const names = Object.keys(patches) as StoreName[];
+	const db = names.length > 0 ? await openDb() : null;
+	if (!db) {
+		return;
+	}
+	const prefix = `${owner}:`;
+	try {
+		const transaction = db.transaction(names, "readwrite");
+		await new Promise<void>((resolve, reject) => {
+			transaction.oncomplete = () => resolve();
+			transaction.onerror = () => reject(transaction.error);
+			transaction.onabort = () => reject(transaction.error);
+			for (const name of names) {
+				const objectStore = transaction.objectStore(name);
+				for (const identity of patches[name]?.delete ?? []) {
+					objectStore.delete(`${prefix}${identity}`);
+				}
+				for (const [identity, value] of patches[name]?.put ?? []) {
+					objectStore.put({ _pk: `${prefix}${identity}`, value });
+				}
+			}
+		});
+	} catch {
+		// best effort
+	}
+}

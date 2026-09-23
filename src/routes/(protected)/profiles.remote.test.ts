@@ -57,14 +57,15 @@ const issue = new Proxy(
 ) as Record<string, (msg: string) => unknown>;
 
 import { Container, SESSION } from "#lib/services/index.js";
+import { USER_DATA_STORE } from "#lib/userdata/tokens.js";
 import * as profileForms from "./profiles.remote.js";
 
 // The handlers resolve SessionService off the request scope, so the fake goes
 // in through a real container rather than a module mock.
-event.locals.services = new Container("test").provide(
-	SESSION,
-	session as never,
-);
+const userData = { clearProfile: vi.fn() };
+event.locals.services = new Container("test")
+	.provide(SESSION, session as never)
+	.provide(USER_DATA_STORE, userData as never);
 
 // `form(...)` results aren't callable in their public type; drive the handler.
 type FormHandler = (
@@ -96,6 +97,7 @@ beforeEach(() => {
 	profiles.list.mockReset().mockResolvedValue([profile(1)]);
 	profiles.replace.mockReset().mockResolvedValue(undefined);
 	profiles.deleteData.mockReset().mockResolvedValue(undefined);
+	userData.clearProfile.mockReset();
 });
 
 describe("selectProfile", () => {
@@ -193,8 +195,23 @@ describe("deleteProfile", () => {
 			location: "profiles",
 		});
 		expect(profiles.deleteData).toHaveBeenCalledWith(2);
+		expect(userData.clearProfile).not.toHaveBeenCalled();
 		expect(profiles.replace.mock.calls[0][0].p_profiles).toHaveLength(1);
 		expect(session.clearProfileId).toHaveBeenCalled();
+	});
+
+	it("clears this server's copy of the profile's data after Nuvio's", async () => {
+		profiles.list.mockResolvedValue([profile(1), profile(2)]);
+		event.locals.session = { user: { id: "u" } };
+
+		await expect(deleteProfile({ profileId: 2 }, issue)).rejects.toMatchObject({
+			location: "profiles",
+		});
+		expect(userData.clearProfile).toHaveBeenCalledWith("u", 2);
+		expect(profiles.deleteData.mock.invocationCallOrder.at(-1)).toBeLessThan(
+			userData.clearProfile.mock.invocationCallOrder[0],
+		);
+		event.locals.session = undefined;
 	});
 
 	it("won't delete the last remaining profile", async () => {

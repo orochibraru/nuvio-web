@@ -1,4 +1,3 @@
-import { fileURLToPath } from "node:url";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 import { defineConfig } from "vitest/config";
 
@@ -6,11 +5,6 @@ import { defineConfig } from "vitest/config";
 // helpers, stream formatting) plus the server / remote-function layer.
 // Svelte component / SvelteKit integration testing stays in Playwright (e2e/).
 export default defineConfig({
-	resolve: {
-		alias: {
-			$lib: fileURLToPath(new URL("./src/lib", import.meta.url)),
-		},
-	},
 	test: {
 		projects: [
 			{
@@ -55,6 +49,8 @@ export default defineConfig({
 				// measured by the glob above; the loads call them directly now, so the
 				// globs follow the code rather than quietly dropping the domain.
 				"src/lib/history/*.ts",
+				// The server-side source of truth for user data, and its Nuvio sync.
+				"src/lib/userdata/*.ts",
 				"src/lib/stats/*.ts",
 				// Downloads: the pure planning / path / range logic and the proxy.
 				// The worker, the manager and the IndexedDB store run only in a
@@ -70,6 +66,9 @@ export default defineConfig({
 				"src/lib/core/images.ts",
 				"src/lib/core/url.ts",
 				"src/hooks.server.ts",
+				// Sessions: the cookie glue, the encrypted token store and its key.
+				"src/lib/services/session*.ts",
+				"src/lib/forms/*.ts",
 				// Rune modules the `runes` project covers. Named one by one rather
 				// than un-excluding `*.svelte.ts`: most of those are UI state that
 				// only e2e can meaningfully exercise.
@@ -93,7 +92,7 @@ export default defineConfig({
 				"src/lib/sync/idb.ts",
 			],
 			// Ratchet upward as tests land : do not lower. Target is 100% for the
-			// server / remote-function layer (see TODO "CI/CD").
+			// server / remote-function layer.
 			thresholds: {
 				lines: 98,
 				functions: 98,

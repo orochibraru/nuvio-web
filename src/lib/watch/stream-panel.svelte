@@ -14,6 +14,7 @@
 	import { Separator } from "#lib/components/ui/separator/index.js";
 	import { reduced } from "#lib/core/motion.js";
 	import DownloadButton from "#lib/downloads/download-button.svelte";
+	import { m } from "#lib/i18n/index.js";
 	import { externalPlayerHandoff } from "#lib/player/external-player.js";
 	import { theme } from "#lib/settings/theme.svelte.js";
 	import { cn } from "#lib/utils.js";
@@ -28,7 +29,7 @@
 		streamMeta,
 	} from "./stream-format.ts";
 	import StreamRow from "./stream-row.svelte";
-	import { playbackContext, resolveStreams } from "./watch.remote.ts";
+	import { playbackMeta, resolveStreams } from "./watch.remote.ts";
 	import { watchProviders } from "./watch-providers.remote.ts";
 	import { EMPTY_PROVIDERS } from "./watch-providers.ts";
 	import WatchProvidersList from "./watch-providers-list.svelte";
@@ -43,8 +44,8 @@
 		onClose: () => void;
 	} = $props();
 
-	const contextQuery = $derived(playbackContext({ type, id: videoId }));
-	const heading = $derived(contextQuery.current?.heading ?? "Sources");
+	const contextQuery = $derived(playbackMeta({ type, id: videoId }));
+	const heading = $derived(contextQuery.current?.heading ?? m.common_sources());
 	const subheading = $derived(contextQuery.current?.subheading ?? null);
 
 	// Official "where to watch" : shown prominently when no addon returns a
@@ -245,7 +246,7 @@
 
 <button
   type="button"
-  aria-label="Close sources"
+  aria-label={m.watch_close_sources()}
   onclick={onClose}
   transition:fade={reduced({ duration: 150 })}
   class="fixed inset-0 z-40 bg-black/50 backdrop-blur-[2px]"
@@ -253,17 +254,17 @@
 
 {#if filtersOpen}
   <aside
-    aria-label="Stream filters"
+    aria-label={m.watch_stream_filters()}
     transition:fly={reduced({ x: 24, duration: 150 })}
     class="fixed inset-y-0 right-0 z-50 flex w-72 flex-col border-l border-border bg-background/80 shadow-2xl backdrop-blur-xl md:right-105 md:border-r md:border-l-0"
   >
     <header
       class="flex items-center justify-between border-b border-border p-4"
     >
-      <p class="text-sm font-semibold">Filters</p>
+      <p class="text-sm font-semibold">{m.watch_filters()}</p>
       <button
         type="button"
-        aria-label="Close filters"
+        aria-label={m.watch_close_filters()}
         onclick={() => (filtersOpen = false)}
         class="rounded-md p-1.5 text-muted-foreground transition hover:bg-foreground/5 hover:text-foreground"
       >
@@ -278,10 +279,10 @@
         <p
           class="text-xs font-semibold tracking-wide text-muted-foreground uppercase"
         >
-          Source
+          {m.watch_filter_source()}
         </p>
         <div class="flex gap-1.5">
-          {#each [{ id: "direct", label: "Direct" }, { id: "p2p", label: "P2P" }] as const as opt (opt.id)}
+          {#each [{ id: "direct", label: m.watch_filter_direct() }, { id: "p2p", label: "P2P" }] as const as opt (opt.id)}
             <button
               type="button"
               disabled={!kindsPresent.has(opt.id) && kinds.size === 0}
@@ -303,8 +304,7 @@
           {/each}
         </div>
         <p class="text-[11px] text-muted-foreground">
-          P2P sources stream over BitTorrent and don't play directly in the
-          browser.
+          {m.watch_filter_p2p_hint()}
         </p>
       </section>
 
@@ -313,7 +313,7 @@
           <p
             class="text-xs font-semibold tracking-wide text-muted-foreground uppercase"
           >
-            Quality
+            {m.watch_filter_quality()}
           </p>
           <div class="flex flex-wrap gap-1.5">
             <button
@@ -326,7 +326,7 @@
                   : "border-border text-muted-foreground hover:text-foreground",
               )}
             >
-              Any
+              {m.watch_filter_any()}
             </button>
             {#each qualities as q (q)}
               <button
@@ -351,7 +351,7 @@
           <p
             class="text-xs font-semibold tracking-wide text-muted-foreground uppercase"
           >
-            Addon
+            {m.watch_filter_addon()}
           </p>
           <div class="flex flex-wrap gap-1.5">
             <button
@@ -364,7 +364,7 @@
                   : "border-border text-muted-foreground hover:text-foreground",
               )}
             >
-              All
+              {m.watch_filter_all()}
             </button>
             {#each addons as addon (addon)}
               <button
@@ -390,7 +390,7 @@
           <p
             class="text-xs font-semibold tracking-wide text-muted-foreground uppercase"
           >
-            Likely-silent
+            {m.watch_filter_likely_silent()}
           </p>
           <button
             type="button"
@@ -414,13 +414,10 @@
             >
               {#if showSilent}<CheckIcon class="size-2.5" />{/if}
             </span>
-            Show {silentCount} likely-silent source{silentCount === 1
-              ? ""
-              : "s"}
+            {m.watch_filter_show_silent({ count: silentCount })}
           </button>
           <p class="text-[11px] text-muted-foreground">
-            Their audio codec (Dolby / DTS / Atmos) can't be decoded by the
-            browser : video plays without sound.
+            {m.watch_filter_silent_hint()}
           </p>
         </section>
       {/if}
@@ -430,7 +427,7 @@
         onclick={resetFilters}
         class="mt-auto rounded-md border border-border py-1.5 text-xs font-medium text-muted-foreground transition hover:text-foreground"
       >
-        Reset filters
+        {m.watch_reset_filters()}
       </button>
     </div>
   </aside>
@@ -440,7 +437,7 @@
   use:modal
   role="dialog"
   aria-modal="true"
-  aria-label="Sources"
+  aria-label={m.common_sources()}
   transition:fly={reduced({ x: 480, duration: 260, easing: cubicOut })}
   class="fixed inset-y-0 right-0 z-50 flex w-full max-w-105 flex-col border-l border-border bg-background/80 shadow-2xl backdrop-blur-xl"
 >
@@ -449,7 +446,7 @@
       <p
         class="text-xs font-semibold tracking-wide text-muted-foreground uppercase"
       >
-        Sources
+        {m.common_sources()}
       </p>
       <p class="truncate text-sm font-semibold">{heading}</p>
       {#if subheading}
@@ -458,7 +455,7 @@
     </div>
     <button
       type="button"
-      aria-label="Close"
+      aria-label={m.common_close()}
       onclick={onClose}
       class="rounded-md p-1.5 text-muted-foreground transition hover:bg-foreground/5 hover:text-foreground"
     >
@@ -470,7 +467,9 @@
     class="flex items-center justify-between gap-3 border-b border-border px-4 py-2.5"
   >
     <span class="text-xs font-medium text-muted-foreground">
-      {result ? `${shown.length} of ${rows.length}` : "Loading…"}
+      {result
+        ? m.watch_sources_count({ shown: shown.length, total: rows.length })
+        : m.common_loading()}
     </span>
     <div class="flex items-center gap-1">
       <button
@@ -485,7 +484,7 @@
         )}
       >
         <SlidersHorizontalIcon class="size-3.5" />
-        Filters
+        {m.watch_filters()}
         {#if activeFilters > 0}
           <span
             class="flex size-4 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground"
@@ -501,7 +500,7 @@
         class="flex items-center gap-1.5 rounded-full px-2 py-1 text-xs font-medium text-muted-foreground transition hover:text-foreground disabled:opacity-50"
       >
         <RefreshCwIcon class={cn("size-3.5", refreshing && "animate-spin")} />
-        Refresh
+        {m.watch_refresh()}
       </button>
     </div>
   </div>
@@ -509,13 +508,13 @@
   <div class="min-h-0 flex-1 overflow-y-auto p-3 scrollbar-thin">
     {#if streamsQuery.error}
       <div class="flex flex-col items-center gap-3 py-12 text-center">
-        <p class="text-sm font-medium">Couldn't reach your addons</p>
+        <p class="text-sm font-medium">{m.watch_addons_unreachable()}</p>
         <button
           type="button"
           onclick={refresh}
           class="rounded-md bg-foreground/5 px-3 py-1.5 text-sm font-medium hover:bg-foreground/10"
         >
-          Try again
+          {m.common_try_again()}
         </button>
       </div>
     {:else if !result}
@@ -527,14 +526,14 @@
     {:else if rows.length === 0}
       <div class="flex flex-col gap-5">
         {#if hasOfficial}
-          <WatchProvidersList {providers} heading="Watch officially" />
+          <WatchProvidersList {providers} heading={m.watch_officially()} />
         {/if}
         <div class="flex flex-col items-center gap-2 py-8 text-center">
-          <p class="text-sm font-medium">No addon streams</p>
+          <p class="text-sm font-medium">{m.watch_no_addon_streams()}</p>
           <p class="max-w-60 text-xs text-muted-foreground">
-            No installed addon returned a playable stream.
+            {m.watch_no_addon_streams_body()}
             {#if result.errors.length > 0}
-              {result.errors.length} addon(s) errored.
+              {m.watch_addons_errored({ count: result.errors.length })}
             {/if}
           </p>
           <button
@@ -542,18 +541,17 @@
             onclick={refresh}
             class="mt-1 rounded-md bg-foreground/5 px-3 py-1.5 text-sm font-medium hover:bg-foreground/10"
           >
-            Check again
+            {m.watch_check_again()}
           </button>
         </div>
       </div>
     {:else if shown.length === 0}
       <div class="flex flex-col items-center gap-2 px-4 py-10 text-center">
         <p class="text-sm font-medium">
-          {rows.length} source{rows.length === 1 ? "" : "s"} hidden
+          {m.watch_sources_hidden({ count: rows.length })}
         </p>
         <p class="max-w-64 text-xs text-muted-foreground">
-          Every source for this title is P2P or likely-silent : the default
-          filters hide those.
+          {m.watch_sources_hidden_body()}
         </p>
         <button
           type="button"
@@ -564,7 +562,7 @@
           }}
           class="mt-1 rounded-md bg-foreground/5 px-3 py-1.5 text-xs font-medium hover:bg-foreground/10"
         >
-          Show all sources
+          {m.watch_show_all_sources()}
         </button>
       </div>
     {:else}
@@ -590,7 +588,9 @@
 
       {#if result.errors.length > 0}
         <p class="mt-3 text-[11px] text-muted-foreground">
-          {result.errors.map((entry) => entry.addonName).join(", ")} didn't respond.
+          {m.watch_addons_no_response({
+            names: result.errors.map((entry) => entry.addonName).join(", "),
+          })}
         </p>
       {/if}
 

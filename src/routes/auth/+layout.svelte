@@ -1,5 +1,6 @@
 <script lang="ts">
 	import AuroraBackground from "#lib/components/layout/aurora-background.svelte";
+	import { m } from "#lib/i18n/index.js";
 	import { forgetLocalData } from "#lib/sync/local-data.js";
 
 	let { children } = $props();
@@ -37,7 +38,7 @@
   <div class="relative flex w-full max-w-sm flex-col gap-6">
     <div class="flex flex-col items-center gap-2 text-center">
       <img src="/logo-text.webp" alt="Nuvio" width={132} class="drop-shadow" />
-      <p class="text-sm text-muted-foreground">Your library, everywhere.</p>
+      <p class="text-sm text-muted-foreground">{m.auth_tagline()}</p>
     </div>
     {@render children()}
   </div>

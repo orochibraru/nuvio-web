@@ -1,10 +1,11 @@
-import type { NuvioClient } from "#lib/nuvio/index.js";
+import { libraryProgressMap } from "#lib/sync/reconcile.js";
 import type { ContentType } from "#lib/sync/types.js";
+import type { ProfileData } from "#lib/userdata/types.js";
 
 /**
- * SSR helpers for the home / library page loads. Every one degrades to an empty
- * result on a slow or failed pull : the local sync store is the real source on
- * those screens and fills in once it's authoritative.
+ * SSR helpers for the home / library page loads, read from this server's own
+ * store. Every one degrades to an empty result : the client sync store fills
+ * in once it's authoritative.
  */
 
 export interface LibraryCard {
@@ -17,43 +18,22 @@ export interface LibraryCard {
 }
 
 export async function pullLibraryItems(
-	nuvio: NuvioClient,
-	profileId: number,
+	data: ProfileData,
 ): Promise<LibraryCard[]> {
-	const items = await nuvio.library
-		.pull({ p_profile_id: profileId, p_limit: 500 })
-		.catch(() => []);
+	const items = await data.library().catch(() => []);
 	return items.map((item) => ({
-		id: item.content_id,
-		type: item.content_type,
+		id: item.contentId,
+		type: item.contentType,
 		name: item.name,
 		poster: item.poster ?? undefined,
-		releaseInfo: item.release_info ?? undefined,
-		imdbRating: item.imdb_rating ?? undefined,
+		releaseInfo: item.releaseInfo ?? undefined,
+		imdbRating: item.imdbRating ?? undefined,
 	}));
 }
 
 /** `content_id` → furthest in-progress fraction (incomplete only). Resume bars. */
 export async function pullLibraryProgress(
-	nuvio: NuvioClient,
-	profileId: number,
+	data: ProfileData,
 ): Promise<Record<string, number>> {
-	const rows = await nuvio.watchProgress
-		.pull({ p_profile_id: profileId, p_limit: 500 })
-		.catch(() => []);
-	const byContent: Record<string, number> = {};
-	for (const row of rows) {
-		if (row.duration <= 0) {
-			continue;
-		}
-		const fraction = row.position / row.duration;
-		if (fraction >= 0.9 || fraction <= 0.02) {
-			continue;
-		}
-		byContent[row.content_id] = Math.max(
-			byContent[row.content_id] ?? 0,
-			Math.min(1, fraction),
-		);
-	}
-	return byContent;
+	return libraryProgressMap(await data.progress().catch(() => []));
 }

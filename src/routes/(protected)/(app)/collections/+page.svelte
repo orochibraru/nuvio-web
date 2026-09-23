@@ -13,11 +13,12 @@
 	import { Input } from "#lib/components/ui/input/index.js";
 	import { streamed } from "#lib/core/stream.svelte.js";
 	import { pageTitle } from "#lib/core/title.svelte.js";
+	import { m } from "#lib/i18n/index.js";
 	import type { Collection } from "#lib/nuvio/index.js";
 	import { cn } from "#lib/utils.js";
 	import { resolve } from "$app/paths";
 
-	pageTitle.set("Collections");
+	pageTitle.set(m.nav_collections());
 
 	let { data } = $props();
 
@@ -39,7 +40,7 @@
 
 	async function persist(next: Collection[]) {
 		if (!(await editor.save(next))) {
-			toast.error("Couldn't save collections.");
+			toast.error(m.collections_save_error());
 		}
 	}
 
@@ -98,13 +99,13 @@
 <div class="flex flex-col gap-6">
 	<div class="flex flex-wrap items-end justify-between gap-3">
 		<div class="flex flex-col gap-1">
-			<h1 class="text-3xl font-bold tracking-tight">Collections</h1>
-			<p class="text-sm text-muted-foreground">Group catalogs into folders for a custom layout.</p>
+			<h1 class="text-3xl font-bold tracking-tight">{m.nav_collections()}</h1>
+			<p class="text-sm text-muted-foreground">{m.collections_subtitle()}</p>
 		</div>
 
 		<Button onclick={() => dialogOpen = true}>
 			<PlusIcon data-icon="inline-start" />
-			New collection
+			{m.collections_new()}
 		</Button>
 	</div>
 
@@ -117,13 +118,13 @@
 	{:else if sorted.length === 0}
 		<EmptyState
 			icon={LayersIcon}
-			title="No collections yet"
-			description="Bundle catalogs from your addons into folders and browse them your way."
+			title={m.collections_empty_title()}
+			description={m.collections_empty_description()}
 		>
 			{#snippet actions()}
 				<Button onclick={() => dialogOpen = true}>
 					<PlusIcon data-icon="inline-start" />
-					New collection
+					{m.collections_new()}
 				</Button>
 			{/snippet}
 		</EmptyState>
@@ -151,19 +152,19 @@
 							<span class="truncate font-semibold">{collection.title}</span>
 						</div>
 						<p class="text-xs text-muted-foreground">
-							{collection.folders.length} folder{collection.folders.length === 1 ? "" : "s"}
+							{m.collections_folder_count({ count: collection.folders.length })}
 						</p>
 					</a>
 					<DropdownMenu.Root>
 						<DropdownMenu.Trigger
-							aria-label="Collection actions"
+							aria-label={m.collections_actions()}
 							class="rounded-md p-1 text-muted-foreground transition hover:bg-foreground/5 hover:text-foreground"
 						>
 							<MoreVerticalIcon class="size-4" />
 						</DropdownMenu.Trigger>
 						<DropdownMenu.Content align="end">
 							<DropdownMenu.Item onclick={() => togglePin(collection)}>
-								{collection.pinToTop ? "Unpin" : "Pin to top"}
+								{collection.pinToTop ? m.collections_unpin() : m.collections_pin()}
 							</DropdownMenu.Item>
 							<DropdownMenu.Item
 								onclick={() => {
@@ -171,14 +172,14 @@
 									renameTitle = collection.title;
 								}}
 							>
-								Rename
+								{m.collections_rename()}
 							</DropdownMenu.Item>
 							<DropdownMenu.Separator />
 							<DropdownMenu.Item
 								variant="destructive"
 								onclick={() => (confirmingDelete = collection)}
 							>
-								Delete
+								{m.common_delete()}
 							</DropdownMenu.Item>
 						</DropdownMenu.Content>
 					</DropdownMenu.Root>
@@ -191,20 +192,20 @@
 <Dialog.Root bind:open={dialogOpen}>
 	<Dialog.Content class="sm:max-w-sm">
 		<Dialog.Header>
-			<Dialog.Title>New collection</Dialog.Title>
+			<Dialog.Title>{m.collections_new()}</Dialog.Title>
 		</Dialog.Header>
 		<Input
 			bind:value={newTitle}
-			placeholder="Collection name"
+			placeholder={m.collections_name_placeholder()}
 			onkeydown={(event) => event.key === "Enter" && create()}
 		/>
 		<Dialog.Footer class="mt-4">
-			<Button variant="ghost" onclick={() => dialogOpen = false}>Cancel</Button>
+			<Button variant="ghost" onclick={() => dialogOpen = false}>{m.common_cancel()}</Button>
 
 			<Button
 				disabled={!newTitle.trim() || saving}
 				onclick={create}
-			>Create</Button>
+			>{m.social_create()}</Button>
 		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>
@@ -212,19 +213,19 @@
 <Dialog.Root open={renaming !== null} onOpenChange={(open) => !open && (renaming = null)}>
 	<Dialog.Content class="sm:max-w-sm">
 		<Dialog.Header>
-			<Dialog.Title>Rename collection</Dialog.Title>
+			<Dialog.Title>{m.collections_rename_title()}</Dialog.Title>
 		</Dialog.Header>
 		<Input
 			bind:value={renameTitle}
 			onkeydown={(event) => event.key === "Enter" && applyRename()}
 		/>
 		<Dialog.Footer class="mt-4">
-			<Button variant="ghost" onclick={() => renaming = null}>Cancel</Button>
+			<Button variant="ghost" onclick={() => renaming = null}>{m.common_cancel()}</Button>
 
 			<Button
 				disabled={!renameTitle.trim() || saving}
 				onclick={applyRename}
-			>Save</Button>
+			>{m.common_save()}</Button>
 		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>
@@ -235,21 +236,23 @@
 >
 	<Dialog.Content class="sm:max-w-sm">
 		<Dialog.Header>
-			<Dialog.Title>Delete "{confirmingDelete?.title}"?</Dialog.Title>
+			<Dialog.Title
+				>{m.collections_delete_title({ title: confirmingDelete?.title ?? "" })}</Dialog.Title
+			>
 			<Dialog.Description>
-				The collection and its folders are removed. Titles in your library stay.
+				{m.collections_delete_description()}
 			</Dialog.Description>
 		</Dialog.Header>
 		<Dialog.Footer class="mt-4">
 			<Button variant="ghost" onclick={() => (confirmingDelete = null)}>
-				Cancel
+				{m.common_cancel()}
 			</Button>
 			<Button
 				variant="destructive"
 				disabled={saving}
 				onclick={() => confirmingDelete && remove(confirmingDelete)}
 			>
-				Delete
+				{m.common_delete()}
 			</Button>
 		</Dialog.Footer>
 	</Dialog.Content>

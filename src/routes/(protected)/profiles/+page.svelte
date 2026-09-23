@@ -12,6 +12,7 @@
 	import { Spinner } from "#lib/components/ui/spinner/index.js";
 	import { Switch } from "#lib/components/ui/switch/index.js";
 	import { pageTitle } from "#lib/core/title.svelte.js";
+	import { m } from "#lib/i18n/index.js";
 	import type { ProfileView } from "#lib/nuvio/profile.js";
 	import { cn } from "#lib/utils.js";
 	import { page } from "$app/state";
@@ -23,7 +24,7 @@
 		updateProfile,
 	} from "../profiles.remote.ts";
 
-	pageTitle.set("Profiles");
+	pageTitle.set(m.profiles_title());
 
 	let { data } = $props();
 
@@ -80,7 +81,7 @@
 	></div>
 
 	<h1 class="text-3xl font-bold tracking-tight sm:text-4xl">
-		{manage ? "Manage profiles" : "Who's watching?"}
+		{manage ? m.profiles_manage() : m.profiles_who()}
 	</h1>
 
 	<div class="flex flex-wrap items-start justify-center gap-6">
@@ -89,7 +90,7 @@
 				<div class="flex w-28 flex-col items-center gap-3">
 					<button
 						type="button"
-						aria-label={`Edit ${profile.name}`}
+						aria-label={m.profiles_edit_named({ name: profile.name })}
 						onclick={() => openEditor(profile)}
 						class="group relative flex flex-col items-center gap-3 rounded-2xl p-2 outline-none focus-visible:ring-2 focus-visible:ring-ring"
 					>
@@ -112,9 +113,7 @@
 				<button
 					type="button"
 					onclick={() =>
-						toast.info(
-							`${profile.name} is PIN-protected. Switch to it in the Nuvio app.`,
-						)}
+						toast.info(m.profiles_pin_locked({ name: profile.name }))}
 					class="group flex w-28 flex-col items-center gap-3 rounded-2xl p-2 outline-none focus-visible:ring-2 focus-visible:ring-ring"
 				>
 					<div
@@ -170,18 +169,18 @@
 				>
 					<PlusIcon class="size-8" />
 				</div>
-				<span class="text-sm font-medium text-muted-foreground transition-colors group-hover:text-foreground">Add profile</span>
+				<span class="text-sm font-medium text-muted-foreground transition-colors group-hover:text-foreground">{m.profiles_add()}</span>
 			</button>
 		{/if}
 	</div>
 
 	<div class="flex items-center gap-2">
 		<Button variant="ghost" onclick={() => (manage = !manage)}>
-			{manage ? "Done" : "Manage profiles"}
+			{manage ? m.common_done() : m.profiles_manage()}
 		</Button>
 		<form {...signOut}>
 			<Button type="submit" variant="ghost" class="text-muted-foreground">
-				Sign out
+				{m.common_sign_out()}
 			</Button>
 		</form>
 	</div>
@@ -190,21 +189,21 @@
 <Dialog.Root bind:open={dialogOpen}>
 	<Dialog.Content class="sm:max-w-md">
 		<Dialog.Header>
-			<Dialog.Title>New profile</Dialog.Title>
-			<Dialog.Description>Up to 6 profiles per account.</Dialog.Description>
+			<Dialog.Title>{m.profiles_new()}</Dialog.Title>
+			<Dialog.Description>{m.profiles_limit()}</Dialog.Description>
 		</Dialog.Header>
 
 		<form {...createProfile}>
 			<input {...createProfile.fields.redirectTo.as("hidden", redirectTo)} />
 			<Field.FieldGroup>
 				<Field.Field data-invalid={nameIssue ? true : undefined}>
-					<Field.FieldLabel for="profile-name">Name</Field.FieldLabel>
-					<Input id="profile-name" {...createProfile.fields.name.as("text")} placeholder="e.g. Living room" />
+					<Field.FieldLabel for="profile-name">{m.social_name()}</Field.FieldLabel>
+					<Input id="profile-name" {...createProfile.fields.name.as("text")} placeholder={m.profiles_name_placeholder()} />
 					{#if nameIssue}<Field.FieldError>{nameIssue}</Field.FieldError>{/if}
 				</Field.Field>
 
 				<Field.Field>
-					<Field.FieldLabel>Avatar</Field.FieldLabel>
+					<Field.FieldLabel>{m.profiles_avatar()}</Field.FieldLabel>
 					<div class="flex flex-wrap gap-2">
 						{#each data.avatarCatalog ?? [] as avatar (avatar.id)}
 							<button
@@ -225,12 +224,12 @@
 				</Field.Field>
 
 				<Field.Field>
-					<Field.FieldLabel>Colour</Field.FieldLabel>
+					<Field.FieldLabel>{m.profiles_colour()}</Field.FieldLabel>
 					<div class="flex flex-wrap gap-2">
 						{#each COLORS as color (color)}
 							<button
 								type="button"
-								aria-label={`Colour ${color}`}
+								aria-label={m.profiles_colour_named({ color })}
 								aria-pressed={selectedColor === color}
 								onclick={() => (selectedColor = color)}
 								class={cn(
@@ -246,10 +245,10 @@
 			</Field.FieldGroup>
 
 			<Dialog.Footer class="mt-6">
-				<Button type="button" variant="ghost" onclick={() => (dialogOpen = false)}>Cancel</Button>
+				<Button type="button" variant="ghost" onclick={() => (dialogOpen = false)}>{m.common_cancel()}</Button>
 				<Button type="submit" disabled={createProfile.pending > 0}>
 					{#if createProfile.pending > 0}<Spinner data-icon="inline-start" />{/if}
-					Create
+					{m.social_create()}
 				</Button>
 			</Dialog.Footer>
 		</form>
@@ -266,8 +265,8 @@
 >
 	<Dialog.Content class="sm:max-w-md">
 		<Dialog.Header>
-			<Dialog.Title>Edit profile</Dialog.Title>
-			<Dialog.Description>Changes apply to this profile only.</Dialog.Description>
+			<Dialog.Title>{m.profiles_edit()}</Dialog.Title>
+			<Dialog.Description>{m.profiles_edit_description()}</Dialog.Description>
 		</Dialog.Header>
 
 		{#if editing}
@@ -280,7 +279,7 @@
 				/>
 				<Field.FieldGroup>
 					<Field.Field data-invalid={editNameIssue ? true : undefined}>
-						<Field.FieldLabel for="edit-name">Name</Field.FieldLabel>
+						<Field.FieldLabel for="edit-name">{m.social_name()}</Field.FieldLabel>
 						<Input
 							id="edit-name"
 							{...updateProfile.fields.name.as("text", editName)}
@@ -291,7 +290,7 @@
 					</Field.Field>
 
 					<Field.Field>
-						<Field.FieldLabel>Avatar</Field.FieldLabel>
+						<Field.FieldLabel>{m.profiles_avatar()}</Field.FieldLabel>
 						<div class="flex flex-wrap gap-2">
 							{#each data.avatarCatalog ?? [] as avatar (avatar.id)}
 								<button
@@ -314,12 +313,12 @@
 					</Field.Field>
 
 					<Field.Field>
-						<Field.FieldLabel>Colour</Field.FieldLabel>
+						<Field.FieldLabel>{m.profiles_colour()}</Field.FieldLabel>
 						<div class="flex flex-wrap gap-2">
 							{#each COLORS as color (color)}
 								<button
 									type="button"
-									aria-label={`Colour ${color}`}
+									aria-label={m.profiles_colour_named({ color })}
 									aria-pressed={editColor === color}
 									onclick={() => (editColor = color)}
 									class={cn(
@@ -339,10 +338,10 @@
 						<Field.Field orientation="horizontal">
 							<Field.FieldContent>
 								<Field.FieldLabel for="edit-primary-addons">
-									Use the primary profile's addons
+									{m.profiles_primary_addons()}
 								</Field.FieldLabel>
 								<Field.FieldDescription>
-									Off means this profile keeps its own addon list.
+									{m.profiles_primary_addons_hint()}
 								</Field.FieldDescription>
 							</Field.FieldContent>
 							<Switch
@@ -362,13 +361,13 @@
 
 				<Dialog.Footer class="mt-6">
 					<Button type="button" variant="ghost" onclick={() => (editing = null)}>
-						Cancel
+						{m.common_cancel()}
 					</Button>
 					<Button type="submit" disabled={updateProfile.pending > 0}>
 						{#if updateProfile.pending > 0}
 							<Spinner data-icon="inline-start" />
 						{/if}
-						Save
+						{m.common_save()}
 					</Button>
 				</Dialog.Footer>
 			</form>
@@ -376,8 +375,8 @@
 			{#if editing.profile_index !== 1 && (data.profiles?.length ?? 0) > 1}
 				<div class="mt-4 flex items-center justify-between gap-3 border-t border-border pt-4">
 					<div class="text-sm text-muted-foreground">
-						<p class="font-medium text-foreground">Delete this profile</p>
-						<p>Its library, history and progress are removed.</p>
+						<p class="font-medium text-foreground">{m.profiles_delete_heading()}</p>
+						<p>{m.profiles_delete_hint()}</p>
 						{#if deleteIssue}
 							<p class="mt-1 text-destructive">{deleteIssue}</p>
 						{/if}
@@ -388,7 +387,7 @@
 						class="shrink-0 text-destructive hover:text-destructive"
 						onclick={() => (deleteConfirmOpen = true)}
 					>
-						<Trash2Icon data-icon="inline-start" /> Delete
+						<Trash2Icon data-icon="inline-start" /> {m.common_delete()}
 					</Button>
 				</div>
 			{/if}
@@ -399,10 +398,11 @@
 <Dialog.Root bind:open={deleteConfirmOpen}>
 	<Dialog.Content class="sm:max-w-md">
 		<Dialog.Header>
-			<Dialog.Title>Delete {editing?.name}?</Dialog.Title>
+			<Dialog.Title
+				>{m.profiles_delete_confirm_title({ name: editing?.name ?? "" })}</Dialog.Title
+			>
 			<Dialog.Description>
-				Its library, history and watch progress are removed for good. This cannot be
-				undone.
+				{m.profiles_delete_confirm_description()}
 			</Dialog.Description>
 		</Dialog.Header>
 		{#if editing}
@@ -417,11 +417,11 @@
 						variant="ghost"
 						onclick={() => (deleteConfirmOpen = false)}
 					>
-						Cancel
+						{m.common_cancel()}
 					</Button>
 					<Button type="submit" variant="destructive" disabled={remove.pending > 0}>
 						{#if remove.pending > 0}<Spinner data-icon="inline-start" />{/if}
-						Delete profile
+						{m.profiles_delete_confirm()}
 					</Button>
 				</Dialog.Footer>
 			</form>

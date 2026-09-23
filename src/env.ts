@@ -10,16 +10,21 @@ const defaults = {
 	adminEmails: "",
 	dataDir: "data",
 	logFormat: "console",
-	logLevel: "info",
+	// Empty, not "info": services/server.ts picks debug in dev, info otherwise.
+	logLevel: "",
+	sessionSecret: "",
 };
+
+const MIN_SESSION_SECRET_LENGTH = 32;
 
 /**
  * Explicitly declared environment variables (`experimental.explicitEnvironmentVariables`
  * in vite.config.ts). Only what is declared here is readable from
  * `$app/env/private`, and each name is its own export from that module.
  *
- * Both are optional with a default, because the admin surface is opt-in: an
- * instance with no `NUVIO_ADMIN_EMAILS` simply has no admin page.
+ * All are optional with a default: the admin surface is opt-in (an instance
+ * with no `NUVIO_ADMIN_EMAILS` simply has no admin page), and the session
+ * secret falls back to a generated file in the data directory.
  */
 export const variables = defineEnvVars({
 	NUVIO_ADMIN_EMAILS: {
@@ -31,6 +36,18 @@ export const variables = defineEnvVars({
 		description:
 			"Directory holding the admin database (sign-in metrics + instance lock).",
 		schema: (value: string | undefined) => value ?? defaults.dataDir,
+	},
+	NUVIO_SESSION_SECRET: {
+		description:
+			"Signs the session-id cookie and encrypts the Nuvio tokens stored in <NUVIO_DATA_DIR> (32+ characters); changing it signs everyone out. Unset means one is generated into <NUVIO_DATA_DIR>/session-secret on first boot.",
+		schema: (value: string | undefined) => {
+			if (value && value.length < MIN_SESSION_SECRET_LENGTH) {
+				throw new Error(
+					`NUVIO_SESSION_SECRET is too short: use at least ${MIN_SESSION_SECRET_LENGTH} characters (openssl rand -hex 32).`,
+				);
+			}
+			return value || defaults.sessionSecret;
+		},
 	},
 	NUVIO_LOG_FORMAT: {
 		description:
