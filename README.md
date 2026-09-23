@@ -107,6 +107,7 @@ The docker image is available
 
 ```bash
 docker run -p 3000:3000 -e ORIGIN=http://localhost:3000 \
+  -v ./data:/app/data \
   orochibraru/nuvio-web:latest
 ```
 
@@ -119,6 +120,9 @@ services:
     restart: unless-stopped
     ports:
       - 3000:3000
+    volumes:
+      # Sessions, and your library / progress / history. Back it up.
+      - ./data:/app/data
     environment:
       # The URL you actually browse to : see Configuration below.
       ORIGIN: http://localhost:3000
@@ -135,10 +139,15 @@ from **Settings → Addons** if your account has none yet.
 
 ### Configuration
 
-There is no database and no volume : every piece of state : account, profiles,
-addons, library, settings : lives on your Nuvio account. The container serves
-the app on port `3000`, and `/app/dist/healthcheck` is a self-contained binary
-suitable for `HEALTHCHECK` and for orchestrator probes.
+Mount a volume on `/app/data`. It holds a small SQLite database: signed-in
+sessions (Nuvio tokens, encrypted) and each profile's library, watch progress
+and history. That database is the source of truth; it syncs both ways with your
+Nuvio account in the background, so the Nuvio apps stay in step (see
+[Sync](docs/sync.md)). Without the volume, a restart signs everyone out and
+drops any change not yet pushed to Nuvio. Run one container per data directory.
+Account, profiles, addons and settings still live on your Nuvio account. The
+container serves the app on port `3000`, and `/app/dist/healthcheck` is a
+self-contained binary suitable for `HEALTHCHECK` and for orchestrator probes.
 
 One environment variable matters: **`ORIGIN`**, the URL you actually browse to.
 

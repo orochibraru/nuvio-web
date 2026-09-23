@@ -13,11 +13,14 @@
 - **`#lib` subpath imports** (SvelteKit 3 dropped the `$lib` alias). Configured
   in `package.json` `imports`. `$app/*` / `$env` → `$app/env` still work as
   before. Extensions are explicit, and which one you write depends on the form:
-  **`#lib/…` always ends `.js`** (`#lib/core/pool.js`, `#lib/foo/index.js`) :
-  the alias isn't rewritten on emit, so a `.ts` there fails `bun run check`; **a
+  **a `#lib/…` TS module ends `.js`** (`#lib/core/pool.js`, `#lib/foo/index.js`)
+  : the alias isn't rewritten on emit, so a `.ts` there fails `bun run check`; a
+  component keeps `.svelte` (`#lib/components/layout/scroll-rail.svelte`). **A
   relative import ends `.ts`** (`./stream-format.ts`), naming the real file.
   Reach for a relative import only inside the same directory : anything crossing
   a directory goes through `#lib/…`, so a future move is one find-and-replace.
+  One exception: a route may import a sibling or parent route's `.remote.ts`
+  relatively (`../auth.remote.ts`) : routes aren't under `#lib`.
 - **Every internal link goes through `resolve` from `$app/paths`.** `href`,
   `goto(...)`, `redirect(...)`, `depends(...)` targets : all of them. SvelteKit
   3 type-checks both forms against the route table, so either fails
@@ -38,8 +41,8 @@
   `#lib/core/stream.svelte.ts` (`.current` / `.ready`). Use
   `locals.nuvio.withFetch(fetch)` (the load's own `fetch`), a plain `*-data.ts`
   helper (never a remote `query`), `.catch()` every pull to an empty/default,
-  and **no `Promise.all`** (use `pooledMap` from `#lib/core/pool.ts` for
-  fan-out).
+  and **no fail-fast `Promise.all` on fallible work** : `.catch` each promise or
+  use `pooledMap` from `#lib/core/pool.ts` for fan-out.
 - **Page data belongs in the load : including addon fan-out.** Anything the page
   needs to render for the current URL (catalog rows, a title's meta, search
   results) is fetched by the load from the route params / query string and
@@ -51,7 +54,7 @@
 - `+layout.server.ts` loads may still `await` : they don't re-run on client
   navigation, `parent()` consumers can't take a streamed promise, and the
   profile gate / theme seed need the resolved value. Keep them bounded
-  (`withFetch`, `.catch`, no `Promise.all`).
+  (`withFetch`, `.catch`, no fail-fast `Promise.all`).
 - Remote functions are for **client-initiated** work only : a button, a
   right-click action, "Load more": `form` / `command` mutations, and `query`
   functions for data a _user gesture_ asks for after the page is up. Never for
@@ -209,3 +212,30 @@ pull). Components read `sync.ready ? sync.X : data.X` and write through `sync.*`
 from pages). Reactive reads must go through the published `$state` arrays
 (`sync.library` etc.), never the private maps. `+page.server.ts` loads stay for
 SSR.
+
+**This server is the source of truth, not Nuvio.** Library / progress / history
+live in the instance's SQLite (`#lib/userdata/`); loads read them through
+`profileData(locals, fetch)`, never `nuvio.watchProgress` / `library` /
+`history` directly. `NuvioSync` mirrors to and from Nuvio in the background (see
+`docs/sync.md`), and `/api/events` streams every change to open tabs. Nuvio
+tokens live server-side in the session store; the cookie is only a signed
+session id. Anything that needs a token outside a request goes through
+`NUVIO_TOKENS`, which owns refreshing: never refresh a Nuvio token anywhere else
+(refresh tokens rotate, and a second refresher signs the user out).
+
+## i18n
+
+Every user-visible string goes through paraglide: `m.some_key()` from
+`#lib/i18n/index.js`, in components, toasts, aria-labels, page titles and server
+messages that reach the UI. Add the key to all four files in `messages/` (en,
+fr, es, de) : `messages.test.ts` fails on a missing or mismatched one. English
+copy is what the e2e suite asserts, so change it deliberately. Dates and numbers
+format with `getLocale()`, never a hardcoded `"en-US"`. Product names, addon
+content and codec labels stay untranslated.
+
+Server code resolves `m.*()` to the visitor's locale only while a request runs
+(`paraglideMiddleware` wraps every handle, remote functions included), so a
+message must be built then: a valibot message is a function
+(`v.nonEmpty(() => m.x())`), never a string evaluated at module load. Data that
+outlives the request (the cached addon registry) or has no request at all (the
+download worker) carries a code, and the component words it.
