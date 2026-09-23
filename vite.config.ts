@@ -34,7 +34,11 @@ export default defineConfig({
 			}),
 			experimental: {
 				remoteFunctions: true,
-				forkPreloads: true,
+				// Off: a hover preload's speculative render can write Svelte's
+				// UNINITIALIZED symbol into the DOM ("Cannot convert a Symbol value
+				// to a string", sveltejs/svelte#18811) and leave later updates
+				// uncommitted. Hover still preloads data. Re-enable once fixed.
+				forkPreloads: false,
 			},
 		}),
 	],
