@@ -1,14 +1,16 @@
 import { redirect } from "@sveltejs/kit";
+import { safeRedirectPath } from "#lib/core/url.js";
 import { resolve } from "$app/paths";
 import type { LayoutServerLoad } from "./$types";
 
 export const load: LayoutServerLoad = ({ locals, url }) => {
 	if (locals.session) {
-		const target = url.searchParams.get("redirectTo");
-		const safe =
-			target?.startsWith("/") && !target.startsWith("//")
-				? target
-				: resolve("/(protected)/(app)");
-		redirect(303, safe);
+		redirect(
+			303,
+			safeRedirectPath(
+				url.searchParams.get("redirectTo"),
+				resolve("/(protected)/(app)"),
+			),
+		);
 	}
 };

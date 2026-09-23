@@ -1,4 +1,6 @@
 import { requireProfile } from "#lib/server/guards.js";
+import { pinnedFetch } from "#lib/server/safe-fetch.js";
+import { LOGGER } from "#lib/services/index.js";
 import { pullHomeLayout } from "#lib/settings/settings-data.js";
 import { getRequestEvent } from "$app/server";
 import * as queries from "./catalog-queries.ts";
@@ -28,6 +30,11 @@ function cacheKey(userId: string, profileId: number): string {
 	return `${userId}:${profileId}`;
 }
 
+// Addon egress never goes through a load's `event.fetch`: that one forwards the
+// request's cookies (the `nuvio_session` tokens) to same-site targets, and an
+// addon URL or redirect hop is attacker-chosen. `pinnedFetch` carries none and
+// pins the connection to the address `safeFetch` validated.
+
 const cache = new Map<
 	string,
 	{ at: number; registry: AddonRegistry; errors: AddonLoadError[] }
@@ -43,7 +50,7 @@ export async function getRegistry(): Promise<{
 	// and means a future refactor can't silently start sharing one cache entry.
 	if (!userId) {
 		const rows = await event.locals.nuvio.addons.list(profileId);
-		return await buildRegistry(rows, event.fetch);
+		return await buildRegistry(rows, pinnedFetch);
 	}
 	const key = cacheKey(userId, profileId);
 	const hit = cache.get(key);
@@ -53,7 +60,7 @@ export async function getRegistry(): Promise<{
 		return { registry: hit.registry, errors: hit.errors };
 	}
 	const rows = await event.locals.nuvio.addons.list(profileId);
-	const built = await buildRegistry(rows, event.fetch);
+	const built = await buildRegistry(rows, pinnedFetch);
 	pruneExpired();
 	cache.set(key, { at: Date.now(), ...built });
 	return built;
@@ -123,7 +130,12 @@ export async function getAddonClient(): Promise<{
 }> {
 	const { registry, errors } = await getRegistry();
 	return {
-		client: new AddonClient(registry, getRequestEvent().fetch),
+		client: new AddonClient(
+			registry,
+			pinnedFetch,
+			undefined,
+			getRequestEvent().locals.services.get(LOGGER),
+		),
 		registry,
 		errors,
 	};

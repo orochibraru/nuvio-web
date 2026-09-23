@@ -1,6 +1,8 @@
 import { error } from "@sveltejs/kit";
 import { httpUrlOrNull } from "#lib/core/url.js";
-import { safeFetch } from "#lib/server/safe-fetch.js";
+import { m } from "#lib/i18n/index.js";
+import { pinnedFetch, safeFetch } from "#lib/server/safe-fetch.js";
+import { LOGGER } from "#lib/services/index.js";
 import type { RequestHandler } from "./$types";
 
 /**
@@ -13,7 +15,9 @@ import type { RequestHandler } from "./$types";
  * - **Signed-in only.** A session is required, so this is not an open proxy;
  *   an instance lock evicts sessions before they reach here.
  * - **SSRF-guarded.** `safeFetch` refuses private, loopback and link-local
- *   addresses and re-checks every redirect hop, exactly as for addon URLs.
+ *   addresses and re-checks every redirect hop, and `pinnedFetch` connects to
+ *   the address it checked (no DNS rebinding) without the request's cookies,
+ *   exactly as for addon URLs. Upstream error details stay in the server log.
  * - **Streams.** The upstream body is piped through, never buffered, and
  *   `Range` goes up so downloads resume and segments can be byte ranges.
  */
@@ -27,13 +31,13 @@ const PASSED_HEADERS = [
 	"etag",
 ];
 
-export const GET: RequestHandler = async ({ url, request, locals, fetch }) => {
+export const GET: RequestHandler = async ({ url, request, locals }) => {
 	if (!locals.session) {
-		error(401, "Sign in to download.");
+		error(401, m.error_download_sign_in());
 	}
 	const target = httpUrlOrNull(url.searchParams.get("url"));
 	if (!target) {
-		error(400, "A download source must be an http(s) URL.");
+		error(400, m.error_download_source_url());
 	}
 
 	const headers: Record<string, string> = {};
@@ -46,17 +50,16 @@ export const GET: RequestHandler = async ({ url, request, locals, fetch }) => {
 	try {
 		upstream = await safeFetch(
 			target,
-			fetch,
+			pinnedFetch,
 			{ headers, signal: request.signal },
 			{ allowHttp: true },
 		);
 	} catch (cause) {
-		error(
-			502,
-			cause instanceof Error
-				? `The source refused: ${cause.message}`
-				: "The source refused.",
-		);
+		locals.services.get(LOGGER).warn("download proxy fetch failed", {
+			origin: new URL(target).origin,
+			error: cause instanceof Error ? cause.message : String(cause),
+		});
+		error(502, "The source refused.");
 	}
 
 	const out = new Headers({ "cache-control": "no-store" });
