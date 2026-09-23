@@ -6,14 +6,15 @@ const state = {
 	getMeta: vi.fn(),
 };
 
-import type { NuvioClient } from "#lib/nuvio/index.js";
+import type { ProfileData } from "#lib/userdata/types.js";
 import { pullWatchStats } from "./stats-data.ts";
 
-function nuvio(): NuvioClient {
+function data(): ProfileData {
 	return {
-		watchProgress: { pull: state.progressPull },
-		watchHistory: { pull: state.historyPull },
-	} as unknown as NuvioClient;
+		library: async () => [],
+		progress: () => state.progressPull(),
+		history: () => state.historyPull(),
+	};
 }
 
 const lookup = () => async (_type: string, id: string) =>
@@ -27,7 +28,7 @@ beforeEach(() => {
 
 describe("pullWatchStats", () => {
 	it("returns a zeroed report with no data", async () => {
-		expect(await pullWatchStats(nuvio(), 1, lookup())).toMatchObject({
+		expect(await pullWatchStats(data(), lookup())).toMatchObject({
 			movieMinutes: 0,
 			seriesMinutes: 0,
 			movieCount: 0,
@@ -40,12 +41,12 @@ describe("pullWatchStats", () => {
 
 	it("sums watch time by format, clamping position to duration", async () => {
 		state.progressPull = vi.fn(async () => [
-			{ content_type: "movie", position: 3_600_000, duration: 3_600_000 },
-			{ content_type: "movie", position: 9_999_999, duration: 600_000 },
-			{ content_type: "series", position: 1_200_000, duration: 1_800_000 },
+			{ contentType: "movie", position: 3_600_000, duration: 3_600_000 },
+			{ contentType: "movie", position: 9_999_999, duration: 600_000 },
+			{ contentType: "series", position: 1_200_000, duration: 1_800_000 },
 		]);
 
-		const out = await pullWatchStats(nuvio(), 1, lookup());
+		const out = await pullWatchStats(data(), lookup());
 		expect(out.movieMinutes).toBe(70); // 60 + 10 (clamped)
 		expect(out.seriesMinutes).toBe(20);
 		expect(out.preferredFormat).toBe("movie");
@@ -53,16 +54,16 @@ describe("pullWatchStats", () => {
 
 	it("counts unique titles + episodes from history and tallies genres", async () => {
 		state.historyPull = vi.fn(async () => [
-			{ content_type: "movie", content_id: "m1" },
-			{ content_type: "movie", content_id: "m1" },
-			{ content_type: "series", content_id: "s1" },
-			{ content_type: "series", content_id: "s1" },
+			{ contentType: "movie", contentId: "m1" },
+			{ contentType: "movie", contentId: "m1" },
+			{ contentType: "series", contentId: "s1" },
+			{ contentType: "series", contentId: "s1" },
 		]);
 		state.getMeta = vi.fn(async (_type: string, id: string) => ({
 			meta: { genres: id === "s1" ? ["Drama", "Crime"] : ["Drama"] },
 		}));
 
-		const out = await pullWatchStats(nuvio(), 1, lookup());
+		const out = await pullWatchStats(data(), lookup());
 		expect(out.movieCount).toBe(1);
 		expect(out.seriesCount).toBe(1);
 		expect(out.episodeCount).toBe(2);
@@ -72,6 +73,18 @@ describe("pullWatchStats", () => {
 		expect(state.getMeta).toHaveBeenCalledTimes(2);
 	});
 
+	it("skips genres for a title whose meta lookup fails", async () => {
+		state.historyPull = vi.fn(async () => [
+			{ contentType: "movie", contentId: "m1" },
+		]);
+		const failing = async () => {
+			throw new Error("addon down");
+		};
+		const out = await pullWatchStats(data(), failing);
+		expect(out.movieCount).toBe(1);
+		expect(out.topGenres).toEqual([]);
+	});
+
 	it("survives both pulls failing", async () => {
 		state.progressPull = vi.fn(async () => {
 			throw new Error("x");
@@ -79,7 +92,7 @@ describe("pullWatchStats", () => {
 		state.historyPull = vi.fn(async () => {
 			throw new Error("y");
 		});
-		expect(await pullWatchStats(nuvio(), 1, lookup())).toMatchObject({
+		expect(await pullWatchStats(data(), lookup())).toMatchObject({
 			movieMinutes: 0,
 		});
 	});

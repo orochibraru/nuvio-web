@@ -1,7 +1,7 @@
 import type { Meta } from "#lib/addons/index.js";
 import { pooledMap } from "#lib/core/pool.js";
-import type { NuvioClient } from "#lib/nuvio/index.js";
 import type { ContentType } from "#lib/sync/types.js";
+import type { ProfileData } from "#lib/userdata/types.js";
 
 export interface HistoryRow {
 	id: string;
@@ -21,22 +21,19 @@ export type MetaLookup = (type: string, id: string) => Promise<Meta | null>;
 // falls back to showing a bare content id.
 const HISTORY_META_CONCURRENCY = 4;
 
-/** Raw history rows : user data only, no addon calls. */
+/** Raw history rows, newest first : user data only, no addon calls. */
 export async function pullWatchHistory(
-	nuvio: NuvioClient,
-	profileId: number,
+	data: ProfileData,
 ): Promise<HistoryRow[]> {
-	const items = await nuvio.watchHistory
-		.pull({ p_profile_id: profileId, p_page: 1, p_page_size: 500 })
-		.catch(() => []);
+	const items = await data.history().catch(() => []);
 	return items.map((item) => ({
 		id: item.id,
-		contentId: item.content_id,
-		type: item.content_type,
-		title: item.title || item.content_id,
+		contentId: item.contentId,
+		type: item.contentType,
+		title: item.title || item.contentId,
 		season: item.season,
 		episode: item.episode,
-		watchedAt: item.watched_at,
+		watchedAt: item.watchedAt,
 	}));
 }
 
@@ -46,11 +43,10 @@ export async function pullWatchHistory(
  * titles are looked up at all. Called from the account load (streamed).
  */
 export async function pullEnrichedHistory(
-	nuvio: NuvioClient,
-	profileId: number,
+	data: ProfileData,
 	lookupMeta: MetaLookup,
 ): Promise<Array<HistoryRow & { poster: string | null }>> {
-	const rows = await pullWatchHistory(nuvio, profileId);
+	const rows = await pullWatchHistory(data);
 	const uniqueRecent = [
 		...new Map(rows.map((row) => [row.contentId, row])).values(),
 	].slice(0, 40);

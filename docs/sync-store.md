@@ -92,7 +92,8 @@ no-op — the app falls back to server-rendered data and still works.
 
 ## What it does not do
 
-Conflict resolution beyond last-write-wins per target, and no cross-profile or
-cross-device merge beyond what the server's own delta endpoint provides.
-`+page.server.ts` loads remain in place for SSR: the store is a mirror, not the
-source of truth.
+Conflict resolution beyond last-write-wins per target. The source of truth is
+this server's own database, which syncs with Nuvio in the background (see
+[Your data and Nuvio](sync)); the store is a mirror of that, and its cursors are
+the server's change sequence, not Nuvio's event ids. `+page.server.ts` loads
+remain in place for SSR.

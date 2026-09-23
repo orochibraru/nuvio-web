@@ -1,104 +1,11 @@
 import type {
-	LibraryDeltaEvent,
-	WatchedItemDeltaEvent,
-	WatchProgressDeltaEvent,
-} from "#lib/nuvio/index.js";
-import type {
 	ContentType,
 	HistoryRecord,
 	LibraryRecord,
 	PendingWrite,
 	ProgressRecord,
 } from "./types.ts";
-import {
-	historyRecordFromDelta,
-	libraryKey,
-	libraryRecordFromDelta,
-	progressRecordFromDelta,
-} from "./types.ts";
-
-interface DeltaLike {
-	event_id: number;
-	operation: "upsert" | "delete";
-}
-
-export interface ReconcileResult<T> {
-	records: Map<string, T>;
-	/** Highest `event_id` seen; the next pull resumes after it. `0` when no events. */
-	cursor: number;
-}
-
-/**
- * Fold an unordered batch of delta events into `current`, in `event_id` order.
- * Later events win (last-write-wins); a `delete` removes the identity.
- */
-export function reconcileDeltas<E extends DeltaLike, T>(
-	current: Map<string, T>,
-	events: E[],
-	fold: {
-		identityOf: (event: E) => string;
-		toRecord: (event: E) => T;
-		baseCursor?: number;
-	},
-): ReconcileResult<T> {
-	const { identityOf, toRecord, baseCursor = 0 } = fold;
-	const records = new Map(current);
-	let cursor = baseCursor;
-	const ordered = [...events].sort((a, b) => a.event_id - b.event_id);
-	for (const event of ordered) {
-		const key = identityOf(event);
-		if (event.operation === "delete") {
-			records.delete(key);
-		} else {
-			records.set(key, toRecord(event));
-		}
-		if (event.event_id > cursor) {
-			cursor = event.event_id;
-		}
-	}
-	return { records, cursor };
-}
-
-export function reconcileLibrary(
-	current: Map<string, LibraryRecord>,
-	events: LibraryDeltaEvent[],
-	baseCursor = 0,
-): ReconcileResult<LibraryRecord> {
-	return reconcileDeltas(current, events, {
-		identityOf: (event) =>
-			libraryKey(normalizeType(event.content_type), event.content_id),
-		toRecord: libraryRecordFromDelta,
-		baseCursor,
-	});
-}
-
-export function reconcileProgress(
-	current: Map<string, ProgressRecord>,
-	events: WatchProgressDeltaEvent[],
-	baseCursor = 0,
-): ReconcileResult<ProgressRecord> {
-	return reconcileDeltas(current, events, {
-		identityOf: (event) => event.progress_key,
-		toRecord: progressRecordFromDelta,
-		baseCursor,
-	});
-}
-
-export function reconcileHistory(
-	current: Map<string, HistoryRecord>,
-	events: WatchedItemDeltaEvent[],
-	baseCursor = 0,
-): ReconcileResult<HistoryRecord> {
-	return reconcileDeltas(current, events, {
-		identityOf: (event) => historyRecordFromDelta(event).id,
-		toRecord: historyRecordFromDelta,
-		baseCursor,
-	});
-}
-
-function normalizeType(value: string): "movie" | "series" {
-	return value === "series" ? "series" : "movie";
-}
+import { libraryKey } from "./types.ts";
 
 export type PendingLibraryWrite =
 	| { kind: "library.upsert"; record: LibraryRecord }
@@ -317,25 +224,6 @@ export function libraryProgressMap(
 			out[row.contentId] ?? 0,
 			Math.min(1, fraction),
 		);
-	}
-	return out;
-}
-
-/** All progress rows for one title, keyed by `video_id`. */
-export function titleProgressMap(
-	progress: readonly ProgressRecord[],
-	contentId: string,
-): Record<string, { fraction: number; completed: boolean }> {
-	const out: Record<string, { fraction: number; completed: boolean }> = {};
-	for (const row of progress) {
-		if (row.contentId !== contentId || row.duration <= 0) {
-			continue;
-		}
-		const fraction = Math.min(1, row.position / row.duration);
-		out[row.videoId] = {
-			fraction,
-			completed: fraction >= 0.9 && row.duration >= 60_000,
-		};
 	}
 	return out;
 }

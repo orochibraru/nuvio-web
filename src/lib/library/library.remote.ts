@@ -1,12 +1,10 @@
 import { requireProfile } from "#lib/server/guards.js";
+import { profileData } from "#lib/userdata/server.js";
 import { query } from "$app/server";
 
-/** `content_id`s currently in this profile's library (first page). Client-side. */
+/** `content_id`s currently in this profile's library. Client-side. */
 export const libraryIds = query(async () => {
-	const { nuvio, profileId } = requireProfile();
-	const items = await nuvio.library.pull({
-		p_profile_id: profileId,
-		p_limit: 500,
-	});
-	return items.map((item) => item.content_id);
+	const { event } = requireProfile();
+	const items = await profileData(event.locals, event.fetch).library();
+	return items.map((item) => item.contentId);
 });

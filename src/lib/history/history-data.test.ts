@@ -1,24 +1,27 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { NuvioClient } from "#lib/nuvio/index.js";
+import type { HistoryRecord } from "#lib/sync/types.js";
+import type { ProfileData } from "#lib/userdata/types.js";
 import { pullEnrichedHistory, pullWatchHistory } from "./history-data.ts";
 
 const state = { historyPull: vi.fn() };
 
-function nuvio(): NuvioClient {
+function nuvio(): ProfileData {
 	return {
-		watchHistory: { pull: state.historyPull },
-	} as unknown as NuvioClient;
+		library: async () => [],
+		progress: async () => [],
+		history: state.historyPull,
+	};
 }
 
-function row(over: Record<string, unknown> = {}) {
+function row(over: Partial<HistoryRecord> = {}): HistoryRecord {
 	return {
 		id: "h1",
-		content_id: "tt1",
-		content_type: "movie",
+		contentId: "tt1",
+		contentType: "movie",
 		title: "",
 		season: null,
 		episode: null,
-		watched_at: 1000,
+		watchedAt: 1000,
 		...over,
 	};
 }
@@ -32,8 +35,8 @@ beforeEach(() => {
 
 describe("pullWatchHistory", () => {
 	it("shapes raw rows and falls back to the content id for a title", async () => {
-		state.historyPull = vi.fn(async () => [row({ content_id: "tt9" })]);
-		const [item] = await pullWatchHistory(nuvio(), 1);
+		state.historyPull = vi.fn(async () => [row({ contentId: "tt9" })]);
+		const [item] = await pullWatchHistory(nuvio());
 		expect(item).toMatchObject({ contentId: "tt9", title: "tt9" });
 	});
 
@@ -41,7 +44,7 @@ describe("pullWatchHistory", () => {
 		state.historyPull = vi.fn(async () => {
 			throw new Error("500");
 		});
-		expect(await pullWatchHistory(nuvio(), 1)).toEqual([]);
+		expect(await pullWatchHistory(nuvio())).toEqual([]);
 	});
 });
 
@@ -50,7 +53,7 @@ describe("pullEnrichedHistory", () => {
 		state.historyPull = vi.fn(async () => [row({ id: "a" }), row({ id: "b" })]);
 		const lookupMeta = lookup({ name: "The Movie", poster: "p.jpg" });
 
-		const out = await pullEnrichedHistory(nuvio(), 1, lookupMeta);
+		const out = await pullEnrichedHistory(nuvio(), lookupMeta);
 		expect(out).toHaveLength(2);
 		expect(out[0]).toMatchObject({
 			id: "a",
@@ -66,15 +69,14 @@ describe("pullEnrichedHistory", () => {
 		state.historyPull = vi.fn(async () => [row({ title: "Stored Title" })]);
 		const [item] = await pullEnrichedHistory(
 			nuvio(),
-			1,
 			lookup({ name: "Meta Name" }),
 		);
 		expect(item.title).toBe("Stored Title");
 	});
 
 	it("falls back to the content id when nothing names the title", async () => {
-		state.historyPull = vi.fn(async () => [row({ content_id: "tt999" })]);
-		const [item] = await pullEnrichedHistory(nuvio(), 1, lookup(null));
+		state.historyPull = vi.fn(async () => [row({ contentId: "tt999" })]);
+		const [item] = await pullEnrichedHistory(nuvio(), lookup(null));
 		expect(item.title).toBe("tt999");
 		expect(item.poster).toBeNull();
 	});
@@ -83,7 +85,6 @@ describe("pullEnrichedHistory", () => {
 		state.historyPull = vi.fn(async () => [row()]);
 		const [item] = await pullEnrichedHistory(
 			nuvio(),
-			1,
 			vi.fn(async () => {
 				throw new Error("addon down");
 			}),
@@ -94,7 +95,7 @@ describe("pullEnrichedHistory", () => {
 	it("never has more than a handful of lookups in flight at once", async () => {
 		state.historyPull = vi.fn(async () =>
 			Array.from({ length: 12 }, (_, i) =>
-				row({ id: `h${i}`, content_id: `tt${i}` }),
+				row({ id: `h${i}`, contentId: `tt${i}` }),
 			),
 		);
 		let active = 0;
@@ -107,7 +108,7 @@ describe("pullEnrichedHistory", () => {
 			return { name: "M" } as never;
 		});
 
-		await pullEnrichedHistory(nuvio(), 1, lookupMeta);
+		await pullEnrichedHistory(nuvio(), lookupMeta);
 		expect(peak).toBeLessThanOrEqual(4);
 	});
 });
