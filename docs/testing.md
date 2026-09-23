@@ -60,6 +60,11 @@ It runs against a **production build on `:3000`**
 made the run flaky. It reuses an existing server on `:3000` and starts one
 otherwise, so a `bun run dev` on `:5173` is untouched either way.
 
+The reuse is blind: a leftover `bun run start` from an older build answers the
+run, and the suite passes against code you no longer have. **Before a
+verification run, stop anything on `:3000` or rebuild it**
+(`lsof -ti :3000 | xargs kill`).
+
 It needs `NUVIO_TEST_EMAIL` and `NUVIO_TEST_PASSWORD` in `.env` — see
 `.env.example`.
 
