@@ -17,6 +17,9 @@ env:
   TZ: Europe/Paris
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   CI: true
+  # No docs=patch: paths-ignore skips docs-only pushes, so a docs release could
+  # never be cut on its own. docs: commits ship with the next code change.
+  RELEASE_RULES: breaking=patch,feat=patch,refactor=patch
 
 permissions:
   contents: read
@@ -132,7 +135,7 @@ jobs:
         uses: orochibraru/releaser@8f478365f81c3cb21134515bb4fbc9abc8eb34d9 # v1.5.0
         with:
           branch: main
-          rules: breaking=patch,feat=patch,docs=patch,refactor=patch
+          rules: ${{ env.RELEASE_RULES }}
           dry-run: "true"
 
       - name: Resolve canary version
@@ -140,8 +143,16 @@ jobs:
         env:
           VERSION: ${{ steps.releaser.outputs.version }}
           RUN: ${{ github.run_number }}
+        # No releasable commit since the last release: package.json holds that
+        # released X.Y.Z, and X.Y.Z-canary.N would semver-sort before it.
         run: |
-          base="${VERSION:-$(jq -r .version package.json)}"
+          set -euo pipefail
+          if [ -n "$VERSION" ]; then
+            base="$VERSION"
+          else
+            IFS=. read -r major minor patch <<< "$(jq -r .version package.json)"
+            base="$major.$minor.$((patch + 1))"
+          fi
           echo "This push publishes canary $base-canary.$RUN."
           echo "version=$base-canary.$RUN" >> "$GITHUB_OUTPUT"
 
@@ -204,6 +215,8 @@ jobs:
 
       - name: Setup bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: package.json
 
       - name: Install dependencies
         run: bun install --frozen-lockfile --ignore-scripts
@@ -225,7 +238,7 @@ jobs:
         uses: orochibraru/releaser@8f478365f81c3cb21134515bb4fbc9abc8eb34d9 # v1.5.0
         with:
           branch: main
-          rules: breaking=patch,feat=patch,docs=patch,refactor=patch
+          rules: ${{ env.RELEASE_RULES }}
           prepare: bunx prettier --write CHANGELOG.md
           release-pr: "true"
 
@@ -265,7 +278,7 @@ jobs:
         uses: orochibraru/releaser@8f478365f81c3cb21134515bb4fbc9abc8eb34d9 # v1.5.0
         with:
           branch: main
-          rules: breaking=patch,feat=patch,docs=patch,refactor=patch
+          rules: ${{ env.RELEASE_RULES }}
           release-pr: "true"
           dry-run: "true"
 
@@ -317,5 +330,5 @@ jobs:
         uses: orochibraru/releaser@8f478365f81c3cb21134515bb4fbc9abc8eb34d9 # v1.5.0
         with:
           branch: main
-          rules: breaking=patch,feat=patch,docs=patch,refactor=patch
+          rules: ${{ env.RELEASE_RULES }}
           release-pr: "true"

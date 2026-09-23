@@ -18,7 +18,6 @@ env:
 
 permissions:
   contents: read
-  packages: write
 
 jobs:
   changes:
@@ -61,9 +60,10 @@ jobs:
     uses: ./.github/workflows/test.yml
     secrets: inherit
 
+  # Not gated on code_quality / tests: CI Gate still fails the PR, and Publish
+  # only promotes a pr-N image whose CI Gate passed.
   build:
     name: Docker Build (App)
-    needs: [code_quality, tests]
     if: github.event_name == 'pull_request'
     uses: ./.github/workflows/docker.yml
     with:
