@@ -70,7 +70,7 @@ not add the braces for you.
 **`#lib` subpath imports.** SvelteKit 3 dropped the `$lib` alias. Which
 extension you write depends on the form:
 
-- A `#lib/…` TS module **ends `.js`** — the alias is not rewritten on emit, so a
+- A `#lib/…` TS module **ends `.js`**: the alias is not rewritten on emit, so a
   `.ts` there fails `bun run check`. A component keeps `.svelte`.
 - A relative import **ends `.ts`**, naming the real file.
 
