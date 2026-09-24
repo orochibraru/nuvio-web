@@ -91,3 +91,78 @@ test("end-of-show panel: minimized player + suggestions + go-back", async ({
 	await page.waitForTimeout(300);
 	expect(errors, "runtime errors").toEqual([]);
 });
+
+// Chapters : read from the file's own container metadata in the browser
+// (Range requests, never through the server), else the intro / credits
+// segments stand in.
+async function hoverScrubAt(
+	page: import("@playwright/test").Page,
+	ratio: number,
+) {
+	const player = page.getByRole("region", { name: "Video player" });
+	await player.hover();
+	const track = player.getByRole("slider", { name: "Seek" });
+	const box = await track.boundingBox();
+	if (!box) {
+		throw new Error("no seek bar");
+	}
+	await page.mouse.move(box.x + box.width * ratio, box.y + box.height / 2);
+}
+
+test("embedded chapters label the scrub bar", async ({ page }) => {
+	const errors = collectRuntimeErrors(page);
+
+	// chapters.webm is sample.webm (~7.8s) with Opening 0s, Middle 3s, Ending 6s.
+	await page.goto("/dev/player?src=/e2e/chapters.webm");
+	await page.waitForLoadState("networkidle");
+	await page.evaluate(() => document.querySelector("video")?.pause());
+
+	await hoverScrubAt(page, 0.55);
+	await expect(page.getByText("Middle", { exact: true })).toBeVisible();
+
+	expect(errors, "runtime errors").toEqual([]);
+});
+
+test("intro / credits segments stand in for a file without chapters", async ({
+	page,
+}) => {
+	const errors = collectRuntimeErrors(page);
+
+	await page.goto(
+		`/dev/player?src=${SAMPLE}&introStart=2&introEnd=5&outroStart=7`,
+	);
+	await page.waitForLoadState("networkidle");
+	await page.evaluate(() => document.querySelector("video")?.pause());
+
+	await hoverScrubAt(page, 0.45);
+	await expect(page.getByText("Intro", { exact: true })).toBeVisible();
+
+	expect(errors, "runtime errors").toEqual([]);
+});
+
+test("volume boost routes through Web Audio and shows its level", async ({
+	page,
+}) => {
+	const errors = collectRuntimeErrors(page);
+
+	await page.goto(`/dev/player?src=${SAMPLE}`);
+	await page.waitForLoadState("networkidle");
+
+	const player = page.getByRole("region", { name: "Video player" });
+	await player.hover();
+	await player.getByRole("button", { name: "Settings" }).click();
+	await page.getByRole("menuitemradio", { name: "200%" }).click();
+
+	await expect(player.getByText("200%", { exact: true })).toBeVisible();
+	// Same-origin file : boosted without a CORS reload, still playing.
+	await expect
+		.poll(() =>
+			page.evaluate(() => {
+				const v = document.querySelector("video");
+				return v ? !v.paused && v.crossOrigin === null : false;
+			}),
+		)
+		.toBe(true);
+
+	expect(errors, "runtime errors").toEqual([]);
+});

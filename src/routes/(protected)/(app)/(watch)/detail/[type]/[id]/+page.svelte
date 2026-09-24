@@ -486,6 +486,7 @@
                     <Button
                         size="lg"
                         variant="outline"
+                        class="glass-button"
                         onclick={() => selectStream(ctaVideoId)}
                     >
                         <ListVideoIcon data-icon="inline-start" />
@@ -496,7 +497,7 @@
                     size="lg"
                     variant="outline"
                     onclick={toggle}
-                    class="group"
+                    class="group glass-button"
                 >
                     {#if inLibrary}
                         <BookmarkIcon
@@ -525,7 +526,7 @@
                     <Button
                         size="lg"
                         variant="outline"
-                        class="group"
+                        class="group glass-button"
                         onclick={() =>
                             toggleWatched(
                                 id,
@@ -560,7 +561,7 @@
                     <Button
                         size="lg"
                         variant="outline"
-                        class="group"
+                        class="group glass-button"
                         onclick={markAllWatched}
                     >
                         <EyeIcon

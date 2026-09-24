@@ -27,3 +27,5 @@ fre = "fre"
 unparseable = "unparseable"
 # French for "Appearance": `e2e/i18n.spec.ts` asserts the French settings nav.
 Apparence = "Apparence"
+# The MP4 track box (ISO BMFF four-character code), in the chapter reader.
+trak = "trak"

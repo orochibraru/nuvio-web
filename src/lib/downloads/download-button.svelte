@@ -79,7 +79,7 @@
 	}
 
 	const base =
-		"flex w-10 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground";
+		"flex w-10 shrink-0 items-center justify-center rounded-xl border border-foreground/10 bg-foreground/5 text-muted-foreground transition-colors hover:border-primary/40 hover:bg-foreground/10 hover:text-foreground";
 </script>
 
 {#if !downloads.supported || !downloads.ready}

@@ -36,7 +36,7 @@
 
 {#if !dismissed && !onPlayer}
   <div
-    class="fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 border-t border-border bg-background/95 px-4 py-3 text-sm shadow-[0_-8px_24px_-12px_rgba(0,0,0,0.4)] backdrop-blur md:hidden"
+    class="glass fixed inset-x-3 bottom-3 z-40 flex items-center gap-3 rounded-2xl px-4 py-3 text-sm md:hidden"
   >
     <SmartphoneIcon class="size-5 shrink-0 text-muted-foreground" />
     <p class="flex-1 text-muted-foreground">

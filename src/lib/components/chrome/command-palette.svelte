@@ -134,7 +134,7 @@
       class="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0"
     />
     <Dialog.Content
-      class="fixed top-[10%] left-1/2 z-50 w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 overflow-hidden rounded-xl bg-popover text-popover-foreground shadow-2xl ring-1 ring-foreground/10 outline-none data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95"
+      class="fixed top-[10%] left-1/2 z-50 w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 overflow-hidden glass rounded-2xl text-popover-foreground outline-none data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95"
     >
       <Dialog.Title class="sr-only">{m.palette_title()}</Dialog.Title>
       <Dialog.Description class="sr-only">
@@ -169,7 +169,7 @@
                   value={dest.label}
                   keywords={dest.keywords}
                   onSelect={() => go(dest.href)}
-                  class="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2 text-sm outline-none data-selected:bg-primary/20 data-selected:text-foreground"
+                  class="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm outline-none data-selected:bg-primary/20 data-selected:text-foreground"
                 >
                   <dest.icon class="size-4 text-muted-foreground" />
                   {dest.label}
@@ -189,7 +189,7 @@
                 value={m.palette_search_all()}
                 keywords={["find", "query"]}
                 onSelect={() => go(resolve("search"))}
-                class="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2 text-sm outline-none data-selected:bg-primary/20 data-selected:text-foreground"
+                class="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm outline-none data-selected:bg-primary/20 data-selected:text-foreground"
               >
                 <SearchIcon class="size-4 text-muted-foreground" />
                 {m.palette_search_all()}
@@ -198,7 +198,7 @@
                 value={m.palette_toggle_theme()}
                 keywords={["theme", "appearance", "mode"]}
                 onSelect={() => runAction(toggleMode)}
-                class="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2 text-sm outline-none data-selected:bg-primary/20 data-selected:text-foreground"
+                class="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm outline-none data-selected:bg-primary/20 data-selected:text-foreground"
               >
                 <SunMoonIcon class="size-4 text-muted-foreground" />
                 {m.palette_toggle_theme()}
@@ -213,7 +213,7 @@
                   value={`search ${trimmed}`}
                   forceMount
                   onSelect={runSearch}
-                  class="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2 text-sm outline-none data-selected:bg-primary/20 data-selected:text-foreground"
+                  class="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm outline-none data-selected:bg-primary/20 data-selected:text-foreground"
                 >
                   <SearchIcon class="size-4 text-muted-foreground" />
                   {m.palette_search_for({ query: trimmed })}

@@ -32,7 +32,7 @@
   type="button"
   {disabled}
   {onclick}
-  class="group/row flex min-w-0 flex-1 items-start gap-3 rounded-lg border border-border bg-card p-2.5 text-left transition-all enabled:hover:border-primary/40 enabled:hover:bg-card disabled:opacity-50"
+  class="group/row flex min-w-0 flex-1 items-start gap-3 rounded-xl border border-foreground/10 bg-foreground/5 p-2.5 text-left transition-all enabled:hover:border-primary/40 enabled:hover:bg-foreground/10 disabled:opacity-50"
 >
   <span
     class="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md bg-foreground/5 text-muted-foreground transition-colors group-enabled/row:group-hover/row:bg-primary group-enabled/row:group-hover/row:text-primary-foreground"

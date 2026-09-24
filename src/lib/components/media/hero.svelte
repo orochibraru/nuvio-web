@@ -99,7 +99,12 @@
     data-amoled={amoled ? "true" : undefined}
     data-accent={accent}
   >
-    <div class="absolute inset-0 -z-10">
+    <!-- On a dark page, fades out at the bottom so the app aurora runs on under
+         it with no seam. Not in light mode : the hero stays dark there, and
+         fading it into white would wash out the text sitting on it. -->
+    <div
+      class={`absolute inset-0 -z-10 ${bleedIntoPage ? "mask-[linear-gradient(to_bottom,black_70%,transparent)]" : ""}`}
+    >
       {#if background}
         {@const bd = backdropSrcset(background)}
         {#if poster && !backdropLoaded}

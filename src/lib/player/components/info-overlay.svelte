@@ -91,7 +91,7 @@
         <!-- Confined between the player's top bar and its bottom control bar;
 				     vertically centred, left-aligned. Scrolls inside its box when too tall. -->
         <div
-          class="absolute inset-x-0 top-16 bottom-20 flex items-center justify-start px-6 pb-6 sm:top-20 sm:bottom-24 sm:px-12"
+          class="absolute inset-x-0 top-16 bottom-32 flex items-center justify-start px-6 pb-6 sm:top-20 sm:bottom-40 sm:px-12"
           transition:fly={reduced({ y: 16, duration: 220 })}
         >
           <div

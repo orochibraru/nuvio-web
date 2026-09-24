@@ -94,7 +94,7 @@
 {#if showSkipIntro}
   <Button
     onclick={onSkipIntro}
-    class="absolute right-4 bottom-20 z-20 shadow-lg sm:right-6 sm:bottom-24"
+    class="absolute right-4 bottom-32 z-20 shadow-lg sm:right-6 sm:bottom-40"
   >
     {m.player_skip_intro()}
   </Button>

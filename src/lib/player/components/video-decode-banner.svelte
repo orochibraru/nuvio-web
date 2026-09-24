@@ -13,7 +13,7 @@
 </script>
 
 <div
-  class="absolute inset-x-4 bottom-24 z-40 mx-auto flex max-w-xl items-center justify-between gap-3 rounded-xl bg-black/80 px-4 py-3 text-sm text-white ring-1 ring-white/15 backdrop-blur-md"
+  class="absolute inset-x-4 bottom-32 z-40 sm:bottom-40 mx-auto flex max-w-xl items-center justify-between gap-3 rounded-xl bg-black/80 px-4 py-3 text-sm text-white ring-1 ring-white/15 backdrop-blur-md"
 >
   <div class="flex items-start gap-2.5">
     <TriangleAlertIcon class="mt-0.5 size-5 shrink-0" />

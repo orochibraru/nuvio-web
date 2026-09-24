@@ -1,5 +1,12 @@
 <script lang="ts">
+	import { toast } from "svelte-sonner";
 	import { m } from "#lib/i18n/index.js";
+	import {
+		type Chapter,
+		rangeReader,
+		readChapters,
+		segmentChapters,
+	} from "#lib/player/chapters.js";
 	import { handlePlayerKey } from "#lib/player/keymap.js";
 	import { createPlayerBroadcastSync } from "#lib/player/state/broadcast.svelte.js";
 	import { createPlayerController } from "#lib/player/state/controller.svelte.js";
@@ -9,6 +16,7 @@
 	import { createPanelToggles } from "#lib/player/state/panel-toggles.svelte.js";
 	import { createRemotePlayback } from "#lib/player/state/remote-playback.svelte.js";
 	import { createSubtitleController } from "#lib/player/state/subtitle-controller.svelte.js";
+	import { createVolumeBoost } from "#lib/player/state/volume-boost.svelte.js";
 	import type { VideoPlayerProps } from "#lib/player/types.js";
 	import { theme } from "#lib/settings/theme.svelte.js";
 	import { subtitleFontSize } from "#lib/settings/ui-settings.js";
@@ -150,6 +158,45 @@
 	// Cast to a TV via whichever API the browser has (Remote Playback /
 	// AirPlay). The button hides itself when there's no device to cast to.
 	const remotePlayback = createRemotePlayback({ video: () => video });
+
+	// Chapter markers : the file's own, read from its container metadata in the
+	// browser (never through the server), else the intro / credits segments.
+	let embeddedChapters = $state<Chapter[]>([]);
+	$effect(() => {
+		const current = src;
+		embeddedChapters = [];
+		if (!current) {
+			return;
+		}
+		const controller = new AbortController();
+		void readChapters(rangeReader(current, controller.signal)).then((found) => {
+			if (!controller.signal.aborted) {
+				embeddedChapters = found;
+			}
+		});
+		return () => controller.abort();
+	});
+	const chapters = $derived(
+		embeddedChapters.length > 0
+			? embeddedChapters
+			: segmentChapters(
+					{ introStart, introEnd, outroStart },
+					{
+						intro: m.player_chapter_intro(),
+						credits: m.player_chapter_credits(),
+					},
+				),
+	);
+
+	// Volume above 100% through Web Audio : see volume-boost.svelte.ts for why a
+	// cross-origin file may need a CORS reload first, or can't be boosted.
+	const boost = createVolumeBoost({ video: () => video, src: () => src });
+	$effect(() => () => boost.dispose());
+	async function selectBoost(level: number) {
+		if (!(await boost.set(level))) {
+			toast.error(m.player_boost_unavailable());
+		}
+	}
 
 	const bufferedEnd = $derived(transport.buffered.at(-1)?.end ?? 0);
 	const progressRatio = $derived(
@@ -305,6 +352,7 @@
     {onSources}
     {bufferedRatio}
     {progressRatio}
+    {chapters}
     {onNext}
     {onEpisodes}
     hasSubtitles={captions.options.length > 0}
@@ -313,6 +361,9 @@
     casting={remotePlayback.connected}
     onCast={remotePlayback.prompt}
     onToggleSubtitles={panels.toggleSubtitles}
+    boost={boost.level}
+    boostPending={boost.pending}
+    onBoostSelect={selectBoost}
     onSettingsOpenChange={panels.setSettingsOpen}
   />
 

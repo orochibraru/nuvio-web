@@ -27,10 +27,6 @@
 >
   <AuroraBackground />
   <div
-    class="pointer-events-none absolute inset-0 opacity-15 mix-blend-overlay"
-    style="background-image: url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E&quot;)"
-  ></div>
-  <div
     class="pointer-events-none absolute inset-0"
     style="background: radial-gradient(38% 34% at 50% 50%, color-mix(in oklch, var(--background) 78%, transparent), transparent 72%)"
   ></div>

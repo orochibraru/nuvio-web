@@ -1,6 +1,7 @@
 <script lang="ts">
 	import * as DropdownMenu from "#lib/components/ui/dropdown-menu/index.js";
 	import { m } from "#lib/i18n/index.js";
+	import { BOOST_LEVELS } from "#lib/player/boost.js";
 
 	const rates = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
@@ -8,14 +9,20 @@
 		rate,
 		audioTracks,
 		activeAudioTrack,
+		boost,
+		boostPending,
 		onRateSelect,
 		onAudioTrackSelect,
+		onBoostSelect,
 	}: {
 		rate: number;
 		audioTracks: Array<{ id: number; label: string }>;
 		activeAudioTrack: number;
+		boost: number;
+		boostPending: boolean;
 		onRateSelect: (rate: number) => void;
 		onAudioTrackSelect: (id: number) => void;
+		onBoostSelect: (level: number) => void;
 	} = $props();
 </script>
 
@@ -35,6 +42,23 @@
 			{#each rates as option (option)}
 				<DropdownMenu.RadioItem value={String(option)}>
 					{option === 1 ? m.player_speed_normal() : `${option}×`}
+				</DropdownMenu.RadioItem>
+			{/each}
+		</DropdownMenu.RadioGroup>
+	</DropdownMenu.Group>
+
+	<DropdownMenu.Separator />
+	<DropdownMenu.Group>
+		<DropdownMenu.GroupHeading class="text-xs font-medium text-muted-foreground">
+			{m.player_volume_boost()}
+		</DropdownMenu.GroupHeading>
+		<DropdownMenu.RadioGroup
+			value={String(boost)}
+			onValueChange={(value) => onBoostSelect(Number(value))}
+		>
+			{#each BOOST_LEVELS as option (option)}
+				<DropdownMenu.RadioItem value={String(option)} disabled={boostPending}>
+					{option === 1 ? m.player_boost_off() : `${option * 100}%`}
 				</DropdownMenu.RadioItem>
 			{/each}
 		</DropdownMenu.RadioGroup>

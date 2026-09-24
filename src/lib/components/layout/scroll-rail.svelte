@@ -193,7 +193,7 @@
       disabled={atStart}
       onclick={() => nudge(-1)}
       class={cn(
-        "absolute left-1 hidden size-9 -translate-y-1/2 items-center justify-center rounded-full bg-background/80 text-foreground opacity-0 ring-1 ring-border backdrop-blur-md transition-opacity duration-200 group-hover/row:opacity-100 hover:bg-background focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none disabled:opacity-0! sm:flex",
+        "absolute left-1 hidden size-9 -translate-y-1/2 items-center justify-center rounded-full glass text-foreground opacity-0 transition-opacity duration-200 group-hover/row:opacity-100 hover:bg-background focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none disabled:opacity-0! sm:flex",
         arrowTop,
       )}
     >
@@ -205,7 +205,7 @@
       disabled={atEnd}
       onclick={() => nudge(1)}
       class={cn(
-        "absolute right-1 hidden size-9 -translate-y-1/2 items-center justify-center rounded-full bg-background/80 text-foreground opacity-0 ring-1 ring-border backdrop-blur-md transition-opacity duration-200 group-hover/row:opacity-100 hover:bg-background focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none disabled:opacity-0! sm:flex",
+        "absolute right-1 hidden size-9 -translate-y-1/2 items-center justify-center rounded-full glass text-foreground opacity-0 transition-opacity duration-200 group-hover/row:opacity-100 hover:bg-background focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none disabled:opacity-0! sm:flex",
         arrowTop,
       )}
     >

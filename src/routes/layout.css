@@ -9,9 +9,13 @@
 	--radius: 0.625rem;
 	--background: oklch(1 0 0);
 	--foreground: oklch(0.145 0 0);
-	--card: oklch(1 0 0);
+	/* Glass : cards and popovers are translucent, and the `data-slot` rule in
+	   the base layer below blurs what's behind them. */
+	--card: oklch(1 0 0 / 62%);
 	--card-foreground: oklch(0.145 0 0);
-	--popover: oklch(1 0 0);
+	--popover: oklch(1 0 0 / 78%);
+	/* The lit top edge of a glass surface. */
+	--glass-edge: oklch(1 0 0 / 70%);
 	--popover-foreground: oklch(0.145 0 0);
 	--primary: oklch(0.205 0 0);
 	--primary-foreground: oklch(0.985 0 0);
@@ -50,9 +54,10 @@
 .dark {
 	--background: oklch(0.145 0 0);
 	--foreground: oklch(0.985 0 0);
-	--card: oklch(0.205 0 0);
+	--card: oklch(0.205 0 0 / 55%);
 	--card-foreground: oklch(0.985 0 0);
-	--popover: oklch(0.269 0 0);
+	--popover: oklch(0.24 0 0 / 72%);
+	--glass-edge: oklch(1 0 0 / 9%);
 	--popover-foreground: oklch(0.985 0 0);
 	--primary: oklch(0.922 0 0);
 	--primary-foreground: oklch(0.205 0 0);
@@ -128,7 +133,9 @@
 	--sidebar-ring: oklch(0.62 0.12 210);
 }
 
-/* AMOLED : pure-black surfaces, only meaningful under .dark */
+/* AMOLED : pure-black surfaces, only meaningful under .dark. Opaque on
+   purpose : a translucent near-black over black is the same black, minus the
+   point of the mode. */
 .dark[data-amoled="true"],
 .dark [data-amoled="true"] {
 	--background: oklch(0 0 0);
@@ -180,6 +187,24 @@
 	--color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
 	--color-sidebar-border: var(--sidebar-border);
 	--color-sidebar-ring: var(--sidebar-ring);
+}
+
+/* A frosted surface for hand-written chrome (header, drawers, palette). The
+   shadcn primitives get the same treatment from the `data-slot` rule in the
+   base layer, so their own classes stay untouched. */
+@utility glass {
+	background-color: color-mix(in oklch, var(--background) 72%, transparent);
+	backdrop-filter: blur(24px) saturate(1.5);
+	box-shadow:
+		inset 0 1px 0 var(--glass-edge),
+		0 0 0 1px color-mix(in oklch, var(--foreground) 9%, transparent),
+		0 24px 60px -24px rgb(0 0 0 / 0.45);
+}
+
+/* Frosts a translucent button sitting over imagery (hero / detail actions). */
+@utility glass-button {
+	backdrop-filter: blur(12px) saturate(1.5);
+	--tw-inset-shadow: inset 0 1px 0 var(--glass-edge);
 }
 
 @utility scrollbar-thin {
@@ -363,5 +388,22 @@
 	button,
 	input {
 		@apply cursor-pointer;
+	}
+
+	/* Glass for the shadcn primitives, from their `data-slot` hooks rather than
+	   an edit to the CLI-managed components. The translucent --card / --popover
+	   tokens do the tint; this adds the blur and the lit top edge, which
+	   composes with whatever ring / shadow utility the component already has.
+	   In the base layer, so an instance's own classes still win. */
+	[data-slot="card"],
+	[data-slot="dialog-content"],
+	[data-slot="dropdown-menu-content"],
+	[data-slot="dropdown-menu-sub-content"],
+	[data-slot="context-menu-content"],
+	[data-slot="context-menu-sub-content"],
+	[data-slot="select-content"],
+	[data-sonner-toast] {
+		backdrop-filter: blur(24px) saturate(1.5);
+		--tw-inset-shadow: inset 0 1px 0 var(--glass-edge);
 	}
 }

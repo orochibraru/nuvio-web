@@ -20,6 +20,7 @@
 	import FirstRunNotice from "#lib/components/chrome/first-run-notice.svelte";
 	import HealthBanner from "#lib/components/chrome/health-banner.svelte";
 	import ProfileAvatar from "#lib/components/chrome/profile-avatar.svelte";
+	import AuroraBackground from "#lib/components/layout/aurora-background.svelte";
 	import * as DropdownMenu from "#lib/components/ui/dropdown-menu/index.js";
 	import { Separator } from "#lib/components/ui/separator/index.js";
 	import { reduced } from "#lib/core/motion.js";
@@ -188,14 +189,11 @@
     data-accent={accent}
     data-amoled={amoled}
 >
-    <div
-        class="pointer-events-none fixed inset-x-0 top-0 -z-10 h-[70vh] opacity-60 dark:opacity-100"
-        style="background: radial-gradient(65% 50% at 50% 0%, color-mix(in oklch, var(--primary) 14%, transparent), transparent 70%)"
-    ></div>
-    <div
-        class="pointer-events-none fixed -top-40 -right-40 -z-10 hidden size-140 rounded-full opacity-20 blur-3xl dark:block"
-        style="background: radial-gradient(circle, color-mix(in oklch, var(--primary) 40%, transparent), transparent 70%)"
-    ></div>
+    <!-- The app-wide aurora : what the glass surfaces blur. Off behind the
+         player, where nothing shows through and it would only burn GPU. -->
+    {#if !immersive}
+        <AuroraBackground fixed class="-z-10 opacity-25 dark:opacity-50" />
+    {/if}
 
     <!-- `data-accent` / `data-amoled` repeat the root's: `.dark` redeclares
          `--primary`, which would otherwise shadow the chosen accent here. -->
@@ -203,15 +201,23 @@
         data-accent={headerDark ? accent : undefined}
         data-amoled={headerDark ? amoled : undefined}
         class={cn(
-            "fixed inset-x-0 top-0 z-50 text-foreground transition-colors duration-300",
+            "fixed z-50 text-foreground transition-[top,left,right,border-radius,background-color,box-shadow] duration-300",
             headerDark && "dark",
             immersive && "hidden",
+            // Scrolled, it lifts into a floating glass bar (the player's
+            // treatment); the inner padding shrinks by the same inset so the
+            // logo and nav don't move.
             scrolled
-                ? "border-b border-border bg-background/80 backdrop-blur-xl"
-                : "border-b border-transparent bg-transparent",
+                ? "glass inset-x-2 top-2 rounded-2xl sm:inset-x-4"
+                : "inset-x-0 top-0 bg-transparent",
         )}
     >
-        <div class="flex h-14 items-center gap-6 px-6">
+        <div
+            class={cn(
+                "flex h-14 items-center gap-6 transition-[padding] duration-300",
+                scrolled ? "px-4 sm:px-2" : "px-6",
+            )}
+        >
             <button
                 type="button"
                 aria-label={m.shell_menu()}
@@ -332,7 +338,7 @@
                         }
                     }}
                     class={cn(
-                        "flex items-center gap-2 rounded-full border border-border bg-background/40 px-3 py-1.5 text-sm transition-colors",
+                        "flex items-center gap-2 rounded-full border border-foreground/10 bg-foreground/5 px-3 py-1.5 text-sm shadow-[inset_0_1px_0_var(--glass-edge)] backdrop-blur-md transition-colors hover:bg-foreground/10",
                         isActive("/search")
                             ? "text-foreground"
                             : "text-muted-foreground hover:text-foreground",
@@ -440,7 +446,7 @@
                 {#snippet child({ props })}
                     <div
                         {...props}
-                        class="fixed inset-0 z-100 bg-black/50 backdrop-blur-[2px] md:hidden"
+                        class="fixed inset-0 z-100 bg-black/40 backdrop-blur-sm md:hidden"
                         transition:fade={reduced({ duration: 150 })}
                     ></div>
                 {/snippet}
@@ -450,11 +456,11 @@
                     <div
                         {...props}
                         aria-label={m.shell_menu()}
-                        class="fixed inset-y-0 left-0 z-100 flex w-72 max-w-[85vw] flex-col border-r border-border bg-background outline-none md:hidden"
+                        class="glass fixed inset-y-3 left-3 z-100 flex w-72 max-w-[calc(100vw-1.5rem)] flex-col overflow-hidden rounded-3xl outline-none md:hidden"
                         transition:fly={reduced({ x: -24, duration: 220 })}
                     >
                         <div
-                            class="flex h-14 shrink-0 items-center justify-between border-b border-border px-4"
+                            class="flex h-14 shrink-0 items-center justify-between border-b border-foreground/10 px-4"
                         >
                             <span class="text-sm font-semibold">{m.shell_menu()}</span>
                             <button

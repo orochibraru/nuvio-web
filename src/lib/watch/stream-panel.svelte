@@ -249,17 +249,17 @@
   aria-label={m.watch_close_sources()}
   onclick={onClose}
   transition:fade={reduced({ duration: 150 })}
-  class="fixed inset-0 z-40 bg-black/50 backdrop-blur-[2px]"
+  class="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
 ></button>
 
 {#if filtersOpen}
   <aside
     aria-label={m.watch_stream_filters()}
     transition:fly={reduced({ x: 24, duration: 150 })}
-    class="fixed inset-y-0 right-0 z-50 flex w-72 flex-col border-l border-border bg-background/80 shadow-2xl backdrop-blur-xl md:right-105 md:border-r md:border-l-0"
+    class="fixed inset-y-3 right-3 z-50 flex w-[calc(100%-1.5rem)] max-w-72 flex-col overflow-hidden rounded-3xl bg-linear-to-b from-background/65 to-background/85 shadow-[inset_0_1px_0_rgb(255_255_255/0.12),0_24px_60px_-12px_rgb(0_0_0/0.6)] ring-1 ring-foreground/10 backdrop-blur-2xl backdrop-saturate-150 md:right-111"
   >
     <header
-      class="flex items-center justify-between border-b border-border p-4"
+      class="flex items-center justify-between border-b border-foreground/10 p-4"
     >
       <p class="text-sm font-semibold">{m.watch_filters()}</p>
       <button
@@ -439,9 +439,9 @@
   aria-modal="true"
   aria-label={m.common_sources()}
   transition:fly={reduced({ x: 480, duration: 260, easing: cubicOut })}
-  class="fixed inset-y-0 right-0 z-50 flex w-full max-w-105 flex-col border-l border-border bg-background/80 shadow-2xl backdrop-blur-xl"
+  class="fixed inset-y-3 right-3 z-50 flex w-[calc(100%-1.5rem)] max-w-105 flex-col overflow-hidden rounded-3xl bg-linear-to-b from-background/65 to-background/85 shadow-[inset_0_1px_0_rgb(255_255_255/0.12),0_24px_60px_-12px_rgb(0_0_0/0.6)] ring-1 ring-foreground/10 backdrop-blur-2xl backdrop-saturate-150"
 >
-  <header class="flex items-start gap-3 border-b border-border p-4">
+  <header class="flex items-start gap-3 border-b border-foreground/10 p-4">
     <div class="min-w-0 flex-1">
       <p
         class="text-xs font-semibold tracking-wide text-muted-foreground uppercase"
@@ -464,7 +464,7 @@
   </header>
 
   <div
-    class="flex items-center justify-between gap-3 border-b border-border px-4 py-2.5"
+    class="flex items-center justify-between gap-3 border-b border-foreground/10 px-4 py-2.5"
   >
     <span class="text-xs font-medium text-muted-foreground">
       {result

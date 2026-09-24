@@ -18,7 +18,6 @@
 	import { Button } from "#lib/components/ui/button/index.js";
 	import * as DropdownMenu from "#lib/components/ui/dropdown-menu/index.js";
 	import { m } from "#lib/i18n/index.js";
-	import { formatTime } from "#lib/player/format.js";
 	import type { createPlayerTransportActions } from "#lib/player/state/transport-actions.svelte.js";
 	import type { PlayerTransportState } from "#lib/player/state/transport-state.svelte.js";
 	import { cn } from "#lib/utils.js";
@@ -39,6 +38,9 @@
 		onToggleSubtitles,
 		settingsOpen,
 		onSettingsOpenChange,
+		boost,
+		boostPending,
+		onBoostSelect,
 	}: {
 		transport: PlayerTransportState;
 		player: Pick<
@@ -62,6 +64,9 @@
 		onToggleSubtitles: () => void;
 		settingsOpen: boolean;
 		onSettingsOpenChange: (open: boolean) => void;
+		boost: number;
+		boostPending: boolean;
+		onBoostSelect: (level: number) => void;
 	} = $props();
 </script>
 
@@ -80,7 +85,7 @@
         ? m.player_play_hint()
         : m.player_pause_hint()}
     onclick={player.togglePlay}
-    class="rounded-full [&_svg]:size-5"
+    class="size-10 rounded-full bg-white text-black shadow-[0_0_20px_rgb(255_255_255/0.25)] transition-transform hover:scale-105 hover:bg-white/85 hover:text-black dark:hover:bg-white/85 [&_svg]:size-5"
   >
     {#if transport.ended}
       <RotateCwIcon />
@@ -98,7 +103,7 @@
       aria-label={transport.muted ? m.player_unmute() : m.player_mute()}
       title={transport.muted ? m.player_unmute_hint() : m.player_mute_hint()}
       onclick={() => (transport.muted = !transport.muted)}
-      class="rounded-full [&_svg]:size-5"
+      class="rounded-full hover:bg-white/15 hover:text-white dark:hover:bg-white/15 [&_svg]:size-5"
     >
       {#if transport.muted || transport.volume === 0}
         <VolumeXIcon />
@@ -116,18 +121,20 @@
       bind:value={transport.volume}
       aria-label={m.player_volume()}
       title={m.player_volume_hint()}
-      class="hidden h-1 w-16 cursor-pointer appearance-none rounded-full bg-white/30 sm:block [&::-webkit-slider-thumb]:size-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white"
+      class="hidden h-1 w-20 cursor-pointer appearance-none rounded-full bg-white/20 accent-white sm:block [&::-webkit-slider-thumb]:size-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white"
     />
+    {#if boost > 1}
+      <span
+        class="rounded-full bg-primary/25 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-white ring-1 ring-primary/50"
+        >{boost * 100}%</span
+      >
+    {/if}
   </div>
 
-  <span
-    class="ml-1 shrink-0 text-xs whitespace-nowrap tabular-nums text-white/70"
-  >
-    {formatTime(transport.currentTime)}
-    <span class="text-white/45">/ {formatTime(transport.duration)}</span>
-  </span>
 
-  <div class="ml-auto flex items-center gap-1 sm:gap-2">
+  <div
+    class="ml-auto flex items-center gap-0.5 rounded-full bg-white/5 p-1 ring-1 ring-white/10 sm:gap-1"
+  >
     {#if onNext}
       <Button
         variant="ghost"
@@ -135,7 +142,7 @@
         aria-label={m.player_next_episode()}
         title={m.player_next_episode_hint()}
         onclick={onNext}
-        class="rounded-full [&_svg]:size-5"
+        class="rounded-full hover:bg-white/15 hover:text-white dark:hover:bg-white/15 [&_svg]:size-5"
       >
         <SkipForwardIcon />
       </Button>
@@ -147,7 +154,7 @@
         aria-label={m.common_episodes()}
         title={m.player_episodes_hint()}
         onclick={onEpisodes}
-        class="rounded-full [&_svg]:size-5"
+        class="rounded-full hover:bg-white/15 hover:text-white dark:hover:bg-white/15 [&_svg]:size-5"
       >
         <ListVideoIcon />
       </Button>
@@ -163,7 +170,7 @@
         aria-pressed={subtitlesOpen}
         onclick={onToggleSubtitles}
         class={cn(
-          "rounded-full [&_svg]:size-5",
+          "rounded-full hover:bg-white/15 hover:text-white dark:hover:bg-white/15 [&_svg]:size-5",
           activeCaption && "text-primary",
         )}
       >
@@ -183,7 +190,7 @@
             size="icon"
             aria-label={m.nav_settings()}
             title={m.player_settings_hint()}
-            class="rounded-full [&_svg]:size-5"
+            class="rounded-full hover:bg-white/15 hover:text-white dark:hover:bg-white/15 [&_svg]:size-5"
             {...props}
           >
             <GaugeIcon />
@@ -196,6 +203,9 @@
         activeAudioTrack={media.activeAudioTrack}
         onRateSelect={(value) => (transport.rate = value)}
         onAudioTrackSelect={(id) => media.selectAudioTrack(id)}
+        {boost}
+        {boostPending}
+        {onBoostSelect}
       />
     </DropdownMenu.Root>
 
@@ -207,7 +217,7 @@
         title={casting ? m.player_stop_casting() : m.player_cast_hint()}
         aria-pressed={casting}
         onclick={onCast}
-        class={cn("rounded-full [&_svg]:size-5", casting && "text-primary")}
+        class={cn("rounded-full hover:bg-white/15 hover:text-white dark:hover:bg-white/15 [&_svg]:size-5", casting && "text-primary")}
       >
         {#if casting}
           <TvMinimalPlayIcon />
@@ -224,7 +234,7 @@
         aria-label={m.player_pip()}
         title={m.player_pip()}
         onclick={player.togglePip}
-        class="rounded-full [&_svg]:size-5"
+        class="rounded-full hover:bg-white/15 hover:text-white dark:hover:bg-white/15 [&_svg]:size-5"
       >
         <PictureInPictureIcon />
       </Button>
@@ -240,7 +250,7 @@
         ? m.player_exit_fullscreen_hint()
         : m.player_fullscreen_hint()}
       onclick={player.toggleFullscreen}
-      class="rounded-full [&_svg]:size-5"
+      class="rounded-full hover:bg-white/15 hover:text-white dark:hover:bg-white/15 [&_svg]:size-5"
     >
       {#if transport.fullscreen}<MinimizeIcon />{:else}<MaximizeIcon />{/if}
     </Button>

@@ -26,7 +26,7 @@
     aria-label={m.player_back_10()}
     title={m.player_back_10_hint()}
     onclick={() => onSeek(-10)}
-    class="pointer-events-auto size-14 rounded-full [&_svg]:size-10"
+    class="pointer-events-auto size-14 rounded-full bg-black/25 ring-1 ring-white/10 backdrop-blur-md transition hover:scale-105 hover:bg-black/45 dark:hover:bg-black/45 [&_svg]:size-7"
   >
     <RotateCcwIcon />
   </Button>
@@ -58,7 +58,7 @@
     aria-label={m.player_forward_10()}
     title={m.player_forward_10_hint()}
     onclick={() => onSeek(10)}
-    class="pointer-events-auto size-14 rounded-full [&_svg]:size-10"
+    class="pointer-events-auto size-14 rounded-full bg-black/25 ring-1 ring-white/10 backdrop-blur-md transition hover:scale-105 hover:bg-black/45 dark:hover:bg-black/45 [&_svg]:size-7"
   >
     <RotateCwIcon />
   </Button>

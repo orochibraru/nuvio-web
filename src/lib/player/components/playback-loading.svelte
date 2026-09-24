@@ -59,7 +59,9 @@
 		     screen on its own when there isn't. -->
     <LoadingMark />
     {#if label}
-      <p class="flex items-center gap-1.5 text-xs text-white/50">
+      <p
+        class="flex items-center gap-2 rounded-full bg-white/10 px-3.5 py-1.5 text-xs font-medium text-white/80 shadow-[inset_0_1px_0_rgb(255_255_255/0.15)] ring-1 ring-white/15 backdrop-blur-xl backdrop-saturate-150"
+      >
         <Spinner class="size-3" />
         {label}
       </p>

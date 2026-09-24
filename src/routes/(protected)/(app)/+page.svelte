@@ -14,7 +14,6 @@
 	import { toast } from "svelte-sonner";
 	import type { MetaPreview } from "#lib/addons/index.js";
 	import QueryError from "#lib/components/feedback/query-error.svelte";
-	import AuroraBackground from "#lib/components/layout/aurora-background.svelte";
 	import ContinueWatchingCard from "#lib/components/media/continue-watching-card.svelte";
 	import MediaHero from "#lib/components/media/hero.svelte";
 	import MediaRow from "#lib/components/media/row.svelte";
@@ -395,7 +394,7 @@
               </Button>
               <Button
                 size="lg"
-                class="group"
+                class="group glass-button"
                 variant="outline"
                 onclick={toggleSpotlightLibrary}
               >
@@ -421,7 +420,7 @@
                   {m.library_add()}
                 {/if}
               </Button>
-              <Button size="lg" variant="outline" href={spotlightHref}>
+              <Button size="lg" variant="outline" class="glass-button" href={spotlightHref}>
                 <InfoIcon data-icon="inline-start" />
                 {m.home_more_info()}
               </Button>
@@ -451,7 +450,7 @@
                       type="button"
                       aria-label={m.home_previous_featured()}
                       onclick={() => stepHero(-1)}
-                      class="flex size-8 items-center justify-center rounded-full bg-background/60 ring-1 ring-border backdrop-blur-md transition hover:bg-background"
+                      class="flex size-8 items-center justify-center rounded-full glass transition hover:bg-background"
                     >
                       <ChevronLeftIcon class="size-4" />
                     </button>
@@ -459,7 +458,7 @@
                       type="button"
                       aria-label={m.home_next_featured()}
                       onclick={() => stepHero(1)}
-                      class="flex size-8 items-center justify-center rounded-full bg-background/60 ring-1 ring-border backdrop-blur-md transition hover:bg-background"
+                      class="flex size-8 items-center justify-center rounded-full glass transition hover:bg-background"
                     >
                       <ChevronRightIcon class="size-4" />
                     </button>
@@ -505,14 +504,7 @@
     </h2>
   {/if}
 
-  <!-- Anchored to normal document flow (not `fixed`) so it starts exactly
-	     where the hero's own box ends, at any hero height or viewport size —
-	     no viewport-unit guessing. Its own top fade keeps the glow from
-	     switching on abruptly right at that seam. -->
   <div class="relative flex flex-col gap-12">
-    <AuroraBackground
-      class="-z-10 opacity-45 mask-[linear-gradient(to_bottom,transparent,black_220px)]"
-    />
 
     {#if resume.length > 0}
       <section class="flex flex-col gap-3">

@@ -100,7 +100,7 @@
 							<ProfileAvatar {profile} />
 						</div>
 						<span
-							class="absolute top-1/2 left-1/2 flex size-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-background/80 text-foreground opacity-0 ring-1 ring-border backdrop-blur transition-opacity group-hover:opacity-100"
+							class="absolute top-1/2 left-1/2 flex size-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full glass text-foreground opacity-0 transition-opacity group-hover:opacity-100"
 						>
 							<PencilIcon class="size-4" />
 						</span>
