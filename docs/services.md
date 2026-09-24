@@ -1,8 +1,9 @@
 # Services and the container
 
 `src/lib/services/` holds the things that own state, dependencies, or a
-lifecycle: the database handle, the logger, the session cookies, the admin
-allowlist, the request budget, the people lookup, the query cache.
+lifecycle: the database handle, the logger, the session cookie and the
+server-side session store behind it, the admin allowlist, the request budget,
+the people lookup.
 
 Each is a class taking its collaborators as constructor arguments, registered
 against a token and resolved from a `Container`.
@@ -10,10 +11,11 @@ against a token and resolved from a `Container`.
 ## Two composition roots, and they must not meet
 
 - **`services/server.ts`** reads `$app/env/private` and is server-only. It
-  registers the logger, the database, the admin allowlist and the session
-  service.
+  registers the logger, the database, the admin allowlist, the session secret,
+  the session store (which also serves `NUVIO_TOKENS`), the session service, and
+  the user-data services.
 - **`services/browser.ts`** is what the client bundles: the request budget, the
-  people lookup, the query cache.
+  people lookup.
 
 `services/index.ts` deliberately re-exports **neither** container's env-reading
 module. Import the root you need directly. Adding `export * from "./server.ts"`
