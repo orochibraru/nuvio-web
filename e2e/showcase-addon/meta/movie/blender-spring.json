@@ -1,0 +1,16 @@
+{
+	"meta": {
+		"id": "blender-spring",
+		"type": "movie",
+		"name": "Spring",
+		"poster": "https://upload.wikimedia.org/wikipedia/commons/0/05/Spring2019PillarPosterBlender.jpg",
+		"background": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/Spring_-_Blender_Open_Movie.webm/1920px--Spring_-_Blender_Open_Movie.webm.jpg",
+		"description": "A shepherd girl and her dog face the ancient spirits of the mountain to bring the cycle of life back to their valley.",
+		"releaseInfo": "2019",
+		"genres": ["Animation", "Fantasy"],
+		"runtime": "8 min",
+		"released": "2019-01-01T00:00:00.000Z",
+		"director": ["Andy Goralczyk"],
+		"country": "Netherlands"
+	}
+}

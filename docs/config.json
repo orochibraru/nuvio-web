@@ -11,6 +11,7 @@
 					"title": "Introduction",
 					"icon": "book-open"
 				},
+				{ "slug": "showcase", "title": "Showcase", "icon": "images" },
 				{ "slug": "install", "title": "Install", "icon": "container" },
 				{
 					"slug": "configuration",

@@ -1,0 +1,16 @@
+{
+	"meta": {
+		"id": "blender-elephants-dream",
+		"type": "movie",
+		"name": "Elephants Dream",
+		"poster": "https://upload.wikimedia.org/wikipedia/commons/0/0c/ElephantsDreamPoster.jpg",
+		"background": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/Elephants_Dream_%282006%29.webm/1920px--Elephants_Dream_%282006%29.webm.jpg",
+		"description": "Two men explore a vast and shifting machine. The older one guides, the younger one starts to doubt that the machine is what he was told.",
+		"releaseInfo": "2006",
+		"genres": ["Science Fiction", "Surreal"],
+		"runtime": "11 min",
+		"released": "2006-01-01T00:00:00.000Z",
+		"director": ["Bassam Kurdali"],
+		"country": "Netherlands"
+	}
+}

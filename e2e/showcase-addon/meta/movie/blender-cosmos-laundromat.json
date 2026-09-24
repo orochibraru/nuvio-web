@@ -1,0 +1,16 @@
+{
+	"meta": {
+		"id": "blender-cosmos-laundromat",
+		"type": "movie",
+		"name": "Cosmos Laundromat",
+		"poster": "https://upload.wikimedia.org/wikipedia/commons/c/c5/CosmosLaundromatPoster.jpg",
+		"background": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/36/Cosmos_Laundromat_-_First_Cycle_-_Official_Blender_Foundation_release.webm/1920px--Cosmos_Laundromat_-_First_Cycle_-_Official_Blender_Foundation_release.webm.jpg",
+		"description": "A suicidal sheep on a desolate island meets a salesman who offers him a sweater that can take him to any life he wants.",
+		"releaseInfo": "2015",
+		"genres": ["Comedy", "Fantasy"],
+		"runtime": "12 min",
+		"released": "2015-01-01T00:00:00.000Z",
+		"director": ["Mathieu Auvray"],
+		"country": "Netherlands"
+	}
+}

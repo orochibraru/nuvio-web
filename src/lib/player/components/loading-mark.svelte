@@ -9,7 +9,7 @@
 </script>
 
 <img
-  src="/logo.png"
+  src="/logo.webp"
   {alt}
   aria-hidden="true"
   width="488"

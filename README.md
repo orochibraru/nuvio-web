@@ -22,9 +22,9 @@ Nuvio.
 
 ## What it looks like
 
-<img src="./gallery/home.png" width="900" alt="Home Screen">
+<img src="./docs/showcase/03-home.webp" width="900" alt="Home Screen">
 
-[View more](./gallery/index.md)
+[View more](./docs/showcase.md)
 
 ## Features
 

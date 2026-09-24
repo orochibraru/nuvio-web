@@ -1,0 +1,16 @@
+{
+	"meta": {
+		"id": "blender-sintel",
+		"type": "movie",
+		"name": "Sintel",
+		"poster": "https://upload.wikimedia.org/wikipedia/commons/8/8f/Sintel_poster.jpg",
+		"background": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f1/Sintel_movie_4K.webm/1920px--Sintel_movie_4K.webm.jpg",
+		"description": "A lone young woman crosses a frozen world to find the baby dragon she once rescued and raised, and learns too late what the search has cost her.",
+		"releaseInfo": "2010",
+		"genres": ["Fantasy", "Adventure"],
+		"runtime": "15 min",
+		"released": "2010-01-01T00:00:00.000Z",
+		"director": ["Colin Levy"],
+		"country": "Netherlands"
+	}
+}

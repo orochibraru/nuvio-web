@@ -1,0 +1,16 @@
+{
+	"meta": {
+		"id": "blender-caminandes",
+		"type": "movie",
+		"name": "Caminandes: Llama Drama",
+		"poster": "https://upload.wikimedia.org/wikipedia/commons/6/61/Pablo_Vazquez_-_Caminandes_-_Episode_1_-_Llama_Drama_-_Cover_thumbnail.png",
+		"background": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d0/Caminandes-_Llama_Drama_-_Short_Movie.ogv/1920px--Caminandes-_Llama_Drama_-_Short_Movie.ogv.jpg",
+		"description": "Koro the llama wants the grass on the other side of the road. The road, and a fence, have other ideas.",
+		"releaseInfo": "2013",
+		"genres": ["Animation", "Comedy"],
+		"runtime": "2 min",
+		"released": "2013-01-01T00:00:00.000Z",
+		"director": ["Pablo Vazquez"],
+		"country": "Netherlands"
+	}
+}

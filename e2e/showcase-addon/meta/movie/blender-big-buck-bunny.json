@@ -1,0 +1,16 @@
+{
+	"meta": {
+		"id": "blender-big-buck-bunny",
+		"type": "movie",
+		"name": "Big Buck Bunny",
+		"poster": "https://upload.wikimedia.org/wikipedia/commons/c/c5/Big_buck_bunny_poster_big.jpg",
+		"background": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c0/Big_Buck_Bunny_4K.webm/1920px--Big_Buck_Bunny_4K.webm.jpg",
+		"description": "A gentle giant of a rabbit has his quiet morning in the meadow ruined by three small bullies, and plans a very elaborate revenge.",
+		"releaseInfo": "2008",
+		"genres": ["Animation", "Comedy"],
+		"runtime": "10 min",
+		"released": "2008-01-01T00:00:00.000Z",
+		"director": ["Sacha Goedegebure"],
+		"country": "Netherlands"
+	}
+}

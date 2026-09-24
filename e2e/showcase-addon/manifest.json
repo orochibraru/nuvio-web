@@ -1,0 +1,21 @@
+{
+	"id": "tv.nuvio.showcase",
+	"version": "1.0.0",
+	"name": "Blender Open Movies",
+	"description": "Showcase fixture: the Blender Foundation's open movies (CC BY), streamed from Wikimedia Commons.",
+	"types": ["movie"],
+	"idPrefixes": ["blender-"],
+	"resources": ["catalog", "meta", "stream"],
+	"catalogs": [
+		{
+			"type": "movie",
+			"id": "blender-open-movies",
+			"name": "Blender Open Movies",
+			"extra": [
+				{
+					"name": "search"
+				}
+			]
+		}
+	]
+}
