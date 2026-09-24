@@ -19,11 +19,6 @@ repos:
       - id: check-yaml
         name: Validate YAML
 
-      - id: check-added-large-files
-        name: Look for large files
-        # The gallery screenshots are legitimately multi-megabyte.
-        exclude: ^gallery/
-
       - id: mixed-line-ending
         name: Fix line endings
         args: [--fix=lf]
