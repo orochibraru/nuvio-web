@@ -17,7 +17,7 @@ import { waitForImages } from "./util.ts";
  * Commons), plus a library, progress, history and a collection built from it.
  */
 
-const OUT_DIR = "docs/showcase";
+const OUT_DIR = "docs/images";
 const ADDON_BASE =
 	"https://raw.githubusercontent.com/orochibraru/nuvio-web/main/e2e/showcase-addon";
 const PROFILE_NAME = "Showcase";

@@ -26,9 +26,9 @@ Nuvio.
 <!-- markdownlint-disable MD033 -->
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/showcase/home-dark.webp">
-  <source media="(prefers-color-scheme: light)" srcset="docs/showcase/home.webp">
-  <img alt="Nuvio Web's home screen" src="docs/showcase/home.webp" width="900">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/home-dark.webp">
+  <source media="(prefers-color-scheme: light)" srcset="docs/images/home.webp">
+  <img alt="Nuvio Web's home screen" src="docs/images/home.webp" width="900">
 </picture>
 
 <!-- markdownlint-enable MD033 -->
