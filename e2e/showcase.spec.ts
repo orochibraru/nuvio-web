@@ -167,7 +167,7 @@ interface Shot {
 	search?: string;
 	/** Text the page must show before the shutter: proof it is the right screen. */
 	expect?: string;
-	/** Defaults to true. Signed-out pages are always dark, so they are shot once. */
+	/** Defaults to true. Set false for pages that must be visited signed out. */
 	signedIn?: boolean;
 	/** Extra steps to reach the state being captured (opening a drawer, etc). */
 	prepare?: (page: Page) => Promise<void>;
@@ -184,8 +184,18 @@ async function hideEmail(page: Page): Promise<void> {
 }
 
 const shots: Shot[] = [
-	{ name: "sign-in", path: "/auth/sign-in", signedIn: false },
-	{ name: "sign-up", path: "/auth/sign-up", signedIn: false },
+	{
+		name: "sign-in",
+		path: "/auth/sign-in",
+		signedIn: false,
+		expect: "Enter your email and password to continue.",
+	},
+	{
+		name: "sign-up",
+		path: "/auth/sign-up",
+		signedIn: false,
+		expect: "Sign up with your email and a password.",
+	},
 	{ name: "home", path: "/", expect: "Continue watching" },
 	{ name: "discover", path: "/discover", expect: "Tears of Steel" },
 	{
@@ -246,9 +256,6 @@ test.beforeAll(async () => {
 
 for (const theme of ["light", "dark"] as const) {
 	for (const shot of shots) {
-		if (shot.signedIn === false && theme === "light") {
-			continue;
-		}
 		test(`captures ${shot.name} (${theme})`, async ({ page, context }) => {
 			if (shot.signedIn !== false) {
 				await signIn(context, profile);
@@ -266,9 +273,9 @@ for (const theme of ["light", "dark"] as const) {
 			// published under this shot's name.
 			expect(new URL(page.url()).pathname).toBe(shot.path);
 			if (shot.expect) {
-				await expect(
-					page.getByRole("main").getByText(shot.expect).first(),
-				).toBeVisible({ timeout: 20_000 });
+				await expect(page.getByText(shot.expect).first()).toBeVisible({
+					timeout: 20_000,
+				});
 			}
 			await shot.prepare?.(page);
 			await Promise.race([
@@ -283,7 +290,7 @@ for (const theme of ["light", "dark"] as const) {
 					"html, body { scrollbar-width: none !important; scrollbar-gutter: auto !important; }",
 			});
 			const png = await page.screenshot();
-			const suffix = theme === "dark" && shot.signedIn !== false ? "-dark" : "";
+			const suffix = theme === "dark" ? "-dark" : "";
 			await write(
 				`${OUT_DIR}/${shot.name}${suffix}.webp`,
 				await new Image(png).webp({ quality: 90 }).bytes(),

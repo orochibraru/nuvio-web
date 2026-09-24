@@ -65,7 +65,9 @@ export default defineConfig({
 	],
 	webServer: {
 		command: "bun run build && bun run start",
-		url: ORIGIN,
+		// An app route, not `/`: reuse only happens below a 404, so another dev
+		// server on :3000 fails the run instead of being screenshotted as the app.
+		url: `${ORIGIN}/auth/sign-in`,
 		reuseExistingServer: !process.env.CI,
 		// A cold `vite build` plus compiling the ~65 MB standalone binary is well
 		// over a minute on a CI runner.
