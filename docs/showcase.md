@@ -1,113 +1,130 @@
 # Showcase
 
-A tour of Nuvio Web, one screen at a time. Every title below is a
-[Blender open movie](https://studio.blender.org/films/), released under Creative
-Commons Attribution by the Blender Foundation and streamed from Wikimedia
-Commons.
+A tour of Nuvio Web, one screen at a time, in light and dark. Every title below
+is a [Blender open movie](https://studio.blender.org/films/), released under
+Creative Commons Attribution by the Blender Foundation and streamed from
+Wikimedia Commons.
 
 ## Signing in
 
-![The sign-in screen](showcase/01-sign-in.webp)
+| Sign in                                      | Sign up                                      |
+| -------------------------------------------- | -------------------------------------------- |
+| ![The sign-in screen](showcase/sign-in.webp) | ![The sign-up screen](showcase/sign-up.webp) |
 
-Sign in with the Nuvio account you already use on your phone.
-
-![The sign-up screen](showcase/02-sign-up.webp)
-
-Or create one. It is the same account the mobile app uses.
+Sign in with the Nuvio account you already use on your phone, or create one. It
+is the same account the mobile app uses.
 
 ## Browsing
 
-![The home screen](showcase/03-home.webp)
+| Light                                  | Dark                                              |
+| -------------------------------------- | ------------------------------------------------- |
+| ![The home screen](showcase/home.webp) | ![The home screen, dark](showcase/home-dark.webp) |
 
-Home opens on a hero for the first title, then one row per addon catalog. You
-choose the rows and their order in settings.
+Home opens on a hero carousel, then continue watching, then one row per addon
+catalog. You choose the rows and their order in settings.
 
-![The discover page](showcase/04-discover.webp)
+| Light                                        | Dark                                                    |
+| -------------------------------------------- | ------------------------------------------------------- |
+| ![The discover page](showcase/discover.webp) | ![The discover page, dark](showcase/discover-dark.webp) |
 
 Discover browses one catalog at a time, filtered by type and genre.
 
-![Search results](showcase/05-search.webp)
+| Light                                   | Dark                                               |
+| --------------------------------------- | -------------------------------------------------- |
+| ![Search results](showcase/search.webp) | ![Search results, dark](showcase/search-dark.webp) |
 
 Search queries every catalog that supports it at once.
 
 ## A title
 
-![A movie's detail page](showcase/06-detail.webp)
+| Light                                          | Dark                                                      |
+| ---------------------------------------------- | --------------------------------------------------------- |
+| ![A movie's detail page](showcase/detail.webp) | ![A movie's detail page, dark](showcase/detail-dark.webp) |
 
-The detail page shows metadata, similar titles and your progress.
+| Light                                              | Dark                                                          |
+| -------------------------------------------------- | ------------------------------------------------------------- |
+| ![The sources drawer](showcase/sources-panel.webp) | ![The sources drawer, dark](showcase/sources-panel-dark.webp) |
 
-![The sources drawer](showcase/07-sources-panel.webp)
-
-The sources drawer lists every stream your addons return, with quality, codec
-and size parsed out of their labels.
+The sources drawer lists every stream your addons return, with the quality
+parsed out of their labels, and where the title is available to stream legally.
 
 ## Your stuff
 
-![The library](showcase/08-library.webp)
+| Light                                 | Dark                                             |
+| ------------------------------------- | ------------------------------------------------ |
+| ![The library](showcase/library.webp) | ![The library, dark](showcase/library-dark.webp) |
 
-![Collections](showcase/09-collections.webp)
+| Light                                     | Dark                                                 |
+| ----------------------------------------- | ---------------------------------------------------- |
+| ![Collections](showcase/collections.webp) | ![Collections, dark](showcase/collections-dark.webp) |
 
-![A collection](showcase/10-collection.webp)
+| Light                                     | Dark                                                 |
+| ----------------------------------------- | ---------------------------------------------------- |
+| ![A collection](showcase/collection.webp) | ![A collection, dark](showcase/collection-dark.webp) |
 
 Library and collections are yours to curate. They sync with the mobile app.
 
-![Watch history](showcase/11-history.webp)
+| Light                                   | Dark                                               |
+| --------------------------------------- | -------------------------------------------------- |
+| ![Watch history](showcase/history.webp) | ![Watch history, dark](showcase/history-dark.webp) |
 
-![Watch stats](showcase/12-stats.webp)
+| Light                               | Dark                                           |
+| ----------------------------------- | ---------------------------------------------- |
+| ![Watch stats](showcase/stats.webp) | ![Watch stats, dark](showcase/stats-dark.webp) |
 
 History and stats come from what you actually watched.
 
 ## Settings
 
-![Settings](showcase/13-settings.webp)
+| Light                               | Dark                                           |
+| ----------------------------------- | ---------------------------------------------- |
+| ![Settings](showcase/settings.webp) | ![Settings, dark](showcase/settings-dark.webp) |
 
-![Addons](showcase/14-addons.webp)
+| Light                           | Dark                                       |
+| ------------------------------- | ------------------------------------------ |
+| ![Addons](showcase/addons.webp) | ![Addons, dark](showcase/addons-dark.webp) |
 
 Addons are per profile. Install one by URL or pick from the catalog.
 
-![The account page](showcase/15-account.webp)
+| Light                                      | Dark                                                  |
+| ------------------------------------------ | ----------------------------------------------------- |
+| ![The account page](showcase/account.webp) | ![The account page, dark](showcase/account-dark.webp) |
 
 ## Playback
 
-![The player](showcase/16-player.webp)
+| Light                               | Dark                                           |
+| ----------------------------------- | ---------------------------------------------- |
+| ![The player](showcase/player.webp) | ![The player, dark](showcase/player-dark.webp) |
 
 The player streams in the browser, with subtitles and intro / outro skipping, or
 casts to a TV, or hands the link off to a native app.
 
-![The player's info overlay](showcase/17-player-info.webp)
-
 ## Regenerating the screenshots
-
-The images come from a Playwright sequence, `e2e/showcase.spec.ts`, outside the
-normal e2e run:
 
 ```bash
 bun run screenshots
 ```
 
-It writes straight into `docs/showcase/`; review the diff and commit the ones
-you want.
+A Playwright sequence, `e2e/showcase.spec.ts`, outside the normal e2e run. It
+shoots every screen in light and dark (signed-out pages are always dark, so they
+are shot once) and writes WebP straight into `docs/showcase/` with `Bun.Image`:
+Playwright runs on Bun here (`bunfig.toml`). Each shot asserts it landed on the
+right page before capturing, so a redirect or an empty screen fails the run
+instead of being published. Review the diff and commit.
 
-Nothing copyrighted and nothing torrent-backed goes on screen. The sequence
-signs the e2e test account into a dedicated profile whose only addon is
-`e2e/showcase-addon`, a static Stremio addon committed in this repo: seven
-Blender open movies (CC BY) with posters, stills and VP9 streams hosted on
-Wikimedia Commons. Every other screen shows that profile's own data, so it must
-stay clean.
+Nothing copyrighted and nothing torrent-backed goes on screen. Before shooting,
+the run finds or creates a **Showcase** profile on the e2e test account and
+seeds it through the Nuvio API: its only addon is `e2e/showcase-addon`, a static
+Stremio addon committed in this repo (six Blender open movies with posters,
+stills and VP9 streams on Wikimedia Commons), plus a library, watch progress,
+history and a collection built from those films. The seed is idempotent, so
+every run starts from the same state.
 
-Set the profile up once:
-
-1. Pick an empty profile on the test account and put its number (1 to 6) in
-   `.env` as `NUVIO_SHOWCASE_PROFILE`. The sequence skips itself without it.
-2. Remove every addon from it, including Cinemeta, and install
-   `https://raw.githubusercontent.com/orochibraru/nuvio-web/main/e2e/showcase-addon/manifest.json`.
-3. Add a few of the films to the library, group some into a collection, and
-   watch a couple of minutes of two or three of them so history, stats and
-   continue watching have something to show.
-
-Never add another addon to that profile, and never put a title from outside the
-fixture in its library or history.
+The instance loads the addon from
+`https://raw.githubusercontent.com/orochibraru/nuvio-web/main/e2e/showcase-addon/`,
+not from your checkout: addon requests go through the SSRF guard, which refuses
+localhost. A change to the fixture shows up in the shots once it is on `main`.
 
 The fixture is plain JSON: a catalog, one `meta` and one `stream` file per film,
 and a `search=blender` catalog page so the search shot has results. Add a film
-by adding the same three entries.
+by adding the same entries.

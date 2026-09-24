@@ -22,9 +22,18 @@ Nuvio.
 
 ## What it looks like
 
-<img src="./docs/showcase/03-home.webp" width="900" alt="Home Screen">
+<!-- Regenerate with `bun run screenshots`; do not edit by hand. -->
+<!-- markdownlint-disable MD033 -->
 
-[View more](./docs/showcase.md)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/showcase/home-dark.webp">
+  <source media="(prefers-color-scheme: light)" srcset="docs/showcase/home.webp">
+  <img alt="Nuvio Web's home screen" src="docs/showcase/home.webp" width="900">
+</picture>
+
+<!-- markdownlint-enable MD033 -->
+
+[See every screen, light and dark](./docs/showcase.md)
 
 ## Features
 

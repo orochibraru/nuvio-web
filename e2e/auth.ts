@@ -39,6 +39,30 @@ async function getToken(): Promise<TokenResponse> {
 	return data;
 }
 
+/** Calls a Nuvio RPC as the test account, for specs that seed their own data. */
+export async function nuvioRpc<Result>(
+	name: string,
+	params: Record<string, unknown> = {},
+): Promise<Result> {
+	const { access_token } = await getToken();
+	const response = await fetch(`${API}/rest/v1/rpc/${name}`, {
+		method: "POST",
+		headers: {
+			apikey: PUBLISHABLE_KEY,
+			authorization: `Bearer ${access_token}`,
+			"content-type": "application/json",
+		},
+		body: JSON.stringify(params),
+	});
+	if (!response.ok) {
+		throw new Error(
+			`${name} failed: ${response.status} ${await response.text()}`,
+		);
+	}
+	const text = await response.text();
+	return (text ? JSON.parse(text) : undefined) as Result;
+}
+
 /** Signs the test account in against the real API and drops the session cookies onto the context. */
 export async function signIn(
 	context: BrowserContext,
