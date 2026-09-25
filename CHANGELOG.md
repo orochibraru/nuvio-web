@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.0.15](https://github.com/orochibraru/nuvio-web/compare/v1.0.14...v1.0.15) (2026-09-24)
+
+### Features
+
+* prettier ui & volume boost ([90efc84](https://github.com/orochibraru/nuvio-web/commit/90efc842444fd6dae270e60912600eba2e6c45ca))
+* showcase ([0143443](https://github.com/orochibraru/nuvio-web/commit/0143443097b9efa28db98454d2ccce605259bba3))
+* showcase ([25f820e](https://github.com/orochibraru/nuvio-web/commit/25f820eb1d4cb113dea7559ce0317d59381be785))
+
+### Bug Fixes
+
+* docs images location ([002811b](https://github.com/orochibraru/nuvio-web/commit/002811b43d03abd2b0c13cb1b02c038362fce43d))
+* showcase ([693a6a2](https://github.com/orochibraru/nuvio-web/commit/693a6a2d51b51e974167484bcc6a94d7d5921892))
+* prek ([555b244](https://github.com/orochibraru/nuvio-web/commit/555b244b71863a979c8890213dacd433774c8ced))
+* remove gallery ([6aea28e](https://github.com/orochibraru/nuvio-web/commit/6aea28e09fdfe2660ad8b5086c12d00a5959cc39))
+
 ## [1.0.14](https://github.com/orochibraru/nuvio-web/compare/v1.0.13...v1.0.14) (2026-09-23)
 
 ### ⚠ BREAKING CHANGES
