@@ -43,12 +43,12 @@ what you just did.
 
 Flushed writes are therefore kept for fifteen seconds and re-overlaid on top of
 anything a pull brings back. A fresh queued write for the same target overrides
-a recently-flushed one, so the ordering holds.
+a recently flushed one, so the ordering holds.
 
 ## Who the rows belong to
 
 Everything the store keeps in the browser is namespaced by an **owner**:
-`syncOwner(userId, profileId)`, i.e. `<userId>:<profileId>`. That covers the
+`syncOwner(userId, profileId)`, that is, `<userId>:<profileId>`. That covers the
 IndexedDB keys, the `BroadcastChannel` name and recent searches.
 
 The user id is the load-bearing half. `profileId` is the profile _index_, 1..6

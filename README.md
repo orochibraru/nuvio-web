@@ -102,7 +102,7 @@ Full docs live in [`docs/`](docs/) and are published at
 <https://orochibraru.com/nuvio-web> : install and configuration, every screen,
 the self-hosting admin surface, the architecture, and how to work on it.
 
-## Getting Started
+## Getting started
 
 You need a [Nuvio](https://nuvio.tv/) account (you can create one from the app's
 sign-up screen) and at least one addon. Addons installed on your account —

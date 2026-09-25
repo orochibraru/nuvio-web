@@ -112,7 +112,7 @@ hooks in Safari.
 ## Playing somewhere else
 
 There is no web API for "open in the OS default player", and a scheme cannot
-simply be glued in front of a URL. Each platform gets its own correctly-encoded
+simply be glued in front of a URL. Each platform gets its own correctly encoded
 form:
 
 | Platform     | What happens                                           |

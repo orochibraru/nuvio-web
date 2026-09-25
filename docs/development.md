@@ -30,10 +30,7 @@ bun run dev          # vite dev on :5173
 bun run build        # production build
 bun run start        # run the compiled binary
 bun run check        # svelte-kit sync + svelte-check
-bun run lint         # tailwint + biome
-bun run lint:fix     # tailwint --fix + biome check --write
-bun run format       # markdownlint + prettier, markdown only
-bun run format:fix   # the same, writing
+bun run lint         # every prek pre-commit hook, on all files (fixes)
 bun run test:unit    # vitest
 bun run test:e2e     # playwright, chromium project
 ```

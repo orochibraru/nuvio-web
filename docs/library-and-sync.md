@@ -68,14 +68,14 @@ the network. In practice:
 - Open tabs stay in step over `BroadcastChannel`: bookmark a title in one tab
   and the other tab's poster updates immediately, without waiting for a poll.
 
-Pages read `sync.ready ? sync.X : data.X`, so a freshly-loaded page shows the
+Pages read `sync.ready ? sync.X : data.X`, so a freshly loaded page shows the
 server-rendered value until the local store has booted, then switches to it.
 There is no flash of empty state.
 
 The reconcile logic — which write wins when the server and the local queue
 disagree — is a pure function with its own test suite. A delta pull shortly
 after a flush can read a server snapshot that lags the write it just accepted,
-so recently-flushed writes are kept for a grace period and re-applied over
+so recently flushed writes are kept for a grace period and re-applied over
 anything the pull brings back.
 
 ## Clearing local data

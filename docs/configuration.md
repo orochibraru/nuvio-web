@@ -80,10 +80,11 @@ refresh token.
 
 Leave the variable unset on a single container: the first boot writes a random
 key to `session-secret` in the data directory (mode `0600`) and every later boot
-reuses it. Set it explicitly (32+ characters, e.g. `openssl rand -hex 32`) when
-the secret must not live next to the database. A value shorter than 32
-characters **fails at boot**. Changing or losing the key signs every user out
-(the stored tokens can no longer be decrypted); nothing else is lost.
+reuses it. Set it explicitly (32+ characters, for example
+`openssl rand -hex 32`) when the secret must not live next to the database. A
+value shorter than 32 characters **fails at boot**. Changing or losing the key
+signs every user out (the stored tokens can no longer be decrypted); nothing
+else is lost.
 
 ## Logging
 

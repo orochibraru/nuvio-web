@@ -6,10 +6,11 @@
 
 - **Always brace control statements.** `if (x) { return; }` : never
   `if (x) return;` on one line, never a braceless body. Same for `for` / `while`
-  / `else`. Enforced by Biome (`style/useBlockStatements: error`); its fix is
-  "unsafe" so `bun run lint:fix` won't add the braces for you : write them.
-- Package manager is **bun**. `bun run lint` / `lint:fix` / `check`. Never
-  npx/npm.
+  / `else`. Enforced by Biome (`style/useBlockStatements: error`).
+- Package manager is **bun**. `bun run lint` / `check`. Never npx/npm.
+- **Tooling lives in `.pre-commit-config.yaml`, not `package.json`.**
+  `bun run lint` is `prek run --all-files`: every linter and formatter, fixing
+  in place. A new tool is a new hook; don't add a script that repeats one.
 - **`#lib` subpath imports** (SvelteKit 3 dropped the `$lib` alias). Configured
   in `package.json` `imports`. `$app/*` / `$env` → `$app/env` still work as
   before. Extensions are explicit, and which one you write depends on the form:

@@ -34,3 +34,8 @@ screens/
 
 # Local admin database (sign-in metrics + instance lock)
 /data/
+
+# Vale: packages are fetched by `vale sync` (the prek hook does it on first
+# run); only our own config is committed.
+/.vale/styles/*
+!/.vale/styles/config/

@@ -68,6 +68,18 @@ repos:
         # Project vocabulary lives in `_typos.toml`.
         args: [--force-exclude]
 
+  # Prose lint for the docs; rules and project vocabulary live in `.vale.ini`.
+  # The style package is gitignored, so the first run fetches it (`vale sync`);
+  # after a `Packages` bump, delete `.vale/styles/Google` to refetch.
+  - repo: https://github.com/vale-cli/vale
+    rev: v3.22.0
+    hooks:
+      - id: vale
+        name: Lint prose (Vale)
+        entry: sh -c '[ -d .vale/styles/Google ] || vale sync; vale "$@"' --
+        types: [markdown]
+        files: ^(docs/.*|README|CONTRIBUTING)\.md$
+
   - repo: https://github.com/rhysd/actionlint
     rev: v1.7.12
     hooks:
