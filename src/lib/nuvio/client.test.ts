@@ -65,3 +65,27 @@ describe("NuvioClient.signOut", () => {
 		expect(new URL(seen[0] as string).searchParams.get("scope")).toBe("local");
 	});
 });
+
+describe("NuvioClient rate limiting", () => {
+	it("retries a 429 once, then gives up with the 429", async () => {
+		const statuses = [429, 200];
+		const client = new NuvioClient({
+			fetch: vi.fn(
+				async () =>
+					new Response("[]", {
+						status: statuses.shift() ?? 429,
+						headers: { "retry-after": "0" },
+					}),
+			) as unknown as typeof fetch,
+			session: fakeSession,
+		});
+		await expect(client.rpc("sync_pull_profiles" as never)).resolves.toEqual(
+			[],
+		);
+
+		statuses.push(429, 429, 200);
+		await expect(client.rpc("sync_pull_profiles" as never)).rejects.toSatisfy(
+			(err) => err instanceof NuvioApiError && err.status === 429,
+		);
+	});
+});

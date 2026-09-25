@@ -441,30 +441,14 @@ export class NuvioClient {
 			requestHeaders.authorization = `Bearer ${this.currentSession.access_token}`;
 		}
 
-		// Bound every call. Merge with a caller-supplied signal when present so an
-		// aborted navigation still tears the request down.
-		const timeout = AbortSignal.timeout(this.requestTimeoutMs);
-		const signal =
-			init.signal instanceof AbortSignal
-				? AbortSignal.any([init.signal, timeout])
-				: timeout;
-
-		let response: Response;
-		try {
-			response = await this.fetchImplementation(url, {
-				...init,
-				headers: requestHeaders,
-				signal,
-			});
-		} catch (cause) {
-			if (timeout.aborted) {
-				throw new NuvioApiError(
-					408,
-					{ message: `Request to ${url} timed out` },
-					"The Nuvio API did not respond in time.",
-				);
-			}
-			throw cause;
+		let response = await this.send(url, { ...init, headers: requestHeaders });
+		if (response.status === 429) {
+			// The API rate-limits per account, and a burst (a page load's fan-out, a
+			// sync catch-up) trips it briefly: one bounded retry turns that into a
+			// short wait instead of a 500.
+			await response.body?.cancel();
+			await new Promise((done) => setTimeout(done, retryDelayMs(response)));
+			response = await this.send(url, { ...init, headers: requestHeaders });
 		}
 		if (!response.ok) {
 			throw await NuvioApiError.fromResponse(response);
@@ -475,6 +459,42 @@ export class NuvioClient {
 		const text = await response.text();
 		return (text ? JSON.parse(text) : undefined) as T;
 	}
+
+	private async send(url: string, init: RequestInit): Promise<Response> {
+		// Bound every call. Merge with a caller-supplied signal when present so an
+		// aborted navigation still tears the request down.
+		const timeout = AbortSignal.timeout(this.requestTimeoutMs);
+		const signal =
+			init.signal instanceof AbortSignal
+				? AbortSignal.any([init.signal, timeout])
+				: timeout;
+
+		try {
+			return await this.fetchImplementation(url, { ...init, signal });
+		} catch (cause) {
+			if (timeout.aborted) {
+				throw new NuvioApiError(
+					408,
+					{ message: `Request to ${url} timed out` },
+					"The Nuvio API did not respond in time.",
+				);
+			}
+			throw cause;
+		}
+	}
+}
+
+/** How long to back off after a 429: `Retry-After` (seconds or a date), capped. */
+function retryDelayMs(response: Response): number {
+	const header = response.headers.get("retry-after");
+	if (header === null) {
+		return 1000;
+	}
+	const seconds = Number(header);
+	const ms = Number.isNaN(seconds)
+		? Date.parse(header) - Date.now()
+		: seconds * 1000;
+	return Math.min(Math.max(Number.isNaN(ms) ? 1000 : ms, 0), 3000);
 }
 
 function profileScope(profileId?: number): { p_profile_id?: number } {
