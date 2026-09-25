@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.16](https://github.com/orochibraru/nuvio-web/compare/v1.0.15...v1.0.16) (2026-09-25)
+
+### Bug Fixes
+
+* handle 429 on nuvio api ([2c21117](https://github.com/orochibraru/nuvio-web/commit/2c211173fcee2ab1cba51965d585342b34e48e55))
+
 ## [1.0.15](https://github.com/orochibraru/nuvio-web/compare/v1.0.14...v1.0.15) (2026-09-24)
 
 ### Features
