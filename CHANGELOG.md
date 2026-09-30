@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.0.16](https://github.com/orochibraru/nuvio-web/compare/v1.0.15...v1.0.16) (2026-09-30)
+
+### Features
+
+* **player:** in-browser audio transmux, per-icon menus, reload-proof URL state, preferred audio language ([987de70](https://github.com/orochibraru/nuvio-web/commit/987de70374c5262c4e9f6b0a26c95282c57217e9))
+
+### Bug Fixes
+
+* handle 429 on nuvio api ([2c21117](https://github.com/orochibraru/nuvio-web/commit/2c211173fcee2ab1cba51965d585342b34e48e55))
+
 ## [1.0.15](https://github.com/orochibraru/nuvio-web/compare/v1.0.14...v1.0.15) (2026-09-24)
 
 ### Features
