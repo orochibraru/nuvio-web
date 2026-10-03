@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.17](https://github.com/orochibraru/nuvio-web/compare/v1.0.16...v1.0.17) (2026-10-02)
+
+### Bug Fixes
+
+* data-shape crash (#19) ([d68d3d9](https://github.com/orochibraru/nuvio-web/commit/d68d3d9b1eef1286e420088a40339fea9642ca8b))
+
 ## [1.0.16](https://github.com/orochibraru/nuvio-web/compare/v1.0.15...v1.0.16) (2026-09-30)
 
 ### Features
