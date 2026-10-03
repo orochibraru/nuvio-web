@@ -16,5 +16,5 @@ services:
       interval: 30s
       retries: 3
       start_period: 5s
-      test: ["CMD", "/app/dist/healthcheck"]
+      test: ["CMD", "curl", "-fsS", "http://localhost:3000/api/health"]
       timeout: 30s

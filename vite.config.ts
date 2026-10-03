@@ -1,5 +1,6 @@
+import process from "node:process";
 import { paraglideVitePlugin } from "@inlang/paraglide-js";
-import adapter from "@orochibraru/svelte-smol";
+import adapter from "@sveltejs/adapter-bun";
 import { sveltekit } from "@sveltejs/kit/vite";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vite";
@@ -34,6 +35,11 @@ export default defineConfig({
 					compile: true,
 				},
 			}),
+			// SvelteKit 3 reads the origin at build time only. The published image
+			// leaves it unset and takes it from the request (`PROTOCOL_HEADER` /
+			// `HOST_HEADER` behind a proxy); a build for one known URL, like the
+			// e2e server on plain http, bakes it in.
+			paths: { origin: process.env.NUVIO_BUILD_ORIGIN },
 			experimental: {
 				remoteFunctions: true,
 				// Off: a hover preload's speculative render can write Svelte's

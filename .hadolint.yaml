@@ -1,6 +1,6 @@
 ignored:
-  # DL3008 (pin apt versions). ca-certificates is the only package installed,
-  # and pinning it freezes the CA bundle at whatever the base image shipped
+  # DL3008 (pin apt versions). Only ca-certificates and curl are installed,
+  # and pinning them freezes the CA bundle at whatever the base image shipped
   # with : the one thing that should float. The `debian:bookworm-slim` tag is
   # the pin that matters here.
   - DL3008

@@ -33,10 +33,12 @@ const OFFLINE_PAGE = "/offline";
 const OFFLINE_DATA = "/offline/__data.json";
 
 // The e2e fixtures (sample clips, HLS streams) ship in `static/` for the test
-// run; they have no business in every visitor's cache.
+// run; they have no business in every visitor's cache. Dotfiles (a stray
+// `.DS_Store`) are refused by the server, and one 404 fails the whole install.
 const ASSETS = [...immutable, ...assets, ...prerendered]
 	.map((entry) => `/${entry.path}`.replace(/^\/+/, "/"))
-	.filter((path) => !path.startsWith("/e2e/"));
+	.filter((path) => !path.startsWith("/e2e/"))
+	.filter((path) => !path.split("/").some((part) => part.startsWith(".")));
 const ASSET_SET = new Set(ASSETS);
 
 sw.addEventListener("install", (event) => {

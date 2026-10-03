@@ -1,10 +1,13 @@
 import { expect, test } from "@playwright/test";
 import { collectRuntimeErrors } from "./errors.ts";
+import { serveFixtures } from "./fixtures.ts";
 
 // Intro / outro (TheIntroDB) affordances, driven through the `/dev/player`
 // harness : the shared test account has no stream addon, so the real player
 // route can't resolve a video.
 const SAMPLE = "/e2e/sample.webm";
+
+test.beforeEach(({ context }) => serveFixtures(context));
 
 test("skip intro button seeks past the intro window", async ({ page }) => {
 	const errors = collectRuntimeErrors(page);

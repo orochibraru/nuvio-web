@@ -101,7 +101,21 @@ deleted route fails type-checking instead of 404ing at runtime.
 
 ## Deployment
 
-[`svelte-smol`](https://github.com/orochibraru/svelte-smol) compiles the built
-app, Bun runtime embedded, into a self-contained server binary. The runtime
-image is `debian:slim` plus that binary — no Bun, no `node_modules`, and a
-health-check binary alongside it.
+[`@sveltejs/adapter-bun`](https://svelte.dev/docs/kit/adapter-bun) compiles the
+built app, Bun runtime embedded, into a self-contained server binary. The
+runtime image is `debian:slim` plus that binary and `curl` for the health check,
+with no Bun and no `node_modules`.
+
+SvelteKit 3 has no runtime `ORIGIN`: the trusted origin is `paths.origin`, fixed
+at build time from `NUVIO_BUILD_ORIGIN`. The published image leaves it unset, so
+the adapter takes the host from the request and assumes `https://`, or reads the
+proxy's `PROTOCOL_HEADER` / `HOST_HEADER`. Plain HTTP needs a build with the
+origin baked in ([Configuration](configuration)).
+
+The health check is `GET /api/health`, a plain SvelteKit endpoint that answers
+as long as the process does and stays out of the access log.
+
+The compiled binary ignores `Range` on its embedded static files (a whole-file
+200 instead of a 206), so a `<video>` on a `static/` clip can't seek. No
+production media is served from there; the e2e fixtures are, and
+`e2e/fixtures.ts` serves them from disk with `Range` until the adapter does.

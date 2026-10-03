@@ -73,12 +73,12 @@ export default defineConfig({
 		// over a minute on a CI runner.
 		timeout: 240_000,
 		env: {
-			// The adapter derives the request origin from the Host header and
-			// assumes `https://` unless told otherwise, so SvelteKit's CSRF check
-			// saw `https://localhost:3000` against the browser's
-			// `Origin: http://localhost:3000` and rejected every remote function
-			// with 403 "Cross-site remote requests are forbidden".
-			ORIGIN,
+			// Read by `vite.config.ts` at build time. Without it the adapter assumes
+			// `https://`, so SvelteKit's CSRF check saw `https://localhost:3000`
+			// against the browser's `Origin: http://localhost:3000` and rejected
+			// every remote function with 403 "Cross-site remote requests are
+			// forbidden".
+			NUVIO_BUILD_ORIGIN: ORIGIN,
 			// Unlocks the `/dev/player` harness on a production build. Only ever
 			// set here : see `src/routes/dev/player/+page.server.ts`.
 			NUVIO_E2E: "1",

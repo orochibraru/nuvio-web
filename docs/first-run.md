@@ -60,6 +60,6 @@ on mobile. See [The player](player), which also lists the keyboard shortcuts.
 
 ## If something is wrong
 
-The usual first-run failure is not this app: it is `ORIGIN`. If pages render but
-nothing you change ever saves, read [Configuration](configuration). For anything
-else, [Troubleshooting](troubleshooting).
+The usual first-run failure is not this app: it is the origin. If pages render
+but nothing you change ever saves, read [Configuration](configuration). For
+anything else, [Troubleshooting](troubleshooting).
