@@ -199,9 +199,9 @@ function createSourceFix(
  * menu. HLS multi-language streams come from hls.js's own track list; a direct
  * file (mp4/mkv/…) that muxes more than one audio track comes from the
  * browser's native `HTMLMediaElement.audioTracks` instead (see
- * `attachNativeAudioTracks` in `player-media.ts`) : Chromium and Firefox both
- * populate it, Safari doesn't, so a single-track or unsupported source just
- * never grows past the empty list and the settings menu hides that section.
+ * `attachNativeAudioTracks` in `media.ts`). Browsers without that API use the
+ * transmux pipeline for supported multi-track direct files. A single-track
+ * or unsupported source does not expose a choice in the settings menu.
  * `fix()` swaps a direct file the browser can't play as is (undecodable audio,
  * refused container) over to the transmux pipeline at the current position,
  * when the host allows it.

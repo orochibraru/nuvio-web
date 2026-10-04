@@ -1,6 +1,5 @@
 import { m } from "#lib/i18n/index.js";
-/** The native multi-audio-track API : real in Chromium/Firefox for a file
- *  that muxes more than one audio track, but missing from lib.dom's types. */
+/** The optional native multi-audio-track API, absent in many browsers. */
 export interface NativeAudioTrack {
 	label: string;
 	language: string;
@@ -49,7 +48,7 @@ export function nativeAudioSnapshot(list: NativeAudioTrackList): {
 /** Wires the native `audioTracks` list, if the browser exposes one for this
  *  element, to `onChange` : called once immediately, then on every list
  *  change. Returns a cleanup, or `undefined` when there's no such list
- *  (Safari, or a single-track file). */
+ *  (browsers without native audio-track selection). */
 export function attachNativeAudioTracks(
 	el: VideoWithAudioTracks,
 	onChange: (tracks: AudioTrackOption[], active: number) => void,
