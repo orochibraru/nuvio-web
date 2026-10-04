@@ -89,10 +89,10 @@ prek run --all-files
 ## Docker
 
 ```bash
-docker buildx build -t nuvio-web:latest .
-docker run --rm -p 3000:3000 -e ORIGIN=http://localhost:3000 nuvio-web:latest
+docker buildx build --build-arg NUVIO_BUILD_ORIGIN=http://localhost:3000 \
+  -t nuvio-web:latest .
+docker run --rm -p 3000:3000 nuvio-web:latest
 ```
 
-See [docs/install.md](docs/install.md) and
-[docs/configuration.md](docs/configuration.md) for what `ORIGIN` does and why
-you want it set.
+The build argument bakes the origin in so the image works on plain HTTP; see
+[docs/configuration.md](docs/configuration.md) for why it's needed.

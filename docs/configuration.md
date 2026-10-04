@@ -1,36 +1,19 @@
 # Configuration
 
 There is no configuration file. The container is configured entirely through
-environment variables, and exactly one of them matters for a normal install.
+environment variables, and for a normal install the only ones that matter say
+how it sits behind your reverse proxy.
 
-## `ORIGIN`
+## Origin
 
-**`ORIGIN` is the URL you actually browse to**: scheme, host and port, no
-trailing slash.
+SvelteKit checks every write (any non-`GET` request) against the app's own
+origin and rejects a mismatch with
+`403 Cross-site remote requests are forbidden`. The published image takes that
+origin from the request: the `Host` header, and **always `https://`**, since TLS
+is expected to end at a proxy in front of it.
 
-```bash
--e ORIGIN=http://localhost:3000
--e ORIGIN=https://nuvio.example.com
-```
-
-Without it the server reconstructs its own origin from the request's `Host`
-header and **assumes `https://`**. Browse to a plain-HTTP address and that guess
-disagrees with the browser's `Origin` header, so SvelteKit's cross-site check
-rejects every write the app makes with
-`403 Cross-site remote requests are forbidden`.
-
-Only non-`GET` requests are checked, which makes this a confusing failure rather
-than an obvious one: the app still renders and reads fine, but **nothing
-saves**. Settings snap back, library toggles revert, progress never sticks. Set
-`ORIGIN` to exactly what is in the address bar and it goes away.
-
-Serving over HTTPS on the default port needs none of this, because the assumed
-`https://` already matches.
-
-## Behind a reverse proxy
-
-Either set `ORIGIN` to the public URL, or let the proxy's own headers speak for
-it:
+So serve it over HTTPS, behind a reverse proxy. When the proxy rewrites the
+scheme, host or port, name the headers that carry the public ones:
 
 ```bash
 docker run -p 3000:3000 \
@@ -39,12 +22,34 @@ docker run -p 3000:3000 \
   orochibraru/nuvio-web:latest
 ```
 
-| Variable          | Default           | When you need it                                |
-| ----------------- | ----------------- | ----------------------------------------------- |
-| `ORIGIN`          | _(unset)_         | Always, unless the proxy headers below cover it |
-| `PROTOCOL_HEADER` | assumes `https`   | Behind a reverse proxy                          |
-| `HOST_HEADER`     | the `Host` header | Behind a proxy that rewrites it                 |
-| `PORT`            | `3000`            | To listen on another port                       |
+| Variable          | Default                | When you need it                        |
+| ----------------- | ---------------------- | --------------------------------------- |
+| `PROTOCOL_HEADER` | assumes `https`        | Behind a reverse proxy                  |
+| `HOST_HEADER`     | the `Host` header      | Behind a proxy that rewrites the host   |
+| `PORT_HEADER`     | the `Host` header port | Behind a proxy that rewrites the port   |
+| `ADDRESS_HEADER`  | the socket address     | To log the client's IP, not the proxy's |
+| `PORT`            | `3000`                 | To listen on another port               |
+
+Only trust these headers when every request reaches the server through a proxy
+you control. The full list is in the
+[adapter's docs](https://svelte.dev/docs/kit/adapter-bun#Environment-variables).
+
+### Plain HTTP
+
+Over plain HTTP (`http://localhost:3000`, a LAN address) the assumed `https://`
+disagrees with the browser's `Origin` header. The app renders and reads fine,
+but **nothing saves**: settings snap back, library toggles revert, progress
+never sticks.
+
+There is no runtime switch for this: SvelteKit 3 only takes a fixed origin at
+build time. To run on plain HTTP, build your own image with it baked in:
+
+```bash
+docker buildx build --build-arg NUVIO_BUILD_ORIGIN=http://localhost:3000 \
+  -t nuvio-web:latest .
+```
+
+`ORIGIN` from earlier releases is gone, and setting it does nothing.
 
 ## Admin surface
 

@@ -121,6 +121,7 @@ export const handleError: HandleServerError = ({ event, error, kind }) => {
 function isLogNoise(pathname: string): boolean {
 	return (
 		pathname === "/favicon.ico" ||
+		pathname === "/api/health" ||
 		pathname.startsWith("/.well-known/") ||
 		pathname.startsWith("/@") ||
 		pathname.startsWith("/_app/")

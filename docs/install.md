@@ -15,10 +15,13 @@ app's own sign-up screen.
 ## Docker run
 
 ```bash
-docker run -p 3000:3000 -e ORIGIN=http://localhost:3000 \
+docker run -p 3000:3000 \
   -v ./data:/app/data \
   orochibraru/nuvio-web:latest
 ```
+
+Serve it over HTTPS, behind a reverse proxy: on plain HTTP the app renders but
+nothing saves. See [Configuration](configuration).
 
 ## Docker Compose
 
@@ -33,17 +36,18 @@ services:
       # Sessions, and your library / progress / history. Back it up.
       - ./data:/app/data
     environment:
-      # The URL you actually browse to. See Configuration.
-      ORIGIN: http://localhost:3000
+      # Behind a reverse proxy that terminates HTTPS. See Configuration.
+      PROTOCOL_HEADER: x-forwarded-proto
+      HOST_HEADER: x-forwarded-host
     healthcheck:
       interval: 30s
       retries: 3
       start_period: 5s
-      test: ["CMD", "/app/dist/healthcheck"]
+      test: ["CMD", "curl", "-fsS", "http://localhost:3000/api/health"]
       timeout: 30s
 ```
 
-Then open <http://localhost:3000>.
+Then open it at the HTTPS address your proxy serves.
 
 ## Tags
 
@@ -59,16 +63,15 @@ restart.
 
 ## What is in the image
 
-The runtime layer is `debian:bookworm-slim` plus one binary. The build compiles
-the SvelteKit app with the Bun runtime embedded into a self-contained
-`/app/dist/server` via
-[`svelte-smol`](https://github.com/orochibraru/svelte-smol), so the image ships
-no Bun install and no `node_modules`. It runs as an unprivileged user (uid
+The runtime layer is `debian:bookworm-slim`, `curl` for the health check, and
+one binary. The build compiles the SvelteKit app with the Bun runtime embedded
+into a self-contained `/app/dist/server` via
+[`@sveltejs/adapter-bun`](https://svelte.dev/docs/kit/adapter-bun), so the image
+ships no Bun install and no `node_modules`. It runs as an unprivileged user (uid
 10001).
 
-`/app/dist/healthcheck` is a second self-contained binary suitable for Docker's
-`HEALTHCHECK` and for orchestrator liveness and readiness probes; the image
-declares it already.
+`GET /api/health` answers 200 while the server is up. The image's `HEALTHCHECK`
+curls it; orchestrators can probe it directly.
 
 ## Building it yourself
 

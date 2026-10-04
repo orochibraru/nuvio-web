@@ -1,0 +1,37 @@
+# pull_request_target runs this file from main with secrets, against the fork's
+# code: the fork-e2e environment's required reviewer is the only thing between
+# a stranger's PR and the test account, so read the diff before approving.
+name: Fork e2e
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: fork-e2e-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  TZ: Europe/Paris
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  CI: true
+
+permissions:
+  contents: read
+
+jobs:
+  approve:
+    name: Approve
+    if: github.event.pull_request.head.repo.fork
+    runs-on: ubuntu-latest
+    environment: fork-e2e
+    steps:
+      - run: echo "Approved e2e for ${{ github.event.pull_request.head.sha }}"
+
+  e2e:
+    name: Tests
+    needs: [approve]
+    uses: ./.github/workflows/e2e.yml
+    with:
+      ref: ${{ github.event.pull_request.head.sha }}
+    secrets: inherit

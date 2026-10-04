@@ -111,7 +111,7 @@ The docker image is available
 ### Docker run
 
 ```bash
-docker run -p 3000:3000 -e ORIGIN=http://localhost:3000 \
+docker run -p 3000:3000 \
   -v ./data:/app/data \
   orochibraru/nuvio-web:latest
 ```
@@ -129,18 +129,20 @@ services:
       # Sessions, and your library / progress / history. Back it up.
       - ./data:/app/data
     environment:
-      # The URL you actually browse to : see Configuration below.
-      ORIGIN: http://localhost:3000
+      # Behind a reverse proxy that terminates HTTPS : see Configuration below.
+      PROTOCOL_HEADER: x-forwarded-proto
+      HOST_HEADER: x-forwarded-host
     healthcheck:
       interval: 30s
       retries: 3
       start_period: 5s
-      test: ["CMD", "/app/dist/healthcheck"]
+      test: ["CMD", "curl", "-fsS", "http://localhost:3000/api/health"]
       timeout: 30s
 ```
 
-Then open <http://localhost:3000>, sign in, pick a profile, and add an addon
-from **Settings → Addons** if your account has none yet.
+Put it behind a reverse proxy that serves HTTPS, open that address, sign in,
+pick a profile, and add an addon from **Settings → Addons** if your account has
+none yet.
 
 ### Configuration
 
@@ -151,40 +153,26 @@ Nuvio account in the background, so the Nuvio apps stay in step (see
 [Sync](docs/sync.md)). Without the volume, a restart signs everyone out and
 drops any change not yet pushed to Nuvio. Run one container per data directory.
 Account, profiles, addons and settings still live on your Nuvio account. The
-container serves the app on port `3000`, and `/app/dist/healthcheck` is a
-self-contained binary suitable for `HEALTHCHECK` and for orchestrator probes.
+container serves the app on port `3000`; `GET /api/health` answers 200 while it
+is up, for `HEALTHCHECK` and orchestrator probes.
 
-One environment variable matters: **`ORIGIN`**, the URL you actually browse to.
+**Serve it over HTTPS.** SvelteKit rejects any write whose `Origin` header
+doesn't match the app's own origin, and the image assumes `https://` with the
+host from the `Host` header. Behind a reverse proxy, name the headers that carry
+the public scheme and host:
 
-| Variable          | Default           | When you need it                                |
-| ----------------- | ----------------- | ----------------------------------------------- |
-| `ORIGIN`          | _(unset)_         | Always, unless the proxy headers below cover it |
-| `PROTOCOL_HEADER` | assumes `https`   | Behind a reverse proxy                          |
-| `HOST_HEADER`     | the `Host` header | Behind a proxy that rewrites it                 |
-| `PORT`            | `3000`            | To listen on another port                       |
+| Variable          | Default           | When you need it                      |
+| ----------------- | ----------------- | ------------------------------------- |
+| `PROTOCOL_HEADER` | assumes `https`   | Behind a reverse proxy                |
+| `HOST_HEADER`     | the `Host` header | Behind a proxy that rewrites the host |
+| `PORT`            | `3000`            | To listen on another port             |
 
-Without `ORIGIN` the server reconstructs its own origin from the request's
-`Host` header and **assumes `https://`**. Browse to a plain-HTTP address and
-that guess disagrees with the browser's `Origin` header, so SvelteKit's
-cross-site check rejects every write the app makes with
-`403 Cross-site remote requests are forbidden`. Only non-`GET` requests are
-checked, so the app still renders and reads fine : but nothing saves. Settings
-snap back, library toggles revert, progress never sticks. Set `ORIGIN` to
-exactly what's in the address bar (scheme, host and port, no trailing slash) and
-it goes away.
-
-Behind a reverse proxy, either set `ORIGIN` to the public URL or let the proxy's
-headers speak for it:
-
-```bash
-docker run -p 3000:3000 \
-  -e PROTOCOL_HEADER=x-forwarded-proto \
-  -e HOST_HEADER=x-forwarded-host \
-  orochibraru/nuvio-web:latest
-```
-
-Serving over HTTPS on the default port needs none of this : the assumed
-`https://` already matches.
+On plain HTTP (`http://localhost:3000`, a LAN address) the app renders, but
+nothing saves: every write gets `403 Cross-site remote requests are forbidden`.
+SvelteKit 3 only takes a fixed origin at build time, so plain HTTP needs your
+own image built with `--build-arg NUVIO_BUILD_ORIGIN=http://…`. The `ORIGIN`
+variable from earlier releases does nothing now. Details in
+[Configuration](docs/configuration.md).
 
 Running it on the public internet is on you: put it behind HTTPS and whatever
 access control you would give any other self-hosted app.
@@ -224,7 +212,7 @@ Anywhere in the app, `⌘K` / `Ctrl-K` opens the command palette.
 - **Remote functions** are reserved for client-initiated work : a button, a
   right-click action, "load more".
 - **One binary in the image.** The built app, Bun runtime embedded, is compiled
-  by [`svelte-smol`](https://github.com/orochibraru/svelte-smol) into a
+  by [`@sveltejs/adapter-bun`](https://svelte.dev/docs/kit/adapter-bun) into a
   self-contained server binary, so the runtime layer is `debian:slim` plus that
   binary : no Bun, no `node_modules`.
 - **Tested at three levels** : Vitest for the framework-agnostic logic

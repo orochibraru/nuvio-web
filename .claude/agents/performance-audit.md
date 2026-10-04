@@ -34,7 +34,7 @@ that instead. State your scope at the top of the report.
 - **Sync store** (`src/lib/sync/store.svelte.ts`): IndexedDB mirror, optimistic
   write queue, background delta pull, `BroadcastChannel` across tabs.
 - **Player** (`src/lib/player/`): hls.js, subtitle fetches, progress saves.
-- **Build**: `@orochibraru/svelte-smol` compiles to one Bun binary; a service
+- **Build**: `@sveltejs/adapter-bun` compiles to one Bun binary; a service
   worker (`src/service-worker/`) caches the build.
 
 ## Checklist

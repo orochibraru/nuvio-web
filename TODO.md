@@ -26,3 +26,7 @@
 - [ ] **Stale comment** in `.pre-commit-config.yaml` (~line 51) still credits
       semantic-release; it should say releaser. Edit and stage it yourself: an
       unstaged change to that file makes the prek Stop hook fail every turn.
+- [ ] **Report adapter-bun's embedded `Range` bug, then drop the shim.** The
+      compiled binary answers `Range` on a `static/` file with the whole file
+      and a 200; the adapter's own comment assumes Bun handles it.
+      `e2e/fixtures.ts` serves the fixtures with `Range` meanwhile.

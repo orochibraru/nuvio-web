@@ -2,17 +2,18 @@
 
 ## Nothing saves: settings revert, library toggles snap back
 
-Almost always `ORIGIN`.
+Almost always the origin.
 
-Without it the server assumes `https://` and reconstructs its origin from the
-`Host` header. Browse to a plain-HTTP address and that guess disagrees with the
-browser's `Origin` header, so SvelteKit's cross-site check rejects every write
-with `403 Cross-site remote requests are forbidden`. Only non-`GET` requests are
+The server assumes `https://` and takes the host from the `Host` header. Browse
+to a plain-HTTP address, or through a proxy whose headers it isn't told about,
+and that guess disagrees with the browser's `Origin` header, so SvelteKit's
+cross-site check rejects every write with
+`403 Cross-site remote requests are forbidden`. Only non-`GET` requests are
 checked, which is why the app looks fine until you try to change something.
 
-Set `ORIGIN` to exactly what is in the address bar — scheme, host and port, no
-trailing slash. Behind a proxy, set `PROTOCOL_HEADER` and `HOST_HEADER` instead.
-See [Configuration](configuration).
+Behind a proxy, set `PROTOCOL_HEADER` and `HOST_HEADER`. On plain HTTP, build
+the image with `NUVIO_BUILD_ORIGIN`. `ORIGIN` no longer does anything. See
+[Configuration](configuration).
 
 ## The home feed is empty
 
