@@ -235,10 +235,13 @@ async function open(
 	const primary = await input.getPrimaryAudioTrack();
 	const { active, native } = startingTrack(audio, primary?.id, preference);
 	// Direct files need MSE for track selection when the native API is absent.
-	const needsTrackSelection =
-		audio.length > 1 && !("audioTracks" in document.createElement("video"));
-	if (reason === "probe" && native && !needsTrackSelection) {
-		return null;
+	if (reason === "probe" && native) {
+		if (audio.length < 2) {
+			return null;
+		}
+		if ("audioTracks" in document.createElement("video")) {
+			return null;
+		}
 	}
 	const duration = await input.computeDuration();
 	return { video, audio, encoded, active, duration };

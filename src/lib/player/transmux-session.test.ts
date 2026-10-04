@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { prepareTransmux } from "./transmux-session.ts";
 
 const source = vi.hoisted(() => ({
 	tracks: [] as {
@@ -41,8 +42,6 @@ vi.mock("mediabunny", () => ({
 	MATROSKA: {},
 	MP4: {},
 }));
-
-import { prepareTransmux } from "./transmux-session.ts";
 
 describe("direct-file audio selection", () => {
 	beforeEach(() => {
