@@ -49,7 +49,7 @@ bun run check            # svelte-kit sync + svelte-check
 bun run lint             # every prek pre-commit hook, on all files (fixes)
 bun run test:unit        # vitest
 bun run test:unit:coverage
-bun run test:e2e         # playwright (needs a test account, see .env.example)
+bun run test:e2e         # playwright (needs Docker and a test account, see .env.example)
 ```
 
 The package manager is **bun**. Never npx or npm.

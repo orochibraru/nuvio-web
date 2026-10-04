@@ -22,9 +22,7 @@ jobs:
       - name: Unit tests + coverage (server / remote layer)
         run: bun run test:unit:coverage
 
-  # A fork PR gets no secrets, so no test account: Fork e2e runs it once approved.
   e2e:
     name: Playwright
-    if: ${{ !github.event.pull_request.head.repo.fork }}
     uses: ./.github/workflows/e2e.yml
     secrets: inherit

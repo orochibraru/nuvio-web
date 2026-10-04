@@ -173,10 +173,13 @@ catch runtime errors (bad reactive access, hydration mismatch, a broken remote
 call). **After any UI or route change, run `bun run test:e2e`** (Playwright, in
 `e2e/`) and make it pass before calling the work done. Add a spec when you add a
 screen or a flow. Needs `NUVIO_TEST_EMAIL` / `NUVIO_TEST_PASSWORD` in `.env`
-(see `.env.example`). Playwright runs against a **production build on :3000**
-(`bun run build && bun run start`), not `vite dev` : a cold dev-server compile
-made the run flaky. It reuses an existing server on :3000 and starts one
-otherwise, so your `bun run dev` on :5173 is untouched either way.
+(see `.env.example`) and a running Docker. Playwright runs against **the
+production image on :3000**, built and started from `compose.e2e.yaml`, not
+`vite dev` : a cold dev-server compile made the run flaky, and the image is what
+ships. It reuses an existing server on :3000 and starts one otherwise, so your
+`bun run dev` on :5173 is untouched either way. Anything that touches the
+server's data dir goes through the `nuvio-e2e` container (see
+`admin-activity.spec.ts`), never a host path.
 
 **Screenshots are generated, not a test.** `e2e/showcase.spec.ts` is its own
 Playwright project, excluded from `test:e2e`; `bun run screenshots` rewrites

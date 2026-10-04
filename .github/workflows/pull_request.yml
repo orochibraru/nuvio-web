@@ -60,8 +60,7 @@ jobs:
     uses: ./.github/workflows/test.yml
     secrets: inherit
 
-  # Not gated on code_quality / tests: CI Gate still fails the PR, and Publish
-  # only promotes a pr-N image whose CI Gate passed.
+  # Only proves both platforms build: Publish builds what ships, on main.
   build:
     name: Docker Build (App)
     if: github.event_name == 'pull_request'
@@ -72,9 +71,7 @@ jobs:
       registry_name: docker.io
       registry_username: orochibraru
       bake_target: app-ci
-      push: ${{ !github.event.pull_request.head.repo.fork }}
-    secrets:
-      registry_password: ${{ secrets.DOCKER_REGISTRY_PASSWORD }}
+      push: false
 
   gate:
     name: CI Gate

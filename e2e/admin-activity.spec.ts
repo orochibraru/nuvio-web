@@ -1,4 +1,4 @@
-import { DatabaseSync } from "node:sqlite";
+import { execFileSync } from "node:child_process";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 import { signIn } from "./auth.ts";
@@ -10,29 +10,54 @@ import { collectRuntimeErrors } from "./errors.ts";
  * `admin.spec.ts` and `a11y.spec.ts` only ever see the empty state: the e2e
  * database starts fresh every run and one signed-in test account produces a
  * single bar on one day. The events are written straight into the server's
- * SQLite file (the same one `playwright.config.ts` points `NUVIO_DATA_DIR` at)
- * because there is no API for backdating a sign-in, and a 30-day shape is the
- * thing worth asserting.
+ * SQLite file because there is no API for backdating a sign-in, and a 30-day
+ * shape is the thing worth asserting.
  */
 const DAY = 86_400_000;
-const DB_PATH = "test-results/admin-data/nuvio.sqlite";
+
+/**
+ * Runs inside the e2e container (`compose.e2e.yaml`): the WAL database can't
+ * be shared with the host across Docker's VM, and the compiled server binary
+ * still answers as `bun` under `BUN_BE_BUN`.
+ */
+const RUN_STATEMENTS = `
+const { Database } = require("bun:sqlite");
+const db = new Database("/app/data/nuvio.sqlite");
+for (const [sql, params] of JSON.parse(require("node:fs").readFileSync(0, "utf8"))) {
+	db.prepare(sql).run(...params);
+}`;
+
+function runSql(statements: [string, (string | number)[]][]): void {
+	execFileSync(
+		"docker",
+		[
+			"exec",
+			"-i",
+			"-e",
+			"BUN_BE_BUN=1",
+			"nuvio-e2e",
+			"/app/dist/server",
+			"-e",
+			RUN_STATEMENTS,
+		],
+		{ input: JSON.stringify(statements) },
+	);
+}
 
 /** The addresses this spec inserts, so it can take exactly them back out. */
 const SEEDED = ["ana@e.com", "bo@e.com", "cy@e.com", "dee@e.com"];
 
 function clearSeededEvents(): void {
-	const db = new DatabaseSync(DB_PATH);
-	db.prepare(
-		`DELETE FROM sign_in_events WHERE email IN (${SEEDED.map(() => "?").join(", ")})`,
-	).run(...SEEDED);
-	db.close();
+	runSql([
+		[
+			`DELETE FROM sign_in_events WHERE email IN (${SEEDED.map(() => "?").join(", ")})`,
+			SEEDED,
+		],
+	]);
 }
 
 function seedSignInEvents(): { total: number; quietDays: number[] } {
-	const db = new DatabaseSync(DB_PATH);
-	const insert = db.prepare(
-		"INSERT INTO sign_in_events (email, at) VALUES (?, ?)",
-	);
+	const inserts: [string, (string | number)[]][] = [];
 	const people = SEEDED;
 	const quietDays = [7, 18];
 	const now = Date.now();
@@ -40,14 +65,14 @@ function seedSignInEvents(): { total: number; quietDays: number[] } {
 	for (let ago = 29; ago >= 0; ago--) {
 		const count = quietDays.includes(ago) ? 0 : (ago > 20 ? 0 : 1) + (ago % 3);
 		for (let i = 0; i < count; i++) {
-			insert.run(
-				people[(ago + i) % people.length],
-				now - ago * DAY + i * 3_600_000,
-			);
+			inserts.push([
+				"INSERT INTO sign_in_events (email, at) VALUES (?, ?)",
+				[people[(ago + i) % people.length], now - ago * DAY + i * 3_600_000],
+			]);
 			total++;
 		}
 	}
-	db.close();
+	runSql(inserts);
 	return { total, quietDays };
 }
 

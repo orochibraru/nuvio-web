@@ -34,15 +34,9 @@ permissions:
 # the release PR would never get its "CI Gate" check.
 jobs:
   resolve:
-    name: Resolve Merged PR
+    name: Resolve Release
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: read
-      checks: read
     outputs:
-      pr: ${{ steps.resolve.outputs.pr }}
-      promote: ${{ steps.resolve.outputs.promote }}
       release: ${{ steps.kind.outputs.release }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -60,61 +54,16 @@ jobs:
             echo "release=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Find the PR and whether its image can be promoted
-        id: resolve
-        if: steps.kind.outputs.release == 'false'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
-          SHA: ${{ github.sha }}
-        run: |
-          set -euo pipefail
-          echo "promote=false" >> "$GITHUB_OUTPUT"
-
-          pr="$(gh api "repos/$REPO/commits/$SHA/pulls" --jq '[.[] | select(.merged_at != null)][0].number // empty')"
-          echo "pr=$pr" >> "$GITHUB_OUTPUT"
-          if [ -z "$pr" ]; then
-            echo "Direct push, no PR to promote from: building from scratch."
-            exit 0
-          fi
-
-          head="$(gh api "repos/$REPO/pulls/$pr" --jq '.head.sha')"
-          git fetch --quiet origin "refs/pull/$pr/head"
-          drift="$(git diff --name-only "$head" "$SHA" -- . ':(exclude)CHANGELOG.md' ':(exclude)package.json')"
-          if [ -n "$drift" ] || [ "$(git show "$head:package.json" | jq -S 'del(.version)')" != "$(git show "$SHA:package.json" | jq -S 'del(.version)')" ]; then
-            echo "PR #$pr differs from this commit beyond a release bump, so its image doesn't match: building from scratch."
-            echo "$drift"
-            exit 0
-          fi
-
-          gate="$(gh api "repos/$REPO/commits/$head/check-runs?check_name=CI%20Gate" --jq '[.check_runs[] | select(.conclusion == "success")] | length')"
-          if [ "$gate" = "0" ]; then
-            echo "CI Gate never passed on PR #$pr's head $head: building from scratch."
-            exit 0
-          fi
-
-          if ! docker buildx imagetools inspect "docker.io/orochibraru/nuvio-web:pr-$pr" > /dev/null 2>&1; then
-            echo "docker.io/orochibraru/nuvio-web:pr-$pr doesn't exist: building from scratch."
-            exit 0
-          fi
-
-          echo "Promoting PR #$pr's already-tested image instead of rebuilding."
-          echo "promote=true" >> "$GITHUB_OUTPUT"
-
   code_quality:
     name: Code Quality
     needs: [resolve]
-    if:
-      needs.resolve.outputs.release == 'false' && needs.resolve.outputs.promote
-      != 'true'
+    if: needs.resolve.outputs.release == 'false'
     uses: ./.github/workflows/code_quality.yml
 
   tests:
     name: Tests
     needs: [resolve]
-    if:
-      needs.resolve.outputs.release == 'false' && needs.resolve.outputs.promote
-      != 'true'
+    if: needs.resolve.outputs.release == 'false'
     uses: ./.github/workflows/test.yml
     secrets: inherit
 
@@ -170,40 +119,10 @@ jobs:
     secrets:
       registry_password: ${{ secrets.DOCKER_REGISTRY_PASSWORD }}
 
-  promote:
-    name: Promote pr-${{ needs.resolve.outputs.pr }} to ${{ github.sha }}
-    needs: [resolve, version]
-    if: needs.resolve.outputs.promote == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Login to Container registry
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
-        with:
-          registry: docker.io
-          username: orochibraru
-          password: ${{ secrets.DOCKER_REGISTRY_PASSWORD }}
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-
-      - name: Tag the tested image
-        env:
-          PR: ${{ needs.resolve.outputs.pr }}
-          SHA: ${{ github.sha }}
-        run: |
-          set -euo pipefail
-          app=docker.io/orochibraru/nuvio-web
-          docker buildx imagetools create -t "$app:$SHA" -t "$app:canary" "$app:pr-$PR"
-          docker buildx imagetools inspect "$app:$SHA"
-
   canary:
     name: Canary Release
     runs-on: ubuntu-latest
-    needs: [version, build-app, promote]
-    if:
-      ${{ !cancelled() && !contains(needs.*.result, 'failure') &&
-      (needs.promote.result == 'success' || needs.build-app.result == 'success')
-      }}
+    needs: [version, build-app]
     permissions:
       contents: write
       pull-requests: write

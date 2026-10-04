@@ -38,9 +38,7 @@ on:
       push:
         required: false
         default: true
-        description:
-          "Push the images. False only builds them, for a fork PR that gets no
-          registry secret"
+        description: "Push the images. False only builds them, for a PR"
         type: boolean
     secrets:
       registry_password:

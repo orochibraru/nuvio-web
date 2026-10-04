@@ -64,29 +64,28 @@ export default defineConfig({
 		},
 	],
 	webServer: {
-		command: "bun run build && bun run start",
+		// The production image, as it ships, from `compose.e2e.yaml`.
+		command: "docker compose -f compose.e2e.yaml up --build --force-recreate",
+		// SIGTERM lets `compose up` stop the container on its way out.
+		gracefulShutdown: { signal: "SIGTERM", timeout: 10_000 },
 		// An app route, not `/`: reuse only happens below a 404, so another dev
 		// server on :3000 fails the run instead of being screenshotted as the app.
 		url: `${ORIGIN}/auth/sign-in`,
 		reuseExistingServer: !process.env.CI,
-		// A cold `vite build` plus compiling the ~65 MB standalone binary is well
-		// over a minute on a CI runner.
-		timeout: 240_000,
+		// A cold image build (dependencies, `vite build`, the ~65 MB standalone
+		// binary) is several minutes on a CI runner.
+		timeout: 360_000,
 		env: {
-			// Read by `vite.config.ts` at build time. Without it the adapter assumes
-			// `https://`, so SvelteKit's CSRF check saw `https://localhost:3000`
-			// against the browser's `Origin: http://localhost:3000` and rejected
-			// every remote function with 403 "Cross-site remote requests are
-			// forbidden".
+			// A build argument, read by `vite.config.ts`. Without it the adapter
+			// assumes `https://`, so SvelteKit's CSRF check saw
+			// `https://localhost:3000` against the browser's
+			// `Origin: http://localhost:3000` and rejected every remote function
+			// with 403 "Cross-site remote requests are forbidden".
 			NUVIO_BUILD_ORIGIN: ORIGIN,
-			// Unlocks the `/dev/player` harness on a production build. Only ever
-			// set here : see `src/routes/dev/player/+page.server.ts`.
-			NUVIO_E2E: "1",
 			// Makes the shared test account a server admin so `admin.spec.ts` can
-			// reach /admin. Its database goes to a scratch directory that the spec
-			// owns, so a run never touches a real `data/`.
+			// reach /admin. Its database lives in the container, which every run
+			// recreates, so a run never touches a real `data/`.
 			NUVIO_ADMIN_EMAILS: fromEnvFile("NUVIO_TEST_EMAIL"),
-			NUVIO_DATA_DIR: "test-results/admin-data",
 			// Fixed session secret; `auth.ts` gets its cookie from /dev/e2e-session.
 			NUVIO_SESSION_SECRET: E2E_SESSION_SECRET,
 		},

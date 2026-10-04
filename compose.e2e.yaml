@@ -1,0 +1,17 @@
+# The production image, built for plain HTTP, as `playwright.config.ts` runs it.
+name: nuvio-e2e
+
+services:
+  app:
+    build:
+      context: .
+      args:
+        NUVIO_BUILD_ORIGIN: ${NUVIO_BUILD_ORIGIN:-}
+    container_name: nuvio-e2e
+    network_mode: bridge
+    ports:
+      - 3000:3000
+    environment:
+      NUVIO_E2E: "1"
+      NUVIO_ADMIN_EMAILS: ${NUVIO_ADMIN_EMAILS:-}
+      NUVIO_SESSION_SECRET: ${NUVIO_SESSION_SECRET:-}

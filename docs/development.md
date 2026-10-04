@@ -113,8 +113,8 @@ changes all bump the patch; other types, `docs` included, don't release (Publish
 ignores docs-only pushes anyway, so a `docs:` commit ships with the next code
 change). `main` is the canary channel:
 
-- Every push to `main` builds the image (or re-tags the merged PR's already
-  tested `pr-NNN` one), pushes it as `:canary`, and publishes an
+- Every push to `main` builds the image (pull requests only check that it
+  builds, they never push one), pushes it as `:canary`, and publishes an
   `X.Y.Z-canary.N` GitHub prerelease. With nothing releasable since the last
   release, `X.Y.Z` is that release's patch plus one, so the canary still sorts
   after it.

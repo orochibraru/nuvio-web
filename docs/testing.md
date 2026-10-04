@@ -55,18 +55,25 @@ Playwright, in `e2e/`. **After any UI or route change, run it** —
 `bun run check` and `bun run lint` do not catch a bad reactive access, a
 hydration mismatch, or a broken remote call.
 
-It runs against a **production build on `:3000`**
-(`bun run build && bun run start`), not `vite dev`: a cold dev-server compile
-made the run flaky. It reuses an existing server on `:3000` and starts one
-otherwise, so a `bun run dev` on `:5173` is untouched either way.
+It runs against **the production image on `:3000`**, built and started from
+`compose.e2e.yaml` (with `NUVIO_BUILD_ORIGIN` set for plain HTTP), not
+`vite dev`: a cold dev-server compile made the run flaky, and the image is what
+ships. It reuses an existing server on `:3000` and starts one otherwise, so a
+`bun run dev` on `:5173` is untouched either way.
 
-The reuse is blind: a leftover `bun run start` from an older build answers the
-run, and the suite passes against code you no longer have. **Before a
-verification run, stop anything on `:3000` or rebuild it**
-(`lsof -ti :3000 | xargs kill`).
+The reuse is blind: a leftover `bun run start` or `nuvio-e2e` container from an
+older build answers the run, and the suite passes against code you no longer
+have. **Before a verification run, stop anything on `:3000`**
+(`lsof -ti :3000 | xargs kill`, `docker stop nuvio-e2e`).
 
-It needs `NUVIO_TEST_EMAIL` and `NUVIO_TEST_PASSWORD` in `.env` — see
-`.env.example`.
+The server's database lives in the container, recreated every run. A spec that
+needs to write to it (`admin-activity.spec.ts`) runs its SQL there with
+`docker exec`, through the server binary itself (`BUN_BE_BUN=1`): a WAL database
+can't be shared with the host across Docker's VM.
+
+It needs Docker, and `NUVIO_TEST_EMAIL` and `NUVIO_TEST_PASSWORD` in `.env` (see
+`.env.example`). A fork PR gets no secrets, so CI runs only the specs that never
+sign in there; the full suite runs again on `main` before anything ships.
 
 The whole suite shares **one** auth token (`e2e/auth.ts` memoises the password
 grant), because the real `api.nuvio.tv` rate-limits. Do not re-run the full
