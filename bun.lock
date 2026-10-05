@@ -5,7 +5,7 @@
     "": {
       "name": "nuvio-web",
       "dependencies": {
-        "@mediabunny/ac3": "1.61.0",
+        "@mediabunny/ac3": "1.61.1",
         "@mediabunny/dts": "1.61.0",
         "hls.js": "1.7.3",
         "mediabunny": "1.61.0",
@@ -194,7 +194,7 @@
 
     "@lucide/svelte": ["@lucide/svelte@1.49.0", "", { "peerDependencies": { "svelte": "^5" } }, "sha512-RFH6Vx7dj6hshcBa1qJ0nKAWwkh385jJbDwF1WVg7yflC89310BsA55SEmJnaSRfr03dAyZMMLUC1EMGBu0Z0Q=="],
 
-    "@mediabunny/ac3": ["@mediabunny/ac3@1.61.0", "", { "peerDependencies": { "mediabunny": "^1.0.0" } }, "sha512-f1qEC5vXSLARXM05ei28F1V1pN3+CKbk4qKRc6+KSx9aV3ay4qX3hnBBhVoDxxhFwiYdLtGO8SOI6G+jDMjNHQ=="],
+    "@mediabunny/ac3": ["@mediabunny/ac3@1.61.1", "", { "peerDependencies": { "mediabunny": "^1.0.0" } }, "sha512-1yYqM/UQG/G8FLBStxvA9JMD+9ksceeJ0ZesrRPBOSJbf3M5Zz8xFzimp59fpcjXDM8VZf7AtJZeb0Jn30GqWw=="],
 
     "@mediabunny/dts": ["@mediabunny/dts@1.61.0", "", { "peerDependencies": { "mediabunny": "^1.0.0" } }, "sha512-Xbp/HcxJbLraqqmOBzNktO2iySqfeqQ9mtaZ0ChaNTQroINhsj3eOaUtqHf0nTyaHy+8Sg055mOW5/mRVZdQOQ=="],
 
