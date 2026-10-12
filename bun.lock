@@ -6,7 +6,7 @@
       "name": "nuvio-web",
       "dependencies": {
         "@mediabunny/ac3": "1.61.1",
-        "@mediabunny/dts": "1.61.0",
+        "@mediabunny/dts": "1.61.4",
         "hls.js": "1.7.3",
         "mediabunny": "1.61.0",
         "valibot": "1.5.0",
@@ -196,7 +196,7 @@
 
     "@mediabunny/ac3": ["@mediabunny/ac3@1.61.1", "", { "peerDependencies": { "mediabunny": "^1.0.0" } }, "sha512-1yYqM/UQG/G8FLBStxvA9JMD+9ksceeJ0ZesrRPBOSJbf3M5Zz8xFzimp59fpcjXDM8VZf7AtJZeb0Jn30GqWw=="],
 
-    "@mediabunny/dts": ["@mediabunny/dts@1.61.0", "", { "peerDependencies": { "mediabunny": "^1.0.0" } }, "sha512-Xbp/HcxJbLraqqmOBzNktO2iySqfeqQ9mtaZ0ChaNTQroINhsj3eOaUtqHf0nTyaHy+8Sg055mOW5/mRVZdQOQ=="],
+    "@mediabunny/dts": ["@mediabunny/dts@1.61.4", "", { "peerDependencies": { "mediabunny": "^1.0.0" } }, "sha512-uv3OVKG6drFKmnCJ8ruvhAaxYeyGMF9rWrJRYGE3y2ylAJHZWOeKMwZW9zjSJPd6HP2fK426pfONxYfLd+dchA=="],
 
     "@napi-rs/wasm-runtime": ["@napi-rs/wasm-runtime@1.2.4", "", { "dependencies": { "@tybys/wasm-util": "^0.10.3" }, "peerDependencies": { "@emnapi/core": "^1.7.1 || ^2.0.0-alpha.4", "@emnapi/runtime": "^1.7.1 || ^2.0.0-alpha.4" } }, "sha512-AJxoUD2/15ESHbvpcyjU274nsAPLuOtPHCk0vKJM5pj//Fg/B1FXNWjPnXTT9PymCYYiHo4zPj0ZomXBKhoy7g=="],
 
