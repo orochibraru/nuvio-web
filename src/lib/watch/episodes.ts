@@ -109,6 +109,23 @@ export function nextToAir(
 	return candidate ? toUpcoming(candidate) : null;
 }
 
+/**
+ * A random aired episode, for "Random episode". Real seasons only (no S0
+ * specials), and aired only: an episode that is not out has no streams.
+ * `null` when nothing qualifies. `random` is injectable for tests.
+ */
+export function randomEpisode(
+	videos: Videos | undefined,
+	now = Date.now(),
+	random: () => number = Math.random,
+): Video | null {
+	const pool = ordered(videos).filter((entry) => isAired(entry.released, now));
+	if (pool.length === 0) {
+		return null;
+	}
+	return pool[Math.min(pool.length - 1, Math.floor(random() * pool.length))];
+}
+
 const DAY_MS = 86_400_000;
 
 /**

@@ -741,6 +741,7 @@
 	"watch_detail_no_metadata_body": "Ningún addon instalado ofrece metadatos de {type} para {id}.",
 	"watch_detail_no_synopsis": "No hay sinopsis disponible para este título.",
 	"watch_detail_play_episode": "Reproducir T{season}E{episode}",
+	"watch_detail_random_episode": "Episodio aleatorio",
 	"watch_detail_released": "Estreno",
 	"watch_detail_select_stream": "Elegir fuente",
 	"watch_detail_trailer_n": "Tráiler {number}",

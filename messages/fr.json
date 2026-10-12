@@ -741,6 +741,7 @@
 	"watch_detail_no_metadata_body": "Aucun addon installé ne fournit de métadonnées {type} pour {id}.",
 	"watch_detail_no_synopsis": "Aucun synopsis disponible pour ce titre.",
 	"watch_detail_play_episode": "Lire S{season}E{episode}",
+	"watch_detail_random_episode": "Épisode au hasard",
 	"watch_detail_released": "Sortie",
 	"watch_detail_select_stream": "Choisir la source",
 	"watch_detail_trailer_n": "Bande-annonce {number}",
