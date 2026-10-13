@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 import { signIn } from "./auth.ts";
 import { collectRuntimeErrors } from "./errors.ts";
 
@@ -23,6 +23,26 @@ const routes = [
 	"/player/movie/tt0137523",
 	"/player/series/tt0903747:1:1",
 ];
+
+/**
+ * Puts Fight Club back in the shared test account's library if it isn't there.
+ * The library specs below assume it's part of the baseline, but
+ * `live-sync.spec.ts` toggles it and only restores it at the end: one run that
+ * dies between the two clicks leaves it out, and every later run goes red.
+ */
+async function ensureFightClubInLibrary(page: Page) {
+	await page.goto("/detail/movie/tt0137523");
+	const toggle = page.getByRole("button", {
+		name: /(Add to|Remove from) library/,
+	});
+	await expect(toggle).toBeVisible({ timeout: 20_000 });
+	if ((await toggle.textContent())?.includes("Add to library")) {
+		await toggle.click();
+		await expect(toggle).toHaveText(/Remove from library/i, {
+			timeout: 10_000,
+		});
+	}
+}
 
 test.beforeEach(async ({ context }) => {
 	await signIn(context);
@@ -207,10 +227,10 @@ test("poster right-click menu: mark a movie watched, then unwatch", async ({
 	page,
 }) => {
 	const errors = collectRuntimeErrors(page);
+	await ensureFightClubInLibrary(page);
 
-	// Fight Club is in the test account's baseline library. Reload until the
-	// local store has hydrated the grid (it can briefly show an empty grid
-	// while IDB / the delta pull settle).
+	// Reload until the local store has hydrated the grid (it can briefly show
+	// an empty grid while IDB / the delta pull settle).
 	const poster = page.getByRole("link", { name: /Fight Club/i }).first();
 	await expect(async () => {
 		await page.goto("/library");
@@ -266,6 +286,7 @@ test("library posters stay painted across a sync re-publish", async ({
 	page,
 }) => {
 	const errors = collectRuntimeErrors(page);
+	await ensureFightClubInLibrary(page);
 
 	const poster = page.getByRole("link", { name: /Fight Club/i }).first();
 	await expect(async () => {
