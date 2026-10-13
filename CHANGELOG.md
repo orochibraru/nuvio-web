@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.19](https://github.com/orochibraru/nuvio-web/compare/v1.0.18...v1.0.19) (2026-10-13)
+
+### Features
+
+* **detail:** random episode button for series (#33) ([f115c84](https://github.com/orochibraru/nuvio-web/commit/f115c8489a57a36d1af37dbfd1efaa6c98ae075c))
+
 ## [1.0.18](https://github.com/orochibraru/nuvio-web/compare/v1.0.17...v1.0.18) (2026-10-05)
 
 ### Features
