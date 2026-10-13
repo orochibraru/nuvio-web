@@ -741,6 +741,7 @@
 	"watch_detail_no_metadata_body": "Kein installiertes Addon liefert {type}-Metadaten für {id}.",
 	"watch_detail_no_synopsis": "Für diesen Titel ist keine Inhaltsangabe verfügbar.",
 	"watch_detail_play_episode": "S{season}E{episode} abspielen",
+	"watch_detail_random_episode": "Zufällige Folge",
 	"watch_detail_released": "Erschienen",
 	"watch_detail_select_stream": "Quelle wählen",
 	"watch_detail_trailer_n": "Trailer {number}",

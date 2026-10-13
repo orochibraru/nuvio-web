@@ -6,6 +6,7 @@ import {
 	isAired,
 	nextEpisode,
 	nextToAir,
+	randomEpisode,
 	upcomingEpisode,
 } from "./episodes.ts";
 
@@ -149,5 +150,36 @@ describe("episodeLabel", () => {
 		expect(
 			episodeLabel({ season: 38, episode: 1, title: null, airsAt: "" }),
 		).toBe("S38E1");
+	});
+});
+
+describe("randomEpisode", () => {
+	const now = Date.parse("2026-09-17T12:00:00Z");
+	const list = [
+		{ id: "z:0:1", title: "special", season: 0, episode: 1 },
+		{ id: "z:1:1", title: "a", season: 1, episode: 1 },
+		{ id: "z:1:2", title: "b", season: 1, episode: 2 },
+		{
+			id: "z:1:3",
+			title: "future",
+			season: 1,
+			episode: 3,
+			released: "2026-10-01T00:00:00Z",
+		},
+	] as NonNullable<Meta["videos"]>;
+
+	it("picks from aired real episodes only, in play order", () => {
+		expect(randomEpisode(list, now, () => 0)?.id).toBe("z:1:1");
+		expect(randomEpisode(list, now, () => 0.99)?.id).toBe("z:1:2");
+	});
+
+	it("never overflows when random() hits the top of its range", () => {
+		expect(randomEpisode(list, now, () => 1)?.id).toBe("z:1:2");
+	});
+
+	it("returns null when nothing has aired or there are no videos", () => {
+		expect(randomEpisode(list.slice(3), now)).toBeNull();
+		expect(randomEpisode(list.slice(0, 1), now)).toBeNull();
+		expect(randomEpisode(undefined, now)).toBeNull();
 	});
 });

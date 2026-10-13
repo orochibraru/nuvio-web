@@ -32,6 +32,7 @@ have the right to use in your jurisdiction. Not affiliated with or endorsed by
 Nuvio.
 
 ## Previews
+
 - The [stable release](https://nuvio.orochibraru.com)
 - The [canary release](https://canary.nuvio.orochibraru.com)
 

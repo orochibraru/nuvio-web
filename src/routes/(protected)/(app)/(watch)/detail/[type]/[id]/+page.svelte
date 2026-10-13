@@ -13,6 +13,7 @@
 	import ListVideoIcon from "@lucide/svelte/icons/list-video";
 	import PlayIcon from "@lucide/svelte/icons/play";
 	import PlayCircleIcon from "@lucide/svelte/icons/play-circle";
+	import ShuffleIcon from "@lucide/svelte/icons/shuffle";
 	import { toast } from "svelte-sonner";
 	import ScrollRail from "#lib/components/layout/scroll-rail.svelte";
 	import CastRow from "#lib/components/media/cast-row.svelte";
@@ -28,7 +29,11 @@
 	import { theme } from "#lib/settings/theme.svelte.js";
 	import { sync } from "#lib/sync/store.svelte.js";
 	import { cn } from "#lib/utils.js";
-	import { airDateLabel, episodeLabel } from "#lib/watch/episodes.js";
+	import {
+		airDateLabel,
+		episodeLabel,
+		randomEpisode,
+	} from "#lib/watch/episodes.js";
 	import {
 		parseVideoId,
 		playOrder,
@@ -168,6 +173,18 @@
 	}
 	function watch(videoId: string) {
 		void goto(playerHref(videoId));
+	}
+
+	// Rolled on click, not derived: a derived pick would reshuffle on every
+	// progress update and SSR / hydration would disagree on it.
+	const canShuffle = $derived(
+		contentType === "series" && randomEpisode(meta?.videos) !== null,
+	);
+	function watchRandom() {
+		const pick = randomEpisode(meta?.videos);
+		if (pick) {
+			watch(pick.id);
+		}
 	}
 
 	// Secondary CTA: let the viewer pick the exact source themselves.
@@ -491,6 +508,17 @@
                     >
                         <ListVideoIcon data-icon="inline-start" />
                         {m.watch_detail_select_stream()}
+                    </Button>
+                {/if}
+                {#if canShuffle}
+                    <Button
+                        size="lg"
+                        variant="outline"
+                        class="glass-button"
+                        onclick={watchRandom}
+                    >
+                        <ShuffleIcon data-icon="inline-start" />
+                        {m.watch_detail_random_episode()}
                     </Button>
                 {/if}
                 <Button
