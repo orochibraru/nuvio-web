@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.20](https://github.com/orochibraru/nuvio-web/compare/v1.0.19...v1.0.20) (2026-10-15)
+
+### Bug Fixes
+
+* **player:** keep the center channel when downmixing, honour original audio, read stz2 and edit lists ([9011d5a](https://github.com/orochibraru/nuvio-web/commit/9011d5a5f7c8f1ba65cc3d02b98e76f2968c08c8))
+
 ## [1.0.19](https://github.com/orochibraru/nuvio-web/compare/v1.0.18...v1.0.19) (2026-10-13)
 
 ### Features
