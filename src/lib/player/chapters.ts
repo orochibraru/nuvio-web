@@ -12,6 +12,14 @@
  * When the file has none, TheIntroDB / AniSkip segments stand in.
  */
 
+import {
+	chapterSamples,
+	chapterTitle,
+	dataView,
+	type SampleTables,
+	timescaleOf,
+} from "./mp4-sample-table.ts";
+
 /** One chapter : `start` in seconds, `title` null for an unnamed stretch. */
 export interface Chapter {
 	start: number;
@@ -31,7 +39,6 @@ const MAX_ELEMENT_BYTES = 1024 * 1024;
 const MAX_READS = 64;
 /** Box headers are read this much at a time, so small neighbours come along. */
 const BOX_WINDOW_BYTES = 512;
-const MAX_CHAPTERS = 1024;
 
 const utf8 = new TextDecoder();
 
@@ -327,101 +334,6 @@ export function parseChpl(bytes: Uint8Array): Chapter[] {
 	return tidy(chapters);
 }
 
-function dataView(bytes: Uint8Array): DataView {
-	return new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-}
-
-/** The payloads of a chapter track's `mdhd` and sample table boxes. */
-interface SampleTables {
-	mdhd: Uint8Array;
-	stts: Uint8Array;
-	stsc: Uint8Array;
-	stsz: Uint8Array;
-	/** `stco` (32-bit chunk offsets), or `co64` when `wide`. */
-	chunkOffsets: Uint8Array;
-	wide: boolean;
-}
-
-/** One sample of a chapter track : `start` in seconds, `offset` from the start of the file. */
-interface ChapterSample {
-	start: number;
-	offset: number;
-	size: number;
-}
-
-/** The start, in seconds, of each of the first `count` samples of an `stts`. */
-function sampleStarts(
-	stts: DataView,
-	timescale: number,
-	count: number,
-): number[] {
-	const starts: number[] = [];
-	const entries = stts.getUint32(4);
-	let time = 0;
-	for (let entry = 0; entry < entries && starts.length < count; entry += 1) {
-		const sampleCount = stts.getUint32(8 + entry * 8);
-		const delta = stts.getUint32(12 + entry * 8);
-		for (let i = 0; i < sampleCount && starts.length < count; i += 1) {
-			starts.push(time / timescale);
-			time += delta;
-		}
-	}
-	return starts;
-}
-
-/** Where and when each sample of a chapter track is. Throws on a truncated table. */
-function chapterSamples(tables: SampleTables): ChapterSample[] {
-	const mdhd = dataView(tables.mdhd);
-	const stsc = dataView(tables.stsc);
-	const stsz = dataView(tables.stsz);
-	const chunkOffsets = dataView(tables.chunkOffsets);
-	const uniformSize = stsz.getUint32(4);
-	const starts = sampleStarts(
-		dataView(tables.stts),
-		mdhd.getUint32(mdhd.getUint8(0) === 1 ? 20 : 12),
-		Math.min(stsz.getUint32(8), MAX_CHAPTERS),
-	);
-
-	const samples: ChapterSample[] = [];
-	const chunkCount = chunkOffsets.getUint32(4);
-	const runCount = stsc.getUint32(4);
-	let run = 0;
-	for (let chunk = 1; chunk <= chunkCount; chunk += 1) {
-		// An `stsc` entry applies from its first chunk (1-based) up to the next entry's.
-		while (run + 1 < runCount && stsc.getUint32(8 + (run + 1) * 12) <= chunk) {
-			run += 1;
-		}
-		const samplesPerChunk = stsc.getUint32(12 + run * 12);
-		let offset = tables.wide
-			? Number(chunkOffsets.getBigUint64(8 + (chunk - 1) * 8))
-			: chunkOffsets.getUint32(8 + (chunk - 1) * 4);
-		for (let i = 0; i < samplesPerChunk; i += 1) {
-			if (samples.length === starts.length) {
-				return samples;
-			}
-			const size = uniformSize || stsz.getUint32(12 + samples.length * 4);
-			samples.push({ start: starts[samples.length], offset, size });
-			offset += size;
-		}
-	}
-	return samples;
-}
-
-/** A chapter track sample → its title : a 16-bit length, then UTF-8, or UTF-16 after a BOM. */
-function chapterTitle(sample: Uint8Array): string | null {
-	if (sample.length < 2) {
-		return null;
-	}
-	const text = sample.subarray(2, 2 + dataView(sample).getUint16(0));
-	let decoder = utf8;
-	if (text[0] === 0xfe && text[1] === 0xff) {
-		decoder = new TextDecoder("utf-16be");
-	} else if (text[0] === 0xff && text[1] === 0xfe) {
-		decoder = new TextDecoder("utf-16le");
-	}
-	return decoder.decode(text).trim() || null;
-}
-
 type BoxReader = ReturnType<typeof boxReader>;
 
 /** Box walking over `read`, a window at a time so small neighbours cost one read. */
@@ -492,6 +404,7 @@ function boxReader(read: ReadRange) {
 async function sampleTables(
 	boxes: BoxReader,
 	track: Box,
+	movieTimescale: number,
 ): Promise<SampleTables | null> {
 	// A text track is a few kilobytes: one read holds every box below.
 	const size = track.end - track.data;
@@ -509,12 +422,24 @@ async function sampleTables(
 	const stts = await boxes.child("stts", stbl);
 	const stsc = await boxes.child("stsc", stbl);
 	const stsz = await boxes.child("stsz", stbl);
+	const sizes = stsz ?? (await boxes.child("stz2", stbl));
 	const stco = await boxes.child("stco", stbl);
 	const chunkOffsets = stco ?? (await boxes.child("co64", stbl));
-	if (!(mdhd && stts && stsc && stsz && chunkOffsets)) {
+	if (!(mdhd && stts && stsc && sizes && chunkOffsets)) {
 		return null;
 	}
-	return { mdhd, stts, stsc, stsz, chunkOffsets, wide: !stco };
+	const elst = await boxes.child("elst", await boxes.find("edts", track));
+	return {
+		mdhd,
+		elst,
+		movieTimescale,
+		stts,
+		stsc,
+		sizes,
+		compact: !stsz,
+		chunkOffsets,
+		wide: !stco,
+	};
 }
 
 /** The chapters of a chapter track : a start per sample, a title per readable one. */
@@ -562,13 +487,11 @@ async function readMp4(read: ReadRange): Promise<Chapter[]> {
 		return [];
 	}
 	// One pass over moov : its udta, each track by id, and the `chap` references.
-	let udta: Box | null = null;
+	const first: Partial<Record<string, Box>> = {};
 	const tracks = new Map<number | null, Box>();
 	const referenced: number[] = [];
 	for await (const box of boxes.siblings(moov.data, moov.end)) {
-		if (box.type === "udta") {
-			udta ??= box;
-		}
+		first[box.type] ??= box;
 		if (box.type === "trak") {
 			const ids = await trackIds(boxes, box);
 			tracks.set(ids.id, box);
@@ -576,16 +499,18 @@ async function readMp4(read: ReadRange): Promise<Chapter[]> {
 		}
 	}
 
-	const chpl = await boxes.child("chpl", udta);
+	const chpl = await boxes.child("chpl", first.udta ?? null);
 	const nero = chpl ? parseChpl(chpl) : [];
 	if (nero.length > 0) {
 		return nero;
 	}
+	const mvhd = first.mvhd && (await boxes.peek(first.mvhd.data, 24));
+	const movieTimescale = (mvhd && timescaleOf(dataView(mvhd))) || 1000;
 	// A `chap` reference may also name a track of chapter thumbnails : skipped.
 	for (const id of new Set(referenced)) {
 		const track = tracks.get(id);
 		// biome-ignore lint/performance/noAwaitInLoops: the first text track wins, the rest are never read
-		const tables = track && (await sampleTables(boxes, track));
+		const tables = track && (await sampleTables(boxes, track, movieTimescale));
 		if (tables) {
 			return trackChapters(boxes, tables);
 		}

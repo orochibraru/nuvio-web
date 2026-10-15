@@ -49,13 +49,13 @@ export function languageKey(code: string | null | undefined): string | null {
 /** The mobile app's non-language choices, stored in the same field. */
 const FILE_DEFAULT = "default";
 const DEVICE = "device";
-const ORIGINAL = "original";
+export const ORIGINAL = "original";
 
 /**
  * Language keys to look for, best first. `preference` is a language code,
- * `device` (the browser's languages), or `default` / `original` / empty, which
- * leave the file's own default alone : the title's original language isn't
- * known here. `secondary` is tried after whatever the preference gave.
+ * `device` (the browser's languages), `original` (the track the file flags as
+ * the original language), or `default` / empty, which leave the file's own
+ * default alone. `secondary` is tried after whatever the preference gave.
  */
 export function audioLanguageTargets(
 	preference: string | null | undefined,
@@ -78,17 +78,19 @@ export function audioLanguageTargets(
 	]
 		.map(languageKey)
 		.filter((key) => key !== null);
-	return [...new Set(keys)];
+	return [...new Set(choice === ORIGINAL ? [ORIGINAL, ...keys] : keys)];
 }
 
 /** Index of the first track in the best-ranked wanted language, or -1. */
 export function preferredTrackIndex(
-	tracks: ReadonlyArray<{ language: string }>,
+	tracks: ReadonlyArray<{ language: string; original?: boolean }>,
 	targets: readonly string[],
 ): number {
 	for (const target of targets) {
-		const index = tracks.findIndex(
-			(track) => languageKey(track.language) === target,
+		const index = tracks.findIndex((track) =>
+			target === ORIGINAL
+				? track.original === true
+				: languageKey(track.language) === target,
 		);
 		if (index !== -1) {
 			return index;

@@ -43,7 +43,7 @@ repos:
         args: [--markdown-linebreak-ext=md]
         exclude: *generated
 
-  # semantic-release computes the next version from the commit messages, so a
+  # releaser computes the next version from the commit messages, so a
   # malformed subject silently costs a release rather than failing loudly.
   - repo: https://github.com/compilerla/conventional-pre-commit
     rev: v4.4.0

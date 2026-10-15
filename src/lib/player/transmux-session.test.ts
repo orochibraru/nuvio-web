@@ -7,6 +7,7 @@ const source = vi.hoisted(() => ({
 		languageCode: string;
 		name: string;
 		codec: string;
+		disposition: { original: boolean };
 		getCodecParameterString: () => Promise<string>;
 	}[],
 	dispose: vi.fn(),
@@ -52,6 +53,7 @@ describe("direct-file audio selection", () => {
 			languageCode,
 			name: languageCode,
 			codec: "aac",
+			disposition: { original: false },
 			getCodecParameterString: async () => "mp4a.40.2",
 		}));
 		vi.stubGlobal("MediaSource", { isTypeSupported: () => true });
@@ -111,6 +113,18 @@ describe("direct-file audio selection", () => {
 			{ languages: ["hi"], track: null },
 		);
 		expect(session?.activeAudioTrack).toBe(1);
+		session?.dispose();
+	});
+
+	it("starts on the track the file flags as original", async () => {
+		source.tracks[1].disposition.original = true;
+		const session = await prepareTransmux(
+			"https://example.test/multi.mkv",
+			"probe",
+			{ languages: ["original", "en"], track: null },
+		);
+		expect(session?.activeAudioTrack).toBe(1);
+		expect(session?.audioTracks[1].original).toBe(true);
 		session?.dispose();
 	});
 });

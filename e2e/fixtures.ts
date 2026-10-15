@@ -15,10 +15,10 @@ const TYPES: Record<string, string> = {
 };
 
 /**
- * Serves `static/e2e/` from disk with `Range` support. The compiled
- * adapter-bun binary answers every `Range` on an embedded file with the whole
- * file and a 200, so a `<video>` on a fixture can't seek. Remove once
- * adapter-bun honours `Range` on embedded assets.
+ * Serves `static/e2e/` from disk with `Range` support. A compiled Bun binary
+ * answers every `Range` on an embedded file with the whole file and a 200
+ * (Bun's bug, adapter-bun inherits it), so a `<video>` on a fixture can't
+ * seek. Remove once Bun honours `Range` on embedded files.
  */
 export async function serveFixtures(context: BrowserContext): Promise<void> {
 	await context.route(

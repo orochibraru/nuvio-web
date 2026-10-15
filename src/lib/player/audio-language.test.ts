@@ -34,9 +34,15 @@ describe("audioLanguageTargets", () => {
 		).toEqual(["fr", "en", "it"]);
 	});
 
-	it("leaves the file's default alone for default, original and empty", () => {
+	it("looks for the file's original track first, then the secondary", () => {
+		expect(audioLanguageTargets("original", "en", ["fr"])).toEqual([
+			"original",
+			"en",
+		]);
+	});
+
+	it("leaves the file's default alone for default and empty", () => {
 		expect(audioLanguageTargets("default", null, ["fr"])).toEqual([]);
-		expect(audioLanguageTargets("original", "en", ["fr"])).toEqual(["en"]);
 		expect(audioLanguageTargets("", undefined, ["fr"])).toEqual([]);
 		expect(audioLanguageTargets("fr", "device", ["en"])).toEqual(["fr"]);
 	});
@@ -48,6 +54,12 @@ describe("preferredTrackIndex", () => {
 	it("finds the track in the best-ranked language", () => {
 		expect(preferredTrackIndex(tracks, ["en"])).toBe(1);
 		expect(preferredTrackIndex(tracks, ["fr", "it"])).toBe(0);
+	});
+
+	it("finds the track flagged original", () => {
+		const flagged = [...tracks, { language: "jpn", original: true }];
+		expect(preferredTrackIndex(flagged, ["original", "en"])).toBe(3);
+		expect(preferredTrackIndex(tracks, ["original", "en"])).toBe(1);
 	});
 
 	it("is -1 when nothing matches or nothing is wanted", () => {

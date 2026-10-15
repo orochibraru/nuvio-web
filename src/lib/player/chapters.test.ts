@@ -329,6 +329,51 @@ describe("readChapters : MP4", () => {
 		expect(await readChapters(fileReader(moovOf(truncated)).read)).toEqual([]);
 	});
 
+	it("reads compact stz2 sample sizes", async () => {
+		const sizes = titles.map((title) => title.length);
+		const compact = trak(
+			3,
+			"text",
+			[],
+			samples[0],
+			samples[1],
+			box("stz2", be(0, 4), be(8, 4), be(3, 4), new Uint8Array(sizes)),
+			table("stco", 2, firstChunk, secondChunk),
+		);
+		const file = concat(
+			ftyp,
+			box("mdat", media),
+			box("moov", video([3]), compact),
+		);
+		expect(await readChapters(fileReader(file).read)).toEqual(expected);
+	});
+
+	it("places the chapter track on the movie timeline through its edit list", async () => {
+		// mvhd timescale 600 : a 3 s empty edit, then the media from 0.5 s.
+		const mvhd = box("mvhd", be(0, 12), be(600, 4), new Uint8Array(84));
+		const edited = trak(
+			3,
+			"text",
+			[],
+			...samples,
+			table("stco", 2, firstChunk, secondChunk),
+		);
+		const edts = box(
+			"edts",
+			table("elst", 2, 1800, 0xff_ff_ff_ff, 0x1_00_00, 6000, 500, 0x1_00_00),
+		);
+		const withEdits = concat(edited.subarray(0, 8), edts, edited.subarray(8));
+		withEdits.set(be(withEdits.length, 4), 0);
+		const file = concat(
+			ftyp,
+			box("mdat", media),
+			box("moov", mvhd, video([3]), withEdits),
+		);
+		expect(
+			(await readChapters(fileReader(file).read)).map(({ start }) => start),
+		).toEqual([2.5, 65, 665]);
+	});
+
 	it("stops reading titles at the read cap when they are scattered", async () => {
 		// 100 one-sample chunks past the head, 1000 bytes apart : a read per title.
 		const scattered = new Uint8Array(200_000);

@@ -8,13 +8,18 @@
       remux behaves (MKV cue lookup over the network, `SourceBuffer` quota at 80
       Mbit/s), and Firefox / Safari, where the refused-container path matters
       most. The e2e account has no stream addon, so this needs a real profile.
-- [ ] **Audio language: "original" isn't honoured.** The mobile app's "original
-      language" choice needs the title's original language, which the player
-      doesn't have; it falls back to the secondary language, then the file's
-      default.
+- [ ] **Audio language: "original" only works off the file's flag.** It picks
+      the track a Matroska file flags original, and only when the file goes
+      through the in-browser fix (no native `audioTracks`: Chrome, Firefox).
+      Safari's native tracks, HLS renditions and unflagged files still fall back
+      to the secondary language, then the file's default : the title's original
+      language would need TMDB.
 - [ ] **MP4 chapter tracks: confirm on files ffmpeg didn't write.** Apple,
-      HandBrake and MP4Box output are untested; edit lists, `stz2` and
-      fragmented MP4 aren't handled.
+      HandBrake and MP4Box output are untested. `stz2` and the chapter track's
+      edit list (leading empty edits, first edit's start) are read. A fragmented
+      file is covered by its `chpl` (ffmpeg writes one); a chapter track whose
+      samples live only in `moof`s is not read, on purpose: it would mean
+      walking every fragment of the file.
 
 - [ ] **Bebop stills: confirm in the real profile.** `getMeta` now skips a meta
       whose IMDb / TMDB / Kitsu id contradicts the requested one, which fixes
@@ -23,10 +28,12 @@
       remake's id.
 - [ ] **Review the fr / es / de copy.** 650+ strings, written by a model:
       idiomatic, but nobody who speaks those languages has read them yet.
-- [ ] **Stale comment** in `.pre-commit-config.yaml` (~line 51) still credits
-      semantic-release; it should say releaser. Edit and stage it yourself: an
-      unstaged change to that file makes the prek Stop hook fail every turn.
-- [ ] **Report adapter-bun's embedded `Range` bug, then drop the shim.** The
-      compiled binary answers `Range` on a `static/` file with the whole file
-      and a 200; the adapter's own comment assumes Bun handles it.
+- [ ] **Report Bun's embedded-file `Range` bug, then drop the shim.** Bun's own,
+      not adapter-bun's: in a `bun build --compile` binary,
+      `new Response(Bun.file(embedded))` answers `Range` with the whole file and
+      a 200 (a file on disk gets its 206). Still there in Bun 1.4.3.
       `e2e/fixtures.ts` serves the fixtures with `Range` meanwhile.
+- [ ] **Volume boost loses the center of a native 7.1 track.** Web Audio
+      downmixes only 1, 2, 4 and 6 channels; the limiter's 2-channel input takes
+      L and R of anything else. The in-browser fix downmixes itself
+      (`downmixToStereo`), the boost graph doesn't.

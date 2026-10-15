@@ -1,6 +1,7 @@
 import { registerAc3Decoder } from "@mediabunny/ac3";
 import { registerDtsDecoder } from "@mediabunny/dts";
 import {
+	AudioSample,
 	Conversion,
 	EncodedPacketSink,
 	getFirstEncodableAudioCodec,
@@ -21,6 +22,7 @@ import type { AudioTrackOption } from "#lib/player/media.js";
 import {
 	audioTrackLabel,
 	bufferedAhead,
+	downmixToStereo,
 	type TimeRange,
 	transmuxMime,
 } from "#lib/player/transmux.js";
@@ -75,6 +77,27 @@ interface Attachment {
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+function toStereo(sample: AudioSample): AudioSample {
+	if (sample.numberOfChannels === 2) {
+		return sample;
+	}
+	const planes = Array.from(
+		{ length: sample.numberOfChannels },
+		(_, planeIndex) => {
+			const plane = new Float32Array(sample.numberOfFrames);
+			sample.copyTo(plane, { planeIndex, format: "f32-planar" });
+			return plane;
+		},
+	);
+	return new AudioSample({
+		data: downmixToStereo(planes),
+		format: "f32-planar",
+		numberOfChannels: 2,
+		sampleRate: sample.sampleRate,
+		timestamp: sample.timestamp,
+	});
+}
 
 function ranges(buffered: TimeRanges): TimeRange[] {
 	const list: TimeRange[] = [];
@@ -202,7 +225,10 @@ function startingTrack(
 		preference.track !== null && audio[preference.track]
 			? preference.track
 			: preferredTrackIndex(
-					audio.map((plan) => ({ language: plan.track.languageCode })),
+					audio.map((plan) => ({
+						language: plan.track.languageCode,
+						original: plan.track.disposition.original,
+					})),
 					preference.languages,
 				);
 	const active = wanted === -1 ? primary : wanted;
@@ -278,6 +304,7 @@ export class TransmuxSession {
 				m.player_audio_track_fallback({ number: index + 1 }),
 			),
 			language: plan.track.languageCode,
+			original: plan.track.disposition.original,
 		}));
 	}
 
@@ -486,7 +513,12 @@ export class TransmuxSession {
 				}
 				return plan.copy || !encoded
 					? {}
-					: { codec: encoded, numberOfChannels: 2, forceTranscode: true };
+					: {
+							codec: encoded,
+							forceTranscode: true,
+							process: toStereo,
+							processedNumberOfChannels: 2,
+						};
 			},
 			tags: {},
 			showWarnings: false,

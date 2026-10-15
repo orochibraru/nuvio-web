@@ -20,6 +20,8 @@ export interface AudioTrackOption {
 	label: string;
 	/** As the source spells it (`fr`, `fre`, …), or empty when it doesn't say. */
 	language: string;
+	/** The file flags it as the original language (Matroska only). */
+	original?: boolean;
 }
 
 export function nativeAudioSnapshot(list: NativeAudioTrackList): {
