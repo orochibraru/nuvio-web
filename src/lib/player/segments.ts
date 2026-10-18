@@ -3,7 +3,7 @@
  * affordances, sourced from TheIntroDB (https://theintrodb.org).
  */
 
-export const INTRODB_BASE = "https://api.theintrodb.org/v3";
+export const INTRODB_BASE = "https://api.theintrodb.org/v4";
 
 /** One media item's usable segments, in **seconds** (to match `video.currentTime`). */
 export interface MediaSegments {
@@ -19,7 +19,7 @@ export interface IntroDbSegment {
 }
 
 export interface IntroDbMedia {
-	tmdb_id?: number;
+	tvdb_id?: number;
 	type?: string;
 	season?: number | null;
 	episode?: number | null;
@@ -55,7 +55,7 @@ export function segmentLookup(contentId: string): SegmentLookup {
 	return null;
 }
 
-/** Query string for `GET /v3/media`. `null` when the id can't be mapped. */
+/** Query string for `GET /v4/media`. `null` when the id can't be mapped. */
 export function segmentQuery(
 	contentId: string,
 	season: number | null,

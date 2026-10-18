@@ -34,7 +34,7 @@ describe("mediaSegments", () => {
 	});
 
 	it("normalises a successful response", async () => {
-		mockFetch(200, {
+		const spy = mockFetch(200, {
 			intro: [{ start_ms: 77_000, end_ms: 123_000 }],
 			credits: [{ start_ms: 2_785_000, end_ms: null }],
 		});
@@ -45,6 +45,10 @@ describe("mediaSegments", () => {
 				episode: 1,
 			}),
 		).toEqual({ intro: { start: 77, end: 123 }, credits: { start: 2785 } });
+		const [url] = spy.mock.calls[0] as unknown as [string];
+		expect(url).toBe(
+			"https://api.theintrodb.org/v4/media?imdb_id=tt0903747&season=2&episode=1",
+		);
 	});
 
 	it("resolves to nulls on a 404 / rate limit", async () => {
