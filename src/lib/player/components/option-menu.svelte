@@ -3,6 +3,7 @@
 	import { Button } from "#lib/components/ui/button/index.js";
 	import * as DropdownMenu from "#lib/components/ui/dropdown-menu/index.js";
 	import { cn } from "#lib/utils.js";
+	import Hint from "./hint.svelte";
 
 	let {
 		open,
@@ -36,23 +37,26 @@
      the control bar's glass and floats clear of it, and is `dark` because it
      portals out of the player. -->
 <DropdownMenu.Root {open} {onOpenChange}>
-  <DropdownMenu.Trigger>
-    {#snippet child({ props })}
-      <Button
-        variant="ghost"
-        size="icon"
-        aria-label={label}
-        title={label}
-        class={cn(
-          "rounded-full hover:bg-white/15 hover:text-white dark:hover:bg-white/15 [&_svg]:size-5",
-          active && "text-primary",
-        )}
-        {...props}
-      >
-        {@render children()}
-      </Button>
+  <Hint {label}>
+    {#snippet child({ props: hintProps })}
+      <DropdownMenu.Trigger {...hintProps}>
+        {#snippet child({ props })}
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={label}
+            class={cn(
+              "rounded-full hover:bg-white/15 hover:text-white dark:hover:bg-white/15 [&_svg]:size-5",
+              active && "text-primary",
+            )}
+            {...props}
+          >
+            {@render children()}
+          </Button>
+        {/snippet}
+      </DropdownMenu.Trigger>
     {/snippet}
-  </DropdownMenu.Trigger>
+  </Hint>
   <DropdownMenu.Content
     {align}
     side="top"

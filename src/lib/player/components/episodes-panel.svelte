@@ -7,6 +7,7 @@
 	import ImdbRating from "#lib/components/media/imdb-rating.svelte";
 	import { getLocale, m } from "#lib/i18n/index.js";
 	import { cn } from "#lib/utils.js";
+	import Hint from "./hint.svelte";
 
 	interface Episode {
 		videoId: string;
@@ -88,15 +89,19 @@
 			>
 				<header class="flex items-center justify-between border-b border-white/10 p-4">
 					<p class="text-sm font-semibold">{m.common_episodes()}</p>
-					<button
-						type="button"
-						aria-label={m.common_close()}
-						title={m.player_close_hint()}
-						onclick={onClose}
-						class="flex size-8 items-center justify-center rounded-full transition hover:bg-white/10"
-					>
-						<XIcon class="size-4" />
-					</button>
+					<Hint label={m.player_close_hint()}>
+						{#snippet child({ props })}
+							<button
+								{...props}
+								type="button"
+								aria-label={m.common_close()}
+								onclick={onClose}
+								class="flex size-8 items-center justify-center rounded-full transition hover:bg-white/10"
+							>
+								<XIcon class="size-4" />
+							</button>
+						{/snippet}
+					</Hint>
 				</header>
 
 				{#if seasons.length > 1}

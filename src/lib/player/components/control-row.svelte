@@ -24,6 +24,7 @@
 	import type { createPlayerTransportActions } from "#lib/player/state/transport-actions.svelte.js";
 	import type { PlayerTransportState } from "#lib/player/state/transport-state.svelte.js";
 	import { cn } from "#lib/utils.js";
+	import Hint from "./hint.svelte";
 	import OptionMenu from "./option-menu.svelte";
 
 	const RATES = [0.5, 0.75, 1, 1.25, 1.5, 2];
@@ -76,58 +77,66 @@
 </script>
 
 <div class="flex items-center gap-2 sm:gap-3">
-  <Button
-    variant="ghost"
-    size="icon"
-    aria-label={transport.ended
-      ? m.player_replay()
-      : transport.paused
-        ? m.common_play()
-        : m.player_pause()}
-    title={transport.ended
-      ? m.player_replay_hint()
-      : transport.paused
-        ? m.player_play_hint()
-        : m.player_pause_hint()}
-    onclick={player.togglePlay}
-    class="size-10 rounded-full bg-white text-black shadow-[0_0_20px_rgb(255_255_255/0.25)] transition-transform hover:scale-105 hover:bg-white/85 hover:text-black dark:hover:bg-white/85 [&_svg]:size-5"
-  >
-    {#if transport.ended}
-      <RotateCwIcon />
-    {:else if transport.paused}
-      <PlayIcon class="fill-current " />
-    {:else}
-      <PauseIcon class="fill-current" />
-    {/if}
-  </Button>
+  <Hint label={transport.ended ? m.player_replay_hint() : transport.paused ? m.player_play_hint() : m.player_pause_hint()}>
+    {#snippet child({ props })}
+      <Button
+        {...props}
+        variant="ghost"
+        size="icon"
+        aria-label={transport.ended
+          ? m.player_replay()
+          : transport.paused
+            ? m.common_play()
+            : m.player_pause()}
+        onclick={player.togglePlay}
+        class="size-10 rounded-full bg-white text-black shadow-[0_0_20px_rgb(255_255_255/0.25)] transition-transform hover:scale-105 hover:bg-white/85 hover:text-black dark:hover:bg-white/85 [&_svg]:size-5"
+      >
+        {#if transport.ended}
+          <RotateCwIcon />
+        {:else if transport.paused}
+          <PlayIcon class="fill-current " />
+        {:else}
+          <PauseIcon class="fill-current" />
+        {/if}
+      </Button>
+    {/snippet}
+  </Hint>
 
   <div class="flex items-center gap-1.5">
-    <Button
-      variant="ghost"
-      size="icon"
-      aria-label={transport.muted ? m.player_unmute() : m.player_mute()}
-      title={transport.muted ? m.player_unmute_hint() : m.player_mute_hint()}
-      onclick={() => (transport.muted = !transport.muted)}
-      class="rounded-full hover:bg-white/15 hover:text-white dark:hover:bg-white/15 [&_svg]:size-5"
-    >
-      {#if transport.muted || transport.volume === 0}
-        <VolumeXIcon />
-      {:else if transport.volume < 0.5}
-        <Volume1Icon />
-      {:else}
-        <Volume2Icon />
-      {/if}
-    </Button>
-    <input
-      type="range"
-      min="0"
-      max="1"
-      step="0.05"
-      bind:value={transport.volume}
-      aria-label={m.player_volume()}
-      title={m.player_volume_hint()}
-      class="hidden h-1 w-20 cursor-pointer appearance-none rounded-full bg-white/20 accent-white sm:block [&::-webkit-slider-thumb]:size-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white"
-    />
+    <Hint label={transport.muted ? m.player_unmute_hint() : m.player_mute_hint()}>
+      {#snippet child({ props })}
+        <Button
+          {...props}
+          variant="ghost"
+          size="icon"
+          aria-label={transport.muted ? m.player_unmute() : m.player_mute()}
+          onclick={() => (transport.muted = !transport.muted)}
+          class="rounded-full hover:bg-white/15 hover:text-white dark:hover:bg-white/15 [&_svg]:size-5"
+        >
+          {#if transport.muted || transport.volume === 0}
+            <VolumeXIcon />
+          {:else if transport.volume < 0.5}
+            <Volume1Icon />
+          {:else}
+            <Volume2Icon />
+          {/if}
+        </Button>
+      {/snippet}
+    </Hint>
+    <Hint label={m.player_volume_hint()}>
+      {#snippet child({ props })}
+        <input
+          {...props}
+          type="range"
+          min="0"
+          max="1"
+          step="0.05"
+          bind:value={transport.volume}
+          aria-label={m.player_volume()}
+          class="hidden h-1 w-20 cursor-pointer appearance-none rounded-full bg-white/20 accent-white sm:block [&::-webkit-slider-thumb]:size-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white"
+        />
+      {/snippet}
+    </Hint>
     <OptionMenu
       open={openMenu === "boost"}
       onOpenChange={(open) => onMenuOpenChange("boost", open)}
@@ -157,50 +166,60 @@
     class="ml-auto flex items-center gap-0.5 rounded-full bg-white/5 p-1 ring-1 ring-white/10 sm:gap-1"
   >
     {#if onNext}
-      <Button
-        variant="ghost"
-        size="icon"
-        aria-label={m.player_next_episode()}
-        title={m.player_next_episode_hint()}
-        onclick={onNext}
-        class="rounded-full hover:bg-white/15 hover:text-white dark:hover:bg-white/15 [&_svg]:size-5"
-      >
-        <SkipForwardIcon />
-      </Button>
+      <Hint label={m.player_next_episode_hint()}>
+        {#snippet child({ props })}
+          <Button
+            {...props}
+            variant="ghost"
+            size="icon"
+            aria-label={m.player_next_episode()}
+            onclick={onNext}
+            class="rounded-full hover:bg-white/15 hover:text-white dark:hover:bg-white/15 [&_svg]:size-5"
+          >
+            <SkipForwardIcon />
+          </Button>
+        {/snippet}
+      </Hint>
     {/if}
     {#if onEpisodes}
-      <Button
-        variant="ghost"
-        size="icon"
-        aria-label={m.common_episodes()}
-        title={m.player_episodes_hint()}
-        onclick={onEpisodes}
-        class="rounded-full hover:bg-white/15 hover:text-white dark:hover:bg-white/15 [&_svg]:size-5"
-      >
-        <ListVideoIcon />
-      </Button>
+      <Hint label={m.player_episodes_hint()}>
+        {#snippet child({ props })}
+          <Button
+            {...props}
+            variant="ghost"
+            size="icon"
+            aria-label={m.common_episodes()}
+            onclick={onEpisodes}
+            class="rounded-full hover:bg-white/15 hover:text-white dark:hover:bg-white/15 [&_svg]:size-5"
+          >
+            <ListVideoIcon />
+          </Button>
+        {/snippet}
+      </Hint>
     {/if}
     {#if hasSubtitles}
-      <Button
-        variant="ghost"
-        size="icon"
-        aria-label={m.player_subtitles()}
-        title={activeCaption
-          ? m.player_subtitles_on_hint({ caption: activeCaption })
-          : m.player_subtitles_off_hint()}
-        aria-pressed={subtitlesOpen}
-        onclick={onToggleSubtitles}
-        class={cn(
-          "rounded-full hover:bg-white/15 hover:text-white dark:hover:bg-white/15 [&_svg]:size-5",
-          activeCaption && "text-primary",
-        )}
-      >
-        {#if activeCaption}
-          <CaptionsIcon />
-        {:else}
-          <CaptionsOffIcon />
-        {/if}
-      </Button>
+      <Hint label={activeCaption ? m.player_subtitles_on_hint({ caption: activeCaption }) : m.player_subtitles_off_hint()}>
+        {#snippet child({ props })}
+          <Button
+            {...props}
+            variant="ghost"
+            size="icon"
+            aria-label={m.player_subtitles()}
+            aria-pressed={subtitlesOpen}
+            onclick={onToggleSubtitles}
+            class={cn(
+              "rounded-full hover:bg-white/15 hover:text-white dark:hover:bg-white/15 [&_svg]:size-5",
+              activeCaption && "text-primary",
+            )}
+          >
+            {#if activeCaption}
+              <CaptionsIcon />
+            {:else}
+              <CaptionsOffIcon />
+            {/if}
+          </Button>
+        {/snippet}
+      </Hint>
     {/if}
 
     {#if media.audioTracks.length > 1}
@@ -235,49 +254,59 @@
     </OptionMenu>
 
     {#if castAvailable}
-      <Button
-        variant="ghost"
-        size="icon"
-        aria-label={casting ? m.player_stop_casting() : m.player_cast_hint()}
-        title={casting ? m.player_stop_casting() : m.player_cast_hint()}
-        aria-pressed={casting}
-        onclick={onCast}
-        class={cn("rounded-full hover:bg-white/15 hover:text-white dark:hover:bg-white/15 [&_svg]:size-5", casting && "text-primary")}
-      >
-        {#if casting}
-          <TvMinimalPlayIcon />
-        {:else}
-          <CastIcon />
-        {/if}
-      </Button>
+      <Hint label={casting ? m.player_stop_casting() : m.player_cast_hint()}>
+        {#snippet child({ props })}
+          <Button
+            {...props}
+            variant="ghost"
+            size="icon"
+            aria-label={casting ? m.player_stop_casting() : m.player_cast_hint()}
+            aria-pressed={casting}
+            onclick={onCast}
+            class={cn("rounded-full hover:bg-white/15 hover:text-white dark:hover:bg-white/15 [&_svg]:size-5", casting && "text-primary")}
+          >
+            {#if casting}
+              <TvMinimalPlayIcon />
+            {:else}
+              <CastIcon />
+            {/if}
+          </Button>
+        {/snippet}
+      </Hint>
     {/if}
 
     {#if typeof document !== "undefined" && document.pictureInPictureEnabled}
-      <Button
-        variant="ghost"
-        size="icon"
-        aria-label={m.player_pip()}
-        title={m.player_pip()}
-        onclick={player.togglePip}
-        class="rounded-full hover:bg-white/15 hover:text-white dark:hover:bg-white/15 [&_svg]:size-5"
-      >
-        <PictureInPictureIcon />
-      </Button>
+      <Hint label={m.player_pip()}>
+        {#snippet child({ props })}
+          <Button
+            {...props}
+            variant="ghost"
+            size="icon"
+            aria-label={m.player_pip()}
+            onclick={player.togglePip}
+            class="rounded-full hover:bg-white/15 hover:text-white dark:hover:bg-white/15 [&_svg]:size-5"
+          >
+            <PictureInPictureIcon />
+          </Button>
+        {/snippet}
+      </Hint>
     {/if}
 
-    <Button
-      variant="ghost"
-      size="icon"
-      aria-label={transport.fullscreen
-        ? m.player_exit_fullscreen()
-        : m.player_fullscreen()}
-      title={transport.fullscreen
-        ? m.player_exit_fullscreen_hint()
-        : m.player_fullscreen_hint()}
-      onclick={player.toggleFullscreen}
-      class="rounded-full hover:bg-white/15 hover:text-white dark:hover:bg-white/15 [&_svg]:size-5"
-    >
-      {#if transport.fullscreen}<MinimizeIcon />{:else}<MaximizeIcon />{/if}
-    </Button>
+    <Hint label={transport.fullscreen ? m.player_exit_fullscreen_hint() : m.player_fullscreen_hint()}>
+      {#snippet child({ props })}
+        <Button
+          {...props}
+          variant="ghost"
+          size="icon"
+          aria-label={transport.fullscreen
+            ? m.player_exit_fullscreen()
+            : m.player_fullscreen()}
+          onclick={player.toggleFullscreen}
+          class="rounded-full hover:bg-white/15 hover:text-white dark:hover:bg-white/15 [&_svg]:size-5"
+        >
+          {#if transport.fullscreen}<MinimizeIcon />{:else}<MaximizeIcon />{/if}
+        </Button>
+      {/snippet}
+    </Hint>
   </div>
 </div>

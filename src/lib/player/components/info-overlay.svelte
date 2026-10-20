@@ -9,6 +9,7 @@
 	import { reduced } from "#lib/core/motion.js";
 	import { m } from "#lib/i18n/index.js";
 	import type { PlayerInfo } from "#lib/player/info.js";
+	import Hint from "./hint.svelte";
 
 	let {
 		title,
@@ -104,16 +105,20 @@
                 <InfoIcon class="size-3.5" />
                 {eyebrow}
               </span>
-              <Button
-                variant="secondary"
-                size="icon"
-                aria-label={m.common_close()}
-                title={m.player_close_hint()}
-                onclick={onClose}
-                class="shrink-0 rounded-full"
-              >
-                <XIcon class="size-5" />
-              </Button>
+              <Hint label={m.player_close_hint()}>
+                {#snippet child({ props })}
+                  <Button
+                    {...props}
+                    variant="secondary"
+                    size="icon"
+                    aria-label={m.common_close()}
+                    onclick={onClose}
+                    class="shrink-0 rounded-full"
+                  >
+                    <XIcon class="size-5" />
+                  </Button>
+                {/snippet}
+              </Hint>
             </div>
 
             <div
