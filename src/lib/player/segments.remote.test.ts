@@ -89,6 +89,15 @@ describe("mediaSegments", () => {
 		).toBeUndefined();
 	});
 
+	it("identifies itself to TheIntroDB with a User-Agent", async () => {
+		const spy = mockFetch(200, {});
+		await mediaSegments({ contentId: "tmdb:550", season: null, episode: null });
+		const [, init] = spy.mock.calls[0] as unknown as [string, RequestInit];
+		expect((init.headers as Record<string, string>)["user-agent"]).toMatch(
+			/^nuvio-web\/\d+\.\d+\.\d+ /,
+		);
+	});
+
 	it("resolves to nulls when fetch throws", async () => {
 		globalThis.fetch = vi.fn(async () => {
 			throw new Error("timeout");
