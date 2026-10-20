@@ -1,6 +1,8 @@
 import type { Meta } from "#lib/addons/index.js";
 import { pooledMap } from "#lib/core/pool.js";
+import type { ProgressRecord } from "#lib/sync/types.js";
 import type { ProfileData } from "#lib/userdata/types.js";
+import { CONTINUE_WATCHING_LIMIT, resumeName } from "./continue-watching.ts";
 import { nextEpisode, nextToAir, type UpcomingEpisode } from "./episodes.ts";
 import {
 	assemblePlaybackContext,
@@ -12,7 +14,7 @@ import {
 import { nextAiring, upcomingAfter } from "./schedule.ts";
 
 // Each row fans out to every meta-providing addon inside `getMeta`; an
-// unbounded pass over up to 16 rows could burst 30-50+ concurrent requests
+// unbounded pass over a full row could burst 30-50+ concurrent requests
 // at a shared addon like Cinemeta, time some out, and leave those cards
 // showing a bare content id for a name.
 const CONTINUE_WATCHING_CONCURRENCY = 4;
@@ -37,6 +39,26 @@ export interface ResumeRow {
 }
 
 /**
+ * Most-recent row per title, newest first (completed or not : a finished
+ * episode of a running show still points at the next one to watch). Deduped
+ * before any cap: a binge leaves one row per episode, and capping raw rows let
+ * one show crowd every other title out of the lookup.
+ */
+function latestRowPerTitle(rows: readonly ProgressRecord[]): ProgressRecord[] {
+	const seen = new Set<string>();
+	return rows
+		.filter((row) => row.duration > 60_000)
+		.sort((a, b) => b.lastWatched - a.lastWatched)
+		.filter((row) => {
+			if (seen.has(row.contentId)) {
+				return false;
+			}
+			seen.add(row.contentId);
+			return true;
+		});
+}
+
+/**
  * The continue-watching row, fully resolved: in-progress rows joined to
  * addon meta (name / art) with a finished series episode rolled forward to
  * the next one. Called from the home load (streamed, not awaited) so the
@@ -49,40 +71,46 @@ export async function pullContinueWatching(
 ): Promise<ResumeRow[]> {
 	// A failed read must not blank the whole home page : the client sync
 	// store still fills the row.
-	const rows = (await data.progress().catch(() => [])).slice(0, 30);
-	// Most-recent row per title (completed or not : a finished episode of a
-	// running show still points at the next one to watch).
-	const seen = new Set<string>();
-	const latestPerTitle = rows
-		.filter((row) => row.duration > 60_000)
-		.sort((a, b) => b.lastWatched - a.lastWatched)
-		.filter((row) => {
-			if (seen.has(row.contentId)) {
-				return false;
-			}
-			seen.add(row.contentId);
-			return true;
-		})
-		.slice(0, 16);
+	const [rows, history] = await Promise.all([
+		data.progress().catch(() => []),
+		data.history().catch(() => []),
+	]);
+	// A few spare: a finished movie or last episode only drops out after its
+	// lookup, and the row should still fill.
+	const latestPerTitle = latestRowPerTitle(rows).slice(
+		0,
+		CONTINUE_WATCHING_LIMIT + 4,
+	);
+
+	// A history row's title names the card when no addon answers. One logged
+	// locally carries the content id instead, so only the real ones count.
+	const historyTitles = new Map(
+		history
+			.filter((entry) => entry.title && entry.title !== entry.contentId)
+			.map((entry) => [entry.contentId, entry.title]),
+	);
 
 	const items = (
 		await pooledMap(
 			latestPerTitle,
-			// Each row itself fans out to every meta-providing addon inside
-			// `getMeta` : an unbounded outer `Promise.all` over up to 16 rows
-			// could burst 30-50+ concurrent requests at a shared addon like
-			// Cinemeta, timing some out and silently falling back to the bare
-			// content id as the "name" (`row.contentId` below). Capped like
-			// `AddonClient`'s own internal fan-out.
+			// Capped like `AddonClient`'s own fan-out: see the constant.
 			CONTINUE_WATCHING_CONCURRENCY,
 			async (row) => {
-				const meta = await lookupMeta(row.contentType, row.contentId).catch(
-					() => null,
-				);
+				// One retry: a miss here is most often a timeout or a 429 from a
+				// shared addon, and it would otherwise stick as a bare id.
+				const meta =
+					(await lookupMeta(row.contentType, row.contentId).catch(
+						() => null,
+					)) ??
+					(await lookupMeta(row.contentType, row.contentId).catch(() => null));
 				const base = {
 					id: row.contentId,
 					type: row.contentType,
-					name: meta?.name ?? row.contentId,
+					name: resumeName(
+						row.contentId,
+						meta?.name,
+						historyTitles.get(row.contentId),
+					),
 					poster: meta?.poster ?? null,
 					background: meta?.background ?? meta?.poster ?? null,
 					logo: meta?.logo ?? null,
@@ -123,7 +151,7 @@ export async function pullContinueWatching(
 		)
 	).filter((item): item is NonNullable<typeof item> => item !== null);
 
-	return items.slice(0, 12);
+	return items.slice(0, CONTINUE_WATCHING_LIMIT);
 }
 
 /**

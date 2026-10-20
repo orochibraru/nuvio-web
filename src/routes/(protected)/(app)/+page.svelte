@@ -24,6 +24,10 @@
 	import { catalogTitles } from "#lib/settings/home-layout.js";
 	import { sync } from "#lib/sync/store.svelte.js";
 	import { cn } from "#lib/utils.js";
+	import {
+		CONTINUE_WATCHING_LIMIT,
+		resumeName,
+	} from "#lib/watch/continue-watching.js";
 	import type { ResumeRow } from "#lib/watch/watch-data.js";
 	import { browser } from "$app/env";
 	import { invalidateAll } from "$app/navigation";
@@ -111,15 +115,20 @@
 		return base;
 	}
 
-	// Merge a base row with the enriched-query hit and the library mirror, in that
-	// order of preference, down to the card's own fallback art.
+	// Merge a base row with the enriched-query hit, the library mirror and (for
+	// the name) the history mirror, in that order of preference, down to the
+	// card's own fallback art.
 	function resumeCard(entry: ResumeBase): ResumeRow {
 		const rich = enrichedById.get(entry.id);
 		const lib = sync.library.find((record) => record.contentId === entry.id);
+		const seen = sync.history.find(
+			(record) =>
+				record.contentId === entry.id && record.title !== record.contentId,
+		);
 		return {
 			id: entry.id,
 			type: entry.type,
-			name: rich?.name ?? lib?.name ?? entry.id,
+			name: resumeName(entry.id, rich?.name, lib?.name, seen?.title),
 			poster: rich?.poster ?? lib?.poster ?? null,
 			background: rich?.background ?? lib?.background ?? lib?.poster ?? null,
 			logo: rich?.logo ?? null,
@@ -153,7 +162,7 @@
 
 		return [...cards.values()]
 			.filter((item) => item.progress < 0.9)
-			.slice(0, 20);
+			.slice(0, CONTINUE_WATCHING_LIMIT);
 	});
 
 	// The "My library" row reads the local store once it's authoritative so an
