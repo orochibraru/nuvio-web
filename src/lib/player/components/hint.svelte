@@ -20,9 +20,13 @@
 	// A tooltip portalled to `<body>` is outside the top layer while the player's
 	// own div is fullscreen, so it would never paint. Portal into whatever is
 	// fullscreen instead; the document itself (the player filling the viewport)
-	// still reaches `<body>`.
+	// still reaches `<body>`. Closed (and always on the server, where neither
+	// `document` nor `HTMLElement` exists) it never touches the DOM.
 	const target = $derived.by<HTMLElement | string>(() => {
-		const fullscreen = open ? document.fullscreenElement : null;
+		if (!open) {
+			return "body";
+		}
+		const fullscreen = document.fullscreenElement;
 		return fullscreen instanceof HTMLElement &&
 			fullscreen !== document.documentElement
 			? fullscreen
