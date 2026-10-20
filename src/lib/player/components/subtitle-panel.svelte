@@ -17,6 +17,7 @@
 		type SubtitleSize,
 	} from "#lib/settings/ui-settings.js";
 	import { cn } from "#lib/utils.js";
+	import Hint from "./hint.svelte";
 
 	const sizeLabels: Record<SubtitleSize, () => string> = {
 		small: m.subtitle_size_small,
@@ -79,16 +80,20 @@
             <CaptionsIcon class="size-3.5" />
             {m.player_subtitles()}
           </span>
-          <Button
-            variant="secondary"
-            size="icon"
-            aria-label={m.player_close_subtitles()}
-            title={m.player_close_hint()}
-            onclick={onClose}
-            class="shrink-0 rounded-full"
-          >
-            <XIcon class="size-5" />
-          </Button>
+          <Hint label={m.player_close_hint()}>
+            {#snippet child({ props })}
+              <Button
+                {...props}
+                variant="secondary"
+                size="icon"
+                aria-label={m.player_close_subtitles()}
+                onclick={onClose}
+                class="shrink-0 rounded-full"
+              >
+                <XIcon class="size-5" />
+              </Button>
+            {/snippet}
+          </Hint>
         </div>
 
         <div class="min-h-0 flex-1 overflow-y-auto scrollbar-thin">
@@ -172,17 +177,22 @@
           </div>
           <div class="flex items-center gap-2">
             {#each swatches as swatch (swatch)}
-              <button
-                type="button"
-                aria-label={m.subtitle_colour({ color: swatch })}
-                aria-pressed={subtitleColor === swatch}
-                onclick={() => onAppearance({ subtitleColor: swatch })}
-                class={cn(
-                  "size-8 rounded-full ring-2 ring-offset-2 ring-offset-black transition",
-                  subtitleColor === swatch ? "ring-white" : "ring-transparent",
-                )}
-                style={`background-color: ${swatch}`}
-              ></button>
+              <Hint label={m.subtitle_colour({ color: swatch })}>
+                {#snippet child({ props })}
+                  <button
+                    {...props}
+                    type="button"
+                    aria-label={m.subtitle_colour({ color: swatch })}
+                    aria-pressed={subtitleColor === swatch}
+                    onclick={() => onAppearance({ subtitleColor: swatch })}
+                    class={cn(
+                      "size-8 rounded-full ring-2 ring-offset-2 ring-offset-black transition",
+                      subtitleColor === swatch ? "ring-white" : "ring-transparent",
+                    )}
+                    style={`background-color: ${swatch}`}
+                  ></button>
+                {/snippet}
+              </Hint>
             {/each}
           </div>
           <Button
@@ -211,25 +221,35 @@
             >
               <span>{m.player_timing()}</span>
               <div class="flex items-center gap-2">
-                <Button
-                  variant="secondary"
-                  size="icon-xs"
-                  aria-label={m.player_subtitles_earlier()}
-                  onclick={() => onNudgeOffset(-0.5)}
-                >
-                  −
-                </Button>
+                <Hint label={m.player_subtitles_earlier()}>
+                  {#snippet child({ props })}
+                    <Button
+                      {...props}
+                      variant="secondary"
+                      size="icon-xs"
+                      aria-label={m.player_subtitles_earlier()}
+                      onclick={() => onNudgeOffset(-0.5)}
+                    >
+                      −
+                    </Button>
+                  {/snippet}
+                </Hint>
                 <span class="w-12 text-center tabular-nums text-white">
                   {subtitleOffset > 0 ? "+" : ""}{subtitleOffset.toFixed(1)}s
                 </span>
-                <Button
-                  variant="secondary"
-                  size="icon-xs"
-                  aria-label={m.player_subtitles_later()}
-                  onclick={() => onNudgeOffset(0.5)}
-                >
-                  +
-                </Button>
+                <Hint label={m.player_subtitles_later()}>
+                  {#snippet child({ props })}
+                    <Button
+                      {...props}
+                      variant="secondary"
+                      size="icon-xs"
+                      aria-label={m.player_subtitles_later()}
+                      onclick={() => onNudgeOffset(0.5)}
+                    >
+                      +
+                    </Button>
+                  {/snippet}
+                </Hint>
               </div>
             </div>
           {/if}

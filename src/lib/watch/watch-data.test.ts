@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { Meta } from "#lib/addons/index.js";
 import { progressRecordFromRow } from "#lib/sync/types.js";
 import type { ProfileData } from "#lib/userdata/types.js";
+import { CONTINUE_WATCHING_LIMIT } from "./continue-watching.ts";
 import {
 	pullContinueWatching,
 	pullNextToAir,
@@ -140,6 +141,75 @@ describe("pullContinueWatching", () => {
 		await pullContinueWatching(nuvio, slowLookup);
 		expect(peak).toBeLessThanOrEqual(4);
 		expect(slowLookup).toHaveBeenCalledTimes(10);
+	});
+});
+
+describe("pullContinueWatching naming", () => {
+	const lookup = () => vi.fn(async () => null as never);
+	const named = vi.fn(
+		async (_type: string, id: string) => ({ name: id.toUpperCase() }) as never,
+	);
+
+	it("dedupes per title before capping, so a binge can't crowd others out", async () => {
+		const binge = Array.from({ length: 40 }, (_, i) =>
+			row({ content_id: "show", last_watched: 1000 + i }),
+		);
+		const nuvio = nuvioWith([
+			...binge,
+			row({ content_id: "other", last_watched: 1 }),
+		]);
+		const items = await pullContinueWatching(nuvio, named);
+		expect(items.map((item) => item.id)).toEqual(["show", "other"]);
+	});
+
+	it("names as many cards as the home row shows", async () => {
+		const nuvio = nuvioWith(
+			Array.from({ length: 30 }, (_, i) =>
+				row({ content_id: `tt${i}`, last_watched: 100 - i }),
+			),
+		);
+		const items = await pullContinueWatching(nuvio, named);
+		expect(items).toHaveLength(CONTINUE_WATCHING_LIMIT);
+		expect(items.every((item) => item.name !== item.id)).toBe(true);
+	});
+
+	it("retries a lookup that failed once", async () => {
+		const nuvio = nuvioWith([row({ content_id: "tt5" })]);
+		const flaky = vi
+			.fn()
+			.mockRejectedValueOnce(new Error("429"))
+			.mockResolvedValueOnce({ name: "Five" });
+		const [item] = await pullContinueWatching(nuvio, flaky as never);
+		expect(item.name).toBe("Five");
+		expect(flaky).toHaveBeenCalledTimes(2);
+	});
+
+	it("falls back to a real history title when no addon answers", async () => {
+		const nuvio: ProfileData = {
+			...nuvioWith([row({ content_id: "tt6" })]),
+			history: async () => [
+				{
+					id: "a",
+					contentId: "tt6",
+					contentType: "series",
+					title: "Six",
+					season: 1,
+					episode: 1,
+					watchedAt: 2,
+				},
+				{
+					id: "b",
+					contentId: "tt6",
+					contentType: "series",
+					title: "tt6",
+					season: 1,
+					episode: 2,
+					watchedAt: 3,
+				},
+			],
+		};
+		const [item] = await pullContinueWatching(nuvio, lookup());
+		expect(item.name).toBe("Six");
 	});
 });
 

@@ -5,6 +5,7 @@
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { m } from "#lib/i18n/index.js";
 	import { cn } from "#lib/utils.js";
+	import Hint from "./hint.svelte";
 
 	let {
 		title,
@@ -27,16 +28,20 @@
 
 <div class="pointer-events-auto flex items-start gap-3 p-3 sm:p-4">
   {#if onBack}
-    <Button
-      variant="ghost"
-      size="icon"
-      aria-label={m.common_back()}
-      title={m.common_back()}
-      onclick={onBack}
-      class="shrink-0 rounded-full bg-white/10 text-white ring-1 ring-white/15 backdrop-blur-xl backdrop-saturate-150 shadow-[inset_0_1px_0_rgb(255_255_255/0.15)] hover:bg-white/20 dark:hover:bg-white/20 hover:text-white"
-    >
-      <ArrowLeftIcon class="size-5" />
-    </Button>
+    <Hint label={m.common_back()}>
+      {#snippet child({ props })}
+        <Button
+          {...props}
+          variant="ghost"
+          size="icon"
+          aria-label={m.common_back()}
+          onclick={onBack}
+          class="shrink-0 rounded-full bg-white/10 text-white ring-1 ring-white/15 backdrop-blur-xl backdrop-saturate-150 shadow-[inset_0_1px_0_rgb(255_255_255/0.15)] hover:bg-white/20 dark:hover:bg-white/20 hover:text-white"
+        >
+          <ArrowLeftIcon class="size-5" />
+        </Button>
+      {/snippet}
+    </Hint>
   {/if}
   <div class="min-w-0 flex-1 pt-1">
     <p class="truncate font-semibold">{title}</p>
