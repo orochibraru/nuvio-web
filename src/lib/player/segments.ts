@@ -3,7 +3,7 @@
  * affordances, sourced from TheIntroDB (https://theintrodb.org).
  */
 
-import { version } from "../../../package.json" with { type: "json" };
+import { getVersion } from "#lib/core/version.js";
 
 export const INTRODB_BASE = "https://api.theintrodb.org/v4";
 
@@ -11,7 +11,7 @@ export const INTRODB_BASE = "https://api.theintrodb.org/v4";
  * Sent on every TheIntroDB request so the maintainers can attribute traffic
  * and know who to contact before an API change (issue #36).
  */
-export const INTRODB_USER_AGENT = `nuvio-web/${version} (+https://github.com/orochibraru/nuvio-web)`;
+export const INTRODB_USER_AGENT = `nuvio-web/${getVersion()} (+https://github.com/orochibraru/nuvio-web)`;
 
 /** One media item's usable segments, in **seconds** (to match `video.currentTime`). */
 export interface MediaSegments {
