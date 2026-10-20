@@ -9,6 +9,7 @@ import {
 	animeLookup,
 	aniSkipUrl,
 	INTRODB_BASE,
+	INTRODB_USER_AGENT,
 	type IntroDbMedia,
 	type MediaSegments,
 	normalizeAniSkip,
@@ -50,10 +51,10 @@ async function fromIntroDb(
 	if (!params) {
 		return NO_SEGMENTS;
 	}
-	const media = await getJson<IntroDbMedia>(
-		`${INTRODB_BASE}/media?${params}`,
-		apiKey ? { authorization: `Bearer ${apiKey}` } : {},
-	);
+	const media = await getJson<IntroDbMedia>(`${INTRODB_BASE}/media?${params}`, {
+		"user-agent": INTRODB_USER_AGENT,
+		...(apiKey ? { authorization: `Bearer ${apiKey}` } : {}),
+	});
 	return normalizeSegments(media);
 }
 
