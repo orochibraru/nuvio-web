@@ -524,7 +524,7 @@
         >
             <Separator class="mb-4 bg-border/60" />
             <span class="font-medium text-foreground/70"
-                >Nuvio <span class="font-normal tabular-nums">v{getVersion()}</span></span
+                >Nuvio Web <span class="font-normal tabular-nums">v{getVersion()}</span></span
             >
             <span>{m.shell_footer_tagline()}</span>
             <div class="flex items-center gap-4">
