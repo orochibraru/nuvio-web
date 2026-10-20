@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.22](https://github.com/orochibraru/nuvio-web/compare/v1.0.21...v1.0.22) (2026-10-20)
+
+### Features
+
+* **player:** send a User-Agent to TheIntroDB (#38) ([6bc2a40](https://github.com/orochibraru/nuvio-web/commit/6bc2a4041047f7180fb2084e510dee6563166ed0))
+
 ## [1.0.21](https://github.com/orochibraru/nuvio-web/compare/v1.0.20...v1.0.21) (2026-10-18)
 
 ### Bug Fixes
