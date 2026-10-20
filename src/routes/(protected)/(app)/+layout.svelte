@@ -24,6 +24,7 @@
 	import * as DropdownMenu from "#lib/components/ui/dropdown-menu/index.js";
 	import { Separator } from "#lib/components/ui/separator/index.js";
 	import { reduced } from "#lib/core/motion.js";
+	import { getVersion } from "#lib/core/version.js";
 	import { downloads } from "#lib/downloads/manager.svelte.js";
 	import { m } from "#lib/i18n/index.js";
 	import { searchHistory } from "#lib/search/search-history.svelte.js";
@@ -522,7 +523,9 @@
             )}
         >
             <Separator class="mb-4 bg-border/60" />
-            <span class="font-medium text-foreground/70">Nuvio</span>
+            <span class="font-medium text-foreground/70"
+                >Nuvio <span class="font-normal tabular-nums">v{getVersion()}</span></span
+            >
             <span>{m.shell_footer_tagline()}</span>
             <div class="flex items-center gap-4">
                 <a
