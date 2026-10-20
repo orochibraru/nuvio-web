@@ -41,9 +41,13 @@
   <Tooltip.Root bind:open>
     <Tooltip.Trigger {child} />
     <Tooltip.Portal to={target}>
+      <!-- Escape belongs to the dialog / menu underneath first: a dialog
+           focusing its ✕ on open would otherwise hand the key to the ✕'s
+           tooltip and stay open itself. -->
       <Tooltip.Content
         {side}
         sideOffset={8}
+        escapeKeydownBehavior="defer-otherwise-close"
         class="dark pointer-events-none z-60 rounded-lg bg-black/80 px-2.5 py-1 text-xs font-medium text-white shadow-lg ring-1 ring-white/10 backdrop-blur-md"
       >
         {label}
