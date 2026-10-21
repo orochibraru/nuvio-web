@@ -17,8 +17,6 @@ type LockableOrientation = ScreenOrientation & {
  *   next tap on the player retries.
  * - `onFullscreenChange` : lock landscape on entering fullscreen (however it
  *   was entered), release it on leaving.
- * - `viewportFitCover` : let the player paint under the notch / home bar
- *   while it's mounted, so the `env(safe-area-inset-*)` paddings resolve.
  */
 export function createMobilePlayback(deps: {
 	fullscreenTarget: () => Element | null;
@@ -87,20 +85,6 @@ export function createMobilePlayback(deps: {
 		attempted = false;
 		retryOnTap = false;
 	}
-
-	$effect(() => {
-		const meta = document.querySelector<HTMLMetaElement>(
-			'meta[name="viewport"]',
-		);
-		if (!meta || meta.content.includes("viewport-fit")) {
-			return;
-		}
-		const original = meta.content;
-		meta.content = `${original}, viewport-fit=cover`;
-		return () => {
-			meta.content = original;
-		};
-	});
 
 	// Leaving the player (Back, navigation) mustn't strand the app fullscreen
 	// and sideways.

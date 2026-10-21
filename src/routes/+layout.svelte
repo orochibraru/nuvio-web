@@ -1,7 +1,6 @@
 <script lang="ts">
 	import "./layout.css";
 	import { ModeWatcher } from "mode-watcher";
-	import SmallScreenNotice from "#lib/components/chrome/small-screen-notice.svelte";
 	import TopLoadingBar from "#lib/components/chrome/top-loading-bar.svelte";
 	import { Toaster } from "#lib/components/ui/sonner/index.js";
 	import { pageTitle } from "#lib/core/title.svelte.js";
@@ -82,6 +81,5 @@
 <TopLoadingBar />
 <ModeWatcher />
 <Toaster richColors closeButton />
-<SmallScreenNotice />
 
 {@render children()}

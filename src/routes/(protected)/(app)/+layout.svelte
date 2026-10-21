@@ -6,24 +6,21 @@
 	import HouseIcon from "@lucide/svelte/icons/house";
 	import LayersIcon from "@lucide/svelte/icons/layers";
 	import LogOutIcon from "@lucide/svelte/icons/log-out";
-	import MenuIcon from "@lucide/svelte/icons/menu";
 	import MonitorDownIcon from "@lucide/svelte/icons/monitor-down";
 	import SearchIcon from "@lucide/svelte/icons/search";
 	import SettingsIcon from "@lucide/svelte/icons/settings";
 	import ShieldIcon from "@lucide/svelte/icons/shield";
 	import UsersIcon from "@lucide/svelte/icons/users";
 	import XIcon from "@lucide/svelte/icons/x";
-	import { Dialog as DialogPrimitive } from "bits-ui";
-	import { fade, fly } from "svelte/transition";
 	import CommandPalette from "#lib/components/chrome/command-palette.svelte";
 	import { commandPalette } from "#lib/components/chrome/command-palette.svelte.js";
 	import FirstRunNotice from "#lib/components/chrome/first-run-notice.svelte";
 	import HealthBanner from "#lib/components/chrome/health-banner.svelte";
+	import MobileTabBar from "#lib/components/chrome/mobile-tab-bar.svelte";
 	import ProfileAvatar from "#lib/components/chrome/profile-avatar.svelte";
 	import AuroraBackground from "#lib/components/layout/aurora-background.svelte";
 	import * as DropdownMenu from "#lib/components/ui/dropdown-menu/index.js";
 	import { Separator } from "#lib/components/ui/separator/index.js";
-	import { reduced } from "#lib/core/motion.js";
 	import { getVersion } from "#lib/core/version.js";
 	import { downloads } from "#lib/downloads/manager.svelte.js";
 	import { m } from "#lib/i18n/index.js";
@@ -60,7 +57,32 @@
 		},
 	];
 
-	let mobileNavOpen = $state(false);
+	// The phone tab bar: the main nav, plus Settings (on desktop that lives in
+	// the profile menu, which on a phone is one more tap than it's worth).
+	const tabs = [
+		...nav,
+		{
+			href: resolve("settings"),
+			label: m.nav_settings(),
+			icon: SettingsIcon,
+		},
+	];
+
+	// Below `md` the search pill goes to the search page, like an app's search
+	// tab; from `md` up it opens the command palette.
+	function openSearch(event: MouseEvent) {
+		if (
+			event.button !== 0 ||
+			event.metaKey ||
+			event.ctrlKey ||
+			event.shiftKey ||
+			!window.matchMedia("(min-width: 48rem)").matches
+		) {
+			return;
+		}
+		event.preventDefault();
+		commandPalette.show();
+	}
 
 	// The browser's install offer, held back so the profile menu can make it
 	// (Chromium only; Safari installs from its Share menu).
@@ -126,7 +148,6 @@
 	// it renders inside <main>, so this is a no-op there. `type === "enter"` is
 	// the initial SSR load : leave it be.
 	afterNavigate(({ type }) => {
-		mobileNavOpen = false;
 		if (type === "enter") {
 			return;
 		}
@@ -209,27 +230,19 @@
             // treatment); the inner padding shrinks by the same inset so the
             // logo and nav don't move.
             scrolled
-                ? "glass inset-x-2 top-2 rounded-2xl sm:inset-x-4"
-                : "inset-x-0 top-0 bg-transparent",
+                ? "glass inset-x-2 top-[max(0.5rem,env(safe-area-inset-top))] rounded-2xl sm:inset-x-4"
+                : "inset-x-0 top-0 bg-transparent pt-[env(safe-area-inset-top)]",
         )}
     >
         <div
             class={cn(
-                "flex h-14 items-center gap-6 transition-[padding] duration-300",
-                scrolled ? "px-4 sm:px-2" : "px-6",
+                "flex h-14 items-center gap-3 transition-[padding] duration-300 md:gap-6",
+                scrolled ? "px-2" : "px-4 md:px-6",
             )}
         >
-            <button
-                type="button"
-                aria-label={m.shell_menu()}
-                onclick={() => (mobileNavOpen = true)}
-                class="flex size-9 items-center justify-center rounded-full text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring md:hidden"
-            >
-                <MenuIcon class="size-5" />
-            </button>
             <a
                 href={resolve("/(protected)/(app)")}
-                class="flex shrink-0 items-center gap-2 text-lg font-bold tracking-tight"
+                class="hidden shrink-0 items-center gap-2 text-lg font-bold tracking-tight md:flex"
                 aria-label={m.shell_logo_home()}
             >
                 <!-- The wordmark is white artwork: a dark copy for light
@@ -322,33 +335,24 @@
                 </nav>
             </div>
 
-            <div class="ml-auto flex items-center gap-3">
+            <div class="flex flex-1 items-center gap-3 md:ml-auto md:flex-none">
                 <a
                     href={resolve("search")}
                     aria-label={m.nav_search()}
                     aria-current={isActive("/search") ? "page" : undefined}
-                    onclick={(e) => {
-                        if (
-                            e.button === 0 &&
-                            !e.metaKey &&
-                            !e.ctrlKey &&
-                            !e.shiftKey
-                        ) {
-                            e.preventDefault();
-                            commandPalette.show();
-                        }
-                    }}
+                    onclick={openSearch}
                     class={cn(
-                        "flex items-center gap-2 rounded-full border border-foreground/10 bg-foreground/5 px-3 py-1.5 text-sm shadow-[inset_0_1px_0_var(--glass-edge)] backdrop-blur-md transition-colors hover:bg-foreground/10",
+                        "flex min-w-0 flex-1 items-center gap-2 rounded-full border border-foreground/10 bg-foreground/5 px-3.5 py-2 text-sm md:flex-none md:px-3 md:py-1.5 shadow-[inset_0_1px_0_var(--glass-edge)] backdrop-blur-md transition-colors hover:bg-foreground/10",
                         isActive("/search")
                             ? "text-foreground"
                             : "text-muted-foreground hover:text-foreground",
                     )}
                 >
                     <SearchIcon class="size-4" />
-                    <span class="hidden sm:inline">{m.nav_search()}</span>
+                    <span class="truncate md:hidden">{m.search_placeholder()}…</span>
+                    <span class="hidden md:inline">{m.nav_search()}</span>
                     <kbd
-                        class="ml-1 hidden rounded border border-border bg-muted px-1.5 font-sans text-[10px] text-muted-foreground sm:inline"
+                        class="ml-1 hidden rounded border border-border bg-muted px-1.5 font-sans text-[10px] text-muted-foreground md:inline"
                     >
                         ⌘K
                     </kbd>
@@ -357,7 +361,7 @@
                 <DropdownMenu.Root>
                     <DropdownMenu.Trigger
                         aria-label={m.shell_profile_menu()}
-                        class="size-8 overflow-hidden rounded-lg ring-1 ring-white/10 outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
+                        class="size-9 shrink-0 overflow-hidden rounded-full ring-1 md:size-8 md:rounded-lg ring-white/10 outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
                     >
                         <ProfileAvatar profile={data.profile} />
                     </DropdownMenu.Trigger>
@@ -434,79 +438,15 @@
         </div>
     </header>
 
-    {#if mobileNavOpen}
-        <DialogPrimitive.Root
-            open
-            onOpenChange={(open) => {
-                if (!open) {
-                    mobileNavOpen = false;
-                }
-            }}
-        >
-            <DialogPrimitive.Overlay>
-                {#snippet child({ props })}
-                    <div
-                        {...props}
-                        class="fixed inset-0 z-100 bg-black/40 backdrop-blur-sm md:hidden"
-                        transition:fade={reduced({ duration: 150 })}
-                    ></div>
-                {/snippet}
-            </DialogPrimitive.Overlay>
-            <DialogPrimitive.Content>
-                {#snippet child({ props })}
-                    <div
-                        {...props}
-                        aria-label={m.shell_menu()}
-                        class="glass fixed inset-y-3 left-3 z-100 flex w-72 max-w-[calc(100vw-1.5rem)] flex-col overflow-hidden rounded-3xl outline-none md:hidden"
-                        transition:fly={reduced({ x: -24, duration: 220 })}
-                    >
-                        <div
-                            class="flex h-14 shrink-0 items-center justify-between border-b border-foreground/10 px-4"
-                        >
-                            <span class="text-sm font-semibold">{m.shell_menu()}</span>
-                            <button
-                                type="button"
-                                aria-label={m.shell_close_menu()}
-                                onclick={() => (mobileNavOpen = false)}
-                                class="flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                            >
-                                <XIcon class="size-4" />
-                            </button>
-                        </div>
-                        <nav class="flex flex-col gap-1 overflow-y-auto p-3">
-                            {#each nav as item (item.href)}
-                                {@const active = isActive(
-                                    item.href,
-                                    item.exact,
-                                )}
-                                <a
-                                    href={item.href}
-                                    aria-current={active ? "page" : undefined}
-                                    class={cn(
-                                        "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                                        active
-                                            ? "bg-primary/15 text-foreground"
-                                            : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                                    )}
-                                >
-                                    <item.icon class="size-5" />
-                                    {item.label}
-                                </a>
-                            {/each}
-                        </nav>
-                    </div>
-                {/snippet}
-            </DialogPrimitive.Content>
-        </DialogPrimitive.Root>
-    {/if}
-
     <main
         bind:this={mainEl}
         id="main-content"
         tabindex="-1"
         class={cn(
             "flex w-full flex-1 flex-col outline-none",
-            immersive ? "p-0" : "px-6 pt-20 pb-16",
+            immersive
+                ? "p-0"
+                : "px-6 pt-(--shell-top) pb-[calc(var(--tab-bar)+2rem)] pl-[calc(1.5rem+env(safe-area-inset-left))] pr-[calc(1.5rem+env(safe-area-inset-right))] md:pb-16",
         )}
     >
         <div class="flex-1">
@@ -518,8 +458,8 @@
 
         <footer
             class={cn(
-                "mt-16 flex flex-col items-center gap-2 pt-6 text-center text-xs text-muted-foreground",
-                immersive && "hidden",
+                "mt-16 hidden flex-col items-center gap-2 pt-6 text-center text-xs text-muted-foreground md:flex",
+                immersive && "md:hidden",
             )}
         >
             <Separator class="mb-4 bg-border/60" />
@@ -547,4 +487,8 @@
             </div>
         </footer>
     </main>
+
+    {#if !immersive}
+        <MobileTabBar {tabs} />
+    {/if}
 </div>

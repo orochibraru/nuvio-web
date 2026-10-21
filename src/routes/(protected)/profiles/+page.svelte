@@ -80,7 +80,7 @@
 	whatever the system or the last profile left on <html>.
 -->
 <div
-	class="dark relative flex min-h-svh flex-col items-center justify-center gap-12 bg-background p-8 text-foreground"
+	class="dark relative flex min-h-svh flex-col items-center justify-center gap-10 bg-background px-6 pt-[calc(2rem+env(safe-area-inset-top))] pb-[calc(2rem+env(safe-area-inset-bottom))] text-foreground sm:gap-12 sm:p-8"
 >
 	<div
 		class="pointer-events-none absolute inset-x-0 top-0 hidden h-[60vh] dark:block"
@@ -91,10 +91,13 @@
 		{manage ? m.profiles_manage() : m.profiles_who()}
 	</h1>
 
-	<div class="flex flex-wrap items-start justify-center gap-6">
+	<!-- Phones: two big tiles a row, app-style. From `sm` up: one centred row. -->
+	<div
+		class="grid w-full max-w-sm grid-cols-2 justify-items-center gap-x-4 gap-y-6 sm:flex sm:max-w-none sm:flex-wrap sm:items-start sm:justify-center sm:gap-6"
+	>
 		{#each data.profiles ?? [] as profile (profile.id)}
 			{#if manage}
-				<div class="flex w-28 flex-col items-center gap-3">
+				<div class="flex w-full max-w-36 flex-col sm:w-28 items-center gap-3">
 					<button
 						type="button"
 						aria-label={m.profiles_edit_named({ name: profile.name })}
@@ -102,7 +105,7 @@
 						class="group relative flex flex-col items-center gap-3 rounded-2xl p-2 outline-none focus-visible:ring-2 focus-visible:ring-ring"
 					>
 						<div
-							class="size-24 overflow-hidden rounded-2xl ring-1 ring-white/10 transition-all duration-200 group-hover:scale-105 group-hover:opacity-60"
+							class="size-32 sm:size-24 overflow-hidden rounded-2xl ring-1 ring-white/10 transition-all duration-200 group-active:scale-95 group-hover:scale-105 group-hover:opacity-60"
 						>
 							<ProfileAvatar {profile} />
 						</div>
@@ -121,10 +124,10 @@
 					type="button"
 					onclick={() =>
 						toast.info(m.profiles_pin_locked({ name: profile.name }))}
-					class="group flex w-28 flex-col items-center gap-3 rounded-2xl p-2 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+					class="group flex w-full max-w-36 flex-col sm:w-28 items-center gap-3 rounded-2xl p-2 outline-none focus-visible:ring-2 focus-visible:ring-ring"
 				>
 					<div
-						class="relative size-24 overflow-hidden rounded-2xl ring-1 ring-white/10 ring-offset-2 ring-offset-background transition-all duration-200 group-hover:scale-105"
+						class="relative size-32 sm:size-24 overflow-hidden rounded-2xl ring-1 ring-white/10 ring-offset-2 ring-offset-background transition-all duration-200 group-active:scale-95 group-hover:scale-105"
 					>
 						<div class="opacity-40"><ProfileAvatar {profile} /></div>
 						<span
@@ -148,12 +151,12 @@
 						type="submit"
 						disabled={pick.pending > 0}
 						class={cn(
-							"group flex w-28 flex-col items-center gap-3 rounded-2xl p-2 outline-none",
+							"group flex w-full max-w-36 flex-col sm:w-28 items-center gap-3 rounded-2xl p-2 outline-none",
 							"focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50",
 						)}
 					>
 						<div
-							class="size-24 overflow-hidden rounded-2xl ring-1 ring-white/10 ring-offset-2 ring-offset-background transition-all duration-200 group-hover:scale-105 group-hover:ring-2 group-hover:ring-primary group-focus-visible:ring-2 group-focus-visible:ring-ring"
+							class="size-32 sm:size-24 overflow-hidden rounded-2xl ring-1 ring-white/10 ring-offset-2 ring-offset-background transition-all duration-200 group-active:scale-95 group-hover:scale-105 group-hover:ring-2 group-hover:ring-primary group-focus-visible:ring-2 group-focus-visible:ring-ring"
 						>
 							<ProfileAvatar {profile} />
 						</div>
@@ -169,10 +172,10 @@
 			<button
 				type="button"
 				onclick={() => (dialogOpen = true)}
-				class="group flex w-28 flex-col items-center gap-3 rounded-2xl p-2 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+				class="group flex w-full max-w-36 flex-col sm:w-28 items-center gap-3 rounded-2xl p-2 outline-none focus-visible:ring-2 focus-visible:ring-ring"
 			>
 				<div
-					class="flex size-24 items-center justify-center rounded-2xl border border-dashed border-border text-muted-foreground transition-all duration-200 group-hover:scale-105 group-hover:border-foreground group-hover:text-foreground"
+					class="flex size-32 sm:size-24 items-center justify-center rounded-2xl border border-dashed border-border text-muted-foreground transition-all duration-200 group-active:scale-95 group-hover:scale-105 group-hover:border-foreground group-hover:text-foreground"
 				>
 					<PlusIcon class="size-8" />
 				</div>
