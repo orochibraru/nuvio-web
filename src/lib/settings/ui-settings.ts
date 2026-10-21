@@ -72,6 +72,9 @@ export const uiSettingsSchema = v.object({
 	darkStyle: v.fallback(v.picklist(["dim", "amoled"]), "dim"),
 	accent: v.fallback(v.picklist(ACCENTS), "blue"),
 	autoPlayNext: v.fallback(v.boolean(), true),
+	/** Phone / tablet player gestures : double-tap seek, hold for 2x, swipe for
+	 *  volume (right) and brightness (left). */
+	touchGestures: v.fallback(v.boolean(), true),
 	/** Resolution the player auto-picks from a source list; "auto" = addon order. */
 	preferredQuality: v.fallback(v.picklist(STREAM_QUALITIES), "auto"),
 	subtitleSize: v.fallback(v.picklist(SUBTITLE_SIZES), "medium"),
@@ -113,6 +116,7 @@ export const DEFAULT_UI_SETTINGS: UiSettings = {
 	darkStyle: "dim",
 	accent: "blue",
 	autoPlayNext: true,
+	touchGestures: true,
 	preferredQuality: "auto",
 	subtitleSize: "medium",
 	subtitleColor: "#ffffff",
