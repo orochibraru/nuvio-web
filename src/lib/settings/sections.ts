@@ -19,6 +19,8 @@ export interface SettingsSection {
 	value: string;
 	/** A getter: resolves in the current request's locale on every read. */
 	readonly label: string;
+	/** One line under the label in the phone settings list. */
+	readonly description: string;
 	icon: Component;
 }
 
@@ -28,12 +30,18 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
 		get label() {
 			return m.settings_section_appearance();
 		},
+		get description() {
+			return m.settings_section_appearance_description();
+		},
 		icon: PaletteIcon,
 	},
 	{
 		value: "home",
 		get label() {
 			return m.nav_home();
+		},
+		get description() {
+			return m.settings_section_home_description();
 		},
 		icon: HouseIcon,
 	},
@@ -42,12 +50,18 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
 		get label() {
 			return m.settings_section_playback();
 		},
+		get description() {
+			return m.settings_section_playback_description();
+		},
 		icon: PlayIcon,
 	},
 	{
 		value: "sync",
 		get label() {
 			return m.settings_section_sync();
+		},
+		get description() {
+			return m.settings_section_sync_description();
 		},
 		icon: RefreshCwIcon,
 	},
@@ -56,12 +70,18 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
 		get label() {
 			return m.settings_section_addons();
 		},
+		get description() {
+			return m.settings_section_addons_description();
+		},
 		icon: PuzzleIcon,
 	},
 	{
 		value: "integrations",
 		get label() {
 			return m.settings_section_integrations();
+		},
+		get description() {
+			return m.settings_section_integrations_description();
 		},
 		icon: PlugIcon,
 	},

@@ -74,7 +74,14 @@
 	}
 </script>
 
-<div class="relative flex min-h-svh flex-col items-center justify-center gap-12 p-8">
+<!--
+	Like the auth screens, the picker sits before any profile's stored theme is
+	known : pin it (and its portalled dialogs) to the dark palette rather than
+	whatever the system or the last profile left on <html>.
+-->
+<div
+	class="dark relative flex min-h-svh flex-col items-center justify-center gap-10 bg-background px-6 pt-[calc(2rem+env(safe-area-inset-top))] pb-[calc(2rem+env(safe-area-inset-bottom))] text-foreground sm:gap-12 sm:p-8"
+>
 	<div
 		class="pointer-events-none absolute inset-x-0 top-0 hidden h-[60vh] dark:block"
 		style="background: radial-gradient(60% 50% at 50% 0%, color-mix(in oklch, var(--primary) 12%, transparent), transparent 70%)"
@@ -84,10 +91,13 @@
 		{manage ? m.profiles_manage() : m.profiles_who()}
 	</h1>
 
-	<div class="flex flex-wrap items-start justify-center gap-6">
+	<!-- Phones: two big tiles a row, app-style. From `sm` up: one centred row. -->
+	<div
+		class="grid w-full max-w-sm grid-cols-2 justify-items-center gap-x-4 gap-y-6 sm:flex sm:max-w-none sm:flex-wrap sm:items-start sm:justify-center sm:gap-6"
+	>
 		{#each data.profiles ?? [] as profile (profile.id)}
 			{#if manage}
-				<div class="flex w-28 flex-col items-center gap-3">
+				<div class="flex w-full max-w-36 flex-col sm:w-28 items-center gap-3">
 					<button
 						type="button"
 						aria-label={m.profiles_edit_named({ name: profile.name })}
@@ -95,7 +105,7 @@
 						class="group relative flex flex-col items-center gap-3 rounded-2xl p-2 outline-none focus-visible:ring-2 focus-visible:ring-ring"
 					>
 						<div
-							class="size-24 overflow-hidden rounded-2xl ring-1 ring-white/10 transition-all duration-200 group-hover:scale-105 group-hover:opacity-60"
+							class="size-32 sm:size-24 overflow-hidden rounded-2xl ring-1 ring-white/10 transition-all duration-200 group-active:scale-95 group-hover:scale-105 group-hover:opacity-60"
 						>
 							<ProfileAvatar {profile} />
 						</div>
@@ -114,10 +124,10 @@
 					type="button"
 					onclick={() =>
 						toast.info(m.profiles_pin_locked({ name: profile.name }))}
-					class="group flex w-28 flex-col items-center gap-3 rounded-2xl p-2 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+					class="group flex w-full max-w-36 flex-col sm:w-28 items-center gap-3 rounded-2xl p-2 outline-none focus-visible:ring-2 focus-visible:ring-ring"
 				>
 					<div
-						class="relative size-24 overflow-hidden rounded-2xl ring-1 ring-white/10 ring-offset-2 ring-offset-background transition-all duration-200 group-hover:scale-105"
+						class="relative size-32 sm:size-24 overflow-hidden rounded-2xl ring-1 ring-white/10 ring-offset-2 ring-offset-background transition-all duration-200 group-active:scale-95 group-hover:scale-105"
 					>
 						<div class="opacity-40"><ProfileAvatar {profile} /></div>
 						<span
@@ -141,12 +151,12 @@
 						type="submit"
 						disabled={pick.pending > 0}
 						class={cn(
-							"group flex w-28 flex-col items-center gap-3 rounded-2xl p-2 outline-none",
+							"group flex w-full max-w-36 flex-col sm:w-28 items-center gap-3 rounded-2xl p-2 outline-none",
 							"focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50",
 						)}
 					>
 						<div
-							class="size-24 overflow-hidden rounded-2xl ring-1 ring-white/10 ring-offset-2 ring-offset-background transition-all duration-200 group-hover:scale-105 group-hover:ring-2 group-hover:ring-primary group-focus-visible:ring-2 group-focus-visible:ring-ring"
+							class="size-32 sm:size-24 overflow-hidden rounded-2xl ring-1 ring-white/10 ring-offset-2 ring-offset-background transition-all duration-200 group-active:scale-95 group-hover:scale-105 group-hover:ring-2 group-hover:ring-primary group-focus-visible:ring-2 group-focus-visible:ring-ring"
 						>
 							<ProfileAvatar {profile} />
 						</div>
@@ -162,10 +172,10 @@
 			<button
 				type="button"
 				onclick={() => (dialogOpen = true)}
-				class="group flex w-28 flex-col items-center gap-3 rounded-2xl p-2 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+				class="group flex w-full max-w-36 flex-col sm:w-28 items-center gap-3 rounded-2xl p-2 outline-none focus-visible:ring-2 focus-visible:ring-ring"
 			>
 				<div
-					class="flex size-24 items-center justify-center rounded-2xl border border-dashed border-border text-muted-foreground transition-all duration-200 group-hover:scale-105 group-hover:border-foreground group-hover:text-foreground"
+					class="flex size-32 sm:size-24 items-center justify-center rounded-2xl border border-dashed border-border text-muted-foreground transition-all duration-200 group-active:scale-95 group-hover:scale-105 group-hover:border-foreground group-hover:text-foreground"
 				>
 					<PlusIcon class="size-8" />
 				</div>
@@ -187,7 +197,7 @@
 </div>
 
 <Dialog.Root bind:open={dialogOpen}>
-	<Dialog.Content class="sm:max-w-md">
+	<Dialog.Content class="dark sm:max-w-md">
 		<Dialog.Header>
 			<Dialog.Title>{m.profiles_new()}</Dialog.Title>
 			<Dialog.Description>{m.profiles_limit()}</Dialog.Description>
@@ -263,7 +273,7 @@
 		}
 	}}
 >
-	<Dialog.Content class="sm:max-w-md">
+	<Dialog.Content class="dark sm:max-w-md">
 		<Dialog.Header>
 			<Dialog.Title>{m.profiles_edit()}</Dialog.Title>
 			<Dialog.Description>{m.profiles_edit_description()}</Dialog.Description>
@@ -396,7 +406,7 @@
 </Dialog.Root>
 
 <Dialog.Root bind:open={deleteConfirmOpen}>
-	<Dialog.Content class="sm:max-w-md">
+	<Dialog.Content class="dark sm:max-w-md">
 		<Dialog.Header>
 			<Dialog.Title
 				>{m.profiles_delete_confirm_title({ name: editing?.name ?? "" })}</Dialog.Title

@@ -2,6 +2,15 @@
 
 ## Open
 
+- [ ] **Mobile shell: verify on real phones.** Bottom tab bar, search-pill
+      header, grouped settings list, two-column profile picker, safe-area insets
+      (`viewport-fit=cover`) and the player's auto fullscreen + landscape lock
+      have only been type-checked and lint-checked, never run signed in on a
+      device. iOS Safari has no element fullscreen or orientation lock, so the
+      player part is Android-only there. The e2e specs for the tab bar /
+      settings list are written but not yet run.
+- [ ] **Mobile tab bar: a Calendar tab.** The mockup has one; there is no
+      calendar route yet, so the fourth tab is Collections for now.
 - [ ] **In-browser fix: confirm on real debrid hosts.** Proven on local fixtures
       only (H.264 + E-AC-3, HEVC Main10 + DTS, VP9 + AC-3), in Chrome and
       Playwright's Chromium. Unknown: which hosts send CORS headers, how a 60 GB

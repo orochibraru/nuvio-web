@@ -158,23 +158,38 @@ test("interrupting a pending navigation still swaps the page", async ({
 	expect(errors, "runtime errors").toEqual([]);
 });
 
-test("below md the nav collapses into a burger menu", async ({ page }) => {
+test("below md the nav moves into a bottom tab bar", async ({ page }) => {
 	const errors = collectRuntimeErrors(page);
 
 	await page.setViewportSize({ width: 390, height: 844 });
 	await page.goto("/");
 	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
 
-	// The inline nav links are hidden; the burger is the way through.
-	await expect(
-		page.getByRole("navigation").getByRole("link", { name: "Discover" }),
-	).toBeHidden();
-
-	await page.getByRole("button", { name: "Menu", exact: true }).click();
-	await page.getByRole("link", { name: "Discover" }).click();
+	// One "Main" nav is visible at a time : the header's row hides below md,
+	// the tab bar takes over.
+	const tabs = page.getByRole("navigation", { name: "Main" });
+	await expect(tabs).toHaveCount(1);
+	await tabs.getByRole("link", { name: "Discover" }).click();
 
 	await expect(page).toHaveURL(/\/discover$/);
 	await expect(page.getByRole("heading", { name: "Discover" })).toBeVisible();
+	await expect(tabs.getByRole("link", { name: "Discover" })).toHaveAttribute(
+		"aria-current",
+		"page",
+	);
+
+	// Settings opens on its section list; a row drills in, Back returns.
+	await tabs.getByRole("link", { name: "Settings" }).click();
+	await expect(
+		page.getByRole("heading", { name: "Settings", level: 1 }),
+	).toBeVisible();
+	await page.getByRole("link", { name: /^Playback/ }).click();
+	await expect(page).toHaveURL(/\/settings\?tab=playback$/);
+	await page
+		.getByRole("link", { name: "Settings", exact: true })
+		.first()
+		.click();
+	await expect(page).toHaveURL(/\/settings$/);
 
 	expect(errors, "runtime errors").toEqual([]);
 });

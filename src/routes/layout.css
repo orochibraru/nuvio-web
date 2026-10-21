@@ -374,10 +374,26 @@
 	html {
 		scroll-behavior: smooth;
 		scrollbar-gutter: stable;
+		/* The app shell's top padding : the fixed header plus the notch / status
+		   bar (`viewport-fit=cover`). Full-bleed heroes pull back up by the same
+		   amount, so the two can't drift apart. */
+		--shell-top: calc(5rem + env(safe-area-inset-top));
+		/* What the mobile tab bar covers, home indicator included. */
+		--tab-bar: calc(4rem + env(safe-area-inset-bottom));
+		/* Native-app touch feel: no grey flash on tap, no double-tap-zoom delay. */
+		-webkit-tap-highlight-color: transparent;
+		touch-action: manipulation;
 	}
 	body {
 		@apply bg-background text-foreground;
 		text-rendering: optimizelegibility;
+	}
+	/* Installed, it's an app : no rubber-band / pull-to-refresh past the edges. */
+	@media (display-mode: standalone) {
+		html,
+		body {
+			overscroll-behavior-y: none;
+		}
 	}
 	/* Grayscale smoothing only where the pixels are dense enough to carry it.
 	   On a standard-density screen it strips macOS's stem darkening and text

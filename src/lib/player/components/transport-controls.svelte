@@ -79,10 +79,12 @@
 
 <!-- The container is click-transparent so the info overlay behind it stays
      interactive; each bar re-enables pointer events. `invisible` (not just
-     opacity-0) so a hidden bar can't swallow a tap. -->
+     opacity-0) so a hidden bar can't swallow a tap. The safe-area padding keeps
+     the bars clear of a phone's notch / home indicator (`app.html` sets
+     `viewport-fit=cover`); it's 0 everywhere else. -->
 <div
   class={cn(
-    "pointer-events-none absolute inset-0 z-30 flex flex-col justify-between bg-linear-to-t from-black/60 via-transparent to-black/60 transition-[opacity,visibility] duration-200",
+    "pointer-events-none absolute inset-0 z-30 flex flex-col justify-between pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] bg-linear-to-t from-black/60 via-transparent to-black/60 transition-[opacity,visibility] duration-200",
     minimized || !transport.controlsVisible || fatalError
       ? "invisible opacity-0"
       : "opacity-100",

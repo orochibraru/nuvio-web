@@ -95,7 +95,7 @@
      for the strip that has to match the page content below. -->
 <div style="--hero-page-bg: var(--background)">
   <section
-    class="dark relative isolate mx-[calc(50%-50vw)] -mt-20 overflow-hidden text-foreground"
+    class="dark relative isolate mx-[calc(50%-50vw)] -mt-(--shell-top) overflow-hidden text-foreground"
     data-amoled={amoled ? "true" : undefined}
     data-accent={accent}
   >

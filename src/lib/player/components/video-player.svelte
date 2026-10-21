@@ -13,6 +13,7 @@
 	import { createPlaybackDiagnostics } from "#lib/player/state/diagnostics.svelte.js";
 	import { createInfoOverlayController } from "#lib/player/state/info-overlay.svelte.js";
 	import { createPlaybackMilestones } from "#lib/player/state/milestones.svelte.js";
+	import { createMobilePlayback } from "#lib/player/state/mobile.svelte.js";
 	import { createPanelToggles } from "#lib/player/state/panel-toggles.svelte.js";
 	import { createRemotePlayback } from "#lib/player/state/remote-playback.svelte.js";
 	import { createSubtitleController } from "#lib/player/state/subtitle-controller.svelte.js";
@@ -71,13 +72,15 @@
 
 	let fatalError = $state<string | null>(null);
 
+	// Fullscreening the player's own div drops every overlay mounted outside
+	// it (sources / episodes drawers, up-next, end panel, portalled menus)
+	// out of the top layer, leaving them unpainted and unclickable. When the
+	// player already owns the viewport, fullscreen the document instead :
+	// looks identical, and keeps those overlays inside the fullscreen subtree.
+	const fullscreenTarget = () => (fill ? document.documentElement : container);
+
 	const player = createPlayerController({
-		// Fullscreening the player's own div drops every overlay mounted outside
-		// it (sources / episodes drawers, up-next, end panel, portalled menus)
-		// out of the top layer, leaving them unpainted and unclickable. When the
-		// player already owns the viewport, fullscreen the document instead :
-		// looks identical, and keeps those overlays inside the fullscreen subtree.
-		fullscreenTarget: () => (fill ? document.documentElement : container),
+		fullscreenTarget,
 		video: () => video,
 		src: () => src,
 		startTime: () => startTime,
@@ -91,6 +94,13 @@
 	// `player.state` is the shared reactive transport object : read/write it
 	// directly (it's what `<video bind:paused>` etc. below are bound to).
 	const transport = player.state;
+
+	// Phones: fullscreen + landscape on start, no pause-triggered info sheet,
+	// and a tap on the picture shows / hides the controls instead of pausing.
+	const mobile = createMobilePlayback({
+		fullscreenTarget,
+		minimized: () => minimized,
+	});
 
 	// Multi-tab coherence: starting playback here pauses this video in every
 	// other open tab.
@@ -108,6 +118,7 @@
 		paused: () => transport.paused,
 		currentTime: () => transport.currentTime,
 		blocked: () => drawerOpen,
+		autoOpen: () => !mobile.touch,
 		onOpen: () => {
 			transport.controlsVisible = true;
 		},
@@ -136,6 +147,7 @@
 		player.reset();
 		captions.reset();
 		progress.reset();
+		mobile.reset();
 	}
 
 	const { media, progress, silentAudio, videoDecode } =
@@ -226,6 +238,7 @@
 	let boostRestored = false;
 	function onPlaying() {
 		onReady();
+		void mobile.enterImmersive();
 		convertingAudio = false;
 		if (!boostRestored) {
 			boostRestored = true;
@@ -268,6 +281,30 @@
 		captions.trySelectPreferred();
 	}
 
+	// Whether the controls were up when this tap began : the compat `mousemove`
+	// a tap fires before `click` would otherwise always read them as shown.
+	let tapStart: { touch: boolean; controlsVisible: boolean } | null = null;
+	function onVideoPointerDown(event: PointerEvent) {
+		tapStart = {
+			touch: event.pointerType !== "mouse",
+			controlsVisible: transport.controlsVisible,
+		};
+	}
+	function onVideoClick() {
+		const start = tapStart;
+		tapStart = null;
+		if (!start?.touch) {
+			player.togglePlay();
+			return;
+		}
+		mobile.onTap();
+		if (start.controlsVisible && !transport.paused && !panels.panelOpen) {
+			transport.controlsVisible = false;
+		} else {
+			player.nudgeControls();
+		}
+	}
+
 	function onKeydown(event: KeyboardEvent) {
 		const handled = handlePlayerKey(event, {
 			togglePlay: player.togglePlay,
@@ -292,8 +329,10 @@
 </script>
 
 <svelte:document
-  onfullscreenchange={() =>
-    (transport.fullscreen = Boolean(document.fullscreenElement))}
+  onfullscreenchange={() => {
+    transport.fullscreen = Boolean(document.fullscreenElement);
+    mobile.onFullscreenChange();
+  }}
 />
 <svelte:window onkeydown={onKeydown} />
 
@@ -340,7 +379,8 @@
     onwaiting={player.onWaiting}
     onerror={player.onMediaError}
     onpause={progress.flush}
-    onclick={player.togglePlay}
+    onpointerdown={onVideoPointerDown}
+    onclick={onVideoClick}
     onended={player.onEndedInternal}
   >
     {#each captions.options as track (track.key)}

@@ -2,6 +2,7 @@
 	import AlertCircleIcon from "@lucide/svelte/icons/alert-circle";
 	import EyeIcon from "@lucide/svelte/icons/eye";
 	import EyeOffIcon from "@lucide/svelte/icons/eye-off";
+	import ShieldCheckIcon from "@lucide/svelte/icons/shield-check";
 	import * as Alert from "#lib/components/ui/alert/index.js";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import * as Card from "#lib/components/ui/card/index.js";
@@ -116,7 +117,11 @@
 			</Field.FieldGroup>
 		</form>
 	</Card.Content>
-	<Card.Footer class="justify-center">
+	<Card.Footer class="flex-col gap-3 text-center">
+		<p class="flex items-start gap-2 text-left text-xs text-muted-foreground">
+			<ShieldCheckIcon class="mt-px size-3.5 shrink-0" />
+			{m.auth_credentials_note()}
+		</p>
 		<p class="text-sm text-muted-foreground">
 			{m.auth_new_to_nuvio()}
 			<a class="underline underline-offset-4" href={signUpHref}

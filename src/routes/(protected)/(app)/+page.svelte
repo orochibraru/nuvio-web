@@ -483,7 +483,7 @@
     <!-- Same box as `media-hero.svelte` so the row below doesn't jump when
 		     the real hero paints. -->
     <section
-      class="relative isolate mx-[calc(50%-50vw)] -mt-20 mb-2 overflow-hidden"
+      class="relative isolate mx-[calc(50%-50vw)] -mt-(--shell-top) mb-2 overflow-hidden"
       aria-hidden="true"
     >
       <div
