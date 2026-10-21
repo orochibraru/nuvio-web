@@ -17,12 +17,14 @@
 	import { createPanelToggles } from "#lib/player/state/panel-toggles.svelte.js";
 	import { createRemotePlayback } from "#lib/player/state/remote-playback.svelte.js";
 	import { createSubtitleController } from "#lib/player/state/subtitle-controller.svelte.js";
+	import { createTouchGestures } from "#lib/player/state/touch-gestures.svelte.js";
 	import { createVolumeBoost } from "#lib/player/state/volume-boost.svelte.js";
 	import type { TransmuxReason } from "#lib/player/transmux-session.js";
 	import type { VideoPlayerProps } from "#lib/player/types.js";
 	import { theme } from "#lib/settings/theme.svelte.js";
 	import { subtitleFontSize } from "#lib/settings/ui-settings.js";
 	import { cn } from "#lib/utils.js";
+	import GestureFeedback from "./gesture-feedback.svelte";
 	import PlayerOverlays from "./overlays.svelte";
 	import SubtitlePanel from "./subtitle-panel.svelte";
 	import TransportControls from "./transport-controls.svelte";
@@ -41,6 +43,7 @@
 		genres = [],
 		info = null,
 		detailHref = "",
+		touchGestures = true,
 		subtitleSize = "medium",
 		subtitleColor = "#ffffff",
 		subtitleBackground = true,
@@ -281,28 +284,53 @@
 		captions.trySelectPreferred();
 	}
 
+	// A tap on the picture shows / hides the controls (and retries a refused
+	// auto-fullscreen) : `controlsVisible` is what they were when it began.
+	function touchTap(controlsVisible: boolean) {
+		mobile.onTap();
+		if (controlsVisible && !transport.paused && !panels.panelOpen) {
+			transport.controlsVisible = false;
+		} else {
+			player.nudgeControls();
+		}
+	}
+
+	// Double-tap seek, hold for 2x, swipe for volume / brightness. It takes the
+	// touch from `pointerdown` on, single taps included, so `click` skips it.
+	const gestures = createTouchGestures({
+		enabled: () => touchGestures && mobile.touch && !minimized,
+		transport,
+		seek: player.seek,
+		onTap: touchTap,
+	});
+	$effect(() => () => gestures.dispose());
+
 	// Whether the controls were up when this tap began : the compat `mousemove`
 	// a tap fires before `click` would otherwise always read them as shown.
-	let tapStart: { touch: boolean; controlsVisible: boolean } | null = null;
+	// A touch the gestures took never reaches it.
+	let tapStart: {
+		touch: boolean;
+		gesture: boolean;
+		controlsVisible: boolean;
+	} | null = null;
 	function onVideoPointerDown(event: PointerEvent) {
 		tapStart = {
 			touch: event.pointerType !== "mouse",
+			gesture: gestures.pointerdown(event),
 			controlsVisible: transport.controlsVisible,
 		};
 	}
 	function onVideoClick() {
 		const start = tapStart;
 		tapStart = null;
+		if (start?.gesture) {
+			return;
+		}
 		if (!start?.touch) {
 			player.togglePlay();
 			return;
 		}
-		mobile.onTap();
-		if (start.controlsVisible && !transport.paused && !panels.panelOpen) {
-			transport.controlsVisible = false;
-		} else {
-			player.nudgeControls();
-		}
+		touchTap(start.controlsVisible);
 	}
 
 	function onKeydown(event: KeyboardEvent) {
@@ -370,7 +398,13 @@
     bind:muted={transport.muted}
     bind:buffered={transport.buffered}
     autoplay
-    class="size-full object-contain"
+    class={cn(
+      "size-full object-contain",
+      gestures.enabled && "touch-none [-webkit-touch-callout:none]",
+    )}
+    style:filter={gestures.brightness === 1
+      ? undefined
+      : `brightness(${gestures.brightness})`}
     playsinline
     onloadedmetadata={player.onLoadedMetadata}
     onloadeddata={onReady}
@@ -380,6 +414,10 @@
     onerror={player.onMediaError}
     onpause={progress.flush}
     onpointerdown={onVideoPointerDown}
+    onpointermove={gestures.pointermove}
+    onpointerup={gestures.pointerup}
+    onpointercancel={gestures.pointercancel}
+    oncontextmenu={(event) => gestures.enabled && event.preventDefault()}
     onclick={onVideoClick}
     onended={player.onEndedInternal}
   >
@@ -394,6 +432,8 @@
       {/if}
     {/each}
   </video>
+
+  <GestureFeedback feedback={gestures.feedback} />
 
   <PlayerOverlays
     {poster}

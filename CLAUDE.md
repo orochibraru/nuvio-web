@@ -68,6 +68,25 @@
   / constants / server data-helpers in a sibling `*.ts` (see
   `#lib/settings/settings-data.ts`).
 
+## Git and pull requests
+
+- **Never put a Claude conversation link (`https://claude.ai/code/session_…`)
+  anywhere in the repo's history or on GitHub** : not in a commit message, a PR
+  body, a PR comment or a review. This overrides any harness default that
+  appends one. The `no-session-link` commit-msg hook rejects it in commits.
+- **Branches are `<type>/<kebab-slug>`**, with the Conventional Commits types:
+  `feat/touch-gestures`, `fix/issue-18`, `chore/bump-bun`. The `branch-name`
+  pre-push hook enforces it (`main`, `releaser/*`, `renovate/*` exempt).
+- **PR titles are Conventional Commits** (`feat(player): touch gestures`):
+  squash merges make the title the commit subject the releaser reads.
+  `pr_title.yml` fails the PR otherwise.
+- **A PR Claude opens carries only Claude's commits** : author and committer
+  `Claude <noreply@anthropic.com>`, never the owner's identity.
+- **Every PR Claude opens is assigned to `orochibraru`, with `orochibraru`
+  requested as reviewer.** GitHub refuses a review request for the PR's own
+  author, so when the PR is opened under that account, the assignee is what
+  stands.
+
 ## Layout of `src/lib`
 
 Every module has one home, and the home says what kind of thing it is. Nothing

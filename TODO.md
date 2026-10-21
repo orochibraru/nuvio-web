@@ -8,7 +8,11 @@
       have only been type-checked and lint-checked, never run signed in on a
       device. iOS Safari has no element fullscreen or orientation lock, so the
       player part is Android-only there. The e2e specs for the tab bar /
-      settings list are written but not yet run.
+      settings list are written but not yet run. Same for the player's touch
+      gestures (double-tap seek, hold for 2x, swipe volume / brightness):
+      unit-tested only. iOS ignores `video.volume`, so the volume swipe moves
+      the bar there and nothing else; brightness is a CSS filter on the video,
+      not the screen backlight.
 - [ ] **Mobile tab bar: a Calendar tab.** The mockup has one; there is no
       calendar route yet, so the fourth tab is Collections for now.
 - [ ] **In-browser fix: confirm on real debrid hosts.** Proven on local fixtures

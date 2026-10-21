@@ -40,6 +40,8 @@ export interface VideoPlayerProps {
 	info?: PlayerInfo | null;
 	/** Link to the full detail page, from inside the info overlay. */
 	detailHref?: string;
+	/** Double-tap seek, hold for 2x, swipe for volume / brightness on touch. */
+	touchGestures?: boolean;
 	subtitleSize?: SubtitleSize;
 	subtitleColor?: string;
 	subtitleBackground?: boolean;

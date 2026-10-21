@@ -128,6 +128,19 @@
 
     <label class="flex items-center justify-between gap-4">
       <span class="flex flex-col gap-0.5">
+        <span class="text-sm font-medium">{m.settings_touch_gestures()}</span>
+        <span class="text-xs text-muted-foreground">
+          {m.settings_touch_gestures_hint()}
+        </span>
+      </span>
+      <Switch
+        checked={theme.current.touchGestures}
+        onCheckedChange={(value) => update({ touchGestures: value })}
+      />
+    </label>
+
+    <label class="flex items-center justify-between gap-4">
+      <span class="flex flex-col gap-0.5">
         <span class="text-sm font-medium">{m.settings_reuse_link()}</span>
         <span class="text-xs text-muted-foreground">
           {m.settings_reuse_link_hint()}

@@ -707,6 +707,7 @@
         ]}
         certification={context.certification}
         genres={context.genres}
+        touchGestures={theme.current.touchGestures}
         subtitleSize={theme.current.subtitleSize}
         subtitleColor={theme.current.subtitleColor}
         subtitleBackground={theme.current.subtitleBackground}

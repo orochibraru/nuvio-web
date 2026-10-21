@@ -52,6 +52,24 @@ repos:
         name: Ensure conventional commits
         stages: [commit-msg]
 
+  # Conversation links stay out of the history (and out of PR bodies, which
+  # CLAUDE.md covers); branch names follow the same types as the commits.
+  - repo: local
+    hooks:
+      - id: no-session-link
+        name: Keep Claude conversation links out of commit messages
+        language: pygrep
+        entry: claude\.ai/code/session
+        stages: [commit-msg]
+
+      - id: branch-name
+        name: Ensure conventional branch names
+        entry: scripts/check-branch-name.sh
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+
   # Scans the *staged* diff, so it is a no-op under `--all-files` in CI.
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.30.1
