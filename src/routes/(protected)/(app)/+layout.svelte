@@ -136,7 +136,7 @@
 	});
 
 	$effect(() => {
-		theme.seed(data.ui);
+		theme.seed(data.ui, data.profile.id);
 	});
 
 	// Local-first store for library / progress / history: hydrates from IndexedDB,

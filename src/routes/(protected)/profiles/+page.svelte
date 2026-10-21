@@ -74,7 +74,14 @@
 	}
 </script>
 
-<div class="relative flex min-h-svh flex-col items-center justify-center gap-12 p-8">
+<!--
+	Like the auth screens, the picker sits before any profile's stored theme is
+	known : pin it (and its portalled dialogs) to the dark palette rather than
+	whatever the system or the last profile left on <html>.
+-->
+<div
+	class="dark relative flex min-h-svh flex-col items-center justify-center gap-12 bg-background p-8 text-foreground"
+>
 	<div
 		class="pointer-events-none absolute inset-x-0 top-0 hidden h-[60vh] dark:block"
 		style="background: radial-gradient(60% 50% at 50% 0%, color-mix(in oklch, var(--primary) 12%, transparent), transparent 70%)"
@@ -187,7 +194,7 @@
 </div>
 
 <Dialog.Root bind:open={dialogOpen}>
-	<Dialog.Content class="sm:max-w-md">
+	<Dialog.Content class="dark sm:max-w-md">
 		<Dialog.Header>
 			<Dialog.Title>{m.profiles_new()}</Dialog.Title>
 			<Dialog.Description>{m.profiles_limit()}</Dialog.Description>
@@ -263,7 +270,7 @@
 		}
 	}}
 >
-	<Dialog.Content class="sm:max-w-md">
+	<Dialog.Content class="dark sm:max-w-md">
 		<Dialog.Header>
 			<Dialog.Title>{m.profiles_edit()}</Dialog.Title>
 			<Dialog.Description>{m.profiles_edit_description()}</Dialog.Description>
@@ -396,7 +403,7 @@
 </Dialog.Root>
 
 <Dialog.Root bind:open={deleteConfirmOpen}>
-	<Dialog.Content class="sm:max-w-md">
+	<Dialog.Content class="dark sm:max-w-md">
 		<Dialog.Header>
 			<Dialog.Title
 				>{m.profiles_delete_confirm_title({ name: editing?.name ?? "" })}</Dialog.Title

@@ -38,6 +38,7 @@ function applyDataset(settings: UiSettings) {
 
 class ThemeController {
 	private settings = $state<UiSettings | null>(null);
+	private seededFor: string | null = null;
 
 	get current(): UiSettings {
 		return this.settings ?? DEFAULT_UI_SETTINGS;
@@ -48,11 +49,17 @@ class ThemeController {
 		return this.settings !== null;
 	}
 
-	/** Apply the server's stored settings once, on the client. */
-	seed(settings: UiSettings) {
-		if (this.settings) {
+	/**
+	 * Apply the server's stored settings once per profile, on the client. The
+	 * controller outlives a profile switch or a sign-out (both are client-side
+	 * navigations), so keying on the profile is what lets the next one's theme
+	 * replace the last one's.
+	 */
+	seed(settings: UiSettings, profileKey: string) {
+		if (this.seededFor === profileKey) {
 			return;
 		}
+		this.seededFor = profileKey;
 		this.settings = settings;
 		setMode(settings.mode);
 		cache(settings);
