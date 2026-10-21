@@ -3,7 +3,8 @@
  * (Info button, keyboard shortcut) opens it "sticky"; a genuine pause (not a
  * buffering stall, not the end of playback) surfaces it on its own after a
  * beat, and pulls it back down the moment playback resumes. Dismissing it
- * during a pause suppresses that auto-open until the next resume.
+ * during a pause suppresses that auto-open until the next resume. With
+ * `autoOpen` false (touch devices) a pause never surfaces it.
  */
 export function createInfoOverlayController(deps: {
 	hasInfo: () => boolean;
@@ -19,6 +20,8 @@ export function createInfoOverlayController(deps: {
 	 * clicks meant for the drawer, leaving no way to close it.
 	 */
 	blocked: () => boolean;
+	/** Whether a pause may surface the overlay on its own at all. */
+	autoOpen: () => boolean;
 	/** Fired whenever the overlay opens, sticky or auto : keep the transport up. */
 	onOpen: () => void;
 }) {
@@ -79,7 +82,7 @@ export function createInfoOverlayController(deps: {
 			}
 			return;
 		}
-		if (open || dismissed || deps.currentTime() < 1) {
+		if (open || dismissed || !deps.autoOpen() || deps.currentTime() < 1) {
 			return;
 		}
 		const timer = setTimeout(() => {
