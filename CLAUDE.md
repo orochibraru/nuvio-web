@@ -77,6 +77,9 @@
 - **Branches are `<type>/<kebab-slug>`**, with the Conventional Commits types:
   `feat/touch-gestures`, `fix/issue-18`, `chore/bump-bun`. The `branch-name`
   pre-push hook enforces it (`main`, `releaser/*`, `renovate/*` exempt).
+- **PR titles are Conventional Commits** (`feat(player): touch gestures`):
+  squash merges make the title the commit subject the releaser reads.
+  `pr_title.yml` fails the PR otherwise.
 - **A PR Claude opens carries only Claude's commits** : author and committer
   `Claude <noreply@anthropic.com>`, never the owner's identity.
 - **Every PR Claude opens is assigned to `orochibraru`, with `orochibraru`
