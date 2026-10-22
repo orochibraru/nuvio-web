@@ -8,21 +8,26 @@ test.beforeEach(async ({ context }) => {
 
 test("watch history: direct load and client nav", async ({ page }) => {
 	const errors = collectRuntimeErrors(page);
+	// Account's sections live in the header's section row, like Settings.
+	const historyLink = page
+		.getByRole("navigation", { name: "Account sections" })
+		.getByRole("link", { name: "Watch history" });
 
 	await page.goto("/account?tab=history");
 	await page.waitForLoadState("networkidle");
-	await expect(page.getByRole("heading", { name: "Account" })).toBeVisible();
 	await expect(
-		page.getByRole("tab", { name: "Watch history" }),
-	).toHaveAttribute("aria-selected", "true");
+		page.getByRole("heading", { name: "Watch history", level: 1 }),
+	).toBeVisible();
+	await expect(historyLink).toHaveAttribute("aria-current", "page");
 
 	await page.goto("/discover");
 	await page.waitForLoadState("networkidle");
 	await page.getByRole("button", { name: "Profile menu" }).click();
 	await page.getByRole("menuitem", { name: "Account" }).click();
 	await page.waitForLoadState("networkidle");
-	await page.getByRole("tab", { name: "Watch history" }).click();
+	await historyLink.click();
 	await expect(page).toHaveURL(/tab=history/);
+	await expect(historyLink).toHaveAttribute("aria-current", "page");
 
 	expect(errors, "runtime errors").toEqual([]);
 });
