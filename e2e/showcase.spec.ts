@@ -173,13 +173,19 @@ interface Shot {
 	prepare?: (page: Page) => Promise<void>;
 	/** Extra settle time (ms) before the shot, on top of the shared beat. */
 	settleMs?: number;
+	/** Shot on a touch phone (390×844 at 2×) instead of the 1440 desktop. */
+	phone?: boolean;
 }
 
+// Every copy: the account page renders it in the overview and in the phone
+// profile header (hidden on a desktop, still in the DOM).
 async function hideEmail(page: Page): Promise<void> {
 	await page
 		.getByText(process.env.NUVIO_TEST_EMAIL ?? "", { exact: true })
-		.evaluate((element) => {
-			element.textContent = "you@example.com";
+		.evaluateAll((elements) => {
+			for (const element of elements) {
+				element.textContent = "you@example.com";
+			}
 		});
 }
 
@@ -243,6 +249,35 @@ const shots: Shot[] = [
 	},
 	{ name: "account", path: "/account", prepare: hideEmail },
 	{ name: "player", path: "/player/movie/blender-spring", settleMs: 3000 },
+	{ name: "phone-home", path: "/", expect: "Continue watching", phone: true },
+	{
+		name: "phone-sources",
+		path: "/detail/movie/blender-tears-of-steel",
+		expect: "Ian Hubert",
+		phone: true,
+		prepare: async (page) => {
+			await page
+				.getByRole("button", { name: "Select stream", exact: true })
+				.tap();
+			await expect(page.getByRole("dialog", { name: "Sources" })).toBeVisible();
+		},
+	},
+	{
+		name: "phone-filters",
+		path: "/library",
+		expect: "Cosmos Laundromat",
+		phone: true,
+		prepare: async (page) => {
+			await page.getByRole("button", { name: "Filters" }).tap();
+			await expect(page.getByRole("dialog", { name: "Filters" })).toBeVisible();
+		},
+	},
+	{
+		name: "phone-profile",
+		path: "/account",
+		phone: true,
+		prepare: hideEmail,
+	},
 ];
 
 test.use({ viewport: { width: 1440, height: 900 } });
@@ -256,7 +291,20 @@ test.beforeAll(async () => {
 
 for (const theme of ["light", "dark"] as const) {
 	for (const shot of shots) {
-		test(`captures ${shot.name} (${theme})`, async ({ page, context }) => {
+		test(`captures ${shot.name} (${theme})`, async ({
+			page: desktopPage,
+			context: desktopContext,
+			browser,
+		}) => {
+			const context = shot.phone
+				? await browser.newContext({
+						viewport: { width: 390, height: 844 },
+						deviceScaleFactor: 2,
+						isMobile: true,
+						hasTouch: true,
+					})
+				: desktopContext;
+			const page = shot.phone ? await context.newPage() : desktopPage;
 			if (shot.signedIn !== false) {
 				await signIn(context, profile);
 			}
@@ -297,6 +345,9 @@ for (const theme of ["light", "dark"] as const) {
 			);
 
 			expect(errors, `runtime errors on ${shot.path}`).toEqual([]);
+			if (shot.phone) {
+				await context.close();
+			}
 		});
 	}
 }

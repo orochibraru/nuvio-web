@@ -23,11 +23,14 @@ catalog. You choose the rows and their order in settings.
 
 ![The discover page](images/discover.webp)
 
-Discover browses one catalog at a time, filtered by type and genre.
+Discover browses one catalog at a time; its catalog and genre sit in a filters
+drawer.
 
 ![Search results](images/search.webp)
 
-Search queries every catalog that supports it at once.
+Search queries every catalog that supports it at once. Before you type it shows
+catalog rows to browse, and a filters drawer narrows either by type, genre,
+release date and rating.
 
 ## A title
 
@@ -69,7 +72,22 @@ Addons are per profile. Install one by URL or pick from the catalog.
 ![The player](images/player.webp)
 
 The player streams in the browser, with subtitles and intro / outro skipping, or
-casts to a TV, or hands the link off to a native app.
+casts to a TV, or hands the link off to a native app: pick VLC, Infuse,
+Outplayer, VidHub or IINA in settings and a chosen source opens there.
+
+## On a phone
+
+![Home on a phone](images/phone-home.webp)
+
+![The sources sheet](images/phone-sources.webp)
+
+![Library filters](images/phone-filters.webp)
+
+![The profile page](images/phone-profile.webp)
+
+On a phone it behaves like an app: four tabs (Home, Search, Library, Profile), a
+hero that fills the screen, and sheets that slide up from the bottom for
+sources, filters and a long press on any poster.
 
 ## Regenerating the screenshots
 
