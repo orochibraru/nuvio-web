@@ -494,7 +494,7 @@
         class="absolute inset-0 -z-10 bg-linear-to-br from-muted/60 to-background"
       ></div>
       <div
-        class="mx-auto flex items-end gap-8 px-6 pt-32 pb-12 lg:min-h-[72vh] lg:pb-14"
+        class="mx-auto flex items-end gap-8 px-6 pt-32 pb-12 max-md:min-h-[88svh] lg:min-h-[72vh] lg:pb-14"
       >
         <div class="hidden w-52 shrink-0 lg:block">
           <div class="skeleton aspect-2/3 w-full rounded-2xl"></div>

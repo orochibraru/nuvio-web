@@ -4,7 +4,9 @@
 	import PlayIcon from "@lucide/svelte/icons/play";
 	import Trash2Icon from "@lucide/svelte/icons/trash-2";
 	import { toast } from "svelte-sonner";
-	import * as ContextMenu from "#lib/components/ui/context-menu/index.js";
+	import ActionMenu, {
+		type MenuAction,
+	} from "#lib/components/chrome/action-menu.svelte";
 	import { downloads } from "#lib/downloads/manager.svelte.js";
 	import { m } from "#lib/i18n/index.js";
 	import { sync } from "#lib/sync/store.svelte.js";
@@ -60,10 +62,28 @@
 		onClear?.(item.id);
 		toast.success(m.media_cw_removed({ title: item.name }));
 	}
+
+	const menuActions = $derived<MenuAction[]>([
+		{
+			label: started ? m.common_resume() : m.common_play(),
+			icon: PlayIcon,
+			onSelect: () => goto(playHref),
+		},
+		{
+			label: m.media_view_details(),
+			icon: InfoIcon,
+			onSelect: () => goto(detailHref),
+		},
+		{
+			label: m.media_remove_from_row(),
+			icon: Trash2Icon,
+			separator: true,
+			onSelect: clearProgress,
+		},
+	]);
 </script>
 
-<ContextMenu.Root>
-  <ContextMenu.Trigger class="contents">
+<ActionMenu title={item.name} actions={menuActions}>
     <div
       class="group/cw relative aspect-video w-72 shrink-0 content-auto overflow-hidden rounded-xl bg-muted ring-1 ring-border transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_50px_-16px] hover:shadow-black/70 hover:ring-primary/60 dark:ring-white/10"
     >
@@ -144,19 +164,4 @@
         </div>
       </div>
     </div>
-  </ContextMenu.Trigger>
-
-  <ContextMenu.Content class="w-52">
-    <ContextMenu.Item onSelect={() => goto(playHref)}>
-      <PlayIcon />
-      {started ? m.common_resume() : m.common_play()}
-    </ContextMenu.Item>
-    <ContextMenu.Item onSelect={() => goto(detailHref)}>
-      <InfoIcon /> {m.media_view_details()}
-    </ContextMenu.Item>
-    <ContextMenu.Separator />
-    <ContextMenu.Item onSelect={clearProgress}>
-      <Trash2Icon /> {m.media_remove_from_row()}
-    </ContextMenu.Item>
-  </ContextMenu.Content>
-</ContextMenu.Root>
+</ActionMenu>

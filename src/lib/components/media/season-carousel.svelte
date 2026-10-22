@@ -6,8 +6,10 @@
 	import PlayIcon from "@lucide/svelte/icons/play";
 	import TvIcon from "@lucide/svelte/icons/tv";
 	import type { MetaVideo } from "#lib/addons/index.js";
+	import ActionMenu, {
+		type MenuAction,
+	} from "#lib/components/chrome/action-menu.svelte";
 	import ScrollRail from "#lib/components/layout/scroll-rail.svelte";
-	import * as ContextMenu from "#lib/components/ui/context-menu/index.js";
 	import { getLocale, m } from "#lib/i18n/index.js";
 	import { cn } from "#lib/utils.js";
 	import ImdbRating from "./imdb-rating.svelte";
@@ -104,6 +106,55 @@
 					year: "numeric",
 				});
 	}
+
+	function seasonActions(
+		season: number,
+		markSeason: (season: number, includeEarlier: boolean) => void,
+	): MenuAction[] {
+		const actions: MenuAction[] = [
+			{
+				label: m.watch_mark_season_watched({ number: season }),
+				icon: CheckIcon,
+				onSelect: () => markSeason(season, false),
+			},
+		];
+		if (season > grouped[0].season) {
+			actions.push({
+				label: m.watch_mark_through_season({ number: season }),
+				icon: ListChecksIcon,
+				onSelect: () => markSeason(season, true),
+			});
+		}
+		return actions;
+	}
+
+	function episodeActions(
+		episode: { id: string; season?: number; episode?: number },
+		completed: boolean,
+	): MenuAction[] {
+		const actions: MenuAction[] = [
+			{
+				label: completed ? m.common_mark_unwatched() : m.common_mark_watched(),
+				icon: completed ? EyeOffIcon : EyeIcon,
+				onSelect: () =>
+					onToggleWatched(
+						episode.id,
+						episode.season ?? null,
+						episode.episode ?? null,
+						completed,
+					),
+			},
+		];
+		if (onMarkUpTo) {
+			const markUpTo = onMarkUpTo;
+			actions.push({
+				label: m.watch_mark_up_to_here(),
+				icon: ListChecksIcon,
+				onSelect: () => markUpTo(episode.id),
+			});
+		}
+		return actions;
+	}
 </script>
 
 <div class="flex flex-col gap-4">
@@ -134,40 +185,31 @@
         arrows={false}
       >
         {#each grouped as group (group.season)}
-          <ContextMenu.Root>
-            <ContextMenu.Trigger class="contents">
-              <button
-                type="button"
-                onclick={() => (activeSeason = group.season)}
-                class={cn(
-                  "shrink-0 rounded-full px-3 py-1 text-sm font-medium transition",
-                  activeSeason === group.season
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-foreground/5 text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {m.watch_season_n({ number: group.season })}
-              </button>
-            </ContextMenu.Trigger>
-            {#if onMarkSeason}
-              <ContextMenu.Content class="w-60">
-                <ContextMenu.Item
-                  onSelect={() => onMarkSeason(group.season, false)}
-                >
-                  <CheckIcon />
-                  {m.watch_mark_season_watched({ number: group.season })}
-                </ContextMenu.Item>
-                {#if group.season > grouped[0].season}
-                  <ContextMenu.Item
-                    onSelect={() => onMarkSeason(group.season, true)}
-                  >
-                    <ListChecksIcon />
-                    {m.watch_mark_through_season({ number: group.season })}
-                  </ContextMenu.Item>
-                {/if}
-              </ContextMenu.Content>
-            {/if}
-          </ContextMenu.Root>
+          {#snippet seasonTab()}
+            <button
+              type="button"
+              onclick={() => (activeSeason = group.season)}
+              class={cn(
+                "shrink-0 rounded-full px-3 py-1 text-sm font-medium transition",
+                activeSeason === group.season
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-foreground/5 text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {m.watch_season_n({ number: group.season })}
+            </button>
+          {/snippet}
+          {#if onMarkSeason}
+            <ActionMenu
+              title={m.watch_season_n({ number: group.season })}
+              actions={seasonActions(group.season, onMarkSeason)}
+              contentClass="w-60"
+            >
+              {@render seasonTab()}
+            </ActionMenu>
+          {:else}
+            {@render seasonTab()}
+          {/if}
         {/each}
       </ScrollRail>
     {/if}
@@ -183,8 +225,11 @@
       {#each current.episodes as episode (episode.id)}
         {@const ep = progress[episode.id]}
         {@const date = airDate(episode.released)}
-        <ContextMenu.Root>
-          <ContextMenu.Trigger class="contents">
+        <ActionMenu
+          title={episode.title}
+          actions={episodeActions(episode, Boolean(ep?.completed))}
+          contentClass="w-56"
+        >
             <div
               class="group/ep relative flex w-72 shrink-0 snap-start content-auto flex-col overflow-hidden rounded-xl border border-border bg-card transition-colors hover:border-primary/40 sm:w-80"
               onmouseenter={() => onPrefetch?.(episode.id)}
@@ -298,30 +343,7 @@
                 <CheckIcon class="size-3.5" />
               </button>
             </div>
-          </ContextMenu.Trigger>
-          <ContextMenu.Content class="w-56">
-            <ContextMenu.Item
-              onSelect={() =>
-                onToggleWatched(
-                  episode.id,
-                  episode.season ?? null,
-                  episode.episode ?? null,
-                  Boolean(ep?.completed),
-                )}
-            >
-              {#if ep?.completed}
-                <EyeOffIcon /> {m.common_mark_unwatched()}
-              {:else}
-                <EyeIcon /> {m.common_mark_watched()}
-              {/if}
-            </ContextMenu.Item>
-            {#if onMarkUpTo}
-              <ContextMenu.Item onSelect={() => onMarkUpTo(episode.id)}>
-                <ListChecksIcon /> {m.watch_mark_up_to_here()}
-              </ContextMenu.Item>
-            {/if}
-          </ContextMenu.Content>
-        </ContextMenu.Root>
+        </ActionMenu>
       {/each}
     </ScrollRail>
   {/if}

@@ -37,13 +37,18 @@
 {@render children()}
 
 {#if phone.current}
+  <!-- Bound both ways: vaul closes from inside (a swipe, the overlay) without
+       always reporting it through `onOpenChange`, which left the panel's
+       target set, so the next "Select stream" changed nothing. -->
   <Drawer.Root
-    open={Boolean(target)}
-    onOpenChange={(open) => {
-      if (!open) {
-        sourcesPanel.close();
+    bind:open={
+      () => Boolean(target),
+      (open) => {
+        if (!open) {
+          sourcesPanel.close();
+        }
       }
-    }}
+    }
   >
     <Drawer.Content class="max-h-[90dvh]">
       <Drawer.Title class="sr-only">{m.common_sources()}</Drawer.Title>

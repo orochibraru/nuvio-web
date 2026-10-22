@@ -80,6 +80,10 @@
 
 <TopLoadingBar />
 <ModeWatcher />
-<Toaster richColors closeButton />
+<Toaster
+  closeButton
+  offset={{ bottom: "var(--toast-bottom)" }}
+  mobileOffset={{ bottom: "var(--toast-bottom)" }}
+/>
 
 {@render children()}

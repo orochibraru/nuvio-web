@@ -51,8 +51,6 @@ All deployed using [Homerun](https://github.com/orochibraru/homerun)
 - **Detail pages** : synopsis, cast, IMDb rating, trailer, season and episode
   carousel, and a _where to watch_ row (JustWatch) listing the official
   streaming, rent and buy options for your region.
-- **Command palette** : `⌘K` / `Ctrl-K` from anywhere to jump to a screen or
-  start a search.
 
 ### Watch
 
@@ -200,8 +198,6 @@ In the player:
 | `N`                     | Next episode            |
 | `E`                     | Episode list            |
 | `Esc`                   | Close the open panel    |
-
-Anywhere in the app, `⌘K` / `Ctrl-K` opens the command palette.
 
 ## How it works
 

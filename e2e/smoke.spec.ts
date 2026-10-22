@@ -106,7 +106,7 @@ test("client-side navigation through the whole shell", async ({ page }) => {
 
 	await expect(page).toHaveTitle(/Nuvio Web \(unofficial\)$/);
 
-	for (const label of ["Discover", "Library", "Collections"]) {
+	for (const label of ["Search", "Library", "Collections"]) {
 		await page
 			.getByRole("navigation")
 			.getByRole("link", { name: label, exact: true })
@@ -170,20 +170,27 @@ test("below md the nav moves into a bottom tab bar", async ({ page }) => {
 	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
 
 	// One "Main" nav is visible at a time : the header's row hides below md,
-	// the tab bar takes over.
+	// the tab bar takes over, with the Nuvio app's four tabs.
 	const tabs = page.getByRole("navigation", { name: "Main" });
 	await expect(tabs).toHaveCount(1);
-	await tabs.getByRole("link", { name: "Discover" }).click();
+	await expect(tabs.getByRole("link")).toHaveCount(4);
+	await tabs.getByRole("link", { name: "Search" }).click();
 
-	await expect(page).toHaveURL(/\/discover$/);
-	await expect(page.getByRole("heading", { name: "Discover" })).toBeVisible();
-	await expect(tabs.getByRole("link", { name: "Discover" })).toHaveAttribute(
+	await expect(page).toHaveURL(/\/search$/);
+	await expect(page.getByRole("heading", { name: "Search" })).toBeVisible();
+	await expect(tabs.getByRole("link", { name: "Search" })).toHaveAttribute(
 		"aria-current",
 		"page",
 	);
 
-	// Settings opens on its section list; a row drills in, Back returns.
-	await tabs.getByRole("link", { name: "Settings" }).click();
+	// Profile holds what the tab bar has no room for, Settings included; its
+	// section list drills in and Back returns.
+	await tabs.getByRole("link", { name: /Profile/ }).click();
+	await expect(page).toHaveURL(/\/account$/);
+	await page
+		.getByRole("main")
+		.getByRole("link", { name: /^Settings/ })
+		.click();
 	await expect(
 		page.getByRole("heading", { name: "Settings", level: 1 }),
 	).toBeVisible();
@@ -195,32 +202,6 @@ test("below md the nav moves into a bottom tab bar", async ({ page }) => {
 		.click();
 	await expect(page).toHaveURL(/\/settings$/);
 
-	expect(errors, "runtime errors").toEqual([]);
-});
-
-test("discover: catalog pills repaint the grid, even clicked back to back", async ({
-	page,
-}) => {
-	const errors = collectRuntimeErrors(page);
-
-	await page.goto("/discover");
-	const posters = page.getByRole("link", { name: /\((movie|series)\)/ });
-	await expect(posters.first()).toBeVisible({ timeout: 20_000 });
-
-	// Each pill re-runs the load, which fetches that catalog's first page
-	// server-side. Clicking the next one before the last settles aborts a
-	// navigation : that used to escape as an uncaught "navigation aborted"
-	// (and stranded the top loading bar), so the runtime-error assertion
-	// below is the point of the rapid-fire loop. Pills are links : that each
-	// click lands on the catalog clicked is covered by discover-pills.spec.ts.
-	const pills = page.getByRole("group", { name: "Catalogs" }).getByRole("link");
-	for (let i = 1; i < Math.min(await pills.count(), 4); i++) {
-		await pills.nth(i).click();
-		await expect(posters.first()).toBeVisible({ timeout: 20_000 });
-	}
-	await expect(page).toHaveURL(/[?&]c=/);
-
-	await page.waitForTimeout(1000);
 	expect(errors, "runtime errors").toEqual([]);
 });
 

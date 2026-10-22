@@ -1,8 +1,10 @@
 <script lang="ts">
 	import ChevronLeftIcon from "@lucide/svelte/icons/chevron-left";
 	import DownloadIcon from "@lucide/svelte/icons/download";
+	import LayersIcon from "@lucide/svelte/icons/layers";
 	import LogOutIcon from "@lucide/svelte/icons/log-out";
 	import MonitorDownIcon from "@lucide/svelte/icons/monitor-down";
+	import SettingsIcon from "@lucide/svelte/icons/settings";
 	import ShieldIcon from "@lucide/svelte/icons/shield";
 	import UsersIcon from "@lucide/svelte/icons/users";
 	import {
@@ -45,16 +47,27 @@
 	// treats a bare URL as Overview.
 	const picked = $derived(page.url.searchParams.has("tab"));
 
-	const appRows = $derived<NavRow[]>([
+	// On a phone this is the Profile tab: it also holds what the tab bar has
+	// no room for.
+	const placeRows: NavRow[] = [
 		{
-			href: resolve("profiles"),
-			label: m.shell_switch_profile(),
-			icon: UsersIcon,
+			href: resolve("collections"),
+			label: m.nav_collections(),
+			icon: LayersIcon,
 		},
 		{
 			href: resolve("downloads"),
 			label: m.nav_downloads(),
 			icon: DownloadIcon,
+		},
+		{ href: resolve("settings"), label: m.nav_settings(), icon: SettingsIcon },
+	];
+
+	const appRows = $derived<NavRow[]>([
+		{
+			href: resolve("profiles"),
+			label: m.shell_switch_profile(),
+			icon: UsersIcon,
 		},
 		...(installPrompt.available
 			? [
@@ -91,6 +104,7 @@
           {/if}
         </div>
       </div>
+      <NavGroup rows={placeRows} />
       <NavGroup
         title={m.nav_account()}
         rows={ACCOUNT_SECTIONS.map((entry) => ({

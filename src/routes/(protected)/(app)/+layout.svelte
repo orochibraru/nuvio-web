@@ -1,7 +1,6 @@
 <script lang="ts">
 	import BookmarkIcon from "@lucide/svelte/icons/bookmark";
 	import CircleUserIcon from "@lucide/svelte/icons/circle-user";
-	import CompassIcon from "@lucide/svelte/icons/compass";
 	import DownloadIcon from "@lucide/svelte/icons/download";
 	import HouseIcon from "@lucide/svelte/icons/house";
 	import LayersIcon from "@lucide/svelte/icons/layers";
@@ -17,8 +16,6 @@
 		accountSectionFrom,
 		accountSectionQuery,
 	} from "#lib/account/sections.js";
-	import CommandPalette from "#lib/components/chrome/command-palette.svelte";
-	import { commandPalette } from "#lib/components/chrome/command-palette.svelte.js";
 	import FirstRunNotice from "#lib/components/chrome/first-run-notice.svelte";
 	import HealthBanner from "#lib/components/chrome/health-banner.svelte";
 	import { installPrompt } from "#lib/components/chrome/install-prompt.svelte.js";
@@ -30,6 +27,7 @@
 	import { getVersion } from "#lib/core/version.js";
 	import { downloads } from "#lib/downloads/manager.svelte.js";
 	import { m } from "#lib/i18n/index.js";
+	import { SEARCH_FOCUS_EVENT } from "#lib/search/focus.js";
 	import { searchHistory } from "#lib/search/search-history.svelte.js";
 	import {
 		SETTINGS_SECTIONS,
@@ -54,7 +52,7 @@
 			exact: true,
 			icon: HouseIcon,
 		},
-		{ href: resolve("discover"), label: m.nav_discover(), icon: CompassIcon },
+		{ href: resolve("search"), label: m.nav_search(), icon: SearchIcon },
 		{ href: resolve("library"), label: m.nav_library(), icon: BookmarkIcon },
 		{
 			href: resolve("collections"),
@@ -63,32 +61,29 @@
 		},
 	];
 
-	// The phone tab bar: the main nav, plus Settings (on desktop that lives in
-	// the profile menu, which on a phone is one more tap than it's worth).
-	const tabs = [
-		...nav,
+	// The phone tab bar, like the Nuvio app's four tabs. Search is the phone's
+	// Discover (its empty state is the catalog rows), and a second tap on it
+	// opens the keyboard. Profile owns everything the desktop's profile menu
+	// holds: account, settings, collections, downloads.
+	const tabs = $derived([
+		nav[0],
 		{
-			href: resolve("settings"),
-			label: m.nav_settings(),
-			icon: SettingsIcon,
+			...nav[1],
+			onReselect: () => window.dispatchEvent(new Event(SEARCH_FOCUS_EVENT)),
 		},
-	];
-
-	// Below `md` the search button goes to the search page, like an app's
-	// search tab; from `md` up it opens the command palette.
-	function openSearch(event: MouseEvent) {
-		if (
-			event.button !== 0 ||
-			event.metaKey ||
-			event.ctrlKey ||
-			event.shiftKey ||
-			!window.matchMedia("(min-width: 48rem)").matches
-		) {
-			return;
-		}
-		event.preventDefault();
-		commandPalette.show();
-	}
+		nav[2],
+		{
+			href: resolve("account"),
+			label: m.nav_profile(),
+			profile: data.profile,
+			also: [
+				resolve("settings"),
+				resolve("collections"),
+				resolve("downloads"),
+				resolve("profiles"),
+			],
+		},
+	]);
 
 	$effect(() => installPrompt.listen());
 
@@ -206,7 +201,6 @@
 
 <svelte:window onscroll={() => (scrolled = window.scrollY > 12)} />
 
-<CommandPalette />
 <FirstRunNotice />
 
 <a
@@ -347,36 +341,22 @@
             </div>
 
             <div class="ml-auto flex items-center gap-3">
+                <!-- A phone's header has nothing else on the right: search and
+                     the profile live in the tab bar. -->
                 <a
-                    href={resolve("search")}
-                    aria-label={m.nav_search()}
-                    aria-current={isActive("/search") ? "page" : undefined}
-                    onclick={openSearch}
+                    href={settingsRoot}
+                    aria-label={m.nav_settings()}
+                    aria-current={isActive(settingsRoot) ? "page" : undefined}
                     class={cn(
-                        "flex size-9 shrink-0 items-center justify-center gap-2 rounded-full border border-foreground/10 bg-foreground/5 text-sm md:size-auto md:px-3 md:py-1.5 shadow-[inset_0_1px_0_var(--glass-edge)] backdrop-blur-md transition-colors hover:bg-foreground/10",
-                        isActive("/search")
-                            ? "text-foreground"
+                        "flex size-9 shrink-0 items-center justify-center rounded-full border border-foreground/10 bg-foreground/5 shadow-[inset_0_1px_0_var(--glass-edge)] backdrop-blur-md transition-colors hover:bg-foreground/10 md:hidden",
+                        isActive(settingsRoot)
+                            ? "text-primary"
                             : "text-muted-foreground hover:text-foreground",
                     )}
                 >
-                    <SearchIcon class="size-4" />
-                    <span class="hidden md:inline">{m.nav_search()}</span>
-                    <kbd
-                        class="ml-1 hidden rounded border border-border bg-muted px-1.5 font-sans text-[10px] text-muted-foreground md:inline"
-                    >
-                        ⌘K
-                    </kbd>
+                    <SettingsIcon class="size-4.5" />
                 </a>
 
-                <!-- A phone gets the account page (profile, sections, app
-                     actions as nav cards) rather than a dropdown. -->
-                <a
-                    href={accountRoot}
-                    aria-label={m.shell_profile_menu()}
-                    class="size-9 shrink-0 overflow-hidden rounded-full ring-1 ring-white/10 outline-none transition focus-visible:ring-2 focus-visible:ring-ring md:hidden"
-                >
-                    <ProfileAvatar profile={data.profile} />
-                </a>
                 <DropdownMenu.Root>
                     <DropdownMenu.Trigger
                         aria-label={m.shell_profile_menu()}

@@ -387,6 +387,12 @@
 		--shell-top: calc(5rem + env(safe-area-inset-top));
 		/* What the mobile tab bar covers, home indicator included. */
 		--tab-bar: calc(4rem + env(safe-area-inset-bottom));
+		/* Toasts clear the tab bar wherever it shows (below `md`), which is
+		   wider than svelte-sonner's own 600px mobile breakpoint. */
+		--toast-bottom: calc(var(--tab-bar) + 2rem);
+		@media (width >= 48rem) {
+			--toast-bottom: 1.5rem;
+		}
 		/* Native-app touch feel: no grey flash on tap, no double-tap-zoom delay. */
 		-webkit-tap-highlight-color: transparent;
 		touch-action: manipulation;
@@ -437,10 +443,58 @@
 		--tw-inset-shadow: inset 0 1px 0 var(--glass-edge);
 	}
 
+	/* A bottom sheet runs edge to edge into the rounded corners and the home
+	   indicator : keep its content inside the safe area. */
+	[data-slot="drawer-content"] {
+		padding-bottom: max(1rem, env(safe-area-inset-bottom));
+		padding-left: env(safe-area-inset-left);
+		padding-right: env(safe-area-inset-right);
+	}
+
 	/* The "vega" style leaves the select list's inset to a stylesheet the CLI
 	   doesn't ship: without it the highlight runs edge to edge. */
 	[data-slot="select-content"] {
 		padding: 0.25rem;
 		border-radius: calc(var(--radius) + 2px);
 	}
+}
+
+/* Toasts in the app's glass rather than sonner's own cards, the status on the
+   icon only, like accents elsewhere. Unlayered, and set on the toast itself:
+   sonner's stylesheet is unlayered too, and its colours sit inline on the
+   toaster. */
+[data-sonner-toaster] [data-sonner-toast] {
+	--border-radius: 1.25rem;
+	--normal-bg: color-mix(in oklch, var(--background) 72%, transparent);
+	--normal-border: color-mix(in oklch, var(--foreground) 9%, transparent);
+	--normal-text: var(--foreground);
+	backdrop-filter: blur(24px) saturate(1.5);
+	box-shadow:
+		inset 0 1px 0 var(--glass-edge),
+		0 24px 60px -24px rgb(0 0 0 / 0.45);
+}
+[data-sonner-toast][data-type="success"] [data-icon] {
+	color: oklch(0.72 0.17 155);
+}
+[data-sonner-toast][data-type="error"] [data-icon] {
+	color: var(--destructive);
+}
+[data-sonner-toast][data-type="warning"] [data-icon] {
+	color: oklch(0.8 0.15 75);
+}
+[data-sonner-toast][data-type="info"] [data-icon] {
+	color: var(--primary);
+}
+
+/* The drawer's drag handle comes in `bg-muted`, which vanishes on a black
+   sheet: tint it from the foreground so it reads as draggable. Unlayered to
+   win over the CLI-managed component's utility class. */
+[data-slot="drawer-content"] > div:first-child:empty {
+	background-color: color-mix(in oklch, var(--foreground) 28%, transparent);
+}
+
+/* Sheets carry long lists of text over busy artwork: nearly opaque, with the
+   blur behind only as a hint. */
+[data-slot="drawer-content"] {
+	background-color: color-mix(in oklch, var(--background) 94%, transparent);
 }

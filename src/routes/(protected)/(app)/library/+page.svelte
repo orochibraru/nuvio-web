@@ -1,16 +1,21 @@
 <script lang="ts">
+	import ArrowDownAZIcon from "@lucide/svelte/icons/arrow-down-a-z";
 	import BookmarkIcon from "@lucide/svelte/icons/bookmark";
-	import CheckIcon from "@lucide/svelte/icons/check";
-	import ChevronDownIcon from "@lucide/svelte/icons/chevron-down";
-	import SlidersHorizontalIcon from "@lucide/svelte/icons/sliders-horizontal";
+	import ClockIcon from "@lucide/svelte/icons/clock";
+	import EyeIcon from "@lucide/svelte/icons/eye";
+	import EyeOffIcon from "@lucide/svelte/icons/eye-off";
+	import FilmIcon from "@lucide/svelte/icons/film";
+	import LayoutGridIcon from "@lucide/svelte/icons/layout-grid";
+	import StarIcon from "@lucide/svelte/icons/star";
+	import TvIcon from "@lucide/svelte/icons/tv";
 	import XIcon from "@lucide/svelte/icons/x";
 	import { fly } from "svelte/transition";
 	import { toast } from "svelte-sonner";
 	import EmptyState from "#lib/components/feedback/empty-state.svelte";
+	import ChoiceList from "#lib/components/layout/choice-list.svelte";
+	import FilterDrawer from "#lib/components/layout/filter-drawer.svelte";
 	import MediaPoster from "#lib/components/media/poster.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
-	import * as Drawer from "#lib/components/ui/drawer/index.js";
-	import * as DropdownMenu from "#lib/components/ui/dropdown-menu/index.js";
 	import { reduced } from "#lib/core/motion.js";
 	import { streamed } from "#lib/core/stream.svelte.js";
 	import { pageTitle } from "#lib/core/title.svelte.js";
@@ -27,11 +32,15 @@
 
 	// Filter + sort live in the URL so they survive back/forward and are shareable.
 	const filters = [
-		{ value: "all", label: m.library_filter_all() },
-		{ value: "movie", label: m.common_movies() },
-		{ value: "series", label: m.common_series() },
-		{ value: "watched", label: m.media_watched() },
-		{ value: "unwatched", label: m.library_filter_unwatched() },
+		{ value: "all", label: m.library_filter_all(), icon: LayoutGridIcon },
+		{ value: "movie", label: m.common_movies(), icon: FilmIcon },
+		{ value: "series", label: m.common_series(), icon: TvIcon },
+		{ value: "watched", label: m.media_watched(), icon: EyeIcon },
+		{
+			value: "unwatched",
+			label: m.library_filter_unwatched(),
+			icon: EyeOffIcon,
+		},
 	] as const;
 	type Filter = (typeof filters)[number]["value"];
 	const filter = $derived<Filter>(
@@ -40,9 +49,9 @@
 	);
 
 	const sorts = [
-		{ value: "added", label: m.library_sort_added() },
-		{ value: "name", label: m.library_sort_name() },
-		{ value: "rating", label: m.library_sort_rating() },
+		{ value: "added", label: m.library_sort_added(), icon: ClockIcon },
+		{ value: "name", label: m.library_sort_name(), icon: ArrowDownAZIcon },
+		{ value: "rating", label: m.library_sort_rating(), icon: StarIcon },
 	] as const;
 	type Sort = (typeof sorts)[number]["value"];
 	const sort = $derived<Sort>(
@@ -61,8 +70,7 @@
 		void goto(query ? `?${query}` : "?", { reset: false });
 	}
 
-	// Phones get one Filters button and a bottom drawer: the pill row and the
-	// sort menu don't fit beside the heading there.
+	// One Filters button and the app's filter drawer for both.
 	let filtersOpen = $state(false);
 	const activeFilters = $derived(
 		Number(filter !== "all") + Number(sort !== "added"),
@@ -156,97 +164,20 @@
 				{m.library_titles_saved({ count: items.length })}
 			</p>
 		</div>
-		<Drawer.Root bind:open={filtersOpen}>
-			<Drawer.Trigger
-				class="flex items-center gap-1.5 rounded-full bg-foreground/5 px-3.5 py-2 text-sm font-medium md:hidden"
-			>
-				<SlidersHorizontalIcon class="size-4" />
-				{m.watch_filters()}
-				{#if activeFilters > 0}
-					<span
-						class="flex size-5 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground"
-					>
-						{activeFilters}
-					</span>
-				{/if}
-			</Drawer.Trigger>
-			<Drawer.Content>
-				<Drawer.Header>
-					<Drawer.Title>{m.watch_filters()}</Drawer.Title>
-				</Drawer.Header>
-				<div class="flex flex-col gap-6 overflow-y-auto px-4 pb-8">
-					{#each [{ title: m.library_show(), key: "filter", options: filters, value: filter, fallback: "all" }, { title: m.library_sort_by(), key: "sort", options: sorts, value: sort, fallback: "added" }] as group (group.key)}
-						<section class="flex flex-col gap-2">
-							<h2
-								class="px-1 text-xs font-semibold tracking-[0.12em] text-accent-label uppercase"
-							>
-								{group.title}
-							</h2>
-							<div
-								class="glass flex flex-col divide-y divide-foreground/8 overflow-hidden rounded-3xl"
-							>
-								{#each group.options as option (option.value)}
-									<button
-										type="button"
-										aria-pressed={group.value === option.value}
-										onclick={() =>
-											setParam(group.key, option.value, group.fallback)}
-										class="flex items-center justify-between gap-3 px-4 py-3.5 text-left text-sm font-medium transition-colors active:bg-foreground/5"
-									>
-										{option.label}
-										{#if group.value === option.value}
-											<CheckIcon class="size-4 text-primary" />
-										{/if}
-									</button>
-								{/each}
-							</div>
-						</section>
-					{/each}
-					<Button class="h-12 rounded-full" onclick={() => (filtersOpen = false)}>
-						{m.common_done()}
-					</Button>
-				</div>
-			</Drawer.Content>
-		</Drawer.Root>
-
-		<div class="hidden items-center gap-2 md:flex">
-			<div class="no-scrollbar flex gap-1 overflow-x-auto rounded-full bg-foreground/5 p-1">
-				{#each filters as option (option.value)}
-					<button
-						type="button"
-						onclick={() => setParam("filter", option.value, "all")}
-						class={cn(
-							"shrink-0 rounded-full px-3 py-1 text-sm font-medium transition",
-							filter === option.value
-								? "bg-background text-foreground shadow-sm"
-								: "text-muted-foreground hover:text-foreground",
-						)}
-					>
-						{option.label}
-					</button>
-				{/each}
-			</div>
-			<DropdownMenu.Root>
-				<DropdownMenu.Trigger
-					class="flex items-center gap-1 rounded-full bg-foreground/5 px-3 py-1.5 text-sm font-medium text-muted-foreground transition hover:text-foreground"
-				>
-					{sorts.find((s) => s.value === sort)?.label}
-					<ChevronDownIcon class="size-3.5" />
-				</DropdownMenu.Trigger>
-				<DropdownMenu.Content align="end">
-					<DropdownMenu.RadioGroup
-						value={sort}
-						onValueChange={(value) => setParam("sort", value, "added")}
-					>
-						{#each sorts as option (option.value)}
-							<DropdownMenu.RadioItem value={option.value}>
-								{option.label}
-							</DropdownMenu.RadioItem>
-						{/each}
-					</DropdownMenu.RadioGroup>
-				</DropdownMenu.Content>
-			</DropdownMenu.Root>
-		</div>
+		<FilterDrawer bind:open={filtersOpen} active={activeFilters}>
+			<ChoiceList
+				title={m.library_show()}
+				options={filters}
+				value={filter}
+				onSelect={(value) => setParam("filter", value, "all")}
+			/>
+			<ChoiceList
+				title={m.library_sort_by()}
+				options={sorts}
+				value={sort}
+				onSelect={(value) => setParam("sort", value, "added")}
+			/>
+		</FilterDrawer>
 	</div>
 
 	{#if shown.length === 0 && items.length > 0}
@@ -280,12 +211,18 @@
 					class="group relative content-auto"
 					in:fly={reduced({ y: 10, duration: 240, delay: Math.min(i, 17) * 20 })}
 				>
-					<MediaPoster item={item} progress={progress[item.id]} />
+					<MediaPoster
+						item={item}
+						progress={progress[item.id]}
+						libraryBadge={false}
+					/>
+					<!-- Hover-only, desktop: a phone removes from the long-press
+					     sheet, and a permanent X would sit on the poster's badges. -->
 					<button
 						type="button"
 						aria-label={m.library_remove()}
 						onclick={() => remove(item)}
-						class="absolute top-1.5 right-1.5 flex size-9 items-center justify-center rounded-full bg-black/70 text-white transition sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 hover:bg-black/90"
+						class="absolute top-1.5 right-1.5 hidden size-9 items-center justify-center rounded-full bg-black/70 text-white opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100 hover:bg-black/90 sm:flex"
 					>
 						<XIcon class="size-4" />
 					</button>

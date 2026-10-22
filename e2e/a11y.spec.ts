@@ -62,14 +62,6 @@ async function expectNoViolations(page: import("@playwright/test").Page) {
 	expect(summary, JSON.stringify(summary, null, 2)).toEqual([]);
 }
 
-test("no violations: command palette open", async ({ page }) => {
-	await page.goto("/");
-	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
-	await page.keyboard.press("ControlOrMeta+k");
-	await expect(page.getByPlaceholder(/Jump to a page/)).toBeVisible();
-	await expectNoViolations(page);
-});
-
 test("no violations: detail source drawer open", async ({ page }) => {
 	await page.goto("/detail/movie/tt1375666");
 	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
@@ -105,7 +97,7 @@ test("client navigation moves focus to main content", async ({ page }) => {
 
 	const link = page
 		.getByRole("navigation")
-		.getByRole("link", { name: "Discover" });
+		.getByRole("link", { name: "Library" });
 	await link.waitFor();
 
 	// A full page load wipes this; surviving it proves the router handled the
@@ -114,7 +106,7 @@ test("client navigation moves focus to main content", async ({ page }) => {
 		(window as unknown as { __hydrated?: true }).__hydrated = true;
 	});
 	await link.click();
-	await page.waitForURL("**/discover");
+	await page.waitForURL("**/library");
 	await expect
 		.poll(() =>
 			page.evaluate(

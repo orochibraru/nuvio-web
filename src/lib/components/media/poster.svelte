@@ -12,7 +12,9 @@
 	import { toast } from "svelte-sonner";
 	import { getMeta } from "#lib/addons/addons.remote.js";
 	import type { MetaPreview } from "#lib/addons/index.js";
-	import * as ContextMenu from "#lib/components/ui/context-menu/index.js";
+	import ActionMenu, {
+		type MenuAction,
+	} from "#lib/components/chrome/action-menu.svelte";
 	import { posterSrcset } from "#lib/core/images.js";
 	import { m } from "#lib/i18n/index.js";
 	import { sync } from "#lib/sync/store.svelte.js";
@@ -28,6 +30,7 @@
 		progress,
 		class: className,
 		preload = "hover",
+		libraryBadge = true,
 	}: {
 		item: Pick<
 			MetaPreview,
@@ -41,6 +44,8 @@
 		>;
 		progress?: number;
 		class?: string;
+		/** Off where every poster is in the library anyway (the library page). */
+		libraryBadge?: boolean;
 		/**
 		 * When to start loading the title's page. `hover` everywhere by
 		 * default; see the collection page for the one place that needs `tap`.
@@ -179,10 +184,44 @@
 			markingAllWatched = false;
 		}
 	}
+
+	const menuActions = $derived<MenuAction[]>([
+		inLibrary
+			? {
+					label: m.library_remove(),
+					icon: BookmarkXIcon,
+					onSelect: toggleLibrary,
+				}
+			: { label: m.library_add(), icon: PlusIcon, onSelect: toggleLibrary },
+		contentType === "movie"
+			? watched
+				? {
+						label: m.common_mark_unwatched(),
+						icon: EyeOffIcon,
+						onSelect: toggleWatched,
+					}
+				: {
+						label: m.common_mark_watched(),
+						icon: EyeIcon,
+						onSelect: toggleWatched,
+					}
+			: {
+					label: m.common_mark_all_watched(),
+					icon: EyeIcon,
+					disabled: markingAllWatched,
+					onSelect: markAllWatched,
+				},
+		{
+			label: m.media_view_details(),
+			icon: InfoIcon,
+			separator: true,
+			onSelect: () =>
+				goto(resolve(`detail/${item.type}/${encodeURIComponent(item.id)}`)),
+		},
+	]);
 </script>
 
-<ContextMenu.Root>
-  <ContextMenu.Trigger class="contents">
+<ActionMenu title={item.name} actions={menuActions}>
     <a
       href={resolve(`detail/${item.type}/${encodeURIComponent(item.id)}`)}
       aria-label={linkLabel}
@@ -251,7 +290,7 @@
           <ImdbRating {rating} variant="badge" class="absolute top-2 left-2" />
         {/if}
 
-        {#if watched || inLibrary}
+        {#if watched || (inLibrary && libraryBadge)}
           <div aria-hidden="true" class="absolute top-2 right-2 flex gap-1">
             {#if watched}
               <span
@@ -261,7 +300,7 @@
                 <CheckIcon class="size-3" />
               </span>
             {/if}
-            {#if inLibrary}
+            {#if inLibrary && libraryBadge}
               <span
                 title={m.media_in_library()}
                 class="flex size-5 items-center justify-center rounded-full bg-black/55 text-white ring-1 ring-white/15 backdrop-blur-md"
@@ -295,34 +334,4 @@
         {/if}
       </div>
     </a>
-  </ContextMenu.Trigger>
-
-  <ContextMenu.Content class="w-52">
-    <ContextMenu.Item onSelect={toggleLibrary}>
-      {#if inLibrary}
-        <BookmarkXIcon /> {m.library_remove()}
-      {:else}
-        <PlusIcon /> {m.library_add()}
-      {/if}
-    </ContextMenu.Item>
-    {#if contentType === "movie"}
-      <ContextMenu.Item onSelect={toggleWatched}>
-        {#if watched}
-          <EyeOffIcon /> {m.common_mark_unwatched()}
-        {:else}
-          <EyeIcon /> {m.common_mark_watched()}
-        {/if}
-      </ContextMenu.Item>
-    {:else}
-      <ContextMenu.Item disabled={markingAllWatched} onSelect={markAllWatched}>
-        <EyeIcon /> {m.common_mark_all_watched()}
-      </ContextMenu.Item>
-    {/if}
-    <ContextMenu.Separator />
-    <ContextMenu.Item
-      onSelect={() =>
-        goto(resolve(`detail/${item.type}/${encodeURIComponent(item.id)}`))}
-      ><InfoIcon />{m.media_view_details()}</ContextMenu.Item
-    >
-  </ContextMenu.Content>
-</ContextMenu.Root>
+</ActionMenu>

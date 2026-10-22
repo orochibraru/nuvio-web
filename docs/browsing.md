@@ -53,11 +53,6 @@ API, fetched **from the browser** — Wikipedia sends
 server. Those fetches share a small global request budget so a cast list of
 thirty people does not open thirty connections.
 
-## Command palette
-
-`⌘K` / `Ctrl-K` from anywhere opens the command palette: jump to a screen or
-start a search without reaching for the nav.
-
 ## Why pages feel the way they do
 
 Everything a page needs for its URL is fetched **by the server, for that URL**,

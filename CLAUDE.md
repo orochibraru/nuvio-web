@@ -102,7 +102,7 @@ prop-type helpers only).
   not a `core/` function.
 - **`components/`** : shared UI, grouped by what it renders. `media/` (poster,
   row, grid, hero, cast, ratings, a title's cards), `chrome/` (app shell :
-  command palette, banners, notices, avatar), `layout/` (presentational shells :
+  banners, notices, avatar, tab bar), `layout/` (presentational shells :
   `scroll-rail`, `aurora-background`), `feedback/` (`empty-state`,
   `query-error`), and `ui/` : the shadcn-svelte primitives, **CLI-managed, don't
   hand-edit or move them**.

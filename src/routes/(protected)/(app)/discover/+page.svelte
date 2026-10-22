@@ -1,16 +1,21 @@
 <script lang="ts">
 	import CompassIcon from "@lucide/svelte/icons/compass";
+	import FilmIcon from "@lucide/svelte/icons/film";
+	import LayoutGridIcon from "@lucide/svelte/icons/layout-grid";
+	import ShapesIcon from "@lucide/svelte/icons/shapes";
+	import TvIcon from "@lucide/svelte/icons/tv";
 	import { browseCatalog } from "#lib/addons/addons.remote.js";
 	import type { MetaPreview } from "#lib/addons/index.js";
 	import EmptyState from "#lib/components/feedback/empty-state.svelte";
 	import QueryError from "#lib/components/feedback/query-error.svelte";
-	import ScrollRail from "#lib/components/layout/scroll-rail.svelte";
+	import ChoiceList from "#lib/components/layout/choice-list.svelte";
+	import FilterDrawer from "#lib/components/layout/filter-drawer.svelte";
 	import MediaGrid from "#lib/components/media/grid.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { streamed } from "#lib/core/stream.svelte.js";
 	import { pageTitle } from "#lib/core/title.svelte.js";
 	import { m } from "#lib/i18n/index.js";
-	import { cn } from "#lib/utils.js";
+	import { genreIcon } from "#lib/search/genre-icons.js";
 	import { goto, invalidateAll } from "$app/navigation";
 	import { resolve } from "$app/paths";
 	import { navigating, page } from "$app/state";
@@ -94,6 +99,24 @@
 		}
 	});
 
+	let filtersOpen = $state(false);
+	const catalogOptions = $derived(
+		catalogs.map((entry) => {
+			const key = `${entry.addonId}|${entry.type}|${entry.id}`;
+			const label = catalogLabels.get(key) ?? entry.name;
+			return {
+				value: key,
+				label: multipleAddons ? `${label} · ${entry.addonName}` : label,
+				icon:
+					entry.type === "movie"
+						? FilmIcon
+						: entry.type === "series"
+							? TvIcon
+							: LayoutGridIcon,
+			};
+		}),
+	);
+
 	// Only disambiguate catalog pills by addon when more than one addon supplies them.
 	const multipleAddons = $derived(
 		new Set(catalogs.map((entry) => entry.addonId)).size > 1,
@@ -170,19 +193,45 @@
 </script>
 
 <div class="flex flex-col gap-6">
-  <div class="flex flex-col gap-1">
-    <h1 class="text-3xl font-bold tracking-tight">{m.nav_discover()}</h1>
-    <p class="text-sm text-muted-foreground">
-      {m.discover_subtitle()}
-    </p>
+  <div class="flex items-end justify-between gap-3">
+    <div class="flex min-w-0 flex-col gap-1">
+      <h1 class="text-3xl font-bold tracking-tight">{m.nav_discover()}</h1>
+      <p class="truncate text-sm text-muted-foreground">
+        {#if selected && activeKey}
+          {catalogLabels.get(activeKey) ?? selected.name}{genre ? ` · ${genre}` : ""}
+        {:else}
+          {m.discover_subtitle()}
+        {/if}
+      </p>
+    </div>
+    {#if selected}
+      <FilterDrawer bind:open={filtersOpen} active={Number(Boolean(genre))}>
+        <ChoiceList
+          title={m.discover_catalogs()}
+          options={catalogOptions}
+          value={pendingKey ?? ""}
+          onSelect={(key) => goto(catalogHref(key))}
+        />
+        {#if selected.genres.length > 0}
+          <ChoiceList
+            title={m.discover_genres()}
+            options={[
+              { value: "", label: m.library_filter_all(), icon: ShapesIcon },
+              ...selected.genres.map((option) => ({
+                value: option,
+                label: option,
+                icon: genreIcon(option),
+              })),
+            ]}
+            value={pendingGenre}
+            onSelect={(value) => goto(genreHref(value))}
+          />
+        {/if}
+      </FilterDrawer>
+    {/if}
   </div>
 
   {#if !catalogsReady && catalogs.length === 0}
-    <div class="no-scrollbar -mx-2 max-sm:-mx-6 flex gap-2 overflow-x-auto px-2 max-sm:px-6 py-1">
-      {#each { length: 6 } as _skeleton, i (i)}
-        <div class="skeleton h-8 w-24 shrink-0 rounded-full"></div>
-      {/each}
-    </div>
     <MediaGrid items={[]} loading skeletonCount={12} />
   {:else if catalogs.length === 0}
     <EmptyState
@@ -196,58 +245,6 @@
       {/snippet}
     </EmptyState>
   {:else if selected}
-    <ScrollRail label={m.discover_catalogs()} arrows={false} trackClass="gap-2 py-1">
-      {#each catalogs as entry (`${entry.addonId}|${entry.type}|${entry.id}`)}
-        {@const key = `${entry.addonId}|${entry.type}|${entry.id}`}
-        <a
-          href={catalogHref(key)}
-          aria-current={key === pendingKey ? "true" : undefined}
-          class={cn(
-            "shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium whitespace-nowrap transition",
-            key === pendingKey
-              ? "bg-primary text-primary-foreground shadow-sm"
-              : "bg-foreground/5 text-muted-foreground hover:bg-foreground/10 hover:text-foreground",
-          )}
-        >
-          {catalogLabels.get(key) ?? entry.name}
-          {#if multipleAddons}
-            <span class="text-xs opacity-60">· {entry.addonName}</span>
-          {/if}
-        </a>
-      {/each}
-    </ScrollRail>
-
-    {#if selected.genres.length > 0}
-      <ScrollRail label={m.discover_genres()} arrows={false} trackClass="gap-1.5 pb-1">
-        <a
-          href={genreHref("")}
-          aria-current={pendingGenre ? undefined : "true"}
-          class={cn(
-            "shrink-0 rounded-full px-2.5 py-1 text-xs font-medium transition",
-            pendingGenre
-              ? "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
-              : "bg-secondary text-secondary-foreground",
-          )}
-        >
-          {m.library_filter_all()}
-        </a>
-        {#each selected.genres as option (option)}
-          <a
-            href={genreHref(option)}
-            aria-current={option === pendingGenre ? "true" : undefined}
-            class={cn(
-              "shrink-0 rounded-full px-2.5 py-1 text-xs font-medium whitespace-nowrap transition",
-              option === pendingGenre
-                ? "bg-secondary text-secondary-foreground"
-                : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground",
-            )}
-          >
-            {option}
-          </a>
-        {/each}
-      </ScrollRail>
-    {/if}
-
     {#if loadingFirst}
       <MediaGrid items={[]} loading skeletonCount={12} />
     {:else if firstPageFailed}

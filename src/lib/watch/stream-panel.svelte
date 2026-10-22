@@ -1,17 +1,23 @@
 <script lang="ts">
-	import CheckIcon from "@lucide/svelte/icons/check";
 	import ExternalLinkIcon from "@lucide/svelte/icons/external-link";
 	import FilmIcon from "@lucide/svelte/icons/film";
+	import LayoutGridIcon from "@lucide/svelte/icons/layout-grid";
+	import MonitorIcon from "@lucide/svelte/icons/monitor";
 	import PlayIcon from "@lucide/svelte/icons/play";
 	import PuzzleIcon from "@lucide/svelte/icons/puzzle";
 	import RefreshCwIcon from "@lucide/svelte/icons/refresh-cw";
+	import Share2Icon from "@lucide/svelte/icons/share-2";
 	import SlidersHorizontalIcon from "@lucide/svelte/icons/sliders-horizontal";
 	import UsersIcon from "@lucide/svelte/icons/users";
 	import VolumeXIcon from "@lucide/svelte/icons/volume-x";
 	import XIcon from "@lucide/svelte/icons/x";
+	import ZapIcon from "@lucide/svelte/icons/zap";
 	import { cubicOut } from "svelte/easing";
 	import { fade, fly } from "svelte/transition";
+	import ChoiceList from "#lib/components/layout/choice-list.svelte";
+	import FilterDrawer from "#lib/components/layout/filter-drawer.svelte";
 	import { Separator } from "#lib/components/ui/separator/index.js";
+	import { Switch } from "#lib/components/ui/switch/index.js";
 	import { reduced } from "#lib/core/motion.js";
 	import DownloadButton from "#lib/downloads/download-button.svelte";
 	import { m } from "#lib/i18n/index.js";
@@ -99,14 +105,20 @@
 		filtersOpen = false;
 	});
 
-	function toggleKind(kind: StreamKind) {
-		const next = new Set(kinds);
-		if (next.has(kind)) {
-			next.delete(kind);
-		} else {
-			next.add(kind);
-		}
-		kinds = next;
+	// Source as one choice, like the other filter sheets: direct, P2P, or both.
+	const source = $derived(
+		kinds.has("direct") && kinds.has("p2p")
+			? "all"
+			: kinds.has("p2p")
+				? "p2p"
+				: "direct",
+	);
+	function setSource(value: string) {
+		kinds = new Set(
+			value === "all"
+				? ["direct", "p2p"]
+				: [value === "p2p" ? "p2p" : "direct"],
+		);
 	}
 
 	type Row = ResolvedStream & {
@@ -122,7 +134,6 @@
 		})),
 	);
 
-	const kindsPresent = $derived(new Set(rows.map((row) => row.kind)));
 	const addons = $derived(
 		[...new Set(rows.map((row) => row.addonName))].sort(),
 	);
@@ -130,6 +141,19 @@
 		["4K", "1440p", "1080p", "720p", "480p", "360p"].filter((q) =>
 			rows.some((row) => row.info.tags.includes(q)),
 		),
+	);
+	const sourceOptions = $derived(
+		[
+			{ value: "direct", label: m.watch_filter_direct(), icon: ZapIcon },
+			{ value: "p2p", label: "P2P", icon: Share2Icon },
+			{ value: "all", label: m.watch_filter_all(), icon: LayoutGridIcon },
+		].map((option) => {
+			const count =
+				option.value === "all"
+					? rows.length
+					: rows.filter((row) => row.kind === option.value).length;
+			return { ...option, label: `${option.label} (${count})` };
+		}),
 	);
 	const silentCount = $derived(
 		rows.filter((row) => row.info.audio === "risky").length,
@@ -271,203 +295,83 @@
   ></button>
 {/if}
 
-{#if filtersOpen}
-  <aside
-    aria-label={m.watch_stream_filters()}
-    transition:fly={reduced({ x: 24, duration: 150 })}
-    class="fixed inset-y-3 right-3 z-50 flex w-[calc(100%-1.5rem)] max-w-72 flex-col overflow-hidden rounded-3xl bg-linear-to-b from-background/65 to-background/85 shadow-[inset_0_1px_0_rgb(255_255_255/0.12),0_24px_60px_-12px_rgb(0_0_0/0.6)] ring-1 ring-foreground/10 backdrop-blur-2xl backdrop-saturate-150 md:right-111"
-  >
-    <header
-      class="flex items-center justify-between border-b border-foreground/10 p-4"
-    >
-      <p class="text-sm font-semibold">{m.watch_filters()}</p>
-      <button
-        type="button"
-        aria-label={m.watch_close_filters()}
-        onclick={() => (filtersOpen = false)}
-        class="rounded-md p-1.5 text-muted-foreground transition hover:bg-foreground/5 hover:text-foreground"
-      >
-        <XIcon class="size-4" />
-      </button>
-    </header>
+<!-- The app's filter drawer: stacked on the sources sheet on a phone, from
+     the right on a desktop. The toolbar's own button opens it. -->
+<FilterDrawer bind:open={filtersOpen} nested={sheet} trigger="none">
+    <ChoiceList
+      title={m.watch_filter_source()}
+      options={sourceOptions}
+      value={source}
+      onSelect={setSource}
+    />
+    <p class="-mt-1 px-1 text-[11px] text-muted-foreground">
+      {m.watch_filter_p2p_hint()}
+    </p>
 
-    <div
-      class="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto p-4 scrollbar-thin"
-    >
-      <section class="flex flex-col gap-2">
-        <p
-          class="text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+    {#if qualities.length > 0}
+      <ChoiceList
+        title={m.watch_filter_quality()}
+        options={[
+          { value: "", label: m.watch_filter_any(), icon: LayoutGridIcon },
+          ...qualities.map((q) => ({ value: q, label: q, icon: MonitorIcon })),
+        ]}
+        value={quality ?? ""}
+        onSelect={(value) => (quality = value || null)}
+      />
+    {/if}
+
+    {#if addons.length > 1}
+      <ChoiceList
+        title={m.watch_filter_addon()}
+        options={[
+          { value: "", label: m.watch_filter_all(), icon: LayoutGridIcon },
+          ...addons.map((addon) => ({
+            value: addon,
+            label: addon,
+            icon: PuzzleIcon,
+          })),
+        ]}
+        value={addonFilter ?? ""}
+        onSelect={(value) => (addonFilter = value || null)}
+      />
+    {/if}
+
+    {#if silentCount > 0}
+      <label class="glass flex items-center gap-3 rounded-3xl px-4 py-3">
+        <span
+          class="flex size-8 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary"
         >
-          {m.watch_filter_source()}
-        </p>
-        <div class="flex gap-1.5">
-          {#each [{ id: "direct", label: m.watch_filter_direct() }, { id: "p2p", label: "P2P" }] as const as opt (opt.id)}
-            <button
-              type="button"
-              disabled={!kindsPresent.has(opt.id) && kinds.size === 0}
-              onclick={() => toggleKind(opt.id)}
-              class={cn(
-                "flex-1 rounded-md border px-2.5 py-1.5 text-xs font-medium transition disabled:opacity-40",
-                kinds.has(opt.id)
-                  ? "border-primary bg-primary/10 text-primary"
-                  : "border-border text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {opt.label}
-              {#if kindsPresent.has(opt.id)}
-                <span class="text-[10px] opacity-60">
-                  {rows.filter((row) => row.kind === opt.id).length}
-                </span>
-              {/if}
-            </button>
-          {/each}
-        </div>
-        <p class="text-[11px] text-muted-foreground">
-          {m.watch_filter_p2p_hint()}
-        </p>
-      </section>
-
-      {#if qualities.length > 0}
-        <section class="flex flex-col gap-2">
-          <p
-            class="text-xs font-semibold tracking-wide text-muted-foreground uppercase"
-          >
-            {m.watch_filter_quality()}
-          </p>
-          <div class="flex flex-wrap gap-1.5">
-            <button
-              type="button"
-              onclick={() => (quality = null)}
-              class={cn(
-                "rounded-md border px-2.5 py-1 text-xs font-medium transition",
-                quality === null
-                  ? "border-primary bg-primary/10 text-primary"
-                  : "border-border text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {m.watch_filter_any()}
-            </button>
-            {#each qualities as q (q)}
-              <button
-                type="button"
-                onclick={() => (quality = quality === q ? null : q)}
-                class={cn(
-                  "rounded-md border px-2.5 py-1 text-xs font-medium transition",
-                  quality === q
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-border text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {q}
-              </button>
-            {/each}
-          </div>
-        </section>
-      {/if}
-
-      {#if addons.length > 1}
-        <section class="flex flex-col gap-2">
-          <p
-            class="text-xs font-semibold tracking-wide text-muted-foreground uppercase"
-          >
-            {m.watch_filter_addon()}
-          </p>
-          <div class="flex flex-wrap gap-1.5">
-            <button
-              type="button"
-              onclick={() => (addonFilter = null)}
-              class={cn(
-                "rounded-md border px-2.5 py-1 text-xs font-medium transition",
-                addonFilter === null
-                  ? "border-primary bg-primary/10 text-primary"
-                  : "border-border text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {m.watch_filter_all()}
-            </button>
-            {#each addons as addon (addon)}
-              <button
-                type="button"
-                onclick={() =>
-                  (addonFilter = addonFilter === addon ? null : addon)}
-                class={cn(
-                  "rounded-md border px-2.5 py-1 text-xs font-medium transition",
-                  addonFilter === addon
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-border text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {addon}
-              </button>
-            {/each}
-          </div>
-        </section>
-      {/if}
-
-      {#if silentCount > 0}
-        <section class="flex flex-col gap-2">
-          <p
-            class="text-xs font-semibold tracking-wide text-muted-foreground uppercase"
-          >
-            {m.watch_filter_likely_silent()}
-          </p>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={showSilent}
-            onclick={() => (showSilent = !showSilent)}
-            class={cn(
-              "flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-xs font-medium transition",
-              showSilent
-                ? "border-primary bg-primary/10 text-primary"
-                : "border-border text-muted-foreground hover:text-foreground",
-            )}
-          >
-            <span
-              class={cn(
-                "flex size-3.5 shrink-0 items-center justify-center rounded-sm border",
-                showSilent
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-muted-foreground/50",
-              )}
-            >
-              {#if showSilent}<CheckIcon class="size-2.5" />{/if}
-            </span>
+          <VolumeXIcon class="size-4" />
+        </span>
+        <span class="flex min-w-0 flex-1 flex-col gap-0.5">
+          <span class="text-sm font-medium">
             {m.watch_filter_show_silent({ count: silentCount })}
-          </button>
-          <p class="text-[11px] text-muted-foreground">
+          </span>
+          <span class="text-[11px] text-muted-foreground">
             {m.watch_filter_silent_hint()}
-          </p>
-        </section>
-      {/if}
+          </span>
+        </span>
+        <Switch
+          checked={showSilent}
+          onCheckedChange={(value) => (showSilent = value)}
+        />
+      </label>
+    {/if}
 
-      <button
-        type="button"
-        onclick={resetFilters}
-        class="mt-auto rounded-md border border-border py-1.5 text-xs font-medium text-muted-foreground transition hover:text-foreground"
-      >
-        {m.watch_reset_filters()}
-      </button>
-    </div>
-  </aside>
-{/if}
+</FilterDrawer>
 
 {#snippet panel()}
+  <!-- App-style: the title leads, the controls are pills under it. -->
   <header
     class={cn(
-      "flex items-start gap-3 border-b border-foreground/10",
-      sheet ? "px-4 pb-4" : "p-4",
+      "flex items-start gap-3",
+      sheet ? "justify-center px-4 pt-1 text-center" : "px-4 pt-4",
     )}
   >
     <div class="min-w-0 flex-1">
-      <p
-        class="text-xs font-semibold tracking-wide text-muted-foreground uppercase"
-      >
-        {m.common_sources()}
-      </p>
-      <p class="truncate text-sm font-semibold">{heading}</p>
+      <p class="truncate text-lg font-bold tracking-tight">{heading}</p>
       {#if subheading}
-        <p class="truncate text-xs text-muted-foreground">{subheading}</p>
+        <p class="truncate text-sm text-muted-foreground">{subheading}</p>
       {/if}
     </div>
     {#if !sheet}
@@ -475,56 +379,53 @@
         type="button"
         aria-label={m.common_close()}
         onclick={onClose}
-        class="rounded-md p-1.5 text-muted-foreground transition hover:bg-foreground/5 hover:text-foreground"
+        class="flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition hover:bg-foreground/5 hover:text-foreground"
       >
         <XIcon class="size-4" />
       </button>
     {/if}
   </header>
 
-  <div
-    class={cn(
-      "flex items-center justify-between gap-3 border-b border-foreground/10 py-2.5",
-      "px-4",
-    )}
-  >
-    <span class="text-xs font-medium text-muted-foreground">
+  <div class="flex items-center gap-2 px-4 py-3">
+    <span
+      class="rounded-full bg-primary/15 px-3 py-1.5 text-xs font-semibold text-accent-label"
+    >
       {result
         ? m.watch_sources_count({ shown: shown.length, total: rows.length })
         : m.common_loading()}
     </span>
-    <div class="flex items-center gap-1">
-      <button
-        type="button"
-        disabled={!result || rows.length === 0}
-        onclick={() => (filtersOpen = !filtersOpen)}
-        class={cn(
-          "flex items-center gap-1.5 rounded-full px-2 py-1 text-xs font-medium transition disabled:opacity-50",
-          filtersOpen || activeFilters > 0
-            ? "text-primary"
-            : "text-muted-foreground hover:text-foreground",
-        )}
-      >
-        <SlidersHorizontalIcon class="size-3.5" />
-        {m.watch_filters()}
-        {#if activeFilters > 0}
-          <span
-            class="flex size-4 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground"
-          >
-            {activeFilters}
-          </span>
-        {/if}
-      </button>
-      <button
-        type="button"
-        disabled={refreshing || !result}
-        onclick={refresh}
-        class="flex items-center gap-1.5 rounded-full px-2 py-1 text-xs font-medium text-muted-foreground transition hover:text-foreground disabled:opacity-50"
-      >
-        <RefreshCwIcon class={cn("size-3.5", refreshing && "animate-spin")} />
-        {m.watch_refresh()}
-      </button>
-    </div>
+    <span class="flex-1"></span>
+    <button
+      type="button"
+      disabled={!result || rows.length === 0}
+      onclick={() => (filtersOpen = !filtersOpen)}
+      class={cn(
+        "flex items-center gap-1.5 rounded-full px-3.5 py-2 text-sm font-medium transition disabled:opacity-50",
+        activeFilters > 0
+          ? "bg-primary/15 text-accent-label"
+          : "bg-foreground/5 hover:bg-foreground/10",
+      )}
+    >
+      <SlidersHorizontalIcon class="size-4" />
+      {m.watch_filters()}
+      {#if activeFilters > 0}
+        <span
+          class="flex size-5 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground"
+        >
+          {activeFilters}
+        </span>
+      {/if}
+    </button>
+    <button
+      type="button"
+      aria-label={m.watch_refresh()}
+      title={m.watch_refresh()}
+      disabled={refreshing || !result}
+      onclick={refresh}
+      class="flex size-9 shrink-0 items-center justify-center rounded-full bg-foreground/5 transition hover:bg-foreground/10 disabled:opacity-50"
+    >
+      <RefreshCwIcon class={cn("size-4", refreshing && "animate-spin")} />
+    </button>
   </div>
 
   <div
@@ -641,7 +542,7 @@
     aria-modal="true"
     aria-label={m.common_sources()}
     transition:fly={reduced({ x: 480, duration: 260, easing: cubicOut })}
-    class="fixed inset-y-3 right-3 z-50 flex w-[calc(100%-1.5rem)] max-w-105 flex-col overflow-hidden rounded-3xl bg-linear-to-b from-background/65 to-background/85 shadow-[inset_0_1px_0_rgb(255_255_255/0.12),0_24px_60px_-12px_rgb(0_0_0/0.6)] ring-1 ring-foreground/10 backdrop-blur-2xl backdrop-saturate-150"
+    class="fixed top-[max(0.75rem,env(safe-area-inset-top))] right-[max(0.75rem,env(safe-area-inset-right))] bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-50 flex w-[calc(100%-1.5rem)] max-w-105 flex-col overflow-hidden rounded-3xl bg-linear-to-b from-background/65 to-background/85 shadow-[inset_0_1px_0_rgb(255_255_255/0.12),0_24px_60px_-12px_rgb(0_0_0/0.6)] ring-1 ring-foreground/10 backdrop-blur-2xl backdrop-saturate-150"
   >
     {@render panel()}
   </div>

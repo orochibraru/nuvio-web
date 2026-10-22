@@ -12,6 +12,7 @@
 	import { mode } from "mode-watcher";
 	import type { Snippet } from "svelte";
 	import { backdropSrcset } from "#lib/core/images.js";
+	import { prefersReducedMotion } from "#lib/core/motion.js";
 	import { theme } from "#lib/settings/theme.svelte.js";
 	import ImdbRating from "./imdb-rating.svelte";
 
@@ -76,6 +77,13 @@
 	// seamless. Light mode keeps a clean, deliberate cut instead.
 	const bleedIntoPage = $derived(mode.current === "dark");
 
+	// How far the page has scrolled, for the parallax : capped (the hero is
+	// long gone by then) and zero under reduced motion.
+	let scrollY = $state(0);
+	const parallax = $derived(
+		prefersReducedMotion() ? 0 : Math.min(Math.max(scrollY, 0), 900),
+	);
+
 	let logoBroken = $state(false);
 	$effect(() => {
 		void logo;
@@ -96,6 +104,8 @@
 	});
 </script>
 
+<svelte:window bind:scrollY />
+
 <!-- `dark` scopes the scrims + copy to the dark palette regardless of the app
      theme : a cinematic backdrop is dark media either way, and a white scrim
      over it (light mode) washed the image to a grey smear. That also shadows
@@ -114,6 +124,12 @@
     <div
       class={`absolute inset-0 -z-10 ${bleedIntoPage ? "mask-[linear-gradient(to_bottom,black_70%,transparent)]" : ""}`}
     >
+      <!-- Parallax: the art drifts at under half the scroll speed, like the
+           Nuvio app's home. The scrims below stay put. -->
+      <div
+        class="absolute inset-0 will-change-transform"
+        style={`transform: translate3d(0, ${parallax * 0.4}px, 0)`}
+      >
       {#if background}
         {@const bd = backdropSrcset(background)}
         {#if poster && !backdropLoaded}
@@ -141,6 +157,7 @@
       {:else}
         <div class="size-full bg-linear-to-br from-muted to-background"></div>
       {/if}
+      </div>
       <!-- Accent bloom rising from the lower-left, where the title sits. Sits
          BELOW the fade-to-background layers so the solid strip at the very
          bottom stays pure `background` : otherwise the glow bleeds through it
@@ -172,7 +189,8 @@
     </div>
 
     <div
-      class="mx-auto flex items-end gap-8 px-6 pt-32 pb-12 lg:min-h-[72vh] lg:pb-14"
+      class="mx-auto flex items-end gap-8 px-6 pt-32 pb-12 max-md:min-h-[88svh] lg:min-h-[72vh] lg:pb-14"
+      style={parallax ? `opacity: ${Math.max(0, 1 - parallax / 600)}` : undefined}
     >
       {#if showPoster && poster}
         <div

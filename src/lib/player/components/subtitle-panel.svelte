@@ -113,7 +113,7 @@
       class="absolute inset-0 cursor-default bg-black/80"
     ></button>
     <div
-      class="pointer-events-none absolute inset-x-0 top-3 bottom-3 flex justify-start px-3 sm:top-20 sm:bottom-24 sm:px-12"
+      class="pointer-events-none absolute inset-x-0 top-[max(0.75rem,env(safe-area-inset-top))] bottom-[max(0.75rem,env(safe-area-inset-bottom))] flex justify-start pr-[max(0.75rem,env(safe-area-inset-right))] pl-[max(0.75rem,env(safe-area-inset-left))] sm:top-20 sm:bottom-24 sm:px-12"
       transition:fly={reduced({ y: 16, duration: 220 })}
     >
       <div

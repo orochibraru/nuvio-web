@@ -423,7 +423,7 @@
         <!-- Mirrors `MediaHero`'s own box exactly so the real hero doesn't jump
 		     the page when it lands. -->
         <div class="mx-[calc(50%-50vw)] -mt-(--shell-top) min-h-[72vh]" aria-hidden="true">
-            <div class="mx-auto flex items-end gap-8 px-6 pt-32 pb-12 lg:pb-14">
+            <div class="mx-auto flex items-end gap-8 px-6 pt-32 pb-12 max-md:min-h-[88svh] lg:pb-14">
                 <div class="hidden w-52 shrink-0 lg:block">
                     <div class="skeleton aspect-2/3 w-full rounded-2xl"></div>
                 </div>

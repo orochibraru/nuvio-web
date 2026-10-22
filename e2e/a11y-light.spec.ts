@@ -5,7 +5,7 @@ import { signIn } from "./auth.ts";
 /**
  * `a11y.spec.ts` runs in whatever mode the test profile has stored (dark), so
  * light mode's contrast went unchecked : and failed: muted text on the faint
- * pill tints, the ⌘K badge, the destructive button. This switches the profile
+ * pill tints, the destructive button. This switches the profile
  * to Light, runs axe over the routes that carry those surfaces, and always
  * switches back : the e2e account is shared.
  */

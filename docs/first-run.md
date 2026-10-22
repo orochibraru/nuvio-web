@@ -42,10 +42,10 @@ mobile too. See [Addons](addons) for ordering, enabling and diagnosing them.
 ## 4. Find something
 
 The home screen fills in behind skeletons: a hero spotlight, continue watching,
-your library, then one row per catalog. **Discover** is the full catalog browser
-with genre filters and pagination, **Search** fans out across every addon that
-serves a search catalog, and `⌘K` / `Ctrl-K` opens the command palette from
-anywhere.
+your library, then one row per catalog. **Search** fans out across every addon
+that serves a search catalog and, before you type, shows catalog rows to browse;
+a row's _See all_ opens **Discover**, the full catalog browser, whose catalog
+and genre choices sit in a filters drawer.
 
 ## 5. Play it
 
