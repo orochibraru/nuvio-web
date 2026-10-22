@@ -1,0 +1,20 @@
+{
+	"$schema": "https://raw.githubusercontent.com/orochibraru/homerun/main/manifest.schema.json",
+	"gitBuildMethod": "dockerfile",
+	"gitDockerfilePath": "Dockerfile",
+	"containerPort": 3000,
+	"portProtocol": "tcp",
+	"replicas": 1,
+	"restartPolicy": "unless-stopped",
+	"scaleToZeroMinutes": 15,
+	"imageScanEnabled": true,
+	"uptimeEnabled": true,
+	"domains": ["nuvio.orochibraru.com"],
+	"primaryDomain": "nuvio.orochibraru.com",
+	"defaultDomainEnabled": false,
+	"previewsEnabled": true,
+	"previewDefaultDomain": false,
+	"previewInheritEnv": true,
+	"previewCopyVolumes": false,
+	"previewBranchExclude": ["dependabot/*", "renovate/*", "docs/*", "releaser/*"]
+}
