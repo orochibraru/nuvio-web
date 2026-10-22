@@ -1,7 +1,6 @@
 <script lang="ts">
 	import CheckIcon from "@lucide/svelte/icons/check";
 	import ChevronLeftIcon from "@lucide/svelte/icons/chevron-left";
-	import CircleUserIcon from "@lucide/svelte/icons/circle-user";
 	import { toast } from "svelte-sonner";
 	import NavGroup from "#lib/components/layout/nav-group.svelte";
 	import { pageTitle } from "#lib/core/title.svelte.js";
@@ -80,25 +79,13 @@
 </script>
 
 <div class="mx-auto flex w-full max-w-5xl flex-col gap-6">
-  <!-- Phones get an app's settings : bare `/settings` is a grouped list of
+  <!-- Phones get an app's settings : bare `/settings` is a list of
        sections, and a section opens on its own with a way back. From `md` up
        the header's section row does that job and a bare URL is Appearance. -->
   {#if !picked}
     <div class="flex flex-col gap-6 md:hidden">
       <h1 class="text-4xl font-bold tracking-tight">{m.nav_settings()}</h1>
       <NavGroup
-        title={m.settings_group_account()}
-        rows={[
-          {
-            href: resolve("account"),
-            label: m.nav_account(),
-            description: m.settings_account_description(),
-            icon: CircleUserIcon,
-          },
-        ]}
-      />
-      <NavGroup
-        title={m.settings_group_general()}
         rows={SETTINGS_SECTIONS.map((entry) => ({
           href: `${settingsRoot}?tab=${entry.value}`,
           label: entry.label,
