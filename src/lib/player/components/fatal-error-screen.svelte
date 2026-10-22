@@ -7,6 +7,7 @@
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { m } from "#lib/i18n/index.js";
 	import { externalPlayerHandoff } from "#lib/player/external-player.js";
+	import { theme } from "#lib/settings/theme.svelte.js";
 	import { browser } from "$app/env";
 
 	let {
@@ -26,7 +27,11 @@
 	// desktop registers no player scheme.
 	const handoff = $derived(
 		browser
-			? externalPlayerHandoff({ url: externalUrl }, navigator.userAgent)
+			? externalPlayerHandoff(
+					{ url: externalUrl },
+					navigator.userAgent,
+					theme.current.externalPlayer,
+				)
 			: null,
 	);
 

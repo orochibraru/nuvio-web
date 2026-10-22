@@ -154,7 +154,7 @@
 	}
 </script>
 
-<div class={cn("group/row relative -mx-2", className)}>
+<div class={cn("group/row relative -mx-2 max-sm:-mx-6", className)}>
   <!-- Roving-tabindex composite: the group itself owns arrow-key nav across
 	     its cards, standard for this WAI-ARIA APG pattern. -->
   <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
@@ -166,7 +166,7 @@
     onkeydown={onTrackKeydown}
     onfocusin={onFocusIn}
     class={cn(
-      "no-scrollbar flex overflow-x-auto scroll-smooth px-2",
+      "no-scrollbar flex overflow-x-auto scroll-smooth px-2 max-sm:px-6 max-sm:scroll-px-6",
       trackClass,
     )}
   >
@@ -175,13 +175,13 @@
 
   <div
     class={cn(
-      "pointer-events-none absolute inset-y-0 left-0 w-16 bg-linear-to-r from-background to-transparent transition-opacity duration-200",
+      "pointer-events-none absolute inset-y-0 left-0 hidden w-16 sm:block bg-linear-to-r from-background to-transparent transition-opacity duration-200",
       atStart && "opacity-0",
     )}
   ></div>
   <div
     class={cn(
-      "pointer-events-none absolute inset-y-0 right-0 w-16 bg-linear-to-l from-background to-transparent transition-opacity duration-200",
+      "pointer-events-none absolute inset-y-0 right-0 hidden w-16 sm:block bg-linear-to-l from-background to-transparent transition-opacity duration-200",
       atEnd && "opacity-0",
     )}
   ></div>

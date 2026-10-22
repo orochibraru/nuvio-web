@@ -201,6 +201,13 @@
 		0 24px 60px -24px rgb(0 0 0 / 0.45);
 }
 
+/* Accent-coloured small text (section headings): the raw accent sits near
+   mid-lightness, too faint for 4.5:1 on either theme, so it leans toward the
+   foreground : lighter on dark, darker on light. */
+@utility text-accent-label {
+	color: color-mix(in oklch, var(--primary) 60%, var(--foreground));
+}
+
 /* Frosts a translucent button sitting over imagery (hero / detail actions). */
 @utility glass-button {
 	backdrop-filter: blur(12px) saturate(1.5);
@@ -428,5 +435,12 @@
 	[data-sonner-toast] {
 		backdrop-filter: blur(24px) saturate(1.5);
 		--tw-inset-shadow: inset 0 1px 0 var(--glass-edge);
+	}
+
+	/* The "vega" style leaves the select list's inset to a stylesheet the CLI
+	   doesn't ship: without it the highlight runs edge to edge. */
+	[data-slot="select-content"] {
+		padding: 0.25rem;
+		border-radius: calc(var(--radius) + 2px);
 	}
 }

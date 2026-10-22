@@ -104,7 +104,7 @@ test("client-side navigation through the whole shell", async ({ page }) => {
 	await page.goto("/");
 	await page.waitForLoadState("networkidle");
 
-	await expect(page).toHaveTitle(/^Nuvio(\b|$)/);
+	await expect(page).toHaveTitle(/Nuvio Web \(unofficial\)$/);
 
 	for (const label of ["Discover", "Library", "Collections"]) {
 		await page
@@ -113,14 +113,18 @@ test("client-side navigation through the whole shell", async ({ page }) => {
 			.click();
 		await page.waitForLoadState("networkidle");
 		await expect(page.getByRole("heading", { name: label })).toBeVisible();
-		await expect(page).toHaveTitle(`Nuvio · ${label}`);
+		await expect(page).toHaveTitle(`${label} · Nuvio Web (unofficial)`);
 	}
 
 	await page.getByRole("button", { name: "Profile menu" }).click();
 	await page.getByRole("menuitem", { name: "Account" }).click();
 	await page.waitForLoadState("networkidle");
-	await expect(page).toHaveTitle("Nuvio · Account");
-	await page.getByRole("tab", { name: "Watch history" }).click();
+	await expect(page).toHaveTitle("Account · Nuvio Web (unofficial)");
+	// Account's sections live in the header's section row, like Settings.
+	await page
+		.getByRole("navigation", { name: "Account sections" })
+		.getByRole("link", { name: "Watch history" })
+		.click();
 	await expect(page).toHaveURL(/tab=history/);
 
 	expect(errors, "runtime errors during client navigation").toEqual([]);
@@ -147,7 +151,7 @@ test("interrupting a pending navigation still swaps the page", async ({
 		.click();
 
 	await expect(page).toHaveURL(/\/$/);
-	await expect(page).toHaveTitle("Nuvio", { timeout: 10_000 });
+	await expect(page).toHaveTitle("Nuvio Web (unofficial)", { timeout: 10_000 });
 	// The search box and its <h1> only exist on /search : gone once the page
 	// component actually swapped.
 	await expect(page.getByRole("textbox")).toHaveCount(0);

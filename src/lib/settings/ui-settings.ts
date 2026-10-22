@@ -36,6 +36,17 @@ export const STREAM_QUALITIES = [
 ] as const;
 export type StreamQuality = (typeof STREAM_QUALITIES)[number];
 
+/** App a picked source is handed to; `browser` = the built-in player. */
+export const EXTERNAL_PLAYERS = [
+	"browser",
+	"vlc",
+	"infuse",
+	"outplayer",
+	"vidhub",
+	"iina",
+] as const;
+export type ExternalPlayer = (typeof EXTERNAL_PLAYERS)[number];
+
 /**
  * Where library / watch-progress data is read from and written to. Nuvio mobile
  * lets these be set independently. Only `nuvio` works today : `trakt` / `simkl`
@@ -77,6 +88,7 @@ export const uiSettingsSchema = v.object({
 	touchGestures: v.fallback(v.boolean(), true),
 	/** Resolution the player auto-picks from a source list; "auto" = addon order. */
 	preferredQuality: v.fallback(v.picklist(STREAM_QUALITIES), "auto"),
+	externalPlayer: v.fallback(v.picklist(EXTERNAL_PLAYERS), "browser"),
 	subtitleSize: v.fallback(v.picklist(SUBTITLE_SIZES), "medium"),
 	/** CSS colour for subtitle text. */
 	subtitleColor: v.fallback(v.string(), "#ffffff"),
@@ -118,6 +130,7 @@ export const DEFAULT_UI_SETTINGS: UiSettings = {
 	autoPlayNext: true,
 	touchGestures: true,
 	preferredQuality: "auto",
+	externalPlayer: "browser",
 	subtitleSize: "medium",
 	subtitleColor: "#ffffff",
 	subtitleBackground: true,

@@ -10,7 +10,7 @@
 	let { children } = $props();
 
 	// Each page owns its title segment; clear it between pages so one that sets
-	// nothing shows plain "Nuvio" rather than the previous page's title.
+	// nothing shows the bare app name rather than the previous page's title.
 	beforeNavigate(({ shallow }) => {
 		if (shallow) {
 			return;

@@ -24,6 +24,7 @@
 			videoId: string;
 			season: number | null;
 			episode: number | null;
+			episodeTitle?: string | null;
 			progress: number;
 			remainingMs: number;
 		};
@@ -89,12 +90,18 @@
 
       {#if downloaded}
         <span
-          class="pointer-events-none absolute top-2 right-2 z-10 flex items-center gap-1 rounded-full bg-black/60 px-2 py-0.5 text-[11px] font-medium text-white ring-1 ring-white/20 backdrop-blur-md"
+          class="pointer-events-none absolute top-2 left-2 z-10 flex items-center gap-1 rounded-full bg-black/60 px-2 py-0.5 text-[11px] font-medium text-white ring-1 ring-white/20 backdrop-blur-md"
         >
           <DownloadIcon class="size-3" aria-hidden="true" />
           {m.media_downloaded()}
         </span>
       {/if}
+
+      <span
+        class="pointer-events-none absolute top-2 right-2 z-10 rounded-full bg-black/60 px-2 py-0.5 text-[11px] font-semibold text-white ring-1 ring-white/20 backdrop-blur-md"
+      >
+        {started ? formatRemaining(item.remainingMs) : m.media_not_started()}
+      </span>
 
       <!-- Whole card opens details; the play button (a sibling, higher layer)
 			     goes straight to the player. -->
@@ -119,13 +126,15 @@
         class="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col gap-2 p-3"
       >
         <div class="min-w-0">
-          <p class="truncate text-sm font-semibold text-white">{item.name}</p>
-          <p class="text-xs text-white/70">
-            {#if item.season != null && item.episode != null}
+          {#if item.season != null && item.episode != null}
+            <p class="text-[11px] font-bold text-white/90">
               {m.media_episode_prefix({ season: item.season, episode: item.episode })}
-            {/if}
-            {started ? formatRemaining(item.remainingMs) : m.media_not_started()}
-          </p>
+            </p>
+          {/if}
+          <p class="truncate text-sm font-semibold text-white">{item.name}</p>
+          {#if item.episodeTitle}
+            <p class="truncate text-xs text-white/70">{item.episodeTitle}</p>
+          {/if}
         </div>
         <div class="h-1 overflow-hidden rounded-full bg-white/25">
           <div

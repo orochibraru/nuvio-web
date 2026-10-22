@@ -15,7 +15,10 @@
 	import type { MetaPreview } from "#lib/addons/index.js";
 	import QueryError from "#lib/components/feedback/query-error.svelte";
 	import ContinueWatchingCard from "#lib/components/media/continue-watching-card.svelte";
-	import MediaHero from "#lib/components/media/hero.svelte";
+	import MediaHero, {
+		heroPrimary,
+		heroSecondary,
+	} from "#lib/components/media/hero.svelte";
 	import MediaRow from "#lib/components/media/row.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { reduced } from "#lib/core/motion.js";
@@ -135,6 +138,7 @@
 			videoId: rich?.videoId ?? entry.videoId,
 			season: rich?.season ?? entry.season,
 			episode: rich?.episode ?? entry.episode,
+			episodeTitle: rich?.episodeTitle ?? null,
 			progress: rich?.progress ?? entry.progress,
 			remainingMs: rich?.remainingMs ?? entry.remainingMs,
 		};
@@ -398,12 +402,12 @@
             genres={spotlight.genres ?? []}
           >
             {#snippet actions()}
-              <Button size="lg" href={spotlightHref}>
+              <Button size="lg" class={heroPrimary} href={spotlightHref}>
                 <PlayIcon data-icon="inline-start" class="fill-current" /> {m.home_watch_now()}
               </Button>
               <Button
                 size="lg"
-                class="group glass-button"
+                class={`group ${heroSecondary}`}
                 variant="outline"
                 onclick={toggleSpotlightLibrary}
               >
@@ -429,7 +433,7 @@
                   {m.library_add()}
                 {/if}
               </Button>
-              <Button size="lg" variant="outline" class="glass-button" href={spotlightHref}>
+              <Button size="lg" variant="outline" class={heroSecondary} href={spotlightHref}>
                 <InfoIcon data-icon="inline-start" />
                 {m.home_more_info()}
               </Button>
@@ -519,7 +523,7 @@
       <section class="flex flex-col gap-3">
         <h2 class="text-xl font-semibold tracking-tight">{m.home_continue_watching()}</h2>
         <div
-          class="no-scrollbar -mx-2 flex gap-4 overflow-x-auto scroll-smooth px-2 pt-1 pb-2"
+          class="no-scrollbar -mx-2 max-sm:-mx-6 flex gap-4 overflow-x-auto scroll-smooth px-2 max-sm:px-6 pt-1 pb-2"
         >
           {#each resume as item (`${item.type}:${item.videoId}`)}
             <ContinueWatchingCard {item} onClear={dismiss} />
@@ -541,7 +545,7 @@
       {#each { length: 4 } as _row, index (index)}
         <section class="flex flex-col gap-3">
           <div class="skeleton h-6 w-40 rounded"></div>
-          <div class="no-scrollbar -mx-2 flex gap-4 overflow-hidden px-2 py-1">
+          <div class="no-scrollbar -mx-2 max-sm:-mx-6 flex gap-4 overflow-hidden px-2 max-sm:px-6 py-1">
             {#each { length: 8 } as _tile, tile (tile)}
               <div class="flex w-40 shrink-0 flex-col gap-2.5 sm:w-44">
                 <div class="skeleton aspect-2/3 rounded-xl"></div>

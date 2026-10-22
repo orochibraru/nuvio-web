@@ -15,7 +15,10 @@
 	import { reduced } from "#lib/core/motion.js";
 	import DownloadButton from "#lib/downloads/download-button.svelte";
 	import { m } from "#lib/i18n/index.js";
-	import { externalPlayerHandoff } from "#lib/player/external-player.js";
+	import {
+		externalPlayerHandoff,
+		prefersExternal,
+	} from "#lib/player/external-player.js";
 	import { theme } from "#lib/settings/theme.svelte.js";
 	import { cn } from "#lib/utils.js";
 	import { goto } from "$app/navigation";
@@ -38,10 +41,13 @@
 		type,
 		videoId,
 		onClose,
+		sheet = false,
 	}: {
 		type: string;
 		videoId: string;
 		onClose: () => void;
+		/** Inside a bottom sheet (phones), which owns the overlay and closing. */
+		sheet?: boolean;
 	} = $props();
 
 	const contextQuery = $derived(playbackMeta({ type, id: videoId }));
@@ -185,6 +191,17 @@
 			window.open(row.externalUrl, "_blank", "noopener");
 			return;
 		}
+		if (prefersExternal(theme.current.externalPlayer, navigator.userAgent)) {
+			const handoff = externalPlayerHandoff(
+				row,
+				navigator.userAgent,
+				theme.current.externalPlayer,
+			);
+			if (handoff?.kind === "link") {
+				window.location.href = handoff.href;
+				return;
+			}
+		}
 		playbackHandoff.select(videoId, row, row.info.title);
 		// Not playable here still goes to the player: it owns the "can't play in
 		// the browser" screen, with the external-player link and the copy
@@ -198,7 +215,7 @@
 		}
 		if (filtersOpen) {
 			filtersOpen = false;
-		} else {
+		} else if (!sheet) {
 			onClose();
 		}
 	}
@@ -244,13 +261,15 @@
 
 <svelte:window onkeydown={onKeydown} />
 
-<button
-  type="button"
-  aria-label={m.watch_close_sources()}
-  onclick={onClose}
-  transition:fade={reduced({ duration: 150 })}
-  class="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
-></button>
+{#if !sheet}
+  <button
+    type="button"
+    aria-label={m.watch_close_sources()}
+    onclick={onClose}
+    transition:fade={reduced({ duration: 150 })}
+    class="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+  ></button>
+{/if}
 
 {#if filtersOpen}
   <aside
@@ -433,15 +452,13 @@
   </aside>
 {/if}
 
-<div
-  use:modal
-  role="dialog"
-  aria-modal="true"
-  aria-label={m.common_sources()}
-  transition:fly={reduced({ x: 480, duration: 260, easing: cubicOut })}
-  class="fixed inset-y-3 right-3 z-50 flex w-[calc(100%-1.5rem)] max-w-105 flex-col overflow-hidden rounded-3xl bg-linear-to-b from-background/65 to-background/85 shadow-[inset_0_1px_0_rgb(255_255_255/0.12),0_24px_60px_-12px_rgb(0_0_0/0.6)] ring-1 ring-foreground/10 backdrop-blur-2xl backdrop-saturate-150"
->
-  <header class="flex items-start gap-3 border-b border-foreground/10 p-4">
+{#snippet panel()}
+  <header
+    class={cn(
+      "flex items-start gap-3 border-b border-foreground/10",
+      sheet ? "px-4 pb-4" : "p-4",
+    )}
+  >
     <div class="min-w-0 flex-1">
       <p
         class="text-xs font-semibold tracking-wide text-muted-foreground uppercase"
@@ -453,18 +470,23 @@
         <p class="truncate text-xs text-muted-foreground">{subheading}</p>
       {/if}
     </div>
-    <button
-      type="button"
-      aria-label={m.common_close()}
-      onclick={onClose}
-      class="rounded-md p-1.5 text-muted-foreground transition hover:bg-foreground/5 hover:text-foreground"
-    >
-      <XIcon class="size-4" />
-    </button>
+    {#if !sheet}
+      <button
+        type="button"
+        aria-label={m.common_close()}
+        onclick={onClose}
+        class="rounded-md p-1.5 text-muted-foreground transition hover:bg-foreground/5 hover:text-foreground"
+      >
+        <XIcon class="size-4" />
+      </button>
+    {/if}
   </header>
 
   <div
-    class="flex items-center justify-between gap-3 border-b border-foreground/10 px-4 py-2.5"
+    class={cn(
+      "flex items-center justify-between gap-3 border-b border-foreground/10 py-2.5",
+      "px-4",
+    )}
   >
     <span class="text-xs font-medium text-muted-foreground">
       {result
@@ -505,7 +527,11 @@
     </div>
   </div>
 
-  <div class="min-h-0 flex-1 overflow-y-auto p-3 scrollbar-thin">
+  <div
+    class={cn(
+      "min-h-0 flex-1 overflow-y-auto p-3 scrollbar-thin",
+    )}
+  >
     {#if streamsQuery.error}
       <div class="flex flex-col items-center gap-3 py-12 text-center">
         <p class="text-sm font-medium">{m.watch_addons_unreachable()}</p>
@@ -602,4 +628,21 @@
       {/if}
     {/if}
   </div>
-</div>
+{/snippet}
+
+{#if sheet}
+  <div class="flex min-h-0 flex-1 flex-col">
+    {@render panel()}
+  </div>
+{:else}
+  <div
+    use:modal
+    role="dialog"
+    aria-modal="true"
+    aria-label={m.common_sources()}
+    transition:fly={reduced({ x: 480, duration: 260, easing: cubicOut })}
+    class="fixed inset-y-3 right-3 z-50 flex w-[calc(100%-1.5rem)] max-w-105 flex-col overflow-hidden rounded-3xl bg-linear-to-b from-background/65 to-background/85 shadow-[inset_0_1px_0_rgb(255_255_255/0.12),0_24px_60px_-12px_rgb(0_0_0/0.6)] ring-1 ring-foreground/10 backdrop-blur-2xl backdrop-saturate-150"
+  >
+    {@render panel()}
+  </div>
+{/if}

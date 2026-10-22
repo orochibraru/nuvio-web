@@ -10,11 +10,18 @@
  * - **Android** : an Intent URL with `action=VIEW` + `type=video/*`, which is
  *   the one case where the OS really does offer the user's video apps (or
  *   goes straight to their default).
- * - **iOS / iPadOS** : no chooser exists, and VLC's documented x-callback
- *   scheme is the realistic target.
- * - **Desktop** : nothing reliable: VLC doesn't register a URL scheme on
- *   install, so callers fall back to copying the link.
+ * - **iOS / iPadOS** : no chooser exists, so the link targets one app : the
+ *   one picked in Settings when it runs on iOS, else VLC. Schemes match
+ *   stremio-core's.
+ * - **Mac** : only the picked app, and only one that registers a scheme there
+ *   (Infuse, VidHub, IINA). VLC for Mac registers none.
+ * - **Elsewhere** : nothing reliable, so callers fall back to copying the link.
+ *
+ * Settings sync across a profile's devices, so a picked app only takes over
+ * playback on a platform it exists on (`prefersExternal`).
  */
+
+import type { ExternalPlayer } from "#lib/settings/ui-settings.js";
 
 export function isAndroid(userAgent: string): boolean {
 	return /android/i.test(userAgent);
@@ -41,6 +48,57 @@ function androidIntent(target: URL): string {
 	].join(";");
 }
 
+type App = Exclude<ExternalPlayer, "browser">;
+
+const IOS_APPS: ReadonlySet<ExternalPlayer> = new Set<App>([
+	"vlc",
+	"infuse",
+	"outplayer",
+	"vidhub",
+]);
+const MAC_APPS: ReadonlySet<ExternalPlayer> = new Set<App>([
+	"infuse",
+	"vidhub",
+	"iina",
+]);
+
+function isMac(userAgent: string): boolean {
+	return /macintosh/i.test(userAgent);
+}
+
+/** Whether the picked app takes over playback on this device. */
+export function prefersExternal(
+	player: ExternalPlayer,
+	userAgent: string,
+): boolean {
+	if (player === "browser") {
+		return false;
+	}
+	if (isAndroid(userAgent)) {
+		return true;
+	}
+	if (isIos(userAgent)) {
+		return IOS_APPS.has(player);
+	}
+	return isMac(userAgent) && MAC_APPS.has(player);
+}
+
+function appLink(player: App, target: URL): string {
+	const encoded = encodeURIComponent(target.href);
+	switch (player) {
+		case "infuse":
+			return `infuse://x-callback-url/play?url=${encoded}`;
+		case "outplayer":
+			return target.href.replace(/^https?:\/\//, "outplayer://");
+		case "vidhub":
+			return `open-vidhub://x-callback-url/open?url=${encoded}`;
+		case "iina":
+			return `iina://weblink?url=${encoded}`;
+		default:
+			return `vlc-x-callback://x-callback-url/stream?url=${encoded}`;
+	}
+}
+
 /**
  * A deep link that hands `url` to an external player, or `null` when this
  * platform has none (desktop) or the URL isn't something a player can take
@@ -49,6 +107,7 @@ function androidIntent(target: URL): string {
 export function externalPlayerLink(
 	url: string | null | undefined,
 	userAgent: string,
+	player: ExternalPlayer = "browser",
 ): string | null {
 	if (!url) {
 		return null;
@@ -66,9 +125,10 @@ export function externalPlayerLink(
 		return androidIntent(target);
 	}
 	if (isIos(userAgent)) {
-		return `vlc-x-callback://x-callback-url/stream?url=${encodeURIComponent(
-			target.href,
-		)}`;
+		return appLink(IOS_APPS.has(player) ? (player as App) : "vlc", target);
+	}
+	if (isMac(userAgent) && MAC_APPS.has(player)) {
+		return appLink(player as App, target);
 	}
 	return null;
 }
@@ -117,10 +177,11 @@ export function externalPlayerHandoff(
 		name?: string | null;
 	},
 	userAgent: string,
+	player: ExternalPlayer = "browser",
 ): ExternalHandoff {
 	const direct = stream.url ?? stream.externalUrl ?? null;
 	if (direct) {
-		const deepLink = externalPlayerLink(direct, userAgent);
+		const deepLink = externalPlayerLink(direct, userAgent, player);
 		return deepLink
 			? { kind: "link", href: deepLink }
 			: { kind: "copy", url: direct };

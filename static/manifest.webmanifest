@@ -1,7 +1,7 @@
 {
 	"id": "/",
-	"name": "Nuvio Web",
-	"short_name": "Nuvio",
+	"name": "Nuvio Web (unofficial)",
+	"short_name": "Nuvio Web",
 	"description": "Your Nuvio library, profiles, addons and watch progress in a browser.",
 	"start_url": "/",
 	"scope": "/",

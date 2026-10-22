@@ -3,7 +3,12 @@ import { pooledMap } from "#lib/core/pool.js";
 import type { ProgressRecord } from "#lib/sync/types.js";
 import type { ProfileData } from "#lib/userdata/types.js";
 import { CONTINUE_WATCHING_LIMIT, resumeName } from "./continue-watching.ts";
-import { nextEpisode, nextToAir, type UpcomingEpisode } from "./episodes.ts";
+import {
+	episodeTitle,
+	nextEpisode,
+	nextToAir,
+	type UpcomingEpisode,
+} from "./episodes.ts";
 import {
 	assemblePlaybackContext,
 	type ProgressLike,
@@ -34,6 +39,7 @@ export interface ResumeRow {
 	videoId: string;
 	season: number | null;
 	episode: number | null;
+	episodeTitle: string | null;
 	progress: number;
 	remainingMs: number;
 }
@@ -125,6 +131,7 @@ export async function pullContinueWatching(
 						videoId: row.videoId,
 						season: row.season,
 						episode: row.episode,
+						episodeTitle: episodeTitle(meta?.videos, row.season, row.episode),
 						progress: row.position / row.duration,
 						remainingMs: Math.max(0, row.duration - row.position),
 					};
@@ -139,6 +146,7 @@ export async function pullContinueWatching(
 							videoId: `${row.contentId}:${next.season}:${next.episode}`,
 							season: next.season,
 							episode: next.episode,
+							episodeTitle: next.title,
 							progress: 0,
 							remainingMs: 0,
 						};

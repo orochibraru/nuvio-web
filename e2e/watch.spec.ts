@@ -423,7 +423,8 @@ test("player converts an SRT subtitle to WebVTT in the browser", async ({
 
 	const player = page.getByRole("region", { name: "Video player" });
 	await player.getByRole("button", { name: "Subtitles" }).click();
-	await player.getByRole("button", { name: /English/ }).click();
+	// Grouped under "English", the row names the addon it came from.
+	await player.getByRole("option", { name: /Harness/ }).click();
 
 	// The <track> mounted from a blob: URL and the browser parsed the cues.
 	await expect

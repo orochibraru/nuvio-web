@@ -1,12 +1,15 @@
 <script lang="ts">
 	import BookmarkIcon from "@lucide/svelte/icons/bookmark";
+	import CheckIcon from "@lucide/svelte/icons/check";
 	import ChevronDownIcon from "@lucide/svelte/icons/chevron-down";
+	import SlidersHorizontalIcon from "@lucide/svelte/icons/sliders-horizontal";
 	import XIcon from "@lucide/svelte/icons/x";
 	import { fly } from "svelte/transition";
 	import { toast } from "svelte-sonner";
 	import EmptyState from "#lib/components/feedback/empty-state.svelte";
 	import MediaPoster from "#lib/components/media/poster.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
+	import * as Drawer from "#lib/components/ui/drawer/index.js";
 	import * as DropdownMenu from "#lib/components/ui/dropdown-menu/index.js";
 	import { reduced } from "#lib/core/motion.js";
 	import { streamed } from "#lib/core/stream.svelte.js";
@@ -57,6 +60,13 @@
 		const query = params.toString();
 		void goto(query ? `?${query}` : "?", { reset: false });
 	}
+
+	// Phones get one Filters button and a bottom drawer: the pill row and the
+	// sort menu don't fit beside the heading there.
+	let filtersOpen = $state(false);
+	const activeFilters = $derived(
+		Number(filter !== "all") + Number(sort !== "added"),
+	);
 
 	interface GridItem {
 		id: string;
@@ -139,14 +149,67 @@
 </script>
 
 <div class="flex flex-col gap-6">
-	<div class="flex flex-wrap items-end justify-between gap-3">
+	<div class="flex items-end justify-between gap-3">
 		<div class="flex flex-col gap-1">
 			<h1 class="text-3xl font-bold tracking-tight">{m.nav_library()}</h1>
 			<p class="text-sm text-muted-foreground">
 				{m.library_titles_saved({ count: items.length })}
 			</p>
 		</div>
-		<div class="flex items-center gap-2">
+		<Drawer.Root bind:open={filtersOpen}>
+			<Drawer.Trigger
+				class="flex items-center gap-1.5 rounded-full bg-foreground/5 px-3.5 py-2 text-sm font-medium md:hidden"
+			>
+				<SlidersHorizontalIcon class="size-4" />
+				{m.watch_filters()}
+				{#if activeFilters > 0}
+					<span
+						class="flex size-5 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground"
+					>
+						{activeFilters}
+					</span>
+				{/if}
+			</Drawer.Trigger>
+			<Drawer.Content>
+				<Drawer.Header>
+					<Drawer.Title>{m.watch_filters()}</Drawer.Title>
+				</Drawer.Header>
+				<div class="flex flex-col gap-6 overflow-y-auto px-4 pb-8">
+					{#each [{ title: m.library_show(), key: "filter", options: filters, value: filter, fallback: "all" }, { title: m.library_sort_by(), key: "sort", options: sorts, value: sort, fallback: "added" }] as group (group.key)}
+						<section class="flex flex-col gap-2">
+							<h2
+								class="px-1 text-xs font-semibold tracking-[0.12em] text-accent-label uppercase"
+							>
+								{group.title}
+							</h2>
+							<div
+								class="glass flex flex-col divide-y divide-foreground/8 overflow-hidden rounded-3xl"
+							>
+								{#each group.options as option (option.value)}
+									<button
+										type="button"
+										aria-pressed={group.value === option.value}
+										onclick={() =>
+											setParam(group.key, option.value, group.fallback)}
+										class="flex items-center justify-between gap-3 px-4 py-3.5 text-left text-sm font-medium transition-colors active:bg-foreground/5"
+									>
+										{option.label}
+										{#if group.value === option.value}
+											<CheckIcon class="size-4 text-primary" />
+										{/if}
+									</button>
+								{/each}
+							</div>
+						</section>
+					{/each}
+					<Button class="h-12 rounded-full" onclick={() => (filtersOpen = false)}>
+						{m.common_done()}
+					</Button>
+				</div>
+			</Drawer.Content>
+		</Drawer.Root>
+
+		<div class="hidden items-center gap-2 md:flex">
 			<div class="no-scrollbar flex gap-1 overflow-x-auto rounded-full bg-foreground/5 p-1">
 				{#each filters as option (option.value)}
 					<button

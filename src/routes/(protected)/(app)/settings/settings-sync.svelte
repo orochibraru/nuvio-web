@@ -1,9 +1,10 @@
 <script lang="ts">
-	import * as Card from "#lib/components/ui/card/index.js";
 	import { m } from "#lib/i18n/index.js";
 	import { theme } from "#lib/settings/theme.svelte.js";
 	import type { UiSettings } from "#lib/settings/ui-settings.js";
-	import { cn } from "#lib/utils.js";
+	import SettingsChoice from "./settings-choice.svelte";
+	import SettingsGroup from "./settings-group.svelte";
+	import SettingsRow from "./settings-row.svelte";
 
 	let { update }: { update: (patch: Partial<UiSettings>) => Promise<void> } =
 		$props();
@@ -30,45 +31,22 @@
 	}
 </script>
 
-<Card.Root class="border border-foreground/10">
-	<Card.Header>
-		<Card.Title role="heading" aria-level={2}>{m.settings_section_sync()}</Card.Title>
-		<Card.Description>
-			{m.settings_sync_description()}
-		</Card.Description>
-	</Card.Header>
-	<Card.Content class="flex flex-col gap-7">
-		{#each [{ key: "librarySource", label: m.settings_sync_library_from() }, { key: "progressSource", label: m.settings_sync_progress_from() }] as const as row (row.key)}
-			<div class="flex flex-col gap-2.5">
-				<span class="text-sm font-medium">{row.label}</span>
-				<div
-					class="flex w-fit flex-wrap gap-1 rounded-full bg-foreground/5 p-1"
-				>
-					{#each syncSources as option (option.value)}
-						<button
-							type="button"
-							disabled={!option.ready}
-							title={option.ready
-								? undefined
-								: m.settings_sync_connect_first({ name: option.label })}
-							onclick={() => setSyncSource(row.key, option.value)}
-							class={cn(
-								"rounded-full px-4 py-1.5 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-40",
-								theme.current[
-									row.key as "librarySource" | "progressSource"
-								] === option.value
-									? "bg-primary text-primary-foreground shadow-sm"
-									: "text-muted-foreground enabled:hover:text-foreground",
-							)}
-						>
-							{option.label}
-						</button>
-					{/each}
-				</div>
-			</div>
-		{/each}
-		<p class="text-xs text-muted-foreground">
-			{m.settings_sync_footnote()}
-		</p>
-	</Card.Content>
-</Card.Root>
+<SettingsGroup title={m.settings_group_sources()} footer={m.settings_sync_footnote()}>
+  {#each [{ key: "librarySource", label: m.settings_sync_library_from() }, { key: "progressSource", label: m.settings_sync_progress_from() }] as const as row (row.key)}
+    <SettingsRow label={row.label} labelId={`${row.key}-label`}>
+      <SettingsChoice
+        labelledby={`${row.key}-label`}
+        options={syncSources.map((option) => ({
+          value: option.value,
+          label: option.label,
+          disabled: !option.ready,
+          title: option.ready
+            ? undefined
+            : m.settings_sync_connect_first({ name: option.label }),
+        }))}
+        value={theme.current[row.key]}
+        onSelect={(value) => setSyncSource(row.key, value)}
+      />
+    </SettingsRow>
+  {/each}
+</SettingsGroup>

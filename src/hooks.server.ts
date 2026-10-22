@@ -116,9 +116,15 @@ export const handleError: HandleServerError = ({ event, error, kind }) => {
 
 /**
  * Requests nobody wants an access line for: probes the browser and the
- * platform make on their own, whose 404s say nothing about this app.
+ * platform make on their own, whose 404s say nothing about this app, and the
+ * client's own traffic : remote function calls and the `__data.json` a
+ * revalidation fetches, which SvelteKit reports under the page's path.
  */
-function isLogNoise(pathname: string): boolean {
+function isLogNoise(event: RequestEvent): boolean {
+	if (event.isRemoteRequest || event.isDataRequest) {
+		return true;
+	}
+	const pathname = event.url.pathname;
 	return (
 		pathname === "/favicon.ico" ||
 		pathname === "/api/health" ||
@@ -126,6 +132,47 @@ function isLogNoise(pathname: string): boolean {
 		pathname.startsWith("/@") ||
 		pathname.startsWith("/_app/")
 	);
+}
+
+/**
+ * Addon metadata the browser may keep for 15 minutes, so going back to a
+ * title or a catalog doesn't re-run the addon fan-out. `private` keeps it out
+ * of every shared cache : nothing is cached on this server or in front of it.
+ * `Vary: Cookie` splits it per session and profile (addons are per profile).
+ *
+ * Remote queries: only the ones that return addon meta and are never
+ * `.refresh()`ed. Page data: a title's page and Discover, but only on a
+ * navigation. SvelteKit's `x-sveltekit-invalidated` mask leaves an
+ * already-loaded layout at `0` then, while `invalidateAll()` (a Retry button)
+ * sends all `1`s and must reach the server.
+ */
+const CACHED_QUERIES = new Set([
+	"getMeta",
+	"playbackMeta",
+	"browseCatalog",
+	"browseAddonCatalog",
+	"similarTitles",
+]);
+const CACHED_PAGES = new Set([
+	"/(protected)/(app)/(watch)/detail/[type]/[id]",
+	"/(protected)/(app)/discover",
+]);
+
+function isBrowserCacheable(event: RequestEvent, status: number): boolean {
+	if (event.request.method !== "GET" || status !== 200) {
+		return false;
+	}
+	if (event.isRemoteRequest) {
+		return CACHED_QUERIES.has(event.url.pathname.split("/").at(-1) ?? "");
+	}
+	if (!(event.isDataRequest && CACHED_PAGES.has(event.route.id ?? ""))) {
+		return false;
+	}
+	// Read off the raw request: SvelteKit strips the mask from `event.url`.
+	const invalidated = new URL(event.request.url).searchParams.get(
+		"x-sveltekit-invalidated",
+	);
+	return invalidated?.includes("0") ?? false;
 }
 
 function logAccess(
@@ -197,7 +244,11 @@ export const appHandle: Handle = async ({ event, resolve }) => {
 	try {
 		const response = await resolve(event);
 		applySecurityHeaders(response.headers);
-		if (!isLogNoise(event.url.pathname)) {
+		if (isBrowserCacheable(event, response.status)) {
+			response.headers.set("cache-control", "private, max-age=900");
+			response.headers.append("vary", "Cookie");
+		}
+		if (!isLogNoise(event)) {
 			logAccess(services, event, response.status, startedAt);
 		}
 		return response;

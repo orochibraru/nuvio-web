@@ -12,10 +12,16 @@
 	import ShieldIcon from "@lucide/svelte/icons/shield";
 	import UsersIcon from "@lucide/svelte/icons/users";
 	import XIcon from "@lucide/svelte/icons/x";
+	import {
+		ACCOUNT_SECTIONS,
+		accountSectionFrom,
+		accountSectionQuery,
+	} from "#lib/account/sections.js";
 	import CommandPalette from "#lib/components/chrome/command-palette.svelte";
 	import { commandPalette } from "#lib/components/chrome/command-palette.svelte.js";
 	import FirstRunNotice from "#lib/components/chrome/first-run-notice.svelte";
 	import HealthBanner from "#lib/components/chrome/health-banner.svelte";
+	import { installPrompt } from "#lib/components/chrome/install-prompt.svelte.js";
 	import MobileTabBar from "#lib/components/chrome/mobile-tab-bar.svelte";
 	import ProfileAvatar from "#lib/components/chrome/profile-avatar.svelte";
 	import AuroraBackground from "#lib/components/layout/aurora-background.svelte";
@@ -68,8 +74,8 @@
 		},
 	];
 
-	// Below `md` the search pill goes to the search page, like an app's search
-	// tab; from `md` up it opens the command palette.
+	// Below `md` the search button goes to the search page, like an app's
+	// search tab; from `md` up it opens the command palette.
 	function openSearch(event: MouseEvent) {
 		if (
 			event.button !== 0 ||
@@ -84,26 +90,7 @@
 		commandPalette.show();
 	}
 
-	// The browser's install offer, held back so the profile menu can make it
-	// (Chromium only; Safari installs from its Share menu).
-	let installPrompt = $state<
-		(Event & { prompt: () => Promise<unknown> }) | null
-	>(null);
-	$effect(() => {
-		const hold = (event: Event) => {
-			event.preventDefault();
-			installPrompt = event as Event & { prompt: () => Promise<unknown> };
-		};
-		const installed = () => {
-			installPrompt = null;
-		};
-		window.addEventListener("beforeinstallprompt", hold);
-		window.addEventListener("appinstalled", installed);
-		return () => {
-			window.removeEventListener("beforeinstallprompt", hold);
-			window.removeEventListener("appinstalled", installed);
-		};
-	});
+	$effect(() => installPrompt.listen());
 
 	function isActive(href: string, exact?: boolean) {
 		return exact
@@ -130,11 +117,34 @@
 	// stacking a second bar under it: one bar's worth of height, and the row you
 	// are navigating within is the one under your cursor. Below `md` the header
 	// nav is hidden entirely, so the page renders its own pill row there.
+	// Account does the same with its own sections.
 	const settingsRoot = resolve("settings");
-	const onSettings = $derived(page.url.pathname === settingsRoot);
-	const settingsSection = $derived(
-		settingsSectionFrom(page.url.searchParams.get("tab")),
-	);
+	const accountRoot = resolve("account");
+	const subnav = $derived.by(() => {
+		const tab = page.url.searchParams.get("tab");
+		if (page.url.pathname === settingsRoot) {
+			return {
+				root: settingsRoot,
+				sections: SETTINGS_SECTIONS,
+				current: settingsSectionFrom(tab),
+				query: settingsSectionQuery,
+				label: m.settings_sections_label(),
+				leave: m.shell_leave_settings(),
+			};
+		}
+		if (page.url.pathname === accountRoot) {
+			return {
+				root: accountRoot,
+				sections: ACCOUNT_SECTIONS,
+				current: accountSectionFrom(tab),
+				query: accountSectionQuery,
+				label: m.account_sections_label(),
+				leave: m.shell_leave_account(),
+			};
+		}
+		return null;
+	});
+	const onSettings = $derived(subnav !== null);
 
 	let mainEl = $state<HTMLElement | null>(null);
 
@@ -242,7 +252,7 @@
         >
             <a
                 href={resolve("/(protected)/(app)")}
-                class="hidden shrink-0 items-center gap-2 text-lg font-bold tracking-tight md:flex"
+                class="flex shrink-0 items-center gap-2 text-lg font-bold tracking-tight"
                 aria-label={m.shell_logo_home()}
             >
                 <!-- The wordmark is white artwork: a dark copy for light
@@ -285,19 +295,20 @@
                             tabindex={onSettings ? -1 : undefined}
                             aria-current={active ? "page" : undefined}
                             class={cn(
-                                "rounded-full px-3 py-1.5 font-medium transition-colors",
+                                "flex items-center gap-1.5 rounded-full px-3 py-1.5 font-medium transition-colors",
                                 active
                                     ? "bg-primary/15 text-foreground"
                                     : "text-muted-foreground hover:text-foreground",
                             )}
                         >
+                            <item.icon class="size-3.5" />
                             {item.label}
                         </a>
                     {/each}
                 </nav>
 
                 <nav
-                    aria-label={m.settings_sections_label()}
+                    aria-label={subnav?.label}
                     aria-hidden={onSettings ? undefined : "true"}
                     class={cn(
                         "col-start-1 row-start-1 flex items-center gap-1 transition-[opacity,transform,visibility] duration-200",
@@ -309,16 +320,16 @@
                     <a
                         href={resolve("/(protected)/(app)")}
                         tabindex={onSettings ? undefined : -1}
-                        title={m.shell_leave_settings()}
+                        title={subnav?.leave}
                         class="mr-1 flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground"
                     >
                         <XIcon class="size-4" />
-                        <span class="sr-only">{m.shell_leave_settings()}</span>
+                        <span class="sr-only">{subnav?.leave}</span>
                     </a>
-                    {#each SETTINGS_SECTIONS as section (section.value)}
-                        {@const active = settingsSection === section.value}
+                    {#each subnav?.sections ?? [] as section (section.value)}
+                        {@const active = subnav?.current === section.value}
                         <a
-                            href={settingsRoot + settingsSectionQuery(section.value)}
+                            href={(subnav?.root ?? "") + (subnav?.query(section.value) ?? "")}
                             tabindex={onSettings ? undefined : -1}
                             aria-current={active ? "page" : undefined}
                             class={cn(
@@ -335,21 +346,20 @@
                 </nav>
             </div>
 
-            <div class="flex flex-1 items-center gap-3 md:ml-auto md:flex-none">
+            <div class="ml-auto flex items-center gap-3">
                 <a
                     href={resolve("search")}
                     aria-label={m.nav_search()}
                     aria-current={isActive("/search") ? "page" : undefined}
                     onclick={openSearch}
                     class={cn(
-                        "flex min-w-0 flex-1 items-center gap-2 rounded-full border border-foreground/10 bg-foreground/5 px-3.5 py-2 text-sm md:flex-none md:px-3 md:py-1.5 shadow-[inset_0_1px_0_var(--glass-edge)] backdrop-blur-md transition-colors hover:bg-foreground/10",
+                        "flex size-9 shrink-0 items-center justify-center gap-2 rounded-full border border-foreground/10 bg-foreground/5 text-sm md:size-auto md:px-3 md:py-1.5 shadow-[inset_0_1px_0_var(--glass-edge)] backdrop-blur-md transition-colors hover:bg-foreground/10",
                         isActive("/search")
                             ? "text-foreground"
                             : "text-muted-foreground hover:text-foreground",
                     )}
                 >
                     <SearchIcon class="size-4" />
-                    <span class="truncate md:hidden">{m.search_placeholder()}…</span>
                     <span class="hidden md:inline">{m.nav_search()}</span>
                     <kbd
                         class="ml-1 hidden rounded border border-border bg-muted px-1.5 font-sans text-[10px] text-muted-foreground md:inline"
@@ -358,10 +368,19 @@
                     </kbd>
                 </a>
 
+                <!-- A phone gets the account page (profile, sections, app
+                     actions as nav cards) rather than a dropdown. -->
+                <a
+                    href={accountRoot}
+                    aria-label={m.shell_profile_menu()}
+                    class="size-9 shrink-0 overflow-hidden rounded-full ring-1 ring-white/10 outline-none transition focus-visible:ring-2 focus-visible:ring-ring md:hidden"
+                >
+                    <ProfileAvatar profile={data.profile} />
+                </a>
                 <DropdownMenu.Root>
                     <DropdownMenu.Trigger
                         aria-label={m.shell_profile_menu()}
-                        class="size-9 shrink-0 overflow-hidden rounded-full ring-1 md:size-8 md:rounded-lg ring-white/10 outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
+                        class="hidden size-8 shrink-0 overflow-hidden rounded-lg ring-1 ring-white/10 outline-none transition focus-visible:ring-2 focus-visible:ring-ring md:block"
                     >
                         <ProfileAvatar profile={data.profile} />
                     </DropdownMenu.Trigger>
@@ -399,13 +418,8 @@
                                     >
                                 {/snippet}
                             </DropdownMenu.Item>
-                            {#if installPrompt}
-                                <DropdownMenu.Item
-                                    onSelect={() => {
-                                        void installPrompt?.prompt();
-                                        installPrompt = null;
-                                    }}
-                                >
+                            {#if installPrompt.available}
+                                <DropdownMenu.Item onSelect={() => installPrompt.show()}>
                                     <MonitorDownIcon />{m.shell_install_app()}
                                 </DropdownMenu.Item>
                             {/if}

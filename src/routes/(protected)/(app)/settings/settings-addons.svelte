@@ -31,6 +31,7 @@
 	import { pageTitle } from "#lib/core/title.svelte.js";
 	import { m } from "#lib/i18n/index.js";
 	import { cn } from "#lib/utils.js";
+	import SettingsGroup from "./settings-group.svelte";
 
 	pageTitle.set(m.settings_section_addons());
 
@@ -307,22 +308,15 @@
 	}
 </script>
 
-<Card.Root class="border border-foreground/10">
-    <Card.Header>
-        <Card.Title role="heading" aria-level={2}
-            >{m.settings_section_addons()}</Card.Title
-        >
-        <Card.Description>
-            {m.settings_addons_description()}
-        </Card.Description>
-    </Card.Header>
-    <Card.Content class="flex flex-col gap-7">
-        <div class="flex flex-col gap-6">
-            <Button onclick={() => (dialogOpen = true)}>
-                <PlusIcon data-icon="inline-start" />
-                {m.settings_addons_add()}
-            </Button>
+{#snippet addButton()}
+    <Button size="sm" onclick={() => (dialogOpen = true)}>
+        <PlusIcon data-icon="inline-start" />
+        {m.settings_addons_add()}
+    </Button>
+{/snippet}
 
+<div class="flex flex-col gap-8">
+    <SettingsGroup title={m.settings_group_installed()} action={addButton} plain>
             <Alert.Root>
                 <InfoIcon />
                 <Alert.Description>
@@ -421,7 +415,7 @@
                                     )}
                                 >
                                     <Card.Content
-                                        class="flex items-center gap-4 py-4"
+                                        class="flex flex-wrap items-center gap-x-4 gap-y-3 py-4"
                                     >
                                         <button
                                             type="button"
@@ -501,7 +495,9 @@
                                             </div>
                                         </div>
 
-                                        <div class="flex items-center gap-1">
+                                        <div
+                                            class="ml-auto flex items-center gap-1 max-sm:basis-full max-sm:justify-end"
+                                        >
                                             {#if addon.configureUrl}
                                                 <Button
                                                     variant="ghost"
@@ -589,18 +585,16 @@
                 {/if}
             {/if}
 
+    </SettingsGroup>
+
             {#if (catalogSourcesQuery.current?.length ?? 0) > 0}
-                <Card.Root>
-                    <Card.Header>
-                        <Card.Title>{m.settings_addons_discover_title()}</Card.Title>
-                        <Card.Description>
-                            {m.settings_addons_discover_description()}
-                        </Card.Description>
-                    </Card.Header>
-                    <Card.Content class="flex flex-col gap-2">
+                <SettingsGroup
+                    title={m.settings_addons_discover_title()}
+                    footer={m.settings_addons_discover_description()}
+                >
                         {#each catalogSourcesQuery.current ?? [] as source (`${source.addonId}|${source.type}|${source.id}`)}
                             <div
-                                class="flex items-center gap-3 rounded-lg border border-border/60 p-3"
+                                class="flex items-center gap-3 py-3 pr-3 pl-4 sm:pl-5"
                             >
                                 <div class="min-w-0 flex-1">
                                     <p class="text-sm font-medium">
@@ -621,12 +615,9 @@
                                 </Button>
                             </div>
                         {/each}
-                    </Card.Content>
-                </Card.Root>
+                </SettingsGroup>
             {/if}
-        </div>
-    </Card.Content>
-</Card.Root>
+</div>
 
 <Dialog.Root bind:open={dialogOpen}>
     <Dialog.Content class="sm:max-w-lg">

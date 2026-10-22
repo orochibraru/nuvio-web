@@ -59,20 +59,22 @@
 	const initialBoost = $derived(
 		Number(page.url.searchParams.get("boost") ?? "1"),
 	);
-	// `?subs=<url>` adds one subtitle track (fetched + converted client-side).
-	const subtitles = $derived(
-		page.url.searchParams.get("subs")
-			? [
-					{
-						id: "harness",
-						lang: "en",
-						url: page.url.searchParams.get("subs") as string,
-						addonName: "Harness",
-						sdh: false,
-					},
-				]
-			: [],
-	);
+	// `?subs=<url>` adds one subtitle track (fetched + converted client-side);
+	// `&sublangs=en,en,fr` repeats it once per language, to fill the picker.
+	const subtitles = $derived.by(() => {
+		const url = page.url.searchParams.get("subs");
+		if (!url) {
+			return [];
+		}
+		const langs = page.url.searchParams.get("sublangs")?.split(",") ?? ["en"];
+		return langs.map((lang, index) => ({
+			id: index === 0 ? "harness" : `harness-${index}`,
+			lang,
+			url,
+			addonName: index % 3 === 2 ? "OpenSubtitles v3" : "Harness",
+			sdh: index % 4 === 3,
+		}));
+	});
 	const numParam = (name: string) => {
 		const raw = page.url.searchParams.get(name);
 		return raw === null ? null : Number(raw);

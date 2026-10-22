@@ -1,6 +1,5 @@
 <script lang="ts">
 	import CheckIcon from "@lucide/svelte/icons/check";
-	import * as Card from "#lib/components/ui/card/index.js";
 	import {
 		getLocale,
 		type Locale,
@@ -12,6 +11,9 @@
 	import { theme } from "#lib/settings/theme.svelte.js";
 	import type { Accent, UiSettings } from "#lib/settings/ui-settings.js";
 	import { cn } from "#lib/utils.js";
+	import SettingsChoice from "./settings-choice.svelte";
+	import SettingsGroup from "./settings-group.svelte";
+	import SettingsRow from "./settings-row.svelte";
 
 	let { update }: { update: (patch: Partial<UiSettings>) => Promise<void> } =
 		$props();
@@ -57,45 +59,26 @@
 	}
 </script>
 
-<Card.Root class="border border-foreground/10">
-  <Card.Header>
-    <Card.Title role="heading" aria-level={2}
-      >{m.settings_section_appearance()}</Card.Title
-    >
-    <Card.Description
-      >{m.settings_appearance_description()}</Card.Description
-    >
-  </Card.Header>
-  <Card.Content class="flex flex-col gap-7">
-    <div class="flex flex-col gap-2.5">
-      <span class="text-sm font-medium">{m.settings_mode()}</span>
-      <div class="flex w-fit gap-1 rounded-full bg-foreground/5 p-1">
-        {#each modes as option (option.value)}
-          <button
-            type="button"
-            onclick={() => update({ mode: option.value })}
-            class={cn(
-              "rounded-full px-4 py-1.5 text-sm font-medium transition",
-              theme.current.mode === option.value
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {option.label}
-          </button>
-        {/each}
-      </div>
-    </div>
+<div class="flex flex-col gap-8">
+  <SettingsGroup title={m.settings_group_theme()}>
+    <SettingsRow label={m.settings_mode()} labelId="mode-label">
+      <SettingsChoice
+        labelledby="mode-label"
+        options={modes}
+        value={theme.current.mode}
+        onSelect={(mode) => update({ mode })}
+      />
+    </SettingsRow>
 
-    <div class="flex flex-col gap-2.5">
-      <span class="text-sm font-medium">{m.settings_dark_style()}</span>
-      <div class="grid grid-cols-2 gap-2 sm:max-w-xs">
+    <SettingsRow label={m.settings_dark_style()} hint={m.settings_dark_style_hint()}>
+      <div class="grid grid-cols-2 gap-2">
         {#each darkStyles as option (option.value)}
           <button
             type="button"
+            aria-pressed={theme.current.darkStyle === option.value}
             onclick={() => update({ darkStyle: option.value })}
             class={cn(
-              "flex flex-col items-start gap-0.5 rounded-xl border px-3.5 py-2.5 text-sm transition",
+              "flex flex-col items-start gap-0.5 rounded-2xl border px-3.5 py-2.5 text-left text-sm transition",
               theme.current.darkStyle === option.value
                 ? "border-primary bg-primary/10 ring-1 ring-primary"
                 : "border-border/60 hover:border-border",
@@ -106,13 +89,9 @@
           </button>
         {/each}
       </div>
-      <p class="text-xs text-muted-foreground">
-        {m.settings_dark_style_hint()}
-      </p>
-    </div>
+    </SettingsRow>
 
-    <div class="flex flex-col gap-2.5">
-      <span class="text-sm font-medium">{m.settings_accent()}</span>
+    <SettingsRow label={m.settings_accent()}>
       <div class="flex flex-wrap gap-3">
         {#each accents as option (option.value)}
           <button
@@ -122,7 +101,7 @@
             data-accent={option.value === "neutral" ? undefined : option.value}
             onclick={() => update({ accent: option.value })}
             class={cn(
-              "flex size-9 items-center justify-center rounded-full ring-2 ring-offset-2 ring-offset-card transition",
+              "flex size-9 items-center justify-center rounded-full ring-2 ring-offset-2 ring-offset-background transition",
               option.value === "neutral" ? "bg-neutral-500" : "bg-primary",
               theme.current.accent === option.value
                 ? "ring-foreground"
@@ -135,37 +114,21 @@
           </button>
         {/each}
       </div>
-    </div>
+    </SettingsRow>
+  </SettingsGroup>
 
-    <div class="flex flex-col gap-2.5">
-      <span id="language-label" class="text-sm font-medium"
-        >{m.settings_language()}</span
-      >
-      <div
-        role="group"
-        aria-labelledby="language-label"
-        class="flex w-fit flex-wrap gap-1 rounded-full bg-foreground/5 p-1"
-      >
-        {#each locales as locale (locale)}
-          <button
-            type="button"
-            lang={locale}
-            aria-pressed={currentLocale === locale}
-            onclick={() => chooseLocale(locale)}
-            class={cn(
-              "rounded-full px-4 py-1.5 text-sm font-medium transition",
-              currentLocale === locale
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {localeNames[locale]}
-          </button>
-        {/each}
-      </div>
-      <p class="text-xs text-muted-foreground">
-        {m.settings_language_hint()}
-      </p>
-    </div>
-  </Card.Content>
-</Card.Root>
+  <SettingsGroup title={m.settings_group_language()} headingId="language-label">
+    <SettingsRow hint={m.settings_language_hint()}>
+      <SettingsChoice
+        labelledby="language-label"
+        options={locales.map((locale) => ({
+          value: locale,
+          label: localeNames[locale],
+          lang: locale,
+        }))}
+        value={currentLocale}
+        onSelect={chooseLocale}
+      />
+    </SettingsRow>
+  </SettingsGroup>
+</div>

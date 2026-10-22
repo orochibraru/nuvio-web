@@ -17,11 +17,16 @@
 	import { toast } from "svelte-sonner";
 	import ScrollRail from "#lib/components/layout/scroll-rail.svelte";
 	import CastRow from "#lib/components/media/cast-row.svelte";
-	import MediaHero from "#lib/components/media/hero.svelte";
+	import MediaHero, {
+		heroPrimary,
+		heroSecondary,
+	} from "#lib/components/media/hero.svelte";
 	import MediaRow from "#lib/components/media/row.svelte";
 	import SeasonCarousel from "#lib/components/media/season-carousel.svelte";
 	import TrailerModal from "#lib/components/media/trailer-modal.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
+	import { Spinner } from "#lib/components/ui/spinner/index.js";
+	import * as Tooltip from "#lib/components/ui/tooltip/index.js";
 	import { streamed } from "#lib/core/stream.svelte.js";
 	import { pageTitle } from "#lib/core/title.svelte.js";
 	import { getLocale, m } from "#lib/i18n/index.js";
@@ -271,11 +276,23 @@
 		ctaStreamCount === 0 && providers.stream.length > 0,
 	);
 	const officialCta = $derived(providers.stream[0] ?? null);
-	// While `ctaStreamCount` is still `null` we don't yet know whether the
-	// primary CTA is "Watch" (an addon stream) or "Watch on <provider>" (an
-	// external hop) : hold the slot as a skeleton instead of showing one and
-	// silently swapping it a moment later.
+	// While `ctaStreamCount` is still `null` the streams are still resolving :
+	// the primary CTA shows disabled with a spinner until they land.
 	const ctaPending = $derived(Boolean(ctaVideoId) && ctaStreamCount === null);
+	const primaryLabel = $derived(
+		contentType === "movie"
+			? progress[id] && !progress[id].completed && progress[id].fraction > 0.02
+				? m.common_resume()
+				: m.watch_detail_watch()
+			: resumeEpisode
+				? resumeEpisode.label
+				: firstEpisode
+					? m.watch_detail_play_episode({
+							season: firstEpisode.season ?? 1,
+							episode: firstEpisode.episode ?? 1,
+						})
+					: null,
+	);
 
 	function toggleWatched(
 		videoId: string,
@@ -445,14 +462,34 @@
                 : seriesFlag}
         >
             {#snippet actions()}
-                {#if ctaPending}
-                    <div
-                        class="skeleton h-11 w-32 rounded-md"
-                        aria-hidden="true"
-                    ></div>
+                {#if ctaPending && primaryLabel}
+                    <Tooltip.Provider delayDuration={150}>
+                        <Tooltip.Root>
+                            <Tooltip.Trigger>
+                                {#snippet child({ props })}
+                                    <!-- `aria-disabled`, not `disabled`: a
+                                         disabled button gets no hover or
+                                         focus, so no tooltip either. -->
+                                    <Button
+                                        {...props}
+                                        size="lg"
+                                        aria-disabled="true"
+                                        class={`cursor-progress opacity-60 ${heroPrimary}`}
+                                    >
+                                        <Spinner data-icon="inline-start" />
+                                        {primaryLabel}
+                                    </Button>
+                                {/snippet}
+                            </Tooltip.Trigger>
+                            <Tooltip.Content>
+                                {m.watch_detail_loading_streams()}
+                            </Tooltip.Content>
+                        </Tooltip.Root>
+                    </Tooltip.Provider>
                 {:else if useOfficialCta && officialCta}
                     <Button
                         size="lg"
+                        class={heroPrimary}
                         href={officialCta.url}
                         target="_blank"
                         rel="noopener noreferrer"
@@ -467,43 +504,29 @@
                             class="size-3.5 opacity-70"
                         />
                     </Button>
-                {:else if contentType === "movie"}
-                    <Button size="lg" onclick={() => watch(id)}>
+                {:else if primaryLabel}
+                    <Button
+                        size="lg"
+                        class={heroPrimary}
+                        onclick={() =>
+                            watch(
+                                contentType === "movie"
+                                    ? id
+                                    : (resumeEpisode?.id ?? firstEpisode?.id ?? id),
+                            )}
+                    >
                         <PlayIcon
                             data-icon="inline-start"
                             class="fill-current"
                         />
-                        {#if progress[id] && !progress[id].completed && progress[id].fraction > 0.02}
-                            {m.common_resume()}
-                        {:else}
-                            {m.watch_detail_watch()}
-                        {/if}
-                    </Button>
-                {:else if resumeEpisode}
-                    <Button size="lg" onclick={() => watch(resumeEpisode.id)}>
-                        <PlayIcon
-                            data-icon="inline-start"
-                            class="fill-current"
-                        />
-                        {resumeEpisode.label}
-                    </Button>
-                {:else if firstEpisode}
-                    <Button size="lg" onclick={() => watch(firstEpisode.id)}>
-                        <PlayIcon
-                            data-icon="inline-start"
-                            class="fill-current"
-                        />
-                        {m.watch_detail_play_episode({
-                            season: firstEpisode.season ?? 1,
-                            episode: firstEpisode.episode ?? 1,
-                        })}
+                        {primaryLabel}
                     </Button>
                 {/if}
                 {#if ctaVideoId}
                     <Button
                         size="lg"
                         variant="outline"
-                        class="glass-button"
+                        class={heroSecondary}
                         onclick={() => selectStream(ctaVideoId)}
                     >
                         <ListVideoIcon data-icon="inline-start" />
@@ -514,7 +537,7 @@
                     <Button
                         size="lg"
                         variant="outline"
-                        class="glass-button"
+                        class={heroSecondary}
                         onclick={watchRandom}
                     >
                         <ShuffleIcon data-icon="inline-start" />
@@ -525,7 +548,7 @@
                     size="lg"
                     variant="outline"
                     onclick={toggle}
-                    class="group glass-button"
+                    class={`group ${heroSecondary}`}
                 >
                     {#if inLibrary}
                         <BookmarkIcon
@@ -554,7 +577,7 @@
                     <Button
                         size="lg"
                         variant="outline"
-                        class="group glass-button"
+                        class={`group ${heroSecondary}`}
                         onclick={() =>
                             toggleWatched(
                                 id,
@@ -589,7 +612,7 @@
                     <Button
                         size="lg"
                         variant="outline"
-                        class="group glass-button"
+                        class={`group ${heroSecondary}`}
                         onclick={markAllWatched}
                     >
                         <EyeIcon

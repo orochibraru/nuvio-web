@@ -5,6 +5,7 @@ import {
 	isAndroid,
 	isIos,
 	magnetLink,
+	prefersExternal,
 } from "./external-player.ts";
 
 const ANDROID =
@@ -70,8 +71,47 @@ describe("externalPlayerLink", () => {
 		expect(new URL(ios as string).searchParams.get("url")).toBe(DEBRID);
 	});
 
+	it("targets the app picked in Settings on iOS", () => {
+		const movie = "https://cdn.example/movie.mkv";
+		expect(externalPlayerLink(movie, IPHONE, "infuse")).toBe(
+			"infuse://x-callback-url/play?url=https%3A%2F%2Fcdn.example%2Fmovie.mkv",
+		);
+		expect(externalPlayerLink(movie, IPHONE, "vidhub")).toBe(
+			"open-vidhub://x-callback-url/open?url=https%3A%2F%2Fcdn.example%2Fmovie.mkv",
+		);
+		expect(externalPlayerLink(movie, IPHONE, "outplayer")).toBe(
+			"outplayer://cdn.example/movie.mkv",
+		);
+		expect(externalPlayerLink(movie, IPHONE, "vlc")).toBe(
+			externalPlayerLink(movie, IPHONE),
+		);
+	});
+
+	it("keeps the Android chooser whatever app is picked", () => {
+		expect(
+			externalPlayerLink("https://cdn.example/movie.mkv", ANDROID, "infuse"),
+		).toMatch(/^intent:\/\//);
+	});
+
 	it("is null on desktop, where no scheme is reliably registered", () => {
 		expect(externalPlayerLink("https://cdn.example/movie.mkv", MAC)).toBeNull();
+	});
+
+	it("uses a picked app's scheme on a Mac, only when it registers one", () => {
+		const movie = "https://cdn.example/movie.mkv";
+		expect(externalPlayerLink(movie, MAC, "infuse")).toMatch(/^infuse:\/\//);
+		expect(externalPlayerLink(movie, MAC, "iina")).toBe(
+			"iina://weblink?url=https%3A%2F%2Fcdn.example%2Fmovie.mkv",
+		);
+		// VLC for Mac registers no scheme : the link used to do nothing at all.
+		expect(externalPlayerLink(movie, MAC, "vlc")).toBeNull();
+		expect(externalPlayerLink(movie, MAC, "outplayer")).toBeNull();
+	});
+
+	it("falls back to VLC on iOS for an app that doesn't run there", () => {
+		expect(
+			externalPlayerLink("https://cdn.example/movie.mkv", IPHONE, "iina"),
+		).toMatch(/^vlc-x-callback:\/\//);
 	});
 
 	it("is null for a magnet link or junk, on any platform", () => {
@@ -79,6 +119,17 @@ describe("externalPlayerLink", () => {
 		expect(externalPlayerLink("not a url", ANDROID)).toBeNull();
 		expect(externalPlayerLink("", ANDROID)).toBeNull();
 		expect(externalPlayerLink(null, ANDROID)).toBeNull();
+	});
+});
+
+describe("prefersExternal", () => {
+	it("takes over playback only where the picked app runs", () => {
+		expect(prefersExternal("browser", IPHONE)).toBe(false);
+		expect(prefersExternal("outplayer", IPHONE)).toBe(true);
+		expect(prefersExternal("iina", IPHONE)).toBe(false);
+		expect(prefersExternal("iina", MAC)).toBe(true);
+		expect(prefersExternal("vlc", MAC)).toBe(false);
+		expect(prefersExternal("iina", ANDROID)).toBe(true);
 	});
 });
 

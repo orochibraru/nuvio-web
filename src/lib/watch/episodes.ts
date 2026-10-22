@@ -64,15 +64,34 @@ function following(
  * Continue Watching rolls forward to it, and an episode that has not aired has
  * no streams to play.
  */
+/** The addon's title for one episode, when it names it. */
+export function episodeTitle(
+	videos: Videos | undefined,
+	season: number | null,
+	episode: number | null,
+): string | null {
+	if (season == null || episode == null) {
+		return null;
+	}
+	const video = videos?.find(
+		(entry) => entry.season === season && entry.episode === episode,
+	);
+	return video?.title?.trim() || null;
+}
+
 export function nextEpisode(
 	videos: Videos | undefined,
 	season: number | null,
 	episode: number | null,
 	now = Date.now(),
-): { season: number; episode: number } | null {
+): { season: number; episode: number; title: string | null } | null {
 	const candidate = following(videos, season, episode);
 	return candidate && isAired(candidate.released, now)
-		? { season: candidate.season ?? 0, episode: candidate.episode ?? 0 }
+		? {
+				season: candidate.season ?? 0,
+				episode: candidate.episode ?? 0,
+				title: candidate.title?.trim() || null,
+			}
 		: null;
 }
 

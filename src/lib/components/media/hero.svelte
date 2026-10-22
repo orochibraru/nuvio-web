@@ -1,3 +1,12 @@
+<script lang="ts" module>
+	// The primary CTA is a full-width pill and the rest a row of icon-over-label
+	// tiles under it, like the Nuvio app.
+	export const heroPrimary =
+		"h-12 basis-full rounded-full bg-white text-base text-black hover:bg-white/90";
+	export const heroSecondary =
+		"glass-button h-auto min-w-0 flex-1 basis-0 flex-col gap-1.5 rounded-2xl px-1 py-2.5 text-[11px] leading-tight whitespace-normal";
+</script>
+
 <script lang="ts">
 	import CalendarClockIcon from "@lucide/svelte/icons/calendar-clock";
 	import { mode } from "mode-watcher";
@@ -250,7 +259,7 @@
         {/if}
 
         {#if actions}
-          <div class="mt-2 flex flex-wrap items-center gap-3">
+          <div class="mt-2 flex w-full max-w-md flex-wrap gap-2">
             {@render actions()}
           </div>
         {/if}

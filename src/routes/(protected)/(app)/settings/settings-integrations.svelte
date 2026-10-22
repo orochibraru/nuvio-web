@@ -1,12 +1,12 @@
 <script lang="ts">
 	import EyeIcon from "@lucide/svelte/icons/eye";
 	import EyeOffIcon from "@lucide/svelte/icons/eye-off";
-	import * as Card from "#lib/components/ui/card/index.js";
-	import * as Field from "#lib/components/ui/field/index.js";
 	import { Input } from "#lib/components/ui/input/index.js";
 	import { m } from "#lib/i18n/index.js";
 	import { theme } from "#lib/settings/theme.svelte.js";
 	import type { UiSettings } from "#lib/settings/ui-settings.js";
+	import SettingsGroup from "./settings-group.svelte";
+	import SettingsRow from "./settings-row.svelte";
 
 	let { update }: { update: (patch: Partial<UiSettings>) => Promise<void> } =
 		$props();
@@ -29,58 +29,45 @@
 	}
 </script>
 
-<Card.Root class="border border-foreground/10">
-  <Card.Header>
-    <Card.Title role="heading" aria-level={2}
-      >{m.settings_section_integrations()}</Card.Title
-    >
-    <Card.Description
-      >{m.settings_integrations_description()}</Card.Description
-    >
-  </Card.Header>
-  <Card.Content>
-    <Field.FieldGroup>
-      <Field.Field>
-        <Field.FieldLabel for="introdb-key">
-          <a
-            href="https://theintrodb.org"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="underline underline-offset-4 hover:text-foreground"
-          >
-            TheIntroDB
-          </a>
-          {m.settings_introdb_key_suffix()}
-        </Field.FieldLabel>
-        <div class="relative">
-          <Input
-            id="introdb-key"
-            type={visible ? "text" : "password"}
-            autocomplete="off"
-            spellcheck="false"
-            placeholder={m.settings_introdb_placeholder()}
-            class="pr-10"
-            {value}
-            oninput={(event) => (draft = event.currentTarget.value)}
-            onblur={commit}
-            onkeydown={(event) =>
-              event.key === "Enter" && event.currentTarget.blur()}
-          />
-          <button
-            type="button"
-            aria-label={visible ? m.settings_key_hide() : m.settings_key_show()}
-            onclick={() => (visible = !visible)}
-            class="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-muted-foreground hover:text-foreground"
-          >
-            {#if visible}<EyeOffIcon class="size-4" />{:else}<EyeIcon
-                class="size-4"
-              />{/if}
-          </button>
-        </div>
-        <Field.FieldDescription>
-          {m.settings_introdb_hint()}
-        </Field.FieldDescription>
-      </Field.Field>
-    </Field.FieldGroup>
-  </Card.Content>
-</Card.Root>
+{#snippet introDbLabel()}
+  <a
+    href="https://theintrodb.org"
+    target="_blank"
+    rel="noopener noreferrer"
+    class="underline underline-offset-4 hover:text-foreground"
+  >
+    TheIntroDB
+  </a>
+  {m.settings_introdb_key_suffix()}
+{/snippet}
+
+<SettingsGroup title="TheIntroDB">
+  <SettingsRow label={introDbLabel} hint={m.settings_introdb_hint()}>
+    <div class="relative">
+      <Input
+        id="introdb-key"
+        aria-label={`TheIntroDB ${m.settings_introdb_key_suffix()}`}
+        type={visible ? "text" : "password"}
+        autocomplete="off"
+        spellcheck="false"
+        placeholder={m.settings_introdb_placeholder()}
+        class="pr-10"
+        {value}
+        oninput={(event) => (draft = event.currentTarget.value)}
+        onblur={commit}
+        onkeydown={(event) =>
+          event.key === "Enter" && event.currentTarget.blur()}
+      />
+      <button
+        type="button"
+        aria-label={visible ? m.settings_key_hide() : m.settings_key_show()}
+        onclick={() => (visible = !visible)}
+        class="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-muted-foreground hover:text-foreground"
+      >
+        {#if visible}<EyeOffIcon class="size-4" />{:else}<EyeIcon
+            class="size-4"
+          />{/if}
+      </button>
+    </div>
+  </SettingsRow>
+</SettingsGroup>

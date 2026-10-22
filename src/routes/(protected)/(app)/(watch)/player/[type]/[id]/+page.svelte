@@ -20,7 +20,10 @@
 	import PlayerEpisodesPanel from "#lib/player/components/episodes-panel.svelte";
 	import PlaybackLoading from "#lib/player/components/playback-loading.svelte";
 	import VideoPlayer from "#lib/player/components/video-player.svelte";
-	import { externalPlayerHandoff } from "#lib/player/external-player.js";
+	import {
+		externalPlayerHandoff,
+		prefersExternal,
+	} from "#lib/player/external-player.js";
 	import { mediaSegments } from "#lib/player/segments.remote.js";
 	import { saveUiSettings } from "#lib/settings/settings.remote.js";
 	import { theme } from "#lib/settings/theme.svelte.js";
@@ -274,9 +277,15 @@
 		browserCanPlayCodec(videoCodec) === "unsupported",
 	);
 
+	// Settings send streams to an external app : the not-playable screen then
+	// offers the handoff instead of mounting <video>.
+	const preferExternal = $derived(
+		browser &&
+			prefersExternal(theme.current.externalPlayer, navigator.userAgent),
+	);
 	const playableSrc = $derived(
 		offlineSrc ??
-			(active && !active.notWebReady && !codecBlocked
+			(active && !active.notWebReady && !codecBlocked && !preferExternal
 				? (active.url ?? null)
 				: null),
 	);
@@ -594,7 +603,7 @@
 	// it. `playerLink` is null on desktop, where no player registers a URL
 	// scheme, so there the copy button is the handoff.
 	const externalLink = $derived(
-		active && (active.notWebReady || codecBlocked)
+		active && (active.notWebReady || codecBlocked || preferExternal)
 			? (active.url ?? active.externalUrl)
 			: null,
 	);
@@ -613,6 +622,7 @@
 						name: active.label ?? context.heading,
 					},
 					navigator.userAgent,
+					theme.current.externalPlayer,
 				)
 			: null,
 	);
@@ -804,6 +814,8 @@
       <p class="text-lg font-semibold">
         {#if !active}
           {m.watch_no_playable_stream()}
+        {:else if preferExternal}
+          {m.watch_external_title()}
         {:else if codecBlocked}
           {m.watch_codec_blocked_title()}
         {:else}
@@ -811,7 +823,9 @@
         {/if}
       </p>
       <p class="text-sm text-white/60">
-        {#if active && codecBlocked}
+        {#if active && preferExternal}
+          {m.watch_external_body()}
+        {:else if active && codecBlocked}
           {m.watch_codec_blocked_body({ codec: videoCodec ?? "" })}
         {:else if active}
           {m.watch_not_web_ready_body()}
@@ -833,17 +847,23 @@
           </Button>
         {/if}
         <Button
-          variant={officialCta ? "secondary" : "default"}
+          variant={officialCta || preferExternal ? "secondary" : "default"}
           onclick={openSources}
         >
           {m.watch_choose_source()}
         </Button>
         {#if handoff?.kind === "link"}
-          <Button variant="secondary" href={handoff.href}>
+          <Button
+            variant={preferExternal ? "default" : "secondary"}
+            href={handoff.href}
+          >
             <ExternalLinkIcon data-icon="inline-start" /> {m.common_play_external()}
           </Button>
         {:else if handoff?.kind === "copy"}
-          <Button variant="secondary" onclick={playExternally}>
+          <Button
+            variant={preferExternal ? "default" : "secondary"}
+            onclick={playExternally}
+          >
             <ExternalLinkIcon data-icon="inline-start" /> {m.common_play_external()}
           </Button>
         {/if}

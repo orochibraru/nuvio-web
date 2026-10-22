@@ -13,6 +13,17 @@
       unit-tested only. iOS ignores `video.volume`, so the volume swipe moves
       the bar there and nothing else; brightness is a CSS filter on the video,
       not the screen backlight.
+- [ ] **External player setting: confirm the apps open on real devices.** The
+      VLC / Infuse / Outplayer / VidHub / IINA links copy stremio-core's schemes
+      and are only checked as `href`s. Outplayer's form drops `http` vs `https`.
+      An iPad in desktop mode reports as a Mac, so it only gets the Mac apps
+      (Infuse, VidHub).
+- [ ] **Browser meta cache: confirm on Discover.** `hooks.server.ts` marks a
+      title page's and Discover's navigation data, plus the addon-meta remote
+      queries, `private, max-age=900`. Seen on a title page's `__data.json`
+      only; Discover goes through the same route check but wasn't observed.
+- [ ] **Subtitle picker: try it on a real phone in fullscreen.** Checked in
+      Playwright's harness only, where the inline player is short.
 - [ ] **Mobile tab bar: a Calendar tab.** The mockup has one; there is no
       calendar route yet, so the fourth tab is Collections for now.
 - [ ] **In-browser fix: confirm on real debrid hosts.** Proven on local fixtures

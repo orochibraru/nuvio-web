@@ -19,11 +19,11 @@ const videos = [
 
 describe("nextEpisode", () => {
 	it("returns the next episode within a season", () => {
-		expect(nextEpisode(videos, 1, 1)).toEqual({ season: 1, episode: 2 });
+		expect(nextEpisode(videos, 1, 1)).toMatchObject({ season: 1, episode: 2 });
 	});
 
 	it("rolls over to the next season", () => {
-		expect(nextEpisode(videos, 1, 2)).toEqual({ season: 2, episode: 1 });
+		expect(nextEpisode(videos, 1, 2)).toMatchObject({ season: 2, episode: 1 });
 	});
 
 	it("returns null for the last episode", () => {
@@ -37,7 +37,7 @@ describe("nextEpisode", () => {
 
 	it("ignores season 0 specials", () => {
 		// s1e2 -> s2e1, never the special
-		expect(nextEpisode(videos, 1, 2)).toEqual({ season: 2, episode: 1 });
+		expect(nextEpisode(videos, 1, 2)).toMatchObject({ season: 2, episode: 1 });
 	});
 });
 
@@ -87,7 +87,10 @@ describe("isAired", () => {
 // episode with no streams yet must never come out of it.
 describe("nextEpisode and unaired episodes", () => {
 	it("does not hand back an episode that has not aired", () => {
-		expect(nextEpisode(airing, 1, 1, NOW)).toEqual({ season: 1, episode: 2 });
+		expect(nextEpisode(airing, 1, 1, NOW)).toMatchObject({
+			season: 1,
+			episode: 2,
+		});
 		expect(nextEpisode(airing, 1, 2, NOW)).toBeNull();
 	});
 });

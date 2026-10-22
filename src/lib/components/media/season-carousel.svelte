@@ -129,8 +129,8 @@
     {#if grouped.length > 1}
       <ScrollRail
         label={m.watch_seasons()}
-        class="-mx-1 max-w-full"
-        trackClass="gap-1.5 px-1"
+        class="-mx-1 max-w-full max-sm:-mx-1"
+        trackClass="gap-1.5 px-1 max-sm:px-1"
         arrows={false}
       >
         {#each grouped as group (group.season)}

@@ -507,6 +507,7 @@
     activeCaption={captions.activeCaption}
     pendingCaption={captions.pendingCaption}
     failed={captions.failed}
+    {preferredLanguage}
     {subtitleSize}
     {subtitleColor}
     {subtitleBackground}

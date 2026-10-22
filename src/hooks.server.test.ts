@@ -80,6 +80,7 @@ function fakeEvent() {
 		cookies: { get: () => undefined, set: () => {}, delete: () => {} },
 		fetch: async () => new Response(),
 		url: new URL("http://localhost/x"),
+		route: { id: null },
 		request: { method: "GET" },
 		locals: {} as Record<string, unknown>,
 	};
@@ -187,6 +188,53 @@ describe("handle", () => {
 
 		await handle({ event: fakeEvent(), resolve: ok } as never);
 		expect(logger.info).toHaveBeenCalledWith("GET /x", expect.anything());
+	});
+
+	it("logs no access line for remote calls or revalidation", async () => {
+		await handle({
+			event: { ...fakeEvent(), isRemoteRequest: true },
+			resolve: ok,
+		} as never);
+		await handle({
+			event: { ...fakeEvent(), isDataRequest: true },
+			resolve: ok,
+		} as never);
+		expect(logger.info).not.toHaveBeenCalledWith("GET /x", expect.anything());
+	});
+
+	it("lets the browser keep addon meta for 15 minutes, and nothing else", async () => {
+		const cacheControl = async (over: Record<string, unknown>) =>
+			(
+				await handle({
+					event: { ...fakeEvent(), ...over },
+					resolve: ok,
+				} as never)
+			).headers.get("cache-control");
+		const detailData = (mask: string) => ({
+			isDataRequest: true,
+			route: { id: "/(protected)/(app)/(watch)/detail/[type]/[id]" },
+			request: {
+				method: "GET",
+				url: `http://localhost/detail/movie/tt1/__data.json?x-sveltekit-invalidated=${mask}`,
+			},
+		});
+
+		expect(await cacheControl(detailData("001"))).toBe("private, max-age=900");
+		// `invalidateAll()` (a Retry button) must reach the server.
+		expect(await cacheControl(detailData("111"))).toBeNull();
+		expect(
+			await cacheControl({
+				isRemoteRequest: true,
+				url: new URL("http://localhost/_app/remote/abc/getMeta"),
+			}),
+		).toBe("private, max-age=900");
+		expect(
+			await cacheControl({
+				isRemoteRequest: true,
+				url: new URL("http://localhost/_app/remote/abc/resolveStreams"),
+			}),
+		).toBeNull();
+		expect(await cacheControl({})).toBeNull();
 	});
 
 	it("disposes the request scope even when the route throws", async () => {

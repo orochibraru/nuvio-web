@@ -178,7 +178,7 @@
   </div>
 
   {#if !catalogsReady && catalogs.length === 0}
-    <div class="no-scrollbar -mx-2 flex gap-2 overflow-x-auto px-2 py-1">
+    <div class="no-scrollbar -mx-2 max-sm:-mx-6 flex gap-2 overflow-x-auto px-2 max-sm:px-6 py-1">
       {#each { length: 6 } as _skeleton, i (i)}
         <div class="skeleton h-8 w-24 shrink-0 rounded-full"></div>
       {/each}
