@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.0.24](https://github.com/orochibraru/nuvio-web/compare/v1.0.23...v1.0.24) (2026-10-22)
+
+### Features
+
+* **ui:** one filter drawer everywhere, search replaces discover and the command palette ([d95a272](https://github.com/orochibraru/nuvio-web/commit/d95a2728384ae1131ef95123e8082b02eaa993ca))
+* **mobile:** app-style settings, account, sheets and player pickers, meta browser cache ([5ba5279](https://github.com/orochibraru/nuvio-web/commit/5ba5279e2dcd855a38e000160613479498c2d61e))
+* **player:** touch gestures on phones and tablets (#45) ([3811591](https://github.com/orochibraru/nuvio-web/commit/38115910452ade403943cda01831dd1b9a34a5ed))
+
+### Documentation
+
+* refresh screenshots, add phone showcase, rewrite architecture around data flow ([1bec7d6](https://github.com/orochibraru/nuvio-web/commit/1bec7d66f1b799101d946adeb53998c79c51c397))
+
+### Code Refactoring
+
+* **settings:** drop the redundant account card from the phone list ([a1f41dc](https://github.com/orochibraru/nuvio-web/commit/a1f41dc588e693699470a08b6cd6df0c5175af53))
+
 ## [1.0.23](https://github.com/orochibraru/nuvio-web/compare/v1.0.22...v1.0.23) (2026-10-21)
 
 ### Features
