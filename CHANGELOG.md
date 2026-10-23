@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.25](https://github.com/orochibraru/nuvio-web/compare/v1.0.24...v1.0.25) (2026-10-23)
+
+### Code Refactoring
+
+* **settings,account:** one route per section under a shared layout ([7154431](https://github.com/orochibraru/nuvio-web/commit/71544319345bdb3ee9d9adfb5902b3a87d2f1e3c))
+
 ## [1.0.24](https://github.com/orochibraru/nuvio-web/compare/v1.0.23...v1.0.24) (2026-10-22)
 
 ### Features
