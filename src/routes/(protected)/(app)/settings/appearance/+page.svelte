@@ -1,5 +1,6 @@
 <script lang="ts">
 	import CheckIcon from "@lucide/svelte/icons/check";
+	import { pageTitle } from "#lib/core/title.svelte.js";
 	import {
 		getLocale,
 		type Locale,
@@ -8,15 +9,17 @@
 		m,
 		setLocale,
 	} from "#lib/i18n/index.js";
+	import SettingsChoice from "#lib/settings/components/settings-choice.svelte";
+	import SettingsGroup from "#lib/settings/components/settings-group.svelte";
+	import SettingsRow from "#lib/settings/components/settings-row.svelte";
+	import { getSettingsUpdate } from "#lib/settings/save-context.js";
 	import { theme } from "#lib/settings/theme.svelte.js";
 	import type { Accent, UiSettings } from "#lib/settings/ui-settings.js";
 	import { cn } from "#lib/utils.js";
-	import SettingsChoice from "./settings-choice.svelte";
-	import SettingsGroup from "./settings-group.svelte";
-	import SettingsRow from "./settings-row.svelte";
 
-	let { update }: { update: (patch: Partial<UiSettings>) => Promise<void> } =
-		$props();
+	const update = getSettingsUpdate();
+
+	pageTitle.set(m.settings_section_appearance());
 
 	const modes: Array<{ value: UiSettings["mode"]; label: string }> = [
 		{ value: "system", label: m.settings_mode_system() },

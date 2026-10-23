@@ -4,14 +4,18 @@ import ClockIcon from "@lucide/svelte/icons/clock";
 import HardDriveIcon from "@lucide/svelte/icons/hard-drive";
 import { m } from "#lib/i18n/index.js";
 import type { SettingsSection } from "#lib/settings/sections.js";
+import { resolve } from "$app/paths";
 
 /**
  * The Account sections, in order : shared by the page and the app header's
- * sub-navigation, like `SETTINGS_SECTIONS`. The section lives in `?tab=`.
+ * sub-navigation, like `SETTINGS_SECTIONS`. Each is a page at `/account/<value>`.
  */
 export const ACCOUNT_SECTIONS: readonly SettingsSection[] = [
 	{
 		value: "overview",
+		get href() {
+			return resolve("account/overview");
+		},
 		get label() {
 			return m.account_tab_overview();
 		},
@@ -22,6 +26,9 @@ export const ACCOUNT_SECTIONS: readonly SettingsSection[] = [
 	},
 	{
 		value: "history",
+		get href() {
+			return resolve("account/history");
+		},
 		get label() {
 			return m.nav_watch_history();
 		},
@@ -32,6 +39,9 @@ export const ACCOUNT_SECTIONS: readonly SettingsSection[] = [
 	},
 	{
 		value: "stats",
+		get href() {
+			return resolve("account/stats");
+		},
 		get label() {
 			return m.account_tab_stats();
 		},
@@ -42,6 +52,9 @@ export const ACCOUNT_SECTIONS: readonly SettingsSection[] = [
 	},
 	{
 		value: "storage",
+		get href() {
+			return resolve("account/storage");
+		},
 		get label() {
 			return m.account_tab_storage();
 		},
@@ -51,16 +64,3 @@ export const ACCOUNT_SECTIONS: readonly SettingsSection[] = [
 		icon: HardDriveIcon,
 	},
 ] as const;
-
-/** Narrows an untrusted `?tab=` value to a section that exists. */
-export function accountSectionFrom(raw: string | null): string {
-	return (
-		ACCOUNT_SECTIONS.find((section) => section.value === raw)?.value ??
-		ACCOUNT_SECTIONS[0].value
-	);
-}
-
-/** `?tab=` for one section; the default one keeps a bare `/account`. */
-export function accountSectionQuery(value: string): string {
-	return value === ACCOUNT_SECTIONS[0].value ? "" : `?tab=${value}`;
-}

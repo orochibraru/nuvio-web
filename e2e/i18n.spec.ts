@@ -11,7 +11,7 @@ test("i18n: switching to French re-renders the app in French, and back", async (
 	await signIn(context);
 	const errors = collectRuntimeErrors(page);
 
-	await page.goto("/settings");
+	await page.goto("/settings/appearance");
 	await page.getByRole("button", { name: "Français", exact: true }).click();
 
 	await expect(page.locator("html")).toHaveAttribute("lang", "fr", {

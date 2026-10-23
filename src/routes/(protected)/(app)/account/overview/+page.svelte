@@ -2,14 +2,14 @@
 	import ExternalLinkIcon from "@lucide/svelte/icons/external-link";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import * as Card from "#lib/components/ui/card/index.js";
+	import { pageTitle } from "#lib/core/title.svelte.js";
 	import { getLocale, m } from "#lib/i18n/index.js";
 	import { NUVIO_WEBSITE_URL } from "#lib/nuvio/index.js";
-	import { signOut } from "../../../auth/auth.remote.ts";
+	import { signOut } from "../../../../auth/auth.remote.ts";
 
-	let {
-		data,
-	}: { data: { user: { email?: string; created_at?: string } | null } } =
-		$props();
+	let { data } = $props();
+
+	pageTitle.set(m.account_tab_overview());
 
 	const memberSince = $derived(
 		data.user?.created_at

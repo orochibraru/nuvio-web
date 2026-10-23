@@ -27,7 +27,7 @@ test("the Profile tab opens the account page, whose cards drill into a section",
 		page.getByRole("link", { name: /^Switch profile/ }),
 	).toBeVisible();
 	await page.getByRole("link", { name: /^Stats/ }).click();
-	await expect(page).toHaveURL(/\/account\?tab=stats$/);
+	await expect(page).toHaveURL(/\/account\/stats$/);
 	await expect(
 		page.getByRole("heading", { name: "Stats", level: 1 }),
 	).toBeVisible();

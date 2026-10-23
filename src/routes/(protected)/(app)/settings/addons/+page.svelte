@@ -30,8 +30,8 @@
 	import { Spinner } from "#lib/components/ui/spinner/index.js";
 	import { pageTitle } from "#lib/core/title.svelte.js";
 	import { m } from "#lib/i18n/index.js";
+	import SettingsGroup from "#lib/settings/components/settings-group.svelte";
 	import { cn } from "#lib/utils.js";
-	import SettingsGroup from "./settings-group.svelte";
 
 	pageTitle.set(m.settings_section_addons());
 

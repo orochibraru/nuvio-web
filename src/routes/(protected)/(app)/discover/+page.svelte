@@ -240,7 +240,7 @@
       description={m.discover_no_catalogs_description()}
     >
       {#snippet actions()}
-        <Button href={`${resolve("settings")}?tab=addons`} variant="outline">{m.common_manage_addons()}</Button
+        <Button href={resolve("settings/addons")} variant="outline">{m.common_manage_addons()}</Button
         >
       {/snippet}
     </EmptyState>
@@ -266,7 +266,7 @@
               {m.discover_clear_genre()}
             </Button>
           {:else}
-            <Button href={`${resolve("settings")}?tab=addons`} variant="outline"
+            <Button href={resolve("settings/addons")} variant="outline"
               >{m.common_manage_addons()}</Button
             >
           {/if}

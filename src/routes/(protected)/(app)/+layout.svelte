@@ -11,11 +11,7 @@
 	import ShieldIcon from "@lucide/svelte/icons/shield";
 	import UsersIcon from "@lucide/svelte/icons/users";
 	import XIcon from "@lucide/svelte/icons/x";
-	import {
-		ACCOUNT_SECTIONS,
-		accountSectionFrom,
-		accountSectionQuery,
-	} from "#lib/account/sections.js";
+	import { ACCOUNT_SECTIONS } from "#lib/account/sections.js";
 	import FirstRunNotice from "#lib/components/chrome/first-run-notice.svelte";
 	import HealthBanner from "#lib/components/chrome/health-banner.svelte";
 	import { installPrompt } from "#lib/components/chrome/install-prompt.svelte.js";
@@ -29,11 +25,7 @@
 	import { m } from "#lib/i18n/index.js";
 	import { SEARCH_FOCUS_EVENT } from "#lib/search/focus.js";
 	import { searchHistory } from "#lib/search/search-history.svelte.js";
-	import {
-		SETTINGS_SECTIONS,
-		settingsSectionFrom,
-		settingsSectionQuery,
-	} from "#lib/settings/sections.js";
+	import { SETTINGS_SECTIONS } from "#lib/settings/sections.js";
 	import { theme } from "#lib/settings/theme.svelte.js";
 	import { sync } from "#lib/sync/store.svelte.js";
 	import { syncOwner } from "#lib/sync/types.js";
@@ -111,28 +103,21 @@
 	// Settings replaces the main nav row with its own sections rather than
 	// stacking a second bar under it: one bar's worth of height, and the row you
 	// are navigating within is the one under your cursor. Below `md` the header
-	// nav is hidden entirely, so the page renders its own pill row there.
+	// nav is hidden entirely, and the bare `/settings` page lists the sections.
 	// Account does the same with its own sections.
 	const settingsRoot = resolve("settings");
 	const accountRoot = resolve("account");
 	const subnav = $derived.by(() => {
-		const tab = page.url.searchParams.get("tab");
-		if (page.url.pathname === settingsRoot) {
+		if (isActive(settingsRoot)) {
 			return {
-				root: settingsRoot,
 				sections: SETTINGS_SECTIONS,
-				current: settingsSectionFrom(tab),
-				query: settingsSectionQuery,
 				label: m.settings_sections_label(),
 				leave: m.shell_leave_settings(),
 			};
 		}
-		if (page.url.pathname === accountRoot) {
+		if (isActive(accountRoot)) {
 			return {
-				root: accountRoot,
 				sections: ACCOUNT_SECTIONS,
-				current: accountSectionFrom(tab),
-				query: accountSectionQuery,
 				label: m.account_sections_label(),
 				leave: m.shell_leave_account(),
 			};
@@ -321,9 +306,9 @@
                         <span class="sr-only">{subnav?.leave}</span>
                     </a>
                     {#each subnav?.sections ?? [] as section (section.value)}
-                        {@const active = subnav?.current === section.value}
+                        {@const active = isActive(section.href)}
                         <a
-                            href={(subnav?.root ?? "") + (subnav?.query(section.value) ?? "")}
+                            href={section.href}
                             tabindex={onSettings ? undefined : -1}
                             aria-current={active ? "page" : undefined}
                             class={cn(
@@ -379,14 +364,14 @@
                             </DropdownMenu.Item>
                             <DropdownMenu.Item>
                                 {#snippet child({ props })}
-                                    <a href={resolve("settings")} {...props}
+                                    <a href={resolve("settings/appearance")} {...props}
                                         ><SettingsIcon />{m.nav_settings()}</a
                                     >
                                 {/snippet}
                             </DropdownMenu.Item>
                             <DropdownMenu.Item>
                                 {#snippet child({ props })}
-                                    <a href={resolve("account")} {...props}
+                                    <a href={resolve("account/overview")} {...props}
                                         ><CircleUserIcon />{m.nav_account()}</a
                                     >
                                 {/snippet}
@@ -470,12 +455,12 @@
                 >
 
                 <a
-                    href={resolve("settings")}
+                    href={resolve("settings/appearance")}
                     class="transition hover:text-foreground">{m.shell_appearance()}</a
                 >
 
                 <a
-                    href={`${resolve("settings")}?tab=addons`}
+                    href={resolve("settings/addons")}
                     class="transition hover:text-foreground">{m.settings_section_addons()}</a
                 >
             </div>

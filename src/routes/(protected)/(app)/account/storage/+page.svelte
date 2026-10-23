@@ -5,20 +5,15 @@
 	import * as Dialog from "#lib/components/ui/dialog/index.js";
 	import { Spinner } from "#lib/components/ui/spinner/index.js";
 	import { streamed } from "#lib/core/stream.svelte.js";
+	import { pageTitle } from "#lib/core/title.svelte.js";
 	import { m } from "#lib/i18n/index.js";
 	import { sync } from "#lib/sync/store.svelte.js";
 	import { refreshAll } from "$app/navigation";
 	import { deleteProfileData } from "./account.remote.ts";
-	import type { pullSyncOverview } from "./account-data.ts";
 
-	let {
-		data,
-	}: {
-		data: {
-			overview: ReturnType<typeof pullSyncOverview>;
-			profile: { profile_index: number; name: string };
-		};
-	} = $props();
+	let { data } = $props();
+
+	pageTitle.set(m.account_tab_storage());
 
 	const overviewStream = streamed(() => data.overview, {
 		profiles: [] as Awaited<typeof data.overview>["profiles"],

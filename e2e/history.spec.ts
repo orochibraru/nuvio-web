@@ -13,7 +13,7 @@ test("watch history: direct load and client nav", async ({ page }) => {
 		.getByRole("navigation", { name: "Account sections" })
 		.getByRole("link", { name: "Watch history" });
 
-	await page.goto("/account?tab=history");
+	await page.goto("/account/history");
 	await page.waitForLoadState("networkidle");
 	await expect(
 		page.getByRole("heading", { name: "Watch history", level: 1 }),
@@ -26,7 +26,7 @@ test("watch history: direct load and client nav", async ({ page }) => {
 	await page.getByRole("menuitem", { name: "Account" }).click();
 	await page.waitForLoadState("networkidle");
 	await historyLink.click();
-	await expect(page).toHaveURL(/tab=history/);
+	await expect(page).toHaveURL(/\/account\/history$/);
 	await expect(historyLink).toHaveAttribute("aria-current", "page");
 
 	expect(errors, "runtime errors").toEqual([]);

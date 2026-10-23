@@ -8,15 +8,17 @@ const routes = [
 	"/library",
 	"/collections",
 	"/settings",
-	"/settings?tab=home",
-	"/settings?tab=playback",
-	"/settings?tab=sync",
-	"/settings?tab=addons",
-	"/settings?tab=integrations",
+	"/settings/appearance",
+	"/settings/home",
+	"/settings/playback",
+	"/settings/sync",
+	"/settings/addons",
+	"/settings/integrations",
 	"/account",
-	"/account?tab=history",
-	"/account?tab=stats",
-	"/account?tab=storage",
+	"/account/overview",
+	"/account/history",
+	"/account/stats",
+	"/account/storage",
 	"/search?q=breaking%20bad",
 	"/detail/movie/tt0137523",
 	"/detail/series/tt0903747",
@@ -71,7 +73,7 @@ test("settings: TheIntroDB key saves on blur and survives a reload", async ({
 }) => {
 	const errors = collectRuntimeErrors(page);
 
-	await page.goto("/settings?tab=integrations");
+	await page.goto("/settings/integrations");
 	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
 
 	const input = page.locator("#introdb-key");
@@ -119,13 +121,13 @@ test("client-side navigation through the whole shell", async ({ page }) => {
 	await page.getByRole("button", { name: "Profile menu" }).click();
 	await page.getByRole("menuitem", { name: "Account" }).click();
 	await page.waitForLoadState("networkidle");
-	await expect(page).toHaveTitle("Account · Nuvio Web (unofficial)");
+	await expect(page).toHaveTitle("Overview · Nuvio Web (unofficial)");
 	// Account's sections live in the header's section row, like Settings.
 	await page
 		.getByRole("navigation", { name: "Account sections" })
 		.getByRole("link", { name: "Watch history" })
 		.click();
-	await expect(page).toHaveURL(/tab=history/);
+	await expect(page).toHaveURL(/\/account\/history$/);
 
 	expect(errors, "runtime errors during client navigation").toEqual([]);
 });
@@ -195,7 +197,7 @@ test("below md the nav moves into a bottom tab bar", async ({ page }) => {
 		page.getByRole("heading", { name: "Settings", level: 1 }),
 	).toBeVisible();
 	await page.getByRole("link", { name: /^Playback/ }).click();
-	await expect(page).toHaveURL(/\/settings\?tab=playback$/);
+	await expect(page).toHaveURL(/\/settings\/playback$/);
 	await page
 		.getByRole("link", { name: "Settings", exact: true })
 		.first()
@@ -444,4 +446,28 @@ test("local store: an optimistic add shows on the library page after client nav"
 	}
 
 	expect(errors, "runtime errors").toEqual([]);
+});
+
+// Regression: with SvelteKit's default `paths.relative`, `resolve()` returns a
+// request-relative path during SSR (`../settings`), so every "is this link the
+// current page" check was false in the server render and only fixed itself on
+// hydration. With JavaScript off the server render is all there is.
+test.describe("server render", () => {
+	test.use({ javaScriptEnabled: false });
+
+	test("marks the current nav link and settings section", async ({ page }) => {
+		await page.goto("/");
+		await expect(
+			page
+				.getByRole("navigation", { name: "Main" })
+				.getByRole("link", { name: "Home", exact: true }),
+		).toHaveAttribute("aria-current", "page");
+
+		await page.goto("/settings/playback");
+		await expect(
+			page
+				.getByRole("navigation", { name: "Settings sections" })
+				.getByRole("link", { name: "Playback", exact: true }),
+		).toHaveAttribute("aria-current", "page");
+	});
 });

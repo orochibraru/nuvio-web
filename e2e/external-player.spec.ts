@@ -9,7 +9,7 @@ const VIDEO_ID = "tt0903747:1:2";
 const STREAM = "https://cdn.example/movie.mkv";
 
 async function pickExternalPlayer(page: Page, label: string) {
-	await page.goto("/settings?tab=playback");
+	await page.goto("/settings/playback");
 	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
 	await page.getByRole("combobox", { name: "External player" }).click();
 	await page.getByRole("option", { name: label }).click();

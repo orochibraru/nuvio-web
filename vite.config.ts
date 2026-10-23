@@ -39,7 +39,10 @@ export default defineConfig({
 			// leaves it unset and takes it from the request (`PROTOCOL_HEADER` /
 			// `HOST_HEADER` behind a proxy); a build for one known URL, like the
 			// e2e server on plain http, bakes it in.
-			paths: { origin: process.env.NUVIO_BUILD_ORIGIN },
+			// `relative: false`: otherwise `resolve()` returns a request-relative
+			// path during SSR (`../settings`) and every `pathname === resolve(…)`
+			// check is false until hydration.
+			paths: { origin: process.env.NUVIO_BUILD_ORIGIN, relative: false },
 			experimental: {
 				remoteFunctions: true,
 				// Off: a hover preload's speculative render can write Svelte's

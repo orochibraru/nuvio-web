@@ -7,12 +7,11 @@
       (`viewport-fit=cover`) and the player's auto fullscreen + landscape lock
       have only been type-checked and lint-checked, never run signed in on a
       device. iOS Safari has no element fullscreen or orientation lock, so the
-      player part is Android-only there. The e2e specs for the tab bar /
-      settings list are written but not yet run. Same for the player's touch
-      gestures (double-tap seek, hold for 2x, swipe volume / brightness):
-      unit-tested only. iOS ignores `video.volume`, so the volume swipe moves
-      the bar there and nothing else; brightness is a CSS filter on the video,
-      not the screen backlight.
+      player part is Android-only there. The player's touch gestures (double-tap
+      seek, hold for 2x, swipe volume / brightness) are unit-tested only. iOS
+      ignores `video.volume`, so the volume swipe moves the bar there and
+      nothing else; brightness is a CSS filter on the video, not the screen
+      backlight.
 - [ ] **External player setting: confirm the apps open on real devices.** The
       VLC / Infuse / Outplayer / VidHub / IINA links copy stremio-core's schemes
       and are only checked as `href`s. Outplayer's form drops `http` vs `https`.

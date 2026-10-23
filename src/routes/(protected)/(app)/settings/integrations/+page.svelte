@@ -2,14 +2,16 @@
 	import EyeIcon from "@lucide/svelte/icons/eye";
 	import EyeOffIcon from "@lucide/svelte/icons/eye-off";
 	import { Input } from "#lib/components/ui/input/index.js";
+	import { pageTitle } from "#lib/core/title.svelte.js";
 	import { m } from "#lib/i18n/index.js";
+	import SettingsGroup from "#lib/settings/components/settings-group.svelte";
+	import SettingsRow from "#lib/settings/components/settings-row.svelte";
+	import { getSettingsUpdate } from "#lib/settings/save-context.js";
 	import { theme } from "#lib/settings/theme.svelte.js";
-	import type { UiSettings } from "#lib/settings/ui-settings.js";
-	import SettingsGroup from "./settings-group.svelte";
-	import SettingsRow from "./settings-row.svelte";
 
-	let { update }: { update: (patch: Partial<UiSettings>) => Promise<void> } =
-		$props();
+	const update = getSettingsUpdate();
+
+	pageTitle.set(m.settings_section_integrations());
 
 	// `draft` shadows `theme.current.introDbApiKey` while the field has an
 	// unsaved edit; `null` means "show the stored value" (the common case).

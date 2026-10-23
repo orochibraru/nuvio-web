@@ -13,7 +13,7 @@ test.beforeEach(async ({ context }) => {
 });
 
 async function resetLayout(page: import("@playwright/test").Page) {
-	await page.goto("/settings?tab=home");
+	await page.goto("/settings/home");
 	const reset = page.getByRole("button", { name: "Reset" });
 	if (await reset.isVisible().catch(() => false)) {
 		await reset.click();
@@ -42,7 +42,7 @@ test("home layout: a hidden catalog leaves the home screen", async ({
 			timeout: 20_000,
 		});
 
-		await page.goto("/settings?tab=home");
+		await page.goto("/settings/home");
 		await page.getByRole("switch", { name: `Show ${name} on Home` }).click();
 		await expect(page.getByRole("button", { name: "Reset" })).toBeVisible();
 

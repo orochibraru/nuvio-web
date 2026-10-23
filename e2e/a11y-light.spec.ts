@@ -14,10 +14,10 @@ const routes = [
 	"/",
 	"/library",
 	"/detail/series/tt0903747",
-	"/settings",
-	"/settings?tab=playback",
-	"/account?tab=stats",
-	"/account?tab=storage",
+	"/settings/appearance",
+	"/settings/playback",
+	"/account/stats",
+	"/account/storage",
 ];
 
 test.use({ colorScheme: "light" });
@@ -26,7 +26,7 @@ test("light mode: no WCAG A/AA violations", async ({ page, context }) => {
 	test.setTimeout(180_000);
 	await signIn(context);
 	const setMode = async (mode: "Light" | "Dark") => {
-		await page.goto("/settings");
+		await page.goto("/settings/appearance");
 		const button = page.getByRole("button", { name: mode, exact: true });
 		await button.click();
 		await expect(button).toHaveClass(/bg-primary/);

@@ -2,8 +2,13 @@
 	import CheckIcon from "@lucide/svelte/icons/check";
 	import * as Select from "#lib/components/ui/select/index.js";
 	import { Switch } from "#lib/components/ui/switch/index.js";
+	import { pageTitle } from "#lib/core/title.svelte.js";
 	import { getLocale, m } from "#lib/i18n/index.js";
 	import { languageKey } from "#lib/player/audio-language.js";
+	import SettingsChoice from "#lib/settings/components/settings-choice.svelte";
+	import SettingsGroup from "#lib/settings/components/settings-group.svelte";
+	import SettingsRow from "#lib/settings/components/settings-row.svelte";
+	import { getSettingsUpdate } from "#lib/settings/save-context.js";
 	import { theme } from "#lib/settings/theme.svelte.js";
 	import {
 		EXTERNAL_PLAYERS,
@@ -14,12 +19,10 @@
 	} from "#lib/settings/ui-settings.js";
 	import { cn } from "#lib/utils.js";
 	import { page } from "$app/state";
-	import SettingsChoice from "./settings-choice.svelte";
-	import SettingsGroup from "./settings-group.svelte";
-	import SettingsRow from "./settings-row.svelte";
 
-	let { update }: { update: (patch: Partial<UiSettings>) => Promise<void> } =
-		$props();
+	const update = getSettingsUpdate();
+
+	pageTitle.set(m.settings_section_playback());
 
 	const subtitleSizes: Array<{
 		value: UiSettings["subtitleSize"];

@@ -177,8 +177,7 @@ interface Shot {
 	phone?: boolean;
 }
 
-// Every copy: the account page renders it in the overview and in the phone
-// profile header (hidden on a desktop, still in the DOM).
+// Every copy: the overview and the phone profile page both render it.
 async function hideEmail(page: Page): Promise<void> {
 	await page
 		.getByText(process.env.NUVIO_TEST_EMAIL ?? "", { exact: true })
@@ -235,19 +234,17 @@ const shots: Shot[] = [
 	},
 	{
 		name: "history",
-		path: "/account",
-		search: "?tab=history",
+		path: "/account/history",
 		expect: "Elephants Dream",
 	},
-	{ name: "stats", path: "/account", search: "?tab=stats" },
-	{ name: "settings", path: "/settings" },
+	{ name: "stats", path: "/account/stats" },
+	{ name: "settings", path: "/settings/appearance" },
 	{
 		name: "addons",
-		path: "/settings",
-		search: "?tab=addons",
+		path: "/settings/addons",
 		expect: "Blender Open Movies",
 	},
-	{ name: "account", path: "/account", prepare: hideEmail },
+	{ name: "account", path: "/account/overview", prepare: hideEmail },
 	{ name: "player", path: "/player/movie/blender-spring", settleMs: 3000 },
 	{ name: "phone-home", path: "/", expect: "Continue watching", phone: true },
 	{

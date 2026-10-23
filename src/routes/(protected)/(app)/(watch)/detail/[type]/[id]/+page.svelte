@@ -414,7 +414,7 @@
                     {#each noMetadataParts as part, i (i)}{#if part === "@@type@@"}<code>{type}</code>{:else if part === "@@id@@"}<code>{id}</code>{:else}{part}{/if}{/each}
                 </p>
 
-                <Button href={`${resolve("settings")}?tab=addons`} variant="outline" class="mt-4"
+                <Button href={resolve("settings/addons")} variant="outline" class="mt-4"
                     >{m.common_manage_addons()}</Button
                 >
             </div>

@@ -6,7 +6,9 @@
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { Switch } from "#lib/components/ui/switch/index.js";
 	import { streamed } from "#lib/core/stream.svelte.js";
+	import { pageTitle } from "#lib/core/title.svelte.js";
 	import { m } from "#lib/i18n/index.js";
+	import SettingsGroup from "#lib/settings/components/settings-group.svelte";
 	import {
 		catalogKey,
 		catalogTitles,
@@ -20,7 +22,6 @@
 		setHidden,
 	} from "#lib/settings/home-layout.js";
 	import { saveHomeLayout } from "#lib/settings/settings.remote.js";
-	import SettingsGroup from "./settings-group.svelte";
 
 	interface Catalog {
 		addonId: string;
@@ -30,13 +31,12 @@
 		name: string;
 	}
 
-	let {
-		layout: layoutPromise,
-		catalogs: catalogsPromise,
-	}: { layout: Promise<HomeLayout>; catalogs: Promise<Catalog[]> } = $props();
+	let { data } = $props();
 
-	const layoutStream = streamed(() => layoutPromise, EMPTY_HOME_LAYOUT);
-	const catalogsStream = streamed(() => catalogsPromise, [] as Catalog[]);
+	pageTitle.set(m.nav_home());
+
+	const layoutStream = streamed(() => data.layout, EMPTY_HOME_LAYOUT);
+	const catalogsStream = streamed(() => data.catalogs, [] as Catalog[]);
 
 	// Edits apply here first and save in the background; a failed save rolls
 	// back to the last saved layout.

@@ -8,6 +8,7 @@
 	import EmptyState from "#lib/components/feedback/empty-state.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { streamed } from "#lib/core/stream.svelte.js";
+	import { pageTitle } from "#lib/core/title.svelte.js";
 	import type { HistoryRow } from "#lib/history/history-data.js";
 	import { getLocale, m } from "#lib/i18n/index.js";
 	import { sync } from "#lib/sync/store.svelte.js";
@@ -15,13 +16,15 @@
 
 	type EnrichedRow = HistoryRow & { poster: string | null };
 
-	let { items }: { items: Promise<EnrichedRow[]> } = $props();
+	let { data } = $props();
+
+	pageTitle.set(m.nav_watch_history());
 
 	// The load already joined these to addon meta (poster + clean title), so
 	// rows arrive named rather than showing a raw content id until a client
 	// query lands. The local library mirror still wins where it has an entry —
 	// it reflects an add/remove made this session.
-	const rowsStream = streamed(() => items, [] as EnrichedRow[]);
+	const rowsStream = streamed(() => data.items, [] as EnrichedRow[]);
 	const ssrItems = $derived(rowsStream.current);
 
 	const posters = $derived(

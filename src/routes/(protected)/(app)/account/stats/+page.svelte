@@ -6,17 +6,19 @@
 	import QueryError from "#lib/components/feedback/query-error.svelte";
 	import * as Card from "#lib/components/ui/card/index.js";
 	import { streamed } from "#lib/core/stream.svelte.js";
+	import { pageTitle } from "#lib/core/title.svelte.js";
 	import { m } from "#lib/i18n/index.js";
 	import type { WatchStats } from "#lib/stats/stats-data.js";
 	import { invalidateAll } from "$app/navigation";
 	import { resolve } from "$app/paths";
 
-	let { stats: streamedStats }: { stats: Promise<WatchStats | null> } =
-		$props();
+	let { data } = $props();
+
+	pageTitle.set(m.account_tab_stats());
 
 	// Resolved by the account load and streamed down : `null` once ready means
 	// the pull failed, which the retry below covers.
-	const statsStream = streamed(() => streamedStats, null as WatchStats | null);
+	const statsStream = streamed(() => data.stats, null as WatchStats | null);
 	const stats = $derived(statsStream.current);
 	const statsFailed = $derived(statsStream.ready && stats === null);
 	const totalMinutes = $derived(

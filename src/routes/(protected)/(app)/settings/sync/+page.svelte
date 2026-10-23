@@ -1,13 +1,16 @@
 <script lang="ts">
+	import { pageTitle } from "#lib/core/title.svelte.js";
 	import { m } from "#lib/i18n/index.js";
+	import SettingsChoice from "#lib/settings/components/settings-choice.svelte";
+	import SettingsGroup from "#lib/settings/components/settings-group.svelte";
+	import SettingsRow from "#lib/settings/components/settings-row.svelte";
+	import { getSettingsUpdate } from "#lib/settings/save-context.js";
 	import { theme } from "#lib/settings/theme.svelte.js";
 	import type { UiSettings } from "#lib/settings/ui-settings.js";
-	import SettingsChoice from "./settings-choice.svelte";
-	import SettingsGroup from "./settings-group.svelte";
-	import SettingsRow from "./settings-row.svelte";
 
-	let { update }: { update: (patch: Partial<UiSettings>) => Promise<void> } =
-		$props();
+	const update = getSettingsUpdate();
+
+	pageTitle.set(m.settings_section_sync());
 
 	const syncSources: Array<{
 		value: UiSettings["librarySource"];
