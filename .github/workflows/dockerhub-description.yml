@@ -27,5 +27,7 @@ jobs:
           username: orochibraru
           password: ${{ secrets.DOCKER_REGISTRY_PASSWORD }}
           repository: orochibraru/nuvio-web
-          short-description: "Unofficial Nuvio web app: your profiles, addons, library and player in the browser. Self-hosted."
+          short-description:
+            "Unofficial Nuvio web app: your profiles, addons, library and player
+            in the browser. Self-hosted."
           enable-url-completion: true
