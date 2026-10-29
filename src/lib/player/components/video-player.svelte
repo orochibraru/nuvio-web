@@ -469,6 +469,25 @@
     onCloseInfo={infoOverlay.close}
   />
 
+  {#snippet subtitleMenu()}
+    <SubtitlePanel
+      open={panels.subtitlesOpen}
+      options={captions.options}
+      activeCaption={captions.activeCaption}
+      pendingCaption={captions.pendingCaption}
+      failed={captions.failed}
+      {preferredLanguage}
+      {subtitleSize}
+      {subtitleColor}
+      {subtitleBackground}
+      subtitleOffset={captions.subtitleOffset}
+      onOpenChange={panels.setSubtitlesOpen}
+      onSelect={captions.setCaption}
+      onAppearance={(patch) => onSubtitleAppearance?.(patch)}
+      onNudgeOffset={captions.nudgeSubtitleOffset}
+    />
+  {/snippet}
+
   <TransportControls
     {transport}
     {player}
@@ -476,7 +495,6 @@
     {minimized}
     fatalError={Boolean(fatalError)}
     infoOpen={infoOverlay.open}
-    subtitlesOpen={panels.subtitlesOpen}
     openMenu={panels.openMenu}
     {title}
     {subheading}
@@ -489,34 +507,16 @@
     {chapters}
     {onNext}
     {onEpisodes}
-    hasSubtitles={captions.options.length > 0}
-    activeCaption={captions.activeCaption}
+    subtitleMenu={captions.options.length > 0 ? subtitleMenu : undefined}
     castAvailable={remotePlayback.available}
     casting={remotePlayback.connected}
     onCast={remotePlayback.prompt}
-    onToggleSubtitles={panels.toggleSubtitles}
     boost={boost.level}
     boostPending={boost.pending}
     onBoostSelect={selectBoost}
     onMenuOpenChange={panels.setMenuOpen}
   />
 
-  <SubtitlePanel
-    open={panels.subtitlesOpen}
-    options={captions.options}
-    activeCaption={captions.activeCaption}
-    pendingCaption={captions.pendingCaption}
-    failed={captions.failed}
-    {preferredLanguage}
-    {subtitleSize}
-    {subtitleColor}
-    {subtitleBackground}
-    subtitleOffset={captions.subtitleOffset}
-    onClose={() => (panels.subtitlesOpen = false)}
-    onSelect={captions.setCaption}
-    onAppearance={(patch) => onSubtitleAppearance?.(patch)}
-    onNudgeOffset={captions.nudgeSubtitleOffset}
-  />
 </div>
 
 <style>

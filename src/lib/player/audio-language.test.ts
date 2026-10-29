@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
 	audioLanguageTargets,
+	audioTrackName,
 	languageKey,
 	preferredTrackIndex,
 } from "./audio-language.ts";
@@ -65,5 +66,34 @@ describe("preferredTrackIndex", () => {
 	it("is -1 when nothing matches or nothing is wanted", () => {
 		expect(preferredTrackIndex(tracks, ["fr"])).toBe(-1);
 		expect(preferredTrackIndex(tracks, [])).toBe(-1);
+	});
+});
+
+describe("audioTrackName", () => {
+	it("names a bare language code in the viewer's locale", () => {
+		expect(audioTrackName("fr", "fr")).toBe("Français");
+		expect(audioTrackName("en", "fr")).toBe("Anglais");
+		expect(audioTrackName("fr", "en")).toBe("French");
+		expect(audioTrackName("eng", "en")).toBe("English");
+		expect(audioTrackName("ger", "en")).toBe("German");
+		expect(audioTrackName("FRE", "en")).toBe("French");
+	});
+
+	it("keeps the region a tag carries", () => {
+		expect(audioTrackName("pt-BR", "en")).toBe("Brazilian Portuguese");
+		expect(audioTrackName("fr_CA", "en")).toBe("Canadian French");
+	});
+
+	it("leaves a real track name alone", () => {
+		for (const label of [
+			"VF",
+			"English 5.1",
+			"Track 2",
+			"Commentary",
+			"und",
+			"",
+		]) {
+			expect(audioTrackName(label, "en")).toBe(label);
+		}
 	});
 });

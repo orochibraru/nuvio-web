@@ -21,8 +21,10 @@
       title page's and Discover's navigation data, plus the addon-meta remote
       queries, `private, max-age=900`. Seen on a title page's `__data.json`
       only; Discover goes through the same route check but wasn't observed.
-- [ ] **Subtitle picker: try it on a real phone in fullscreen.** Checked in
-      Playwright's harness only, where the inline player is short.
+- [ ] **Subtitle picker: try it on a real phone in fullscreen.** Now a popover
+      off the control bar's CC button, like the audio menu, capped to the height
+      above it. Checked in Playwright's harness only, where the inline player is
+      short.
 - [ ] **Mobile tab bar: a Calendar tab.** The mockup has one; there is no
       calendar route yet, so the fourth tab is Collections for now.
 - [ ] **In-browser fix: confirm on real debrid hosts.** Proven on local fixtures

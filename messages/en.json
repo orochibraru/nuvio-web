@@ -426,7 +426,6 @@
 	"player_cast_hint": "Cast to a TV",
 	"player_choose_another_source": "Choose another source",
 	"player_close_hint": "Close (Esc)",
-	"player_close_subtitles": "Close subtitles",
 	"player_decode_body": "This browser might not decode this source's video codec. If the picture looks fine, dismiss this.",
 	"player_decode_title": "The video may not be playing",
 	"player_details": "Details",

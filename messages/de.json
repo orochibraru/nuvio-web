@@ -426,7 +426,6 @@
 	"player_cast_hint": "Auf einen Fernseher streamen",
 	"player_choose_another_source": "Andere Quelle wählen",
 	"player_close_hint": "Schließen (Esc)",
-	"player_close_subtitles": "Untertitel schließen",
 	"player_decode_body": "Dieser Browser kann den Video-Codec dieser Quelle möglicherweise nicht dekodieren. Wenn das Bild gut aussieht, blende diesen Hinweis aus.",
 	"player_decode_title": "Das Video wird möglicherweise nicht abgespielt",
 	"player_details": "Details",

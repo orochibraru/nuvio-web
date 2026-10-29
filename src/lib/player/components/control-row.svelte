@@ -1,7 +1,5 @@
 <script lang="ts">
 	import AudioLinesIcon from "@lucide/svelte/icons/audio-lines";
-	import CaptionsIcon from "@lucide/svelte/icons/captions";
-	import CaptionsOffIcon from "@lucide/svelte/icons/captions-off";
 	import CastIcon from "@lucide/svelte/icons/cast";
 	import GaugeIcon from "@lucide/svelte/icons/gauge";
 	import ListVideoIcon from "@lucide/svelte/icons/list-video";
@@ -17,8 +15,10 @@
 	import Volume1Icon from "@lucide/svelte/icons/volume-1";
 	import Volume2Icon from "@lucide/svelte/icons/volume-2";
 	import VolumeXIcon from "@lucide/svelte/icons/volume-x";
+	import type { Snippet } from "svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
-	import { m } from "#lib/i18n/index.js";
+	import { getLocale, m } from "#lib/i18n/index.js";
+	import { audioTrackName } from "#lib/player/audio-language.js";
 	import { BOOST_LEVELS } from "#lib/player/boost.js";
 	import type { PlayerMenu } from "#lib/player/state/panel-toggles.svelte.js";
 	import type { createPlayerTransportActions } from "#lib/player/state/transport-actions.svelte.js";
@@ -35,13 +35,10 @@
 		media,
 		onNext,
 		onEpisodes,
-		hasSubtitles,
-		activeCaption,
+		subtitleMenu,
 		castAvailable,
 		casting,
 		onCast,
-		subtitlesOpen,
-		onToggleSubtitles,
 		openMenu,
 		onMenuOpenChange,
 		boost,
@@ -60,14 +57,12 @@
 		};
 		onNext?: () => void;
 		onEpisodes?: () => void;
-		hasSubtitles: boolean;
-		activeCaption: string | null;
+		/** The subtitles button and its menu, when the source has any. */
+		subtitleMenu?: Snippet;
 		/** A cast target exists : the button is hidden entirely otherwise. */
 		castAvailable: boolean;
 		casting: boolean;
 		onCast: () => void;
-		subtitlesOpen: boolean;
-		onToggleSubtitles: () => void;
 		openMenu: PlayerMenu | null;
 		onMenuOpenChange: (menu: PlayerMenu, open: boolean) => void;
 		boost: number;
@@ -197,30 +192,7 @@
         {/snippet}
       </Hint>
     {/if}
-    {#if hasSubtitles}
-      <Hint label={activeCaption ? m.player_subtitles_on_hint({ caption: activeCaption }) : m.player_subtitles_off_hint()}>
-        {#snippet child({ props })}
-          <Button
-            {...props}
-            variant="ghost"
-            size="icon"
-            aria-label={m.player_subtitles()}
-            aria-pressed={subtitlesOpen}
-            onclick={onToggleSubtitles}
-            class={cn(
-              "rounded-full hover:bg-white/15 hover:text-white dark:hover:bg-white/15 [&_svg]:size-5",
-              activeCaption && "text-primary",
-            )}
-          >
-            {#if activeCaption}
-              <CaptionsIcon />
-            {:else}
-              <CaptionsOffIcon />
-            {/if}
-          </Button>
-        {/snippet}
-      </Hint>
-    {/if}
+    {@render subtitleMenu?.()}
 
     {#if media.audioTracks.length > 1}
       <OptionMenu
@@ -229,7 +201,7 @@
         label={m.player_audio()}
         options={media.audioTracks.map((track) => ({
           value: String(track.id),
-          label: track.label,
+          label: audioTrackName(track.label, getLocale()),
         }))}
         value={String(media.activeAudioTrack)}
         onSelect={(value) => media.selectAudioTrack(Number(value))}

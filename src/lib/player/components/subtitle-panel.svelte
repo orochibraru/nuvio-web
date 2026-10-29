@@ -1,13 +1,11 @@
 <script lang="ts">
 	import CaptionsIcon from "@lucide/svelte/icons/captions";
+	import CaptionsOffIcon from "@lucide/svelte/icons/captions-off";
 	import CheckIcon from "@lucide/svelte/icons/check";
 	import LoaderIcon from "@lucide/svelte/icons/loader-circle";
 	import SearchIcon from "@lucide/svelte/icons/search";
-	import XIcon from "@lucide/svelte/icons/x";
-	import { Command } from "bits-ui";
-	import { fade, fly } from "svelte/transition";
+	import { Command, Popover } from "bits-ui";
 	import { Button } from "#lib/components/ui/button/index.js";
-	import { reduced } from "#lib/core/motion.js";
 	import { getLocale, m } from "#lib/i18n/index.js";
 	import { groupSubtitles } from "#lib/player/subtitle-groups.js";
 	import type {
@@ -41,7 +39,7 @@
 		subtitleColor,
 		subtitleBackground,
 		subtitleOffset,
-		onClose,
+		onOpenChange,
 		onSelect,
 		onAppearance,
 		onNudgeOffset,
@@ -57,7 +55,7 @@
 		subtitleColor: string;
 		subtitleBackground: boolean;
 		subtitleOffset: number;
-		onClose: () => void;
+		onOpenChange: (open: boolean) => void;
 		onSelect: (key: string | null) => void;
 		onAppearance: (patch: SubtitleAppearance) => void;
 		onNudgeOffset: (delta: number) => void;
@@ -90,35 +88,64 @@
 
 	function choose(key: string | null) {
 		onSelect(key);
-		onClose();
+		onOpenChange(false);
 	}
+
+	// Portalled to `<body>`, the menu would fall out of the top layer while the
+	// player's own div is fullscreen and never paint : portal into whatever is
+	// fullscreen instead (see `hint.svelte`).
+	const target = $derived.by<HTMLElement | string>(() => {
+		if (!open) {
+			return "body";
+		}
+		const fullscreen = document.fullscreenElement;
+		return fullscreen instanceof HTMLElement &&
+			fullscreen !== document.documentElement
+			? fullscreen
+			: "body";
+	});
 </script>
 
-<!-- Dims the whole player and lays the picker over it on the left, mirroring
-     the info overlay's own treatment. Sits above the transport controls
-     (z-30) : it used to sit below them at z-20, which let the always-mounted
-     transport bar's pointer-events-auto strips swallow clicks meant for the
-     picker's own buttons wherever the two visually overlapped. Rendered in
-     place rather than portalled, so it stays inside a fullscreen player. -->
-{#if open}
-  <div
-    class="absolute inset-0 z-50 overflow-hidden"
-    transition:fade={reduced({ duration: 150 })}
+<!-- The subtitles button and its menu : opens off the control bar like the
+     audio / speed menus, in the same glass, with the track list and the
+     appearance settings behind two tabs. -->
+<Popover.Root {open} {onOpenChange}>
+  <Hint
+    label={activeCaption
+      ? m.player_subtitles_on_hint({ caption: activeCaption })
+      : m.player_subtitles_off_hint()}
   >
-    <button
-      type="button"
-      tabindex="-1"
-      aria-label={m.player_close_subtitles()}
-      onclick={onClose}
-      class="absolute inset-0 cursor-default bg-black/80"
-    ></button>
-    <div
-      class="pointer-events-none absolute inset-x-0 top-[max(0.75rem,env(safe-area-inset-top))] bottom-[max(0.75rem,env(safe-area-inset-bottom))] flex justify-start pr-[max(0.75rem,env(safe-area-inset-right))] pl-[max(0.75rem,env(safe-area-inset-left))] sm:top-20 sm:bottom-24 sm:px-12"
-      transition:fly={reduced({ y: 16, duration: 220 })}
+    {#snippet child({ props: hintProps })}
+      <Popover.Trigger {...hintProps}>
+        {#snippet child({ props })}
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={m.player_subtitles()}
+            class={cn(
+              "rounded-full hover:bg-white/15 hover:text-white dark:hover:bg-white/15 [&_svg]:size-5",
+              activeCaption && "text-primary",
+            )}
+            {...props}
+          >
+            {#if activeCaption}
+              <CaptionsIcon />
+            {:else}
+              <CaptionsOffIcon />
+            {/if}
+          </Button>
+        {/snippet}
+      </Popover.Trigger>
+    {/snippet}
+  </Hint>
+  <Popover.Portal to={target}>
+    <Popover.Content
+      align="end"
+      side="top"
+      sideOffset={52}
+      collisionPadding={12}
+      class="dark z-50 flex max-h-[min(32rem,var(--bits-popover-content-available-height))] w-[min(22rem,calc(100vw-1.5rem))] flex-col gap-3 rounded-2xl bg-transparent bg-linear-to-b from-white/12 to-black/55 p-2.5 text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.15),0_24px_60px_-12px_rgb(0_0_0/0.7)] ring-1 ring-white/10 backdrop-blur-2xl backdrop-saturate-150 outline-none data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-open:slide-in-from-bottom-2 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95"
     >
-      <div
-        class="pointer-events-auto flex max-h-full w-full max-w-md flex-col gap-3 rounded-3xl bg-neutral-950/90 p-3 text-white ring-1 ring-white/10 backdrop-blur-xl sm:p-4"
-      >
         <div class="flex shrink-0 items-center gap-2">
           <span
             class="flex flex-1 items-center gap-1.5 pl-1 text-xs font-semibold tracking-[0.2em] text-white/60 uppercase"
@@ -147,20 +174,6 @@
               </button>
             {/each}
           </div>
-          <Hint label={m.player_close_hint()}>
-            {#snippet child({ props })}
-              <Button
-                {...props}
-                variant="secondary"
-                size="icon"
-                aria-label={m.player_close_subtitles()}
-                onclick={onClose}
-                class="shrink-0 rounded-full"
-              >
-                <XIcon class="size-5" />
-              </Button>
-            {/snippet}
-          </Hint>
         </div>
 
         {#if view === "tracks"}
@@ -245,7 +258,7 @@
                 {#each groups as group (group.name)}
                   <Command.Group value={group.name} class="mt-2">
                     <Command.GroupHeading
-                      class="sticky top-0 z-10 flex items-center justify-between bg-neutral-950/95 px-3 py-1.5 text-[11px] font-semibold tracking-wide text-white/50 uppercase backdrop-blur"
+                      class="sticky top-0 z-10 flex items-center justify-between rounded-lg bg-black/50 px-3 py-1.5 text-[11px] font-semibold tracking-wide text-white/50 uppercase backdrop-blur"
                     >
                       {group.name}
                       <span class="tabular-nums">{group.options.length}</span>
@@ -366,7 +379,6 @@
             </Button>
           </div>
         {/if}
-      </div>
-    </div>
-  </div>
-{/if}
+    </Popover.Content>
+  </Popover.Portal>
+</Popover.Root>

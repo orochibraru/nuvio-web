@@ -426,7 +426,6 @@
 	"player_cast_hint": "Diffuser sur une TV",
 	"player_choose_another_source": "Choisir une autre source",
 	"player_close_hint": "Fermer (Échap)",
-	"player_close_subtitles": "Fermer les sous-titres",
 	"player_decode_body": "Ce navigateur ne parvient peut-être pas à décoder le codec vidéo de cette source. Si l'image s'affiche correctement, ignorez ce message.",
 	"player_decode_title": "La vidéo ne s'affiche peut-être pas",
 	"player_details": "Détails",
