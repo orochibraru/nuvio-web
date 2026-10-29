@@ -426,7 +426,6 @@
 	"player_cast_hint": "Enviar a una TV",
 	"player_choose_another_source": "Elegir otra fuente",
 	"player_close_hint": "Cerrar (Esc)",
-	"player_close_subtitles": "Cerrar subtítulos",
 	"player_decode_body": "Es posible que este navegador no pueda decodificar el códec de vídeo de esta fuente. Si la imagen se ve bien, descarta este aviso.",
 	"player_decode_title": "Puede que el vídeo no se esté reproduciendo",
 	"player_details": "Detalles",

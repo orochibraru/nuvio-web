@@ -4,7 +4,7 @@ import type { InfoOverlayController } from "./info-overlay.svelte.ts";
 export type PlayerMenu = "speed" | "boost" | "audio";
 
 /**
- * The mutually-exclusive panels (info, subtitles, one control-row menu) :
+ * The mutually-exclusive panels (info, the subtitles menu, one control-row menu) :
  * opening one closes the others, and any one of them open keeps the transport
  * controls up (see `panelOpen`).
  */
@@ -28,10 +28,13 @@ export function createPanelToggles(deps: {
 		}
 	}
 
-	function toggleSubtitles() {
-		subtitlesOpen = !subtitlesOpen;
-		openMenu = null;
-		deps.infoOverlay.closeSilently();
+	/** The subtitles menu's `onOpenChange` : opening it closes the others. */
+	function setSubtitlesOpen(open: boolean) {
+		subtitlesOpen = open;
+		if (open) {
+			openMenu = null;
+			deps.infoOverlay.closeSilently();
+		}
 	}
 
 	/** A menu's `onOpenChange` : opening it closes the other panels. */
@@ -58,14 +61,11 @@ export function createPanelToggles(deps: {
 		get subtitlesOpen() {
 			return subtitlesOpen;
 		},
-		set subtitlesOpen(value) {
-			subtitlesOpen = value;
-		},
 		get panelOpen() {
 			return panelOpen;
 		},
 		toggleInfo,
-		toggleSubtitles,
+		setSubtitlesOpen,
 		setMenuOpen,
 		closeMenus,
 	};

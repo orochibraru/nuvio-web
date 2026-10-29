@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { Snippet } from "svelte";
 	import type { Chapter } from "#lib/player/chapters.js";
 	import { formatTime } from "#lib/player/format.js";
 	import type { PlayerMenu } from "#lib/player/state/panel-toggles.svelte.js";
@@ -17,7 +18,6 @@
 		minimized,
 		fatalError,
 		infoOpen,
-		subtitlesOpen,
 		openMenu,
 		title,
 		subheading = null,
@@ -30,12 +30,10 @@
 		chapters,
 		onNext,
 		onEpisodes,
-		hasSubtitles,
-		activeCaption,
+		subtitleMenu,
 		castAvailable,
 		casting,
 		onCast,
-		onToggleSubtitles,
 		onMenuOpenChange,
 		boost,
 		boostPending,
@@ -51,7 +49,6 @@
 		minimized: boolean;
 		fatalError: boolean;
 		infoOpen: boolean;
-		subtitlesOpen: boolean;
 		openMenu: PlayerMenu | null;
 		title: string;
 		subheading?: string | null;
@@ -64,12 +61,11 @@
 		chapters: Chapter[];
 		onNext?: () => void;
 		onEpisodes?: () => void;
-		hasSubtitles: boolean;
-		activeCaption: string | null;
+		/** The subtitles button and its menu, when the source has any. */
+		subtitleMenu?: Snippet;
 		castAvailable: boolean;
 		casting: boolean;
 		onCast: () => void;
-		onToggleSubtitles: () => void;
 		onMenuOpenChange: (menu: PlayerMenu, open: boolean) => void;
 		boost: number;
 		boostPending: boolean;
@@ -100,9 +96,9 @@
     {onSources}
   />
 
-  <!-- Centre transport cluster : hidden while the info or subtitles overlay
-       owns the frame. -->
-  {#if !transport.loading && !fatalError && !infoOpen && !subtitlesOpen}
+  <!-- Centre transport cluster : hidden while the info overlay owns the
+       frame. -->
+  {#if !transport.loading && !fatalError && !infoOpen}
     <CenterControls
       {transport}
       onSeek={player.seek}
@@ -144,13 +140,10 @@
       {media}
       {onNext}
       {onEpisodes}
-      {hasSubtitles}
-      {activeCaption}
+      {subtitleMenu}
       {castAvailable}
       {casting}
       {onCast}
-      {subtitlesOpen}
-      {onToggleSubtitles}
       {openMenu}
       {onMenuOpenChange}
       {boost}

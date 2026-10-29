@@ -98,3 +98,37 @@ export function preferredTrackIndex(
 	}
 	return -1;
 }
+
+// A label that is only a language tag : `fr`, `fre`, `pt-BR`, `en_US`.
+const BARE_CODE = /^[a-z]{2,3}(?:[-_][a-z0-9]{2,8})*$/i;
+
+/**
+ * An audio track's label as a viewer reads it : a bare language code becomes
+ * that language's name in `locale` (`fr` → `Français` under `fr`, `English`
+ * under `en`; `pt-BR` keeps its region). Anything else (`VF`, `English 5.1`,
+ * the numbered fallback) is the source's own wording and stays as it is.
+ */
+export function audioTrackName(label: string, locale: string): string {
+	const raw = label.trim().replace("_", "-");
+	const key = BARE_CODE.test(raw) ? languageKey(raw) : null;
+	if (!key) {
+		return label;
+	}
+	const region = raw.split("-").slice(1);
+	for (const tag of region.length > 0
+		? [[key, ...region].join("-"), key]
+		: [key]) {
+		try {
+			const name = new Intl.DisplayNames([locale], {
+				type: "language",
+				fallback: "none",
+			}).of(tag);
+			if (name) {
+				return name.charAt(0).toLocaleUpperCase(locale) + name.slice(1);
+			}
+		} catch {
+			// A malformed tag : try the bare language, then give up.
+		}
+	}
+	return label;
+}
