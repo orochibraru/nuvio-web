@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.27](https://github.com/orochibraru/nuvio-web/compare/v1.0.26...v1.0.27) (2026-10-29)
+
+### Bug Fixes
+
+* **addons:** drop duplicate episode ids from a meta (#50) ([bdbe662](https://github.com/orochibraru/nuvio-web/commit/bdbe662ab25aa1430c6199522f3b7d755e7d34c5))
+
 ## [1.0.26](https://github.com/orochibraru/nuvio-web/compare/v1.0.25...v1.0.26) (2026-10-29)
 
 ### Features
