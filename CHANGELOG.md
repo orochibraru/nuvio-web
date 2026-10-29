@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.0.28](https://github.com/orochibraru/nuvio-web/compare/v1.0.27...v1.0.28) (2026-10-29)
+
+### Features
+
+* **errors:** report client errors to Sentry ([1e69497](https://github.com/orochibraru/nuvio-web/commit/1e694974e5ffc1b31cf4a95449da44df9d6fa0f7))
+
+### Bug Fixes
+
+* **addons:** dedupe every addon list rendered with keys ([73b40a3](https://github.com/orochibraru/nuvio-web/commit/73b40a325bdfbd3b5cebaa0172105b023af8d7f8))
+
 ## [1.0.27](https://github.com/orochibraru/nuvio-web/compare/v1.0.26...v1.0.27) (2026-10-29)
 
 ### Bug Fixes
