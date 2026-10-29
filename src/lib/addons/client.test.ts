@@ -208,6 +208,34 @@ describe("getMeta", () => {
 		expect(slowStarted).toBe(true);
 	});
 
+	it("drops repeated episode ids, keeping the first", async () => {
+		const result = await client(
+			[installed()],
+			fetchStub([
+				[
+					"one.example",
+					{
+						meta: {
+							id: "tt1",
+							type: "series",
+							name: "A",
+							videos: [
+								{ id: "tt1:1:1", title: "Pilot", season: 1, episode: 1 },
+								{ id: "tt1:1:2", title: "Two", season: 1, episode: 2 },
+								{ id: "tt1:1:1", title: "Dupe", season: 1, episode: 1 },
+							],
+						},
+					},
+				],
+			]),
+		).getMeta("series", "tt1");
+
+		expect(result?.meta.videos?.map((video) => video.title)).toEqual([
+			"Pilot",
+			"Two",
+		]);
+	});
+
 	describe("a meta for a different title", () => {
 		const two = installed({
 			baseUrl: "https://two.example",

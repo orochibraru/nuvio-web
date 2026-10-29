@@ -176,10 +176,28 @@ function normalizeMeta(raw: Meta): Meta {
 		cast: cast.length ? cast : peopleFromLinks(links, "Cast"),
 		director: director.length ? director : peopleFromLinks(links, "Directors"),
 		writer: writer.length ? writer : peopleFromLinks(links, "Writers"),
-		videos: asArray<
-			MetaVideo & { name?: string; number?: number; description?: string }
-		>(raw.videos).map(normalizeVideo),
+		videos: uniqueVideos(
+			asArray<
+				MetaVideo & { name?: string; number?: number; description?: string }
+			>(raw.videos).map(normalizeVideo),
+		),
 	};
+}
+
+/**
+ * Drop repeated episode ids, keeping the first. Some addons list an episode
+ * twice (specials re-filed, multi-source merges), and every episode list is a
+ * keyed `{#each}` on the id : a duplicate throws `each_key_duplicate`.
+ */
+function uniqueVideos(videos: MetaVideo[]): MetaVideo[] {
+	const seen = new Set<string>();
+	return videos.filter((video) => {
+		if (seen.has(video.id)) {
+			return false;
+		}
+		seen.add(video.id);
+		return true;
+	});
 }
 
 /** `tt0213338`, `tmdb:123`, `kitsu:1` out of a title or episode id; null for anything else. */
