@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.26](https://github.com/orochibraru/nuvio-web/compare/v1.0.25...v1.0.26) (2026-10-29)
+
+### Features
+
+* **player:** name audio languages, open subtitles as a dropdown (#48) ([004f70d](https://github.com/orochibraru/nuvio-web/commit/004f70d9e64a030f00146b0f87af5285126f7cce))
+
 ## [1.0.25](https://github.com/orochibraru/nuvio-web/compare/v1.0.24...v1.0.25) (2026-10-23)
 
 ### Code Refactoring
