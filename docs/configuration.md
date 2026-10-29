@@ -102,6 +102,17 @@ else is lost.
 line for a log shipper. An unrecognised value **fails at boot** rather than
 being quietly ignored.
 
+## Error reporting
+
+| Variable           | Default | Values                       |
+| ------------------ | ------- | ---------------------------- |
+| `NUVIO_SENTRY_DSN` | unset   | a Sentry (or compatible) DSN |
+
+Set, the browser reports uncaught client errors to it (no tracing, no replay, no
+PII), tagged with the `errorId` the error page shows. Unset, client errors only
+reach the browser console. It is the one `public` variable: the browser needs
+it, and a DSN is not a secret.
+
 ## How variables are declared
 
 Environment variables go through SvelteKit's explicit environment variables

@@ -61,6 +61,12 @@ export const variables = defineEnvVars({
 			return (value || defaults.logFormat) as LogFormat;
 		},
 	},
+	NUVIO_SENTRY_DSN: {
+		description:
+			"Sentry DSN the browser reports uncaught client errors to (any Sentry-compatible ingest, e.g. Homerun's). Unset means client errors are only logged to the console.",
+		public: true,
+		schema: (value: string | undefined) => value?.trim() ?? "",
+	},
 	NUVIO_LOG_LEVEL: {
 		description:
 			"Minimum level to print. Unset means 'debug' in dev and 'info' in production.",

@@ -71,6 +71,7 @@
 	"dependencies": {
 		"@mediabunny/ac3": "1.61.1",
 		"@mediabunny/dts": "1.61.0",
+		"@sentry/browser": "11.10.0",
 		"hls.js": "1.7.3",
 		"mediabunny": "1.61.0",
 		"valibot": "1.5.0"

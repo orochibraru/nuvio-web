@@ -1,12 +1,24 @@
+import * as Sentry from "@sentry/browser";
 import type { HandleClientError } from "@sveltejs/kit/hooks";
 import { makeErrorId } from "#lib/core/error-id.js";
 import { defineHtmlLangStrategy } from "#lib/i18n/client.js";
 import { m } from "#lib/i18n/index.js";
-import { dev } from "$app/env";
+import { dev, version } from "$app/env";
+import { NUVIO_SENTRY_DSN } from "$app/env/public";
 
 // Before anything calls `getLocale()`: hydration must speak the language the
 // server rendered.
 defineHtmlLangStrategy(document.documentElement);
+
+// Opt-in: an instance with no DSN reports nothing. Only uncaught errors go out
+// (they reach `handleError` below); no tracing, no replay, no PII.
+if (NUVIO_SENTRY_DSN) {
+	Sentry.init({
+		dsn: NUVIO_SENTRY_DSN,
+		release: version,
+		environment: dev ? "development" : "production",
+	});
+}
 
 export const handleError: HandleClientError = ({ error, event }) => {
 	const errorId = makeErrorId();
@@ -22,6 +34,11 @@ export const handleError: HandleClientError = ({ error, event }) => {
 	// through, or the id they report matches nothing anywhere.
 	// biome-ignore lint/suspicious/noConsole: client-side error log, found by the errorId shown on the error page
 	console.error(`Client error ${errorId}:`, error, event);
+	if (NUVIO_SENTRY_DSN) {
+		Sentry.captureException(error, {
+			tags: { errorId, route: event.route.id ?? "unknown" },
+		});
+	}
 
 	if (dev) {
 		if (error instanceof Error) {
