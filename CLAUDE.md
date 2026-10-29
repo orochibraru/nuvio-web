@@ -76,7 +76,10 @@
   appends one. The `no-session-link` commit-msg hook rejects it in commits.
 - **Branches are `<type>/<kebab-slug>`**, with the Conventional Commits types:
   `feat/touch-gestures`, `fix/issue-18`, `chore/bump-bun`. The `branch-name`
-  pre-push hook enforces it (`main`, `releaser/*`, `renovate/*` exempt).
+  pre-push hook enforces it (`main`, `releaser/*`, `renovate/*` exempt). **The
+  slug says what the branch does** (`feat/audio-language-names`), never a
+  generated placeholder (`feat/sleepy-cori-ltcctq`): rename a harness-assigned
+  branch before opening the PR.
 - **PR titles are Conventional Commits** (`feat(player): touch gestures`):
   squash merges make the title the commit subject the releaser reads.
   `pr_title.yml` fails the PR otherwise.
@@ -86,6 +89,8 @@
   requested as reviewer.** GitHub refuses a review request for the PR's own
   author, so when the PR is opened under that account, the assignee is what
   stands.
+- **Opening a PR means watching its CI** until it is green: subscribe to the
+  PR's activity and fix what fails, don't hand back a red PR.
 
 ## Layout of `src/lib`
 
