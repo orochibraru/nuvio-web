@@ -32,7 +32,14 @@ describe("languageName", () => {
 		expect(languageName("fr")).toBe("French");
 	});
 
-	it("takes the first two letters of a longer tag", () => {
+	it("resolves 3-letter and bibliographic codes", () => {
+		expect(languageName("eng")).toBe("English");
+		expect(languageName("ger")).toBe("German");
+		expect(languageName("fre")).toBe("French");
+		expect(languageName("deu", "fr")).toBe("allemand");
+	});
+
+	it("drops the region of a longer tag", () => {
 		expect(languageName("en-US")).toBe("English");
 		expect(languageName("pt-BR")).toBe("Portuguese");
 	});
@@ -47,10 +54,13 @@ describe("languageMatches", () => {
 		expect(languageMatches("en", "eng")).toBe(true);
 		expect(languageMatches("eng", "en")).toBe(true);
 		expect(languageMatches("en-US", "en")).toBe(true);
+		expect(languageMatches("ger", "de")).toBe(true);
+		expect(languageMatches("fre", "fra")).toBe(true);
 	});
 
 	it("rejects different languages", () => {
 		expect(languageMatches("en", "fr")).toBe(false);
+		expect(languageMatches("ger", "ka")).toBe(false);
 		expect(languageMatches("", "en")).toBe(false);
 	});
 });
