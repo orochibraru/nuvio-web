@@ -74,6 +74,25 @@ beforeEach(() => {
 });
 
 describe("getCatalog", () => {
+	it("drops a title the catalog lists twice", async () => {
+		const result = await client(
+			[installed()],
+			fetchStub([
+				[
+					"/catalog/movie/top.json",
+					{
+						metas: [
+							{ id: "tt1", type: "movie", name: "A" },
+							{ id: "tt1", type: "movie", name: "A again" },
+						],
+					},
+				],
+			]),
+		).getCatalog({ type: "movie", id: "top" });
+
+		expect(result?.metas.map((meta) => meta.name)).toEqual(["A"]);
+	});
+
 	it("builds the resource URL and normalizes the metas", async () => {
 		const result = await client(
 			[installed()],
@@ -233,6 +252,37 @@ describe("getMeta", () => {
 		expect(result?.meta.videos?.map((video) => video.title)).toEqual([
 			"Pilot",
 			"Two",
+		]);
+	});
+
+	it("drops repeated trailers, cast and genres", async () => {
+		const result = await client(
+			[installed()],
+			fetchStub([
+				[
+					"one.example",
+					{
+						meta: {
+							id: "tt1",
+							type: "series",
+							name: "A",
+							genres: ["Comedy", "Comedy", "Animation"],
+							cast: ["Dan Castellaneta", "Dan Castellaneta"],
+							trailerStreams: [
+								{ title: "One", ytId: "abc" },
+								{ title: "Again", ytId: "abc" },
+								{ title: "No id" },
+							],
+						},
+					},
+				],
+			]),
+		).getMeta("series", "tt1");
+
+		expect(result?.meta.genres).toEqual(["Comedy", "Animation"]);
+		expect(result?.meta.cast).toEqual(["Dan Castellaneta"]);
+		expect(result?.meta.trailerStreams).toEqual([
+			{ title: "One", ytId: "abc" },
 		]);
 	});
 

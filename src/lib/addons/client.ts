@@ -108,16 +108,42 @@ function asArray<T>(value: unknown): T[] {
 	return Array.isArray(value) ? (value as T[]) : [];
 }
 
+/**
+ * Keep the first entry per key. Addons repeat themselves (an episode listed
+ * twice, the same trailer or cast name again, a title on two catalog pages),
+ * and every list we render is a keyed `{#each}` : a repeat throws
+ * `each_key_duplicate` and takes the page down.
+ */
+function uniqueBy<T>(items: T[], key: (item: T) => string): T[] {
+	const seen = new Set<string>();
+	return items.filter((item) => {
+		const k = key(item);
+		if (seen.has(k)) {
+			return false;
+		}
+		seen.add(k);
+		return true;
+	});
+}
+
 /** Addons are inconsistent: `genres`/`cast`/`director` come as `string[]`, a comma string, or absent. */
 function stringList(value: unknown): string[] {
 	if (Array.isArray(value)) {
-		return value.filter((entry): entry is string => typeof entry === "string");
+		return [
+			...new Set(
+				value.filter((entry): entry is string => typeof entry === "string"),
+			),
+		];
 	}
 	if (typeof value === "string" && value.trim()) {
-		return value
-			.split(",")
-			.map((entry) => entry.trim())
-			.filter(Boolean);
+		return [
+			...new Set(
+				value
+					.split(",")
+					.map((entry) => entry.trim())
+					.filter(Boolean),
+			),
+		];
 	}
 	return [];
 }
@@ -159,10 +185,14 @@ function normalizeVideo(
  */
 function peopleFromLinks(links: Meta["links"], category: string): string[] {
 	const wanted = category.toLowerCase();
-	return (links ?? [])
-		.filter((link) => link.category?.toLowerCase() === wanted)
-		.map((link) => link.name.trim())
-		.filter(Boolean);
+	return [
+		...new Set(
+			(links ?? [])
+				.filter((link) => link.category?.toLowerCase() === wanted)
+				.map((link) => link.name.trim())
+				.filter(Boolean),
+		),
+	];
 }
 
 function normalizeMeta(raw: Meta): Meta {
@@ -176,28 +206,19 @@ function normalizeMeta(raw: Meta): Meta {
 		cast: cast.length ? cast : peopleFromLinks(links, "Cast"),
 		director: director.length ? director : peopleFromLinks(links, "Directors"),
 		writer: writer.length ? writer : peopleFromLinks(links, "Writers"),
-		videos: uniqueVideos(
+		videos: uniqueBy(
 			asArray<
 				MetaVideo & { name?: string; number?: number; description?: string }
 			>(raw.videos).map(normalizeVideo),
+			(video) => video.id,
+		),
+		trailerStreams: uniqueBy(
+			asArray<{ title?: string; ytId: string }>(raw.trailerStreams).filter(
+				(trailer) => typeof trailer?.ytId === "string" && trailer.ytId !== "",
+			),
+			(trailer) => trailer.ytId,
 		),
 	};
-}
-
-/**
- * Drop repeated episode ids, keeping the first. Some addons list an episode
- * twice (specials re-filed, multi-source merges), and every episode list is a
- * keyed `{#each}` on the id : a duplicate throws `each_key_duplicate`.
- */
-function uniqueVideos(videos: MetaVideo[]): MetaVideo[] {
-	const seen = new Set<string>();
-	return videos.filter((video) => {
-		if (seen.has(video.id)) {
-			return false;
-		}
-		seen.add(video.id);
-		return true;
-	});
 }
 
 /** `tt0213338`, `tmdb:123`, `kitsu:1` out of a title or episode id; null for anything else. */
@@ -280,9 +301,12 @@ export class AddonClient {
 			extra,
 		});
 		return {
-			metas: asArray<MetaPreview>(
-				(data as { metas?: unknown } | null)?.metas,
-			).map(normalizePreview),
+			metas: uniqueBy(
+				asArray<MetaPreview>((data as { metas?: unknown } | null)?.metas).map(
+					normalizePreview,
+				),
+				(meta) => `${meta.type}:${meta.id}`,
+			),
 			from: ref,
 		};
 	}

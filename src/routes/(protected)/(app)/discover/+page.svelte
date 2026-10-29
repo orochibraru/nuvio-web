@@ -167,7 +167,20 @@
 		exhausted = false;
 	});
 
-	const items = $derived([...(firstPage?.metas ?? []), ...more]);
+	// Pages overlap when the catalog shifts between requests : a title seen on
+	// page one comes back on page two, and the grid's keyed `{#each}` throws on
+	// the repeat. `skip` still counts what the addon sent, not what we kept.
+	const items = $derived.by(() => {
+		const seen = new Set<string>();
+		return [...(firstPage?.metas ?? []), ...more].filter((meta) => {
+			const key = `${meta.type}:${meta.id}`;
+			if (seen.has(key)) {
+				return false;
+			}
+			seen.add(key);
+			return true;
+		});
+	});
 
 	async function loadMore() {
 		if (!selected || loadingMore) {
@@ -180,7 +193,7 @@
 				type: selected.type,
 				id: selected.id,
 				genre: genre || undefined,
-				skip: items.length,
+				skip: (firstPage?.metas.length ?? 0) + more.length,
 			});
 			if (next.metas.length === 0) {
 				exhausted = true;
