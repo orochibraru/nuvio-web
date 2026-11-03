@@ -1,5 +1,6 @@
 import { redirect } from "@sveltejs/kit";
-import { toProfileView } from "#lib/nuvio/profile.js";
+import { httpUrlOrNull } from "#lib/core/url.js";
+import { safeColor, toProfileView } from "#lib/nuvio/profile.js";
 import { ADMIN } from "#lib/services/index.js";
 import { resolve } from "$app/paths";
 import type { LayoutServerLoad } from "./$types";
@@ -22,9 +23,12 @@ export const load: LayoutServerLoad = async ({ locals, url, fetch }) => {
 
 	return {
 		user: locals.session.user,
+		accountKey: locals.session.accountKey,
 		// Drives the nav entry only : every admin route and remote function
 		// checks server-side on its own.
-		isAdmin: locals.services.get(ADMIN).isAdmin(locals.session.user.email),
+		isAdmin: locals.services
+			.get(ADMIN)
+			.isAdmin(locals.session.user.email, locals.session.trusted),
 		profileId: locals.profileId,
 		profiles: profiles
 			.sort((a, b) => a.profile_index - b.profile_index)
@@ -37,8 +41,8 @@ export const load: LayoutServerLoad = async ({ locals, url, fetch }) => {
 			.map((entry) => ({
 				id: entry.id,
 				name: entry.display_name,
-				url: nuvio.avatarUrl(entry.storage_path),
-				bgColor: entry.bg_color,
+				url: httpUrlOrNull(nuvio.avatarUrl(entry.storage_path)),
+				bgColor: safeColor(entry.bg_color),
 			})),
 	};
 };

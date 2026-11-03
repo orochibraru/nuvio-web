@@ -13,6 +13,12 @@ const MAX_PROFILES = 6;
 
 const redirectTo = v.optional(v.string(), "");
 
+// The picker's "remember" switch: "1" or "", and remembered when the field is absent.
+const rememberChoice = v.pipe(
+	v.optional(v.string(), "1"),
+	v.transform((value) => value === "1"),
+);
+
 /** Only allow same-origin path redirects; anything else → the app root. */
 function safeTarget(value: string | undefined): string {
 	return safeRedirectPath(value, resolve("/(protected)/(app)"));
@@ -39,14 +45,17 @@ function toInput(profile: Profile): ProfileInput {
 }
 
 export const selectProfile = form(
-	v.object({ profileId: profileIndex, redirectTo }),
-	async ({ profileId, redirectTo: target }) => {
+	v.object({ profileId: profileIndex, redirectTo, remember: rememberChoice }),
+	async ({ profileId, redirectTo: target, remember }) => {
 		const { locals } = getRequestEvent();
 		const profiles = await locals.nuvio.profiles.list();
-		if (!profiles.some((profile) => profile.profile_index === profileId)) {
+		const picked = profiles.find(
+			(profile) => profile.profile_index === profileId,
+		);
+		if (!picked || picked.pin_enabled) {
 			redirect(303, resolve("profiles"));
 		}
-		locals.services.get(SESSION).writeProfileId(profileId);
+		locals.services.get(SESSION).writeProfileId(profileId, remember);
 		redirect(303, safeTarget(target));
 	},
 );
@@ -60,8 +69,9 @@ export const createProfile = form(
 			"#2563EB",
 		),
 		redirectTo,
+		remember: rememberChoice,
 	}),
-	async ({ name, avatarId, colorHex, redirectTo: target }, issue) => {
+	async ({ name, avatarId, colorHex, redirectTo: target, remember }, issue) => {
 		const { locals } = getRequestEvent();
 		const existing = await locals.nuvio.profiles.list();
 		if (existing.length >= MAX_PROFILES) {
@@ -86,7 +96,7 @@ export const createProfile = form(
 				},
 			],
 		});
-		locals.services.get(SESSION).writeProfileId(nextIndex);
+		locals.services.get(SESSION).writeProfileId(nextIndex, remember);
 		redirect(303, safeTarget(target));
 	},
 );
@@ -110,6 +120,9 @@ export const updateProfile = form(
 		);
 		if (!target) {
 			invalid(issue.name(m.profiles_error_gone()));
+		}
+		if (target.pin_enabled) {
+			invalid(issue.name(m.profiles_error_locked()));
 		}
 
 		const nextUsesPrimary =
@@ -144,17 +157,23 @@ export const deleteProfile = form(
 		}
 		const { locals } = getRequestEvent();
 		const existing = await locals.nuvio.profiles.list();
-		if (!existing.some((profile) => profile.profile_index === profileId)) {
+		const target = existing.find(
+			(profile) => profile.profile_index === profileId,
+		);
+		if (!target) {
 			redirect(303, resolve("profiles"));
+		}
+		if (target.pin_enabled) {
+			invalid(issue.profileId(m.profiles_error_locked()));
 		}
 		if (existing.length <= 1) {
 			invalid(issue.profileId(m.profiles_error_last()));
 		}
 
 		await locals.nuvio.profiles.deleteData(profileId);
-		const userId = locals.session?.user.id;
-		if (userId !== undefined) {
-			locals.services.get(USER_DATA_STORE).clearProfile(userId, profileId);
+		const accountKey = locals.session?.accountKey;
+		if (accountKey !== undefined) {
+			locals.services.get(USER_DATA_STORE).clearProfile(accountKey, profileId);
 		}
 		await locals.nuvio.profiles.replace({
 			p_client_max_profiles: MAX_PROFILES,

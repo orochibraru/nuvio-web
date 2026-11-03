@@ -3,6 +3,7 @@
 	import PencilIcon from "@lucide/svelte/icons/pencil";
 	import PlusIcon from "@lucide/svelte/icons/plus";
 	import Trash2Icon from "@lucide/svelte/icons/trash-2";
+	import { onMount } from "svelte";
 	import { toast } from "svelte-sonner";
 	import ProfileAvatar from "#lib/components/chrome/profile-avatar.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
@@ -45,6 +46,28 @@
 	let dialogOpen = $state(false);
 	let selectedAvatarId = $state<string | undefined>(undefined);
 	let selectedColor = $state("#2563EB");
+
+	// Per browser, so a shared machine can stay on "who's watching" without a server setting.
+	const REMEMBER_KEY = "nuvio:remember-profile:v1";
+	let remember = $state(true);
+	const rememberValue = $derived(remember ? "1" : "");
+
+	onMount(() => {
+		try {
+			remember = localStorage.getItem(REMEMBER_KEY) !== "0";
+		} catch {
+			// storage unavailable: keep the default
+		}
+	});
+
+	function setRemember(value: boolean) {
+		remember = value;
+		try {
+			localStorage.setItem(REMEMBER_KEY, value ? "1" : "0");
+		} catch {
+			// storage unavailable: the choice still applies to this visit
+		}
+	}
 
 	const canAdd = $derived((data.profiles?.length ?? 0) < 6);
 	const nameIssue = $derived(createProfile.fields.name.issues()?.[0]?.message);
@@ -147,6 +170,7 @@
 						{...pick.fields.profileId.as("hidden", String(profile.profile_index))}
 					/>
 					<input {...pick.fields.redirectTo.as("hidden", redirectTo)} />
+					<input {...pick.fields.remember.as("hidden", rememberValue)} />
 					<button
 						type="submit"
 						disabled={pick.pending > 0}
@@ -184,6 +208,27 @@
 		{/if}
 	</div>
 
+	{#if !manage}
+		<Field.Field
+			orientation="horizontal"
+			class="w-full max-w-md rounded-2xl bg-muted/40 px-4 py-3 ring-1 ring-foreground/10"
+		>
+			<Field.FieldContent>
+				<Field.FieldLabel for="remember-profile">
+					{m.profiles_remember()}
+				</Field.FieldLabel>
+				<Field.FieldDescription>
+					{m.profiles_remember_hint()}
+				</Field.FieldDescription>
+			</Field.FieldContent>
+			<Switch
+				id="remember-profile"
+				checked={remember}
+				onCheckedChange={setRemember}
+			/>
+		</Field.Field>
+	{/if}
+
 	<div class="flex items-center gap-2">
 		<Button variant="ghost" onclick={() => (manage = !manage)}>
 			{manage ? m.common_done() : m.profiles_manage()}
@@ -205,6 +250,7 @@
 
 		<form {...createProfile}>
 			<input {...createProfile.fields.redirectTo.as("hidden", redirectTo)} />
+			<input {...createProfile.fields.remember.as("hidden", rememberValue)} />
 			<Field.FieldGroup>
 				<Field.Field data-invalid={nameIssue ? true : undefined}>
 					<Field.FieldLabel for="profile-name">{m.social_name()}</Field.FieldLabel>

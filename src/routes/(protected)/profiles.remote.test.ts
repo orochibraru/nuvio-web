@@ -103,10 +103,31 @@ beforeEach(() => {
 describe("selectProfile", () => {
 	it("writes the cookie and enters the app for a known profile", async () => {
 		profiles.list.mockResolvedValue([profile(1), profile(2)]);
-		await expect(selectProfile({ profileId: 2 }, issue)).rejects.toMatchObject({
+		await expect(
+			selectProfile({ profileId: 2, remember: true }, issue),
+		).rejects.toMatchObject({
 			location: "/(protected)/(app)",
 		});
-		expect(session.writeProfileId).toHaveBeenCalledWith(2);
+		expect(session.writeProfileId).toHaveBeenCalledWith(2, true);
+	});
+
+	it("passes a 'don't remember' pick through to the cookie", async () => {
+		profiles.list.mockResolvedValue([profile(1), profile(2)]);
+		await expect(
+			selectProfile({ profileId: 2, remember: false }, issue),
+		).rejects.toBeInstanceOf(Redirect);
+		expect(session.writeProfileId).toHaveBeenCalledWith(2, false);
+	});
+
+	it("refuses a PIN-locked profile", async () => {
+		profiles.list.mockResolvedValue([
+			profile(1),
+			profile(2, { pin_enabled: true }),
+		]);
+		await expect(selectProfile({ profileId: 2 }, issue)).rejects.toMatchObject({
+			location: "profiles",
+		});
+		expect(session.writeProfileId).not.toHaveBeenCalled();
 	});
 
 	it("bounces back to the picker for an unknown profile", async () => {
@@ -122,7 +143,12 @@ describe("createProfile", () => {
 		profiles.list.mockResolvedValue([profile(1), profile(3)]);
 		await expect(
 			createProfile(
-				{ name: "New", avatarId: undefined, colorHex: "#123456" },
+				{
+					name: "New",
+					avatarId: undefined,
+					colorHex: "#123456",
+					remember: false,
+				},
 				issue,
 			),
 		).rejects.toBeInstanceOf(Redirect);
@@ -133,7 +159,7 @@ describe("createProfile", () => {
 			name: "New",
 			avatar_color_hex: "#123456",
 		});
-		expect(session.writeProfileId).toHaveBeenCalledWith(2);
+		expect(session.writeProfileId).toHaveBeenCalledWith(2, false);
 	});
 
 	it("refuses a seventh profile", async () => {
@@ -171,6 +197,19 @@ describe("updateProfile", () => {
 		});
 	});
 
+	it("refuses to edit a PIN-locked profile", async () => {
+		profiles.list.mockResolvedValue([
+			profile(1),
+			profile(2, { pin_enabled: true }),
+		]);
+		await expect(
+			updateProfile({ profileId: 2, name: "X", colorHex: "#abcdef" }, issue),
+		).rejects.toMatchObject({
+			payload: { field: "name", msg: expect.stringContaining("PIN") },
+		});
+		expect(profiles.replace).not.toHaveBeenCalled();
+	});
+
 	it("errors when the target is gone", async () => {
 		profiles.list.mockResolvedValue([profile(1)]);
 		await expect(
@@ -202,7 +241,7 @@ describe("deleteProfile", () => {
 
 	it("clears this server's copy of the profile's data after Nuvio's", async () => {
 		profiles.list.mockResolvedValue([profile(1), profile(2)]);
-		event.locals.session = { user: { id: "u" } };
+		event.locals.session = { user: { id: "u" }, accountKey: "u" };
 
 		await expect(deleteProfile({ profileId: 2 }, issue)).rejects.toMatchObject({
 			location: "profiles",
@@ -212,6 +251,17 @@ describe("deleteProfile", () => {
 			userData.clearProfile.mock.invocationCallOrder[0],
 		);
 		event.locals.session = undefined;
+	});
+
+	it("refuses to delete a PIN-locked profile", async () => {
+		profiles.list.mockResolvedValue([
+			profile(1),
+			profile(2, { pin_enabled: true }),
+		]);
+		await expect(deleteProfile({ profileId: 2 }, issue)).rejects.toMatchObject({
+			payload: { field: "profileId", msg: expect.stringContaining("PIN") },
+		});
+		expect(profiles.deleteData).not.toHaveBeenCalled();
 	});
 
 	it("won't delete the last remaining profile", async () => {
