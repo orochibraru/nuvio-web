@@ -6,10 +6,11 @@ in with the account you already use on your phone and you get the same profiles,
 addons, library and watch progress in a tab, plus a player that streams in the
 browser, casts to a TV, or hands the link off to a native app.
 
-It is a single container with no database and no volume to manage. Every piece
-of user state (account, profiles, addons, library, settings, progress) lives on
-your Nuvio account, so the instance you run is a stateless front end you can
-delete and recreate at will.
+It is a single container with one volume. Library, watch progress and history
+live in the instance's SQLite database and are mirrored to your Nuvio account in
+the background; account, profiles, addons and settings stay on Nuvio. Losing the
+volume costs nothing the mirror doesn't have: a fresh instance copies it back
+from Nuvio on the first visit.
 
 ## What it is not
 

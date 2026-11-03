@@ -57,8 +57,9 @@ resume, delete, or play.
 
 With no network, any page opens the offline page. It lists the finished
 downloads of the last profile used on this device and plays them in a simple
-player, with their subtitles. Watch progress isn't recorded offline, because
-there is no server to record it to.
+player, with their subtitles, picking up where you left off. Watch progress made
+offline is kept on the device and sent to the server the next time the app is
+online.
 
 ## Where downloads live, and who sees them
 
@@ -83,5 +84,8 @@ space, delete them from the Downloads page.
   users, refuses private and internal addresses, and streams bytes through
   without keeping them. See [Security](security).
 - The **service worker** serves saved files at `/offline-media/<id>/…`, with
-  range support so the video can seek. The player plays a download through that
-  URL, the same way as any other source.
+  range support so the video can seek, and `x-content-type-options: nosniff`. A
+  direct file keeps the source's content type only when it is audio or video (or
+  an HLS / MP4 application type); anything else is served as `video/mp4`, so a
+  source can't plant an HTML page on the app's origin. The player plays a
+  download through that URL, the same way as any other source.

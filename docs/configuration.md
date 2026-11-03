@@ -27,8 +27,13 @@ docker run -p 3000:3000 \
 | `PROTOCOL_HEADER` | assumes `https`        | Behind a reverse proxy                  |
 | `HOST_HEADER`     | the `Host` header      | Behind a proxy that rewrites the host   |
 | `PORT_HEADER`     | the `Host` header port | Behind a proxy that rewrites the port   |
-| `ADDRESS_HEADER`  | the socket address     | To log the client's IP, not the proxy's |
+| `ADDRESS_HEADER`  | the socket address     | To see the client's IP, not the proxy's |
 | `PORT`            | `3000`                 | To listen on another port               |
+
+Sign-in and sign-up are throttled per client address (10 attempts per 15
+minutes) and per email (5). Behind a proxy without `ADDRESS_HEADER` (for example
+`x-forwarded-for`), every visitor shares the proxy's address and so one budget:
+set it (with `XFF_DEPTH` when more than one proxy appends to `x-forwarded-for`).
 
 Only trust these headers when every request reaches the server through a proxy
 you control. The full list is in the
@@ -65,6 +70,33 @@ this list can always sign in, even while the instance is locked, so a bad
 allowlist cannot lock you out of the page that fixes it. See
 [The admin page](admin).
 
+## Backend
+
+Accounts come from the official Nuvio API (`api.nuvio.tv`) unless an admin sets
+another default backend on the admin page's **Backends** tab: a self-hosted
+Supabase-style backend with the same API, reachable by URL plus its publishable
+(anon) key. That setting lives in the database, not in the environment, so it
+needs no redeploy.
+
+The admin can also let users bring their own backend. Then the sign-in and
+sign-up forms grow a collapsed **Custom backend** section: a backend URL and its
+publishable key, remembered in that browser (clear them with **Reset to
+default**), and the form says which host you are signing in through. Leave the
+URL empty to use the instance default. The key is required: a Supabase gateway
+refuses requests without one, and the official key is never sent anywhere but
+the official API.
+
+Data on this server (library, progress, history) is kept per backend, so the
+same account id on two backends is two different people here. A custom backend
+must be reachable on a public address from the server; one on your LAN can only
+be the admin-set default. See [Security](security) for the rest.
+
+This server can also be the backend: its built-in one answers at
+`<ORIGIN>/api/nuvio` with a publishable key shown on the admin page. Nothing to
+configure; its tokens are signed with a key derived from the session secret, so
+rotating `NUVIO_SESSION_SECRET` signs its users out too. See
+[the admin page](admin#built-in-backend).
+
 ## Sessions
 
 | Variable               | Default                                          | What it does                                                       |
@@ -76,6 +108,10 @@ browser's cookie holds only a signed session id; the Nuvio access and refresh
 tokens stay in the database, encrypted (AES-256-GCM, key derived from the
 secret). That is what lets the server refresh a user's tokens, and sync their
 data, while no browser tab is open. A session unused for 30 days is dropped.
+
+The SMTP password set on the admin page is encrypted with another key derived
+from the same secret. Changing the secret signs everyone out and makes that
+password unreadable: save it again on the admin page.
 
 So **mount a volume on the data directory**: without one, every redeploy signs
 everyone out. The database must be writable, or nobody can sign in. Run one

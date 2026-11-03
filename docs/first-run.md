@@ -12,6 +12,11 @@ phone and vice versa.
 The session is stored in an `httpOnly` cookie and refreshed transparently on the
 server when the upstream access token expires. Signing out clears it.
 
+On an instance whose admin set another default backend, the form says which host
+you sign in through, and your account lives there instead of on Nuvio. If the
+admin allows custom backends, open **Custom backend** under the password to sign
+in through your own: see [Configuration](configuration#backend).
+
 ## 2. Pick a profile
 
 Nuvio accounts have up to six profiles, each with its own library, watch

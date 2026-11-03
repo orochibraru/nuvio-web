@@ -1,10 +1,12 @@
 # Your data and Nuvio
 
 Library, watch progress and history live **on this server**, in its SQLite
-database, per Nuvio account and per profile. That copy is the source of truth:
-every page and the in-browser sync store read and write it, never Nuvio
-directly. Your Nuvio account is kept as a mirror, so the Nuvio mobile app and
-other devices still see what you do here, and what you do there shows up here.
+database, per account and per profile (an account on a backend other than the
+official Nuvio API is kept apart, see [Security](security)). That copy is the
+source of truth: every page and the in-browser sync store read and write it,
+never Nuvio directly. Your Nuvio account is kept as a mirror, so the Nuvio
+mobile app and other devices still see what you do here, and what you do there
+shows up here.
 
 Everything else (profiles, addons, settings, collections) still lives on Nuvio
 and is read from it as before.
@@ -42,7 +44,8 @@ Each open tab keeps one live connection to this server (server-sent events,
 `/api/events`) for its profile. Every change to that profile, whether made in
 another tab, on another device through this instance, or pulled from Nuvio, is
 pushed down it the moment it is saved here. So a title added on the phone shows
-up in an open tab right after the next Nuvio pull, with no refresh.
+up in an open tab right after the next Nuvio pull, with no refresh. One account
+holds at most ten connections at once; a tab past that falls back to polling.
 
 The connection is a fast path, not the only one:
 

@@ -59,16 +59,23 @@ next to those rows, the second account skipped the full snapshot entirely,
 pulled deltas from the first account's cursors, and flushed its queued writes
 into the wrong account.
 
-Attaching also drops every other owner's rows, and landing on an auth screen
+Attaching also drops every other account's rows, and landing on an auth screen
 drops all of them (`local-data.ts`). Signing out clears cookies, not IndexedDB,
 so without that the previous account's mirror would sit on the device waiting
-for whoever signs in next.
+for whoever signs in next. The account's other profiles keep theirs: a write
+still queued when you switched profile goes out the next time that profile is
+picked.
 
 ## Cross-tab coherence
 
 Tabs on the **same profile** mirror each other over `BroadcastChannel` instead
 of waiting for the next poll. The channel is scoped to the profile, so switching
 profiles in one tab cannot leak into another tab's different profile.
+
+The active profile is one cookie shared by every tab, so each sync call and the
+event stream name the tab's own profile. When another tab has since picked a
+different one, the server refuses with a 409 and the tab stops and opens the
+profile picker rather than reading or writing the other profile's data.
 
 ## Structured clone
 

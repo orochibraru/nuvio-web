@@ -13,6 +13,10 @@ title** — not a generic home feed.
 Switching profile is a full switch: the local sync mirror is scoped per profile,
 and tabs on one profile never see another profile's state.
 
+The pick is remembered on this browser for 30 days, or only until the browser
+restarts with **Remember this profile on this browser** turned off under the
+picker (a per-browser choice).
+
 ## Settings
 
 Settings live on your Nuvio account, so they follow you between devices. They

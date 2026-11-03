@@ -11,6 +11,10 @@ parser is a best effort — it will not invent a field it could not find.
 `auto` means "take the addons' own order", which is the order you arranged your
 addons in.
 
+Moving on to the next episode stays on the same release: the stream from the
+same addon that the addon marks as the same release (its `bingeGroup`), when the
+next episode has one. Otherwise the usual auto-pick applies.
+
 **Reuse last link** (Settings → Playback) re-opens a title with the stream URL
 it used last time instead of resolving it again. Handy for debrid addons where
 re-resolution is slow. Remembered links expire after `linkCacheDays` (3 by
@@ -61,12 +65,27 @@ usual.
 
 ## Subtitles
 
-Subtitles come from your addons. SRT is converted to WebVTT **in the browser**,
-so a subtitle file never touches the server.
+Subtitles come from your addons and from the stream itself. Addon files (SRT,
+ASS / SSA, WebVTT) are converted to WebVTT **in the browser**, so a subtitle
+file never touches the server. A file that isn't valid UTF-8 is read as
+Windows-1252, which is what most older French and other Western European SRTs
+are in. ASS styling is dropped: you get the text, with its line breaks and
+timing.
 
-Size, colour, and a semi-opaque background plate are configurable, and a
-preferred language is auto-selected when a stream carries a matching track. All
-of it lives in **Settings → Playback**.
+The stream's own tracks are listed alongside, marked **Embedded**: HLS subtitle
+renditions, the text tracks the browser exposes for a file it plays itself, and
+a Matroska file's text subtitles (SRT, ASS / SSA, WebVTT) when it goes through
+the in-browser fix. Those last ones are read from the bytes the fix downloads
+anyway, so they fill in as playback moves forward. Image subtitles (PGS, VobSub)
+are not shown.
+
+Size, colour, a semi-opaque background plate and an outline are configurable,
+and a preferred language is auto-selected when a stream carries a matching
+track. All of it lives in **Settings → Playback**.
+
+The timing nudge (in the subtitles menu, or `G` / `H`) applies to whichever
+track is showing, and stays when you switch tracks or move to another source of
+the same video.
 
 ## Skip intro and outro
 
@@ -90,6 +109,11 @@ needs any server configuration:
 A missing id mapping, a 404 (no community data yet), a rate limit or a timeout
 all resolve to "no segments", and the player simply does not show the skip
 affordances.
+
+**Skip intro and credits** (Settings → Playback, off by default) skips the intro
+on its own, once per source, and goes from the credits straight to the next
+episode instead of the up-next countdown. The last episode still ends on the end
+panel.
 
 ## Volume boost
 
@@ -136,6 +160,11 @@ finished episode rolls forward only to one that has aired, and the card comes
 back on its own once the next one does. The air date comes from the addon's
 listing, or from TVmaze when the addon lists nothing past the last episode.
 
+## System media controls
+
+The lock screen, the media keys and a headset's buttons see what is playing,
+with its poster, and can play, pause, seek and skip to the next episode.
+
 ## Casting
 
 No third-party SDK is involved. The player uses the standard
@@ -158,21 +187,26 @@ form:
 
 ## Keyboard shortcuts
 
-| Key                     | Action                  |
-| ----------------------- | ----------------------- |
-| `Space` / `K`           | Play / pause            |
-| `←` / `J` and `→` / `L` | Seek 10s back / forward |
-| `↑` / `↓`               | Volume                  |
-| `M`                     | Mute                    |
-| `F`                     | Fullscreen              |
-| `C`                     | Cycle subtitle track    |
-| `I`                     | Info overlay            |
-| `N`                     | Next episode            |
-| `E`                     | Episode list            |
-| `Esc`                   | Close the open panel    |
+| Key                     | Action                    |
+| ----------------------- | ------------------------- |
+| `Space` / `K`           | Play / pause              |
+| `←` / `J` and `→` / `L` | Seek 10s back / forward   |
+| `0` to `9`              | Jump to 0% to 90%         |
+| `↑` / `↓`               | Volume                    |
+| `M`                     | Mute                      |
+| `<` / `>`               | Slower / faster           |
+| `F`                     | Fullscreen                |
+| `P`                     | Picture in picture        |
+| `C`                     | Cycle subtitle track      |
+| `G` / `H`               | Subtitles earlier / later |
+| `I`                     | Info overlay              |
+| `N`                     | Next episode              |
+| `E`                     | Episode list              |
+| `?`                     | List these shortcuts      |
+| `Esc`                   | Close the open panel      |
 
 Every control also carries its shortcut in its hover tooltip, so the icons do
-not have to be learned from this table.
+not have to be learned from this table. Outside the player, `/` opens search.
 
 Shortcuts are bound on the window, but a key aimed at a focused control is left
 alone: `Space` on a focused button inside the sources, subtitles or episodes
