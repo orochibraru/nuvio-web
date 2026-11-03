@@ -33,6 +33,7 @@
 	import { SEARCH_FOCUS_EVENT } from "#lib/search/focus.js";
 	import { genreIcon } from "#lib/search/genre-icons.js";
 	import { searchHistory } from "#lib/search/search-history.svelte.js";
+	import { catalogTitles } from "#lib/settings/home-layout.js";
 	import { cn } from "#lib/utils.js";
 	import { browser } from "$app/env";
 	import {
@@ -192,6 +193,7 @@
 			}))
 			.filter((row) => row.metas.length > 0),
 	);
+	const browseTitles = $derived(catalogTitles(browseRows));
 	// The Genre choices come from what's on the page, unfiltered.
 	const genres = $derived(
 		genresOf([
@@ -279,9 +281,9 @@
   {#if browseLoading}
     <MediaGrid items={[]} loading skeletonCount={12} />
   {:else}
-    {#each browseRows as row (`${row.addonId}:${row.type}:${row.id}`)}
+    {#each browseRows as row, index (`${row.addonId}:${row.type}:${row.id}`)}
       <MediaRow
-        title={row.title}
+        title={browseTitles[index]}
         items={row.metas}
         href={resolve(
           `discover?c=${encodeURIComponent(`${row.addonId}|${row.type}|${row.id}`)}`,

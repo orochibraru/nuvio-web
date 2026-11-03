@@ -5,7 +5,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // (`server/safe-fetch.test.ts`); here it is a pass-through that records the
 // URL the client built.
 const calls: Array<{ url: string; init: RequestInit }> = [];
-vi.mock("#lib/server/safe-fetch.js", () => ({
+vi.mock("#lib/server/safe-fetch.js", async (importOriginal) => ({
+	...(await importOriginal<typeof import("#lib/server/safe-fetch.js")>()),
 	safeFetch: (url: string, fetchImpl: typeof fetch, init: RequestInit = {}) => {
 		calls.push({ url, init });
 		return fetchImpl(url, init);
@@ -522,12 +523,12 @@ describe("getStreams", () => {
 				addonUrl: "https://one.example/manifest.json",
 				addonName: "One",
 				resource: "stream",
-				message: "stream request failed with 503",
+				reason: 503,
 			},
 		]);
 	});
 
-	it("names a timeout and a non-Error throw", async () => {
+	it("reports a code, never the transport's own text", async () => {
 		const two = installed({
 			baseUrl: "https://two.example",
 			manifest: manifest({ id: "org.two", name: "Two" }),
@@ -543,9 +544,33 @@ describe("getStreams", () => {
 			]),
 		).getStreams("movie", "tt1");
 
-		expect(errors.map((entry) => entry.message)).toEqual(
-			expect.arrayContaining(["Addon timed out", "Addon request failed"]),
+		expect(errors.map((entry) => entry.reason)).toEqual(
+			expect.arrayContaining(["timeout", "unreachable"]),
 		);
+	});
+
+	it("hides a connection error and an oversized answer behind codes", async () => {
+		const two = installed({
+			baseUrl: "https://two.example",
+			manifest: manifest({ id: "org.two", name: "Two" }),
+		});
+		const oversized = (async (url: string) =>
+			url.includes("two.example")
+				? new Response("{}", {
+						headers: { "content-length": String(6 * 1024 * 1024) },
+					})
+				: Promise.reject(
+						new Error("connect ECONNREFUSED 10.0.0.1:22"),
+					)) as unknown as typeof fetch;
+		const { errors } = await client([installed(), two], oversized).getStreams(
+			"movie",
+			"tt1",
+		);
+
+		expect(new Set(errors.map((entry) => entry.reason))).toEqual(
+			new Set(["invalid", "unreachable"]),
+		);
+		expect(JSON.stringify(errors)).not.toMatch(/ECONNREFUSED|10\.0\.0\.1/);
 	});
 
 	it("asks nobody when no addon serves the type", async () => {
@@ -627,9 +652,17 @@ describe("getAddonCatalog", () => {
 								manifest: {
 									id: "org.ok",
 									name: "Ok",
+									version: "1.2.0",
 									description: 42,
 									logo: "https://logo",
-									types: ["movie", 7],
+									types: ["movie", 7, "movie"],
+									resources: [
+										"catalog",
+										{ name: "stream", types: ["movie"] },
+										"catalog",
+										7,
+										null,
+									],
 								},
 							},
 						],
@@ -644,12 +677,26 @@ describe("getAddonCatalog", () => {
 				manifest: {
 					id: "org.ok",
 					name: "Ok",
+					version: "1.2.0",
 					description: undefined,
 					logo: "https://logo",
 					types: ["movie"],
+					resources: ["catalog", "stream"],
 				},
 			},
 		]);
+	});
+
+	it("keeps one entry per transport URL", async () => {
+		const entry = {
+			transportUrl: "https://ok/manifest.json",
+			manifest: { id: "org.ok", name: "Ok" },
+		};
+		const result = await client(
+			[withDirectory],
+			fetchStub([["/addon_catalog/", { addons: [entry, entry] }]]),
+		).getAddonCatalog("org.one", "all", "community");
+		expect(result?.addons).toHaveLength(1);
 	});
 
 	it("defaults types to an empty list when the manifest omits them", async () => {

@@ -7,19 +7,19 @@
 	import PlusIcon from "@lucide/svelte/icons/plus";
 	import PowerIcon from "@lucide/svelte/icons/power";
 	import PowerOffIcon from "@lucide/svelte/icons/power-off";
-	import PuzzleIcon from "@lucide/svelte/icons/puzzle";
 	import SettingsIcon from "@lucide/svelte/icons/settings";
 	import Trash2Icon from "@lucide/svelte/icons/trash-2";
 	import TriangleAlertIcon from "@lucide/svelte/icons/triangle-alert";
 	import { toast } from "svelte-sonner";
 	import {
-		addonCatalogSources,
-		browseAddonCatalog,
 		installedAddons,
 		previewAddon,
 		saveAddons,
 	} from "#lib/addons/addons.remote.js";
-	import type { LoadFailure } from "#lib/addons/registry.js";
+	import AddonLogo from "#lib/addons/components/addon-logo.svelte";
+	import { installedAddonId } from "#lib/addons/directory.js";
+	import { failureText } from "#lib/addons/labels.js";
+	import NavGroup from "#lib/components/layout/nav-group.svelte";
 	import * as Alert from "#lib/components/ui/alert/index.js";
 	import { Badge } from "#lib/components/ui/badge/index.js";
 	import { Button } from "#lib/components/ui/button/index.js";
@@ -32,6 +32,7 @@
 	import { m } from "#lib/i18n/index.js";
 	import SettingsGroup from "#lib/settings/components/settings-group.svelte";
 	import { cn } from "#lib/utils.js";
+	import { resolve } from "$app/paths";
 
 	pageTitle.set(m.settings_section_addons());
 
@@ -42,7 +43,6 @@
 	}
 
 	const addonsQuery = installedAddons();
-	const catalogSourcesQuery = addonCatalogSources();
 
 	let saving = $state(false);
 	let dialogOpen = $state(false);
@@ -223,87 +223,12 @@
 		toast.success(m.settings_addons_added({ name: result.manifest.name }));
 	}
 
-	// "Discover more addons" : addons that themselves advertise an
-	// `addon_catalog` (a community directory of other addons). Browsing one
-	// lazily fetches its listing; installing one re-verifies the manifest via
-	// `previewAddon` rather than trusting the directory's own copy of it.
-	type CatalogSource = Awaited<ReturnType<typeof addonCatalogSources>>[number];
-	type CatalogEntry = Awaited<
-		ReturnType<typeof browseAddonCatalog>
-	>["addons"][number];
-
-	let browseOpen = $state(false);
-	let browseSource = $state<CatalogSource | null>(null);
-	const browseQuery = $derived(
-		browseSource
-			? browseAddonCatalog({
-					addonId: browseSource.addonId,
-					type: browseSource.type,
-					id: browseSource.id,
-				})
-			: undefined,
-	);
-
-	function openBrowse(source: CatalogSource) {
-		browseSource = source;
-		browseOpen = true;
-	}
-
-	let installingUrl = $state<string | null>(null);
-
-	async function installFromCatalog(entry: CatalogEntry) {
-		if (installingUrl) {
-			return;
-		}
-		const rows = toRows();
-		if (rows.some((row) => row.url === entry.transportUrl)) {
-			toast.info(m.settings_addons_already_installed());
-			return;
-		}
-		installingUrl = entry.transportUrl;
-		try {
-			const result = await previewAddon(entry.transportUrl).catch(() => null);
-			if (!result?.ok) {
-				toast.error(
-					m.settings_addons_unreachable_named({ name: entry.manifest.name }),
-				);
-				return;
-			}
-			await persist([
-				...rows,
-				{
-					url: result.baseUrl,
-					name: result.manifest.name,
-					enabled: true,
-				},
-			]);
-			toast.success(m.settings_addons_added({ name: result.manifest.name }));
-		} finally {
-			installingUrl = null;
-		}
-	}
-
 	/** Host only: an addon URL's path often carries a debrid or API key. */
 	function addonHost(url: string): string {
 		try {
 			return new URL(url).host;
 		} catch {
 			return m.settings_addons_invalid_host();
-		}
-	}
-
-	function failureText(reason: LoadFailure): string {
-		switch (reason) {
-			case "timeout":
-				return m.settings_addons_failure_timeout();
-			case "invalid":
-				return m.settings_addons_failure_invalid();
-			case "blocked":
-				return m.settings_addons_failure_blocked();
-			case "unreachable":
-				return m.settings_addons_failure_unreachable();
-			default:
-				return m.settings_addons_failure_http({ status: reason });
 		}
 	}
 </script>
@@ -316,6 +241,17 @@
 {/snippet}
 
 <div class="flex flex-col gap-8">
+    <NavGroup
+        rows={[
+            {
+                href: resolve("addons"),
+                label: m.settings_addons_browse_title(),
+                description: m.addons_browse_description(),
+                icon: CompassIcon,
+            },
+        ]}
+    />
+
     <SettingsGroup title={m.settings_group_installed()} action={addButton} plain>
             <Alert.Root>
                 <InfoIcon />
@@ -431,29 +367,16 @@
                                         >
                                             <GripVerticalIcon class="size-4" />
                                         </button>
-                                        <div
-                                            class="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted"
-                                        >
-                                            {#if addon.logo}
-                                                <img
-                                                    src={addon.logo}
-                                                    alt=""
-                                                    class="size-full object-cover"
-                                                />
-                                            {:else}
-                                                <PuzzleIcon
-                                                    class="size-5 text-muted-foreground"
-                                                />
-                                            {/if}
-                                        </div>
+                                        <AddonLogo src={addon.logo} class="rounded-md" />
 
                                         <div class="min-w-0 flex-1">
                                             <div
                                                 class="flex items-center gap-2"
                                             >
-                                                <span
-                                                    class="truncate font-medium"
-                                                    >{addon.name}</span
+                                                <a
+                                                    href={resolve(`addons/${installedAddonId(addon.url)}`)}
+                                                    class="truncate font-medium hover:underline"
+                                                    >{addon.name}</a
                                                 >
                                                 {#if !addon.enabled}
                                                     <Badge variant="outline"
@@ -587,36 +510,6 @@
 
     </SettingsGroup>
 
-            {#if (catalogSourcesQuery.current?.length ?? 0) > 0}
-                <SettingsGroup
-                    title={m.settings_addons_discover_title()}
-                    footer={m.settings_addons_discover_description()}
-                >
-                        {#each catalogSourcesQuery.current ?? [] as source (`${source.addonId}|${source.type}|${source.id}`)}
-                            <div
-                                class="flex items-center gap-3 py-3 pr-3 pl-4 sm:pl-5"
-                            >
-                                <div class="min-w-0 flex-1">
-                                    <p class="text-sm font-medium">
-                                        {source.name}
-                                    </p>
-                                    <p
-                                        class="truncate text-xs text-muted-foreground"
-                                    >
-                                        {m.settings_addons_from({ name: source.addonName })}
-                                    </p>
-                                </div>
-                                <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onclick={() => openBrowse(source)}
-                                >
-                                    <CompassIcon data-icon="inline-start" /> {m.settings_addons_browse()}
-                                </Button>
-                            </div>
-                        {/each}
-                </SettingsGroup>
-            {/if}
 </div>
 
 <Dialog.Root bind:open={dialogOpen}>
@@ -651,21 +544,7 @@
             {#if preview?.ok}
                 <Card.Root>
                     <Card.Content class="flex items-center gap-3 py-4">
-                        <div
-                            class="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted"
-                        >
-                            {#if preview.manifest.logo}
-                                <img
-                                    src={preview.manifest.logo}
-                                    alt=""
-                                    class="size-full object-cover"
-                                />
-                            {:else}
-                                <PuzzleIcon
-                                    class="size-5 text-muted-foreground"
-                                />
-                            {/if}
-                        </div>
+                        <AddonLogo src={preview.manifest.logo} class="rounded-md" />
                         <div class="min-w-0 flex-1">
                             <p class="truncate font-medium">
                                 {preview.manifest.name}
@@ -701,7 +580,7 @@
                             <div
                                 class="flex max-h-24 flex-wrap gap-1 overflow-y-auto"
                             >
-                                {#each preview.manifest.catalogs as catalog (catalog.type + catalog.name)}
+                                {#each preview.manifest.catalogs as catalog (`${catalog.type}|${catalog.id}`)}
                                     <Badge
                                         variant="outline"
                                         class="text-[10px]"
@@ -762,93 +641,6 @@
             >
                 {m.common_remove()}
             </Button>
-        </Dialog.Footer>
-    </Dialog.Content>
-</Dialog.Root>
-
-<Dialog.Root bind:open={browseOpen}>
-    <Dialog.Content class="sm:max-w-lg">
-        <Dialog.Header>
-            <Dialog.Title>{browseSource?.name ?? m.settings_addons_browse_title()}</Dialog.Title>
-            <Dialog.Description>
-                {m.settings_addons_browse_description({
-                    name: browseSource?.addonName ?? "",
-                })}
-            </Dialog.Description>
-        </Dialog.Header>
-
-        {#if browseQuery?.error}
-            <Alert.Root variant="destructive">
-                <TriangleAlertIcon />
-                <Alert.Description
-                    >{m.settings_addons_directory_failed()}</Alert.Description
-                >
-            </Alert.Root>
-        {:else if !browseQuery?.current}
-            <div class="flex flex-col gap-2">
-                {#each { length: 3 } as _, i (i)}
-                    <div class="skeleton h-16 rounded-lg"></div>
-                {/each}
-            </div>
-        {:else if browseQuery.current.addons.length === 0}
-            <p class="py-6 text-center text-sm text-muted-foreground">
-                {m.settings_addons_directory_empty()}
-            </p>
-        {:else}
-            <div class="flex max-h-96 flex-col gap-2 overflow-y-auto">
-                {#each browseQuery.current.addons as entry (entry.transportUrl)}
-                    <div
-                        class="flex items-center gap-3 rounded-lg border border-border/60 p-3"
-                    >
-                        <div
-                            class="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted"
-                        >
-                            {#if entry.manifest.logo}
-                                <img
-                                    src={entry.manifest.logo}
-                                    alt=""
-                                    class="size-full object-cover"
-                                />
-                            {:else}
-                                <PuzzleIcon
-                                    class="size-5 text-muted-foreground"
-                                />
-                            {/if}
-                        </div>
-                        <div class="min-w-0 flex-1">
-                            <p class="truncate text-sm font-medium">
-                                {entry.manifest.name}
-                            </p>
-                            {#if entry.manifest.description}
-                                <p
-                                    class="truncate text-xs text-muted-foreground"
-                                >
-                                    {entry.manifest.description}
-                                </p>
-                            {/if}
-                        </div>
-                        <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={installingUrl !== null}
-                            onclick={() => installFromCatalog(entry)}
-                        >
-                            {#if installingUrl === entry.transportUrl}
-                                <Spinner data-icon="inline-start" />
-                            {:else}
-                                <PlusIcon data-icon="inline-start" />
-                            {/if}
-                            {m.settings_addons_install()}
-                        </Button>
-                    </div>
-                {/each}
-            </div>
-        {/if}
-
-        <Dialog.Footer class="mt-4">
-            <Button variant="ghost" onclick={() => (browseOpen = false)}
-                >{m.common_close()}</Button
-            >
         </Dialog.Footer>
     </Dialog.Content>
 </Dialog.Root>

@@ -32,7 +32,7 @@ const event = {
 			},
 		},
 		get session() {
-			return { user: { id: state.userId } };
+			return { user: { id: state.userId }, accountKey: state.userId };
 		},
 		get profileId() {
 			return state.profileId;
@@ -53,7 +53,8 @@ vi.mock("#lib/server/guards.js", () => ({
 
 // The registry is built for real (that is the part worth exercising here); only
 // the network hop for each manifest is stubbed.
-vi.mock("./manifest.ts", () => ({
+vi.mock("./manifest.ts", async (importOriginal) => ({
+	...(await importOriginal<typeof import("./manifest.ts")>()),
 	fetchManifest: (url: string, impl: unknown) => state.manifest(url, impl),
 }));
 
@@ -75,16 +76,24 @@ vi.mock("./catalog-queries.ts", () => ({
 		meta: { id, type },
 		addonName: "One",
 	})),
+	addonDirectory: vi.fn(async (_c: unknown, _r: unknown, urls: string[]) => ({
+		sources: [],
+		addons: urls,
+	})),
 }));
 
+import type { NuvioClient } from "#lib/nuvio/index.js";
 import { pinnedFetch } from "#lib/server/safe-fetch.js";
 import * as queries from "./catalog-queries.ts";
 import { AddonClient } from "./client.ts";
 import {
+	addonDetails,
+	addonDirectory,
 	catalogPage,
 	getAddonClient,
 	getRegistry,
 	homeCatalogRows,
+	installedAddonRows,
 	invalidateRegistry,
 	listCatalogs,
 	searchAllCatalogs,
@@ -224,6 +233,26 @@ describe("getRegistry", () => {
 		expect(state.list).toHaveBeenCalledTimes(3);
 	});
 
+	it("does not cache a build that invalidateRegistry() overtook", async () => {
+		let release: (rows: unknown[]) => void = () => {};
+		state.list = vi.fn(
+			() =>
+				new Promise<unknown[]>((resolve) => {
+					release = resolve;
+				}),
+		);
+		const stale = getRegistry();
+		await Promise.resolve();
+		invalidateRegistry();
+		release([row()]);
+		await stale;
+
+		state.list = vi.fn(async () => []);
+		const { registry } = await getRegistry();
+		expect(state.list).toHaveBeenCalledTimes(1);
+		expect(registry.addons).toHaveLength(0);
+	});
+
 	it("is rebuilt after invalidateRegistry()", async () => {
 		await getRegistry();
 		invalidateRegistry();
@@ -336,5 +365,74 @@ describe("request-scoped wrappers", () => {
 			expect(query).toHaveBeenCalledTimes(1);
 			expect(vi.mocked(query).mock.calls[0][0]).toBeInstanceOf(AddonClient);
 		}
+	});
+});
+
+describe("addon browsing", () => {
+	const nuvio = {
+		addons: {
+			list: async () => [
+				{
+					url: "https://two.example/manifest.json",
+					name: "Two",
+					enabled: false,
+					sort_order: 2,
+				},
+				{
+					url: "https://one.example/",
+					name: null,
+					enabled: true,
+					sort_order: 1,
+				},
+			],
+		},
+	} as unknown as NuvioClient;
+
+	it("lists installed rows in order, disabled ones included, with a comparable base URL", async () => {
+		expect(await installedAddonRows(nuvio, 7)).toEqual([
+			{
+				url: "https://one.example/",
+				baseUrl: "https://one.example",
+				name: undefined,
+				enabled: true,
+			},
+			{
+				url: "https://two.example/manifest.json",
+				baseUrl: "https://two.example",
+				name: "Two",
+				enabled: false,
+			},
+		]);
+	});
+
+	it("hands the directory this request's client and the installed URLs", async () => {
+		expect(await addonDirectory(nuvio, 7)).toEqual({
+			sources: [],
+			addons: ["https://one.example/", "https://two.example/manifest.json"],
+		});
+		expect(vi.mocked(queries.addonDirectory).mock.calls[0][0]).toBeInstanceOf(
+			AddonClient,
+		);
+	});
+
+	it("loads one manifest on the pinned fetch, or says why it could not", async () => {
+		state.manifest.mockResolvedValueOnce({
+			manifest: manifest(),
+			baseUrl: "https://one.example",
+		});
+		expect(await addonDetails("https://one.example/manifest.json")).toEqual({
+			ok: true,
+			baseUrl: "https://one.example",
+			manifest: manifest(),
+		});
+		expect(state.manifest.mock.calls.at(-1)?.[1]).toBe(pinnedFetch);
+
+		state.manifest.mockRejectedValueOnce(
+			new Error("Manifest request failed with 404"),
+		);
+		expect(await addonDetails("https://gone.example")).toEqual({
+			ok: false,
+			reason: 404,
+		});
 	});
 });

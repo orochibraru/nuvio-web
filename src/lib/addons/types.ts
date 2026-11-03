@@ -1,6 +1,8 @@
 // Stremio addon protocol : the subset Nuvio web consumes.
 // Reference: https://github.com/Stremio/stremio-addon-sdk/tree/master/docs/api
 
+import type { LoadFailure } from "./registry.ts";
+
 export type ContentType = "movie" | "series" | (string & {});
 export type PosterShape = "poster" | "landscape" | "square";
 export type AddonResourceName =
@@ -156,5 +158,5 @@ export interface AddonError {
 	addonUrl: string;
 	addonName: string;
 	resource: AddonResourceName;
-	message: string;
+	reason: LoadFailure;
 }

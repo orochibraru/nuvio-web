@@ -106,6 +106,21 @@ describe("validateManifest normalizers", () => {
 		).toHaveLength(1);
 	});
 
+	it("keeps one catalog per type and id", () => {
+		expect(
+			validateManifest({
+				id: "x",
+				name: "X",
+				resources: ["catalog"],
+				catalogs: [
+					{ type: "movie", id: "top" },
+					{ type: "movie", id: "top", name: "Again" },
+					{ type: "series", id: "top" },
+				],
+			}).catalogs,
+		).toHaveLength(2);
+	});
+
 	it("treats a non-array catalogs field as empty", () => {
 		expect(
 			validateManifest({
@@ -230,5 +245,16 @@ describe("fetchManifest", () => {
 		) as unknown as typeof fetch;
 
 		await expect(fetchManifest(url, impl)).rejects.toThrow(/502/);
+	});
+
+	it("refuses a manifest past the size cap", async () => {
+		const impl = vi.fn(
+			async () =>
+				new Response(JSON.stringify(body), {
+					headers: { "content-length": String(2 * 1024 * 1024) },
+				}),
+		) as unknown as typeof fetch;
+
+		await expect(fetchManifest(url, impl)).rejects.toThrow(/too large/);
 	});
 });

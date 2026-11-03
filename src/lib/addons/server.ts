@@ -1,3 +1,4 @@
+import type { NuvioClient } from "#lib/nuvio/index.js";
 import { requireProfile } from "#lib/server/guards.js";
 import { pinnedFetch } from "#lib/server/safe-fetch.js";
 import { LOGGER } from "#lib/services/index.js";
@@ -5,12 +6,16 @@ import { pullHomeLayout } from "#lib/settings/settings-data.js";
 import { getRequestEvent } from "$app/server";
 import * as queries from "./catalog-queries.ts";
 import { AddonClient } from "./client.ts";
+import type { DirectoryAddon, DirectorySource } from "./directory.ts";
+import { fetchManifest, parseAddonUrl } from "./manifest.ts";
 import {
 	type AddonLoadError,
 	type AddonRegistry,
 	buildRegistry,
+	type LoadFailure,
+	loadFailure,
 } from "./registry.ts";
-import type { Meta, MetaPreview } from "./types.ts";
+import type { AddonManifest, Meta, MetaPreview } from "./types.ts";
 
 export { requireProfile };
 
@@ -39,13 +44,15 @@ const cache = new Map<
 	string,
 	{ at: number; registry: AddonRegistry; errors: AddonLoadError[] }
 >();
+// Bumped by `invalidateRegistry`, so a build that started before it never caches.
+const generations = new Map<string, number>();
 
 export async function getRegistry(): Promise<{
 	registry: AddonRegistry;
 	errors: AddonLoadError[];
 }> {
 	const { event, profileId } = requireProfile();
-	const userId = event.locals.session?.user.id;
+	const userId = event.locals.session?.accountKey;
 	// `requireProfile()` guarantees a session; the check keeps the type honest
 	// and means a future refactor can't silently start sharing one cache entry.
 	if (!userId) {
@@ -59,10 +66,13 @@ export async function getRegistry(): Promise<{
 	if (hit && Date.now() - hit.at < ttl) {
 		return { registry: hit.registry, errors: hit.errors };
 	}
+	const generation = generations.get(key) ?? 0;
 	const rows = await event.locals.nuvio.addons.list(profileId);
 	const built = await buildRegistry(rows, pinnedFetch);
-	pruneExpired();
-	cache.set(key, { at: Date.now(), ...built });
+	if ((generations.get(key) ?? 0) === generation) {
+		pruneExpired();
+		cache.set(key, { at: Date.now(), ...built });
+	}
 	return built;
 }
 
@@ -86,10 +96,12 @@ function pruneExpired(): void {
  */
 export function invalidateRegistry(): void {
 	const event = getRequestEvent();
-	const userId = event.locals.session?.user.id;
+	const userId = event.locals.session?.accountKey;
 	const profileId = event.locals.profileId;
 	if (userId && profileId != null) {
-		cache.delete(cacheKey(userId, profileId));
+		const key = cacheKey(userId, profileId);
+		generations.set(key, (generations.get(key) ?? 0) + 1);
+		cache.delete(key);
 	}
 }
 
@@ -111,8 +123,8 @@ export async function listCatalogs(): Promise<
 	if (!registry) {
 		return [];
 	}
-	return registry.catalogs().map(({ addon, catalog }) => ({
-		addonId: addon.manifest.id,
+	return registry.catalogs().map(({ addon, addonId, catalog }) => ({
+		addonId,
 		addonName: addon.manifest.name,
 		type: catalog.type,
 		id: catalog.id,
@@ -191,4 +203,52 @@ export async function titleMeta(
 ): Promise<{ meta: Meta; addonName: string } | null> {
 	const { client } = await getAddonClient();
 	return queries.titleMeta(client, type, id);
+}
+
+export interface InstalledAddonRow {
+	url: string;
+	baseUrl: string;
+	name?: string;
+	enabled: boolean;
+}
+
+/** The profile's addon rows in their saved order, disabled ones included. */
+export async function installedAddonRows(
+	nuvio: NuvioClient,
+	profileId: number,
+): Promise<InstalledAddonRow[]> {
+	const rows = await nuvio.addons.list(profileId);
+	return rows
+		.sort((a, b) => a.sort_order - b.sort_order)
+		.map((row) => ({
+			url: row.url,
+			baseUrl: parseAddonUrl(row.url).baseUrl,
+			name: row.name ?? undefined,
+			enabled: row.enabled,
+		}));
+}
+
+export async function addonDirectory(
+	nuvio: NuvioClient,
+	profileId: number,
+): Promise<{ sources: DirectorySource[]; addons: DirectoryAddon[] }> {
+	const rows = installedAddonRows(nuvio, profileId).catch(() => []);
+	const { client, registry } = await getAddonClient();
+	const installedUrls = (await rows).map((row) => row.url);
+	return queries.addonDirectory(client, registry, installedUrls);
+}
+
+export type AddonDetails =
+	| { ok: true; baseUrl: string; manifest: AddonManifest }
+	| { ok: false; reason: LoadFailure };
+
+/** One addon's manifest, through the same capped, SSRF-guarded fetch as installing it. */
+export async function addonDetails(url: string): Promise<AddonDetails> {
+	requireProfile();
+	try {
+		const { manifest, baseUrl } = await fetchManifest(url, pinnedFetch);
+		return { ok: true, baseUrl, manifest };
+	} catch (cause) {
+		return { ok: false, reason: loadFailure(cause) };
+	}
 }

@@ -28,5 +28,7 @@ wel = "wel"
 unparseable = "unparseable"
 # French for "Appearance": `e2e/i18n.spec.ts` asserts the French settings nav.
 Apparence = "Apparence"
+# Stremio's addon host, `strem.io`.
+strem = "strem"
 # The MP4 track box (ISO BMFF four-character code), in the chapter reader.
 trak = "trak"

@@ -13,8 +13,28 @@ export interface InstalledAddon {
 
 export interface CatalogRef {
 	addon: InstalledAddon;
+	/** `AddonRegistry.idOf(addon)`: unique per install, unlike the manifest id. */
+	addonId: string;
 	catalog: CatalogDef;
 }
+
+// Stremio's own community addon directory, offered next to any installed one.
+const COMMUNITY_DIRECTORY: InstalledAddon = {
+	url: "https://v3-cinemeta.strem.io/manifest.json",
+	name: "Cinemeta",
+	enabled: true,
+	sortOrder: 0,
+	baseUrl: "https://v3-cinemeta.strem.io",
+	manifest: {
+		id: "com.linvo.cinemeta",
+		name: "Cinemeta",
+		version: "0.0.0",
+		types: [],
+		resources: ["addon_catalog"],
+		catalogs: [],
+		addonCatalogs: [{ type: "all", id: "community", name: "Community" }],
+	},
+};
 
 /**
  * Why a manifest didn't load: one of a fixed set of reasons, or the HTTP
@@ -46,13 +66,13 @@ export function loadFailure(error: unknown): LoadFailure {
 		return "invalid";
 	}
 	const message = error instanceof Error ? error.message : "";
-	// `fetchManifest`'s non-2xx error.
-	const http = message.match(/^Manifest request failed with (\d{3})$/);
+	// `fetchManifest`'s and `AddonClient`'s non-2xx errors.
+	const http = message.match(/ request failed with (\d{3})$/);
 	if (http) {
 		return Number(http[1]);
 	}
-	// `validateManifest`'s errors.
-	if (message.startsWith("Manifest ")) {
+	// `validateManifest`'s errors, and `readJsonCapped`'s size cap.
+	if (message.startsWith("Manifest ") || message === "Response too large") {
 		return "invalid";
 	}
 	// `safeFetch`'s SSRF guard.
@@ -76,13 +96,19 @@ function addonServes(
 	type: string,
 	id: string,
 ): boolean {
-	const match = manifest.resources.find((entry) =>
-		typeof entry === "string" ? entry === resource : entry.name === resource,
+	return manifest.resources.some(
+		(entry) =>
+			(typeof entry === "string" ? entry : entry.name) === resource &&
+			entryServes(manifest, entry, type, id),
 	);
-	if (!match) {
-		return false;
-	}
+}
 
+function entryServes(
+	manifest: AddonManifest,
+	match: AddonManifest["resources"][number],
+	type: string,
+	id: string,
+): boolean {
 	const types = typeof match === "string" ? manifest.types : match.types;
 	const idPrefixes =
 		typeof match === "string"
@@ -103,15 +129,36 @@ function addonServes(
 }
 
 export class AddonRegistry {
-	constructor(readonly addons: InstalledAddon[]) {}
+	private readonly ids = new Map<InstalledAddon, string>();
+
+	constructor(readonly addons: InstalledAddon[]) {
+		const installs = new Map<string, number>();
+		for (const addon of addons) {
+			const count = (installs.get(addon.manifest.id) ?? 0) + 1;
+			installs.set(addon.manifest.id, count);
+			this.ids.set(
+				addon,
+				count === 1 ? addon.manifest.id : `${addon.manifest.id}~${count}`,
+			);
+		}
+	}
 
 	get isEmpty(): boolean {
 		return this.addons.length === 0;
 	}
 
+	/** The manifest id, suffixed for a second install of the same addon (another config). */
+	idOf(addon: InstalledAddon): string {
+		return this.ids.get(addon) ?? addon.manifest.id;
+	}
+
 	catalogs(): CatalogRef[] {
 		return this.addons.flatMap((addon) =>
-			addon.manifest.catalogs.map((catalog) => ({ addon, catalog })),
+			addon.manifest.catalogs.map((catalog) => ({
+				addon,
+				addonId: this.idOf(addon),
+				catalog,
+			})),
 		);
 	}
 
@@ -120,21 +167,39 @@ export class AddonRegistry {
 		type: string,
 		catalogId: string,
 	): CatalogRef | undefined {
-		const addon = this.addons.find((entry) => entry.manifest.id === addonId);
-		const catalog = addon?.manifest.catalogs.find(
-			(entry) => entry.type === type && entry.id === catalogId,
+		return this.catalogs().find(
+			(ref) =>
+				ref.addonId === addonId &&
+				ref.catalog.type === type &&
+				ref.catalog.id === catalogId,
 		);
-		return addon && catalog ? { addon, catalog } : undefined;
 	}
 
-	/** `addon_catalog` catalogs : addons that advertise other addons. */
+	/** `addon_catalog` catalogs (addons that advertise other addons), then Stremio's community one. */
 	addonCatalogs(): CatalogRef[] {
-		return this.addons.flatMap((addon) =>
+		const installed = this.addons.flatMap((addon) =>
 			(addon.manifest.addonCatalogs ?? []).map((catalog) => ({
 				addon,
+				addonId: this.idOf(addon),
 				catalog,
 			})),
 		);
+		const community = (COMMUNITY_DIRECTORY.manifest.addonCatalogs ?? [])
+			.map((catalog) => ({
+				addon: COMMUNITY_DIRECTORY,
+				addonId: COMMUNITY_DIRECTORY.manifest.id,
+				catalog,
+			}))
+			.filter(
+				(ref) =>
+					!installed.some(
+						(other) =>
+							other.addonId === ref.addonId &&
+							other.catalog.type === ref.catalog.type &&
+							other.catalog.id === ref.catalog.id,
+					),
+			);
+		return [...installed, ...community];
 	}
 
 	findAddonCatalog(
@@ -142,11 +207,12 @@ export class AddonRegistry {
 		type: string,
 		catalogId: string,
 	): CatalogRef | undefined {
-		const addon = this.addons.find((entry) => entry.manifest.id === addonId);
-		const catalog = addon?.manifest.addonCatalogs?.find(
-			(entry) => entry.type === type && entry.id === catalogId,
+		return this.addonCatalogs().find(
+			(ref) =>
+				ref.addonId === addonId &&
+				ref.catalog.type === type &&
+				ref.catalog.id === catalogId,
 		);
-		return addon && catalog ? { addon, catalog } : undefined;
 	}
 
 	/** Addons that serve `resource` for this `type`/`id`, in profile sort order. */

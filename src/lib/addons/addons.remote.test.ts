@@ -7,14 +7,10 @@ const { state } = vi.hoisted(() => ({
 		registry: {
 			addons: [] as unknown[],
 			catalogs: vi.fn(() => [] as unknown[]),
-			addonCatalogs: vi.fn(() => [] as unknown[]),
 		},
 		errors: [] as unknown[],
 		invalidateRegistry: vi.fn(),
 		fetchManifest: vi.fn(),
-		getCatalog: vi.fn(),
-		getMeta: vi.fn(),
-		getAddonCatalog: vi.fn(),
 		catalogPage: vi.fn(),
 		titleMeta: vi.fn(),
 		similarToTitle: vi.fn(),
@@ -61,14 +57,6 @@ vi.mock("./server.ts", () => ({
 		profileId: 1,
 	}),
 	getRegistry: async () => ({ registry: state.registry, errors: state.errors }),
-	getAddonClient: async () => ({
-		client: {
-			getCatalog: state.getCatalog,
-			getMeta: state.getMeta,
-			getAddonCatalog: state.getAddonCatalog,
-		},
-		registry: state.registry,
-	}),
 	invalidateRegistry: state.invalidateRegistry,
 	catalogPage: state.catalogPage,
 	titleMeta: state.titleMeta,
@@ -77,8 +65,6 @@ vi.mock("./server.ts", () => ({
 
 import { pinnedFetch } from "#lib/server/safe-fetch.js";
 import {
-	addonCatalogSources,
-	browseAddonCatalog,
 	browseCatalog,
 	getMeta,
 	installedAddons,
@@ -93,14 +79,10 @@ beforeEach(() => {
 	state.registry = {
 		addons: [],
 		catalogs: vi.fn(() => []),
-		addonCatalogs: vi.fn(() => []),
 	};
 	state.errors = [];
 	state.invalidateRegistry.mockReset();
 	state.fetchManifest.mockReset();
-	state.getCatalog.mockReset().mockResolvedValue({ metas: [] });
-	state.getMeta.mockReset().mockResolvedValue(null);
-	state.getAddonCatalog.mockReset().mockResolvedValue({ addons: [] });
 	state.catalogPage.mockReset().mockResolvedValue({ metas: [], addon: {} });
 	state.titleMeta.mockReset().mockResolvedValue(null);
 	state.similarToTitle.mockReset().mockResolvedValue({ metas: [] });
@@ -114,7 +96,6 @@ describe("installedAddons", () => {
 		]);
 		state.registry = {
 			catalogs: vi.fn(() => []),
-			addonCatalogs: vi.fn(() => []),
 			addons: [
 				{
 					url: "u1",
@@ -168,6 +149,26 @@ describe("previewAddon", () => {
 			baseUrl: "https://x",
 			manifest: { id: "org.x", catalogCount: 1 },
 		});
+	});
+
+	it("lists a resource the manifest repeats once", async () => {
+		state.fetchManifest.mockResolvedValue({
+			baseUrl: "https://x",
+			manifest: {
+				id: "org.x",
+				name: "X",
+				version: "1.0.0",
+				resources: [
+					{ name: "stream", types: ["movie"] },
+					{ name: "stream", types: ["series"] },
+					"meta",
+				],
+				types: ["movie"],
+				catalogs: [],
+			},
+		});
+		const out = await previewAddon("https://x/manifest.json");
+		expect(out.ok && out.manifest.resources).toEqual(["stream", "meta"]);
 	});
 
 	it("fetches through the pinned, cookie-less transport", async () => {
@@ -250,77 +251,6 @@ describe("browseCatalog / getMeta", () => {
 			meta: { name: "M" },
 			addonName: "Cinemeta",
 		});
-	});
-});
-
-describe("addonCatalogSources", () => {
-	it("lists every addon_catalog across installed addons", async () => {
-		state.registry.addonCatalogs = vi.fn(() => [
-			{
-				addon: { manifest: { id: "org.community", name: "Community" } },
-				catalog: { type: "addon_catalog", id: "community", name: "Repo" },
-			},
-		]);
-		expect(await addonCatalogSources()).toEqual([
-			{
-				addonId: "org.community",
-				addonName: "Community",
-				type: "addon_catalog",
-				id: "community",
-				name: "Repo",
-			},
-		]);
-	});
-
-	it("falls back to the addon's own name when the catalog has none", async () => {
-		state.registry.addonCatalogs = vi.fn(() => [
-			{
-				addon: { manifest: { id: "org.x", name: "X Repo" } },
-				catalog: { type: "addon_catalog", id: "main" },
-			},
-		]);
-		const [entry] = await addonCatalogSources();
-		expect(entry.name).toBe("X Repo");
-	});
-
-	it("returns an empty list when no addon advertises one", async () => {
-		expect(await addonCatalogSources()).toEqual([]);
-	});
-});
-
-describe("browseAddonCatalog", () => {
-	it("returns the addons an addon_catalog lists", async () => {
-		state.getAddonCatalog.mockResolvedValue({
-			addons: [
-				{
-					transportUrl: "https://other.example/manifest.json",
-					manifest: { id: "org.other", name: "Other", types: ["movie"] },
-				},
-			],
-		});
-		const out = await browseAddonCatalog({
-			addonId: "org.community",
-			type: "addon_catalog",
-			id: "community",
-		});
-		expect(out.addons).toHaveLength(1);
-		expect(out.addons[0].manifest.name).toBe("Other");
-		expect(state.getAddonCatalog).toHaveBeenCalledWith(
-			"org.community",
-			"addon_catalog",
-			"community",
-		);
-	});
-
-	it("throws 404 when the catalog isn't found", async () => {
-		state.getAddonCatalog.mockResolvedValue(null);
-		await expect(
-			browseAddonCatalog({
-				addonId: "org.x",
-				type: "addon_catalog",
-				id: "nope",
-			}),
-		).rejects.toMatchObject({ status: 404 });
 	});
 });
 

@@ -135,6 +135,21 @@ describe("AddonRegistry.providersFor", () => {
 				.map((e) => e.manifest.id),
 		).toEqual(["c"]);
 	});
+
+	it("honours every entry when a manifest lists a resource twice", () => {
+		const split = new AddonRegistry([
+			installed({
+				manifest: manifest({
+					resources: [
+						{ name: "stream", types: ["movie"], idPrefixes: ["tt"] },
+						{ name: "stream", types: ["series"], idPrefixes: ["kitsu:"] },
+					],
+				}),
+			}),
+		]);
+		expect(split.providersFor("stream", "series", "kitsu:1")).toHaveLength(1);
+		expect(split.providersFor("stream", "series", "tt1")).toHaveLength(0);
+	});
 });
 
 describe("AddonRegistry catalogs", () => {
@@ -171,11 +186,54 @@ describe("AddonRegistry catalogs", () => {
 			}),
 			installed(),
 		]);
-		expect(directory.addonCatalogs().map((ref) => ref.catalog.id)).toEqual([
-			"community",
+		expect(
+			directory.addonCatalogs().map((ref) => [ref.addonId, ref.catalog.id]),
+		).toEqual([
+			["d", "community"],
+			["com.linvo.cinemeta", "community"],
 		]);
 		expect(directory.isEmpty).toBe(false);
 		expect(new AddonRegistry([]).isEmpty).toBe(true);
+	});
+
+	it("offers Stremio's community directory when no addon lists one", () => {
+		const fresh = new AddonRegistry([]);
+		expect(
+			fresh.addonCatalogs().map((ref) => [ref.addonId, ref.catalog.id]),
+		).toEqual([["com.linvo.cinemeta", "community"]]);
+		expect(
+			fresh.findAddonCatalog("com.linvo.cinemeta", "all", "community")?.addon
+				.baseUrl,
+		).toBe("https://v3-cinemeta.strem.io");
+	});
+
+	it("lists the community directory once when Cinemeta already advertises it", () => {
+		const cinemeta = new AddonRegistry([
+			installed({
+				manifest: manifest({
+					id: "com.linvo.cinemeta",
+					addonCatalogs: [{ type: "all", id: "community" }],
+				}),
+			}),
+		]);
+		expect(cinemeta.addonCatalogs()).toHaveLength(1);
+		expect(cinemeta.addonCatalogs()[0].addon.baseUrl).not.toBe(
+			"https://v3-cinemeta.strem.io",
+		);
+	});
+
+	it("gives a second install of the same addon its own reachable catalogs", () => {
+		const twice = new AddonRegistry([
+			installed(),
+			installed({ url: "https://addon.example/other/manifest.json" }),
+		]);
+		expect(twice.catalogs().map((ref) => ref.addonId)).toEqual([
+			"org.test",
+			"org.test~2",
+		]);
+		expect(twice.findCatalog("org.test~2", "movie", "top")?.addon.url).toBe(
+			"https://addon.example/other/manifest.json",
+		);
 	});
 });
 

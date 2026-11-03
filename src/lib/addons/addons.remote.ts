@@ -9,13 +9,24 @@ import { command, query } from "$app/server";
 import { fetchManifest } from "./manifest.ts";
 import {
 	catalogPage,
-	getAddonClient,
 	getRegistry,
 	invalidateRegistry,
 	requireProfile,
 	similarToTitle,
 	titleMeta,
 } from "./server.ts";
+import type { AddonManifest } from "./types.ts";
+
+/** A manifest may list a resource more than once (per type or id prefix). */
+function resourceNames(manifest: AddonManifest): string[] {
+	return [
+		...new Set(
+			manifest.resources.map((entry) =>
+				typeof entry === "string" ? entry : entry.name,
+			),
+		),
+	];
+}
 
 export const installedAddons = query(async () => {
 	const { event, profileId } = requireProfile();
@@ -44,10 +55,7 @@ export const installedAddons = query(async () => {
 					description: manifest?.description ?? null,
 					logo: manifest?.logo ?? null,
 					types: manifest?.types ?? [],
-					resources:
-						manifest?.resources.map((r) =>
-							typeof r === "string" ? r : r.name,
-						) ?? [],
+					resources: manifest ? resourceNames(manifest) : [],
 					catalogCount: manifest?.catalogs.length ?? 0,
 					reachable: Boolean(manifest),
 					// Stremio convention: a configurable addon serves its settings UI
@@ -93,13 +101,11 @@ export const previewAddon = command(addonUrl, async (url) => {
 				description: manifest.description ?? null,
 				logo: manifest.logo ?? null,
 				types: manifest.types,
-				resources: manifest.resources.map((r) =>
-					typeof r === "string" ? r : r.name,
-				),
+				resources: resourceNames(manifest),
 				catalogCount: manifest.catalogs.length,
 				catalogs: manifest.catalogs
 					.slice(0, 40)
-					.map((c) => ({ type: c.type, name: c.name ?? c.id })),
+					.map((c) => ({ type: c.type, id: c.id, name: c.name ?? c.id })),
 			},
 		};
 	} catch (cause) {
@@ -155,30 +161,6 @@ export const browseCatalog = query(catalogSchema, async (selector) => {
 	}
 	return page;
 });
-
-/** Every `addon_catalog` an installed addon advertises : a directory of other addons. */
-export const addonCatalogSources = query(async () => {
-	const { registry } = await getAddonClient();
-	return registry.addonCatalogs().map(({ addon, catalog }) => ({
-		addonId: addon.manifest.id,
-		addonName: addon.manifest.name,
-		type: catalog.type,
-		id: catalog.id,
-		name: catalog.name ?? addon.manifest.name,
-	}));
-});
-
-export const browseAddonCatalog = query(
-	v.object({ addonId: v.string(), type: v.string(), id: v.string() }),
-	async ({ addonId, type, id }) => {
-		const { client } = await getAddonClient();
-		const result = await client.getAddonCatalog(addonId, type, id);
-		if (!result) {
-			error(404, m.error_addon_catalog_not_found());
-		}
-		return result;
-	},
-);
 
 /** One-off client lookups (e.g. "mark all watched" from a poster). The
  *  detail / player loads call `titleMeta` directly. */

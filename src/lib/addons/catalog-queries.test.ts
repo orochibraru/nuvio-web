@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+	addonDirectory,
 	type CatalogSource,
 	catalogPage,
 	homeCatalogRows,
@@ -7,6 +8,7 @@ import {
 	similarToTitle,
 	titleMeta,
 } from "./catalog-queries.ts";
+import { decodeAddonId } from "./directory.ts";
 import type { AddonRegistry } from "./registry.ts";
 
 function registryWith(catalogs: unknown[]): AddonRegistry {
@@ -24,12 +26,8 @@ function ref(over: {
 	extra?: Array<{ name: string }>;
 }) {
 	return {
-		addon: {
-			manifest: {
-				id: over.addonId ?? `a-${over.id}`,
-				name: over.addonName ?? "Addon",
-			},
-		},
+		addonId: over.addonId ?? `a-${over.id}`,
+		addon: { manifest: { name: over.addonName ?? "Addon" } },
 		catalog: {
 			type: over.type ?? "movie",
 			id: over.id,
@@ -47,7 +45,7 @@ function source(over: Record<string, unknown> = {}): CatalogSource {
 	return {
 		getCatalog: vi.fn(async () => ({
 			metas: [],
-			from: { addon: { manifest: { id: "a", name: "A" } } },
+			from: { addonId: "a", addon: { manifest: { name: "A" } } },
 		})),
 		getMeta: vi.fn(async () => null),
 		...over,
@@ -114,7 +112,7 @@ describe("homeCatalogRows", () => {
 				}
 				return {
 					metas: query.id === "full" ? [{ id: "m1", type: "movie" }] : [],
-					from: { addon: { manifest: { id: "a", name: "A" } } },
+					from: { addonId: "a", addon: { manifest: { name: "A" } } },
 				};
 			}),
 		});
@@ -147,7 +145,7 @@ describe("homeCatalogRows", () => {
 					id: `m${i}`,
 					type: "movie",
 				})),
-				from: { addon: { manifest: { id: "a", name: "A" } } },
+				from: { addonId: "a", addon: { manifest: { name: "A" } } },
 			})),
 		});
 		const rows = await homeCatalogRows(
@@ -168,7 +166,7 @@ describe("homeCatalogRows", () => {
 				active -= 1;
 				return {
 					metas: [{ id: "m", type: "movie" }],
-					from: { addon: { manifest: { id: "a", name: "A" } } },
+					from: { addonId: "a", addon: { manifest: { name: "A" } } },
 				};
 			}),
 		});
@@ -195,7 +193,7 @@ describe("searchAllCatalogs", () => {
 								{ id: "m2", type: "movie" },
 								{ id: "m3", type: "movie" },
 							],
-				from: { addon: { manifest: { id: "a", name: "A" } } },
+				from: { addonId: "a", addon: { manifest: { name: "A" } } },
 			})),
 		});
 
@@ -239,7 +237,7 @@ describe("similarToTitle", () => {
 								type: "movie",
 							}))
 						: [],
-				from: { addon: { manifest: { id: "a", name: "A" } } },
+				from: { addonId: "a", addon: { manifest: { name: "A" } } },
 			})),
 		});
 
@@ -283,7 +281,7 @@ describe("catalogPage", () => {
 		const client = source({
 			getCatalog: vi.fn(async () => ({
 				metas: [{ id: "m1", type: "movie" }],
-				from: { addon: { manifest: { id: "org.x", name: "X" } } },
+				from: { addonId: "org.x", addon: { manifest: { name: "X" } } },
 			})),
 		});
 		expect(await catalogPage(client, { type: "movie", id: "top" })).toEqual({
@@ -337,5 +335,102 @@ describe("titleMeta", () => {
 
 	it("is null when nothing has it", async () => {
 		expect(await titleMeta(source(), "movie", "tt0")).toBeNull();
+	});
+});
+
+describe("addonDirectory", () => {
+	const directoryRef = (addonId: string, id: string, name?: string) => ({
+		addonId,
+		addon: { manifest: { name: `${addonId} addon` } },
+		catalog: { type: "all", id, name },
+	});
+	const entry = (transportUrl: string, name: string) => ({
+		transportUrl,
+		manifest: { id: name, name, types: ["movie"], resources: ["stream"] },
+	});
+
+	it("merges every directory, one entry per addon, and marks installed ones", async () => {
+		const getAddonCatalog = vi.fn(async (addonId: string) => {
+			if (addonId === "broken") {
+				throw new Error("timeout");
+			}
+			return addonId === "one"
+				? {
+						addons: [
+							entry("https://a.example/manifest.json", "A"),
+							entry("https://b.example/manifest.json", "B"),
+						],
+					}
+				: { addons: [entry("https://a.example/", "A again")] };
+		});
+		const registry = {
+			addonCatalogs: () => [
+				directoryRef("one", "community", "Community"),
+				directoryRef("two", "extra"),
+				directoryRef("broken", "dead"),
+			],
+		} as unknown as AddonRegistry;
+
+		const result = await addonDirectory({ getAddonCatalog }, registry, [
+			"https://b.example",
+		]);
+
+		expect(result.sources).toEqual([
+			{
+				key: "one|all|community",
+				name: "Community",
+				addonName: "one addon",
+				failed: false,
+			},
+			{
+				key: "two|all|extra",
+				name: "two addon",
+				addonName: "two addon",
+				failed: false,
+			},
+			{
+				key: "broken|all|dead",
+				name: "broken addon",
+				addonName: "broken addon",
+				failed: true,
+			},
+		]);
+		expect(
+			result.addons.map(({ name, sources, installed }) => ({
+				name,
+				sources,
+				installed,
+			})),
+		).toEqual([
+			{
+				name: "A",
+				sources: ["one|all|community", "two|all|extra"],
+				installed: false,
+			},
+			{ name: "B", sources: ["one|all|community"], installed: true },
+		]);
+		expect(decodeAddonId(result.addons[0].detailsId)).toBe(
+			"https://a.example/manifest.json",
+		);
+		expect(result.addons[0]).toMatchObject({
+			version: null,
+			description: null,
+			logo: null,
+			types: ["movie"],
+			resources: ["stream"],
+		});
+	});
+
+	it("is empty when no directory is reachable", async () => {
+		const registry = {
+			addonCatalogs: () => [directoryRef("one", "community")],
+		} as unknown as AddonRegistry;
+		const result = await addonDirectory(
+			{ getAddonCatalog: async () => null },
+			registry,
+			[],
+		);
+		expect(result.addons).toEqual([]);
+		expect(result.sources[0].failed).toBe(true);
 	});
 });

@@ -1,12 +1,18 @@
 import { pooledMap } from "#lib/core/pool.js";
-import { safeFetch } from "#lib/server/safe-fetch.js";
+import { readJsonCapped, safeFetch } from "#lib/server/safe-fetch.js";
 import type { Logger } from "#lib/services/index.js";
 
 // Cap on simultaneous upstream addon requests during a fan-out : keeps a
 // many-addon profile from bursting well past a sane per-user request rate.
 const FANOUT_CONCURRENCY = 6;
+const MAX_RESPONSE_BYTES = 5 * 1024 * 1024;
 
-import type { AddonRegistry, CatalogRef, InstalledAddon } from "./registry.ts";
+import {
+	type AddonRegistry,
+	type CatalogRef,
+	type InstalledAddon,
+	loadFailure,
+} from "./registry.ts";
 import type {
 	AddonError,
 	AddonResourceName,
@@ -35,9 +41,11 @@ export interface AddonCatalogEntry {
 	manifest: {
 		id: string;
 		name: string;
+		version?: string;
 		description?: string;
 		logo?: string;
 		types: string[];
+		resources: string[];
 	};
 }
 
@@ -55,9 +63,11 @@ function normalizeAddonCatalogEntry(raw: unknown): AddonCatalogEntry | null {
 		| {
 				id?: unknown;
 				name?: unknown;
+				version?: unknown;
 				description?: unknown;
 				logo?: unknown;
 				types?: unknown;
+				resources?: unknown;
 		  }
 		| null
 		| undefined;
@@ -73,14 +83,31 @@ function normalizeAddonCatalogEntry(raw: unknown): AddonCatalogEntry | null {
 		manifest: {
 			id: manifest.id,
 			name: manifest.name,
+			version:
+				typeof manifest.version === "string" ? manifest.version : undefined,
 			description:
 				typeof manifest.description === "string"
 					? manifest.description
 					: undefined,
 			logo: typeof manifest.logo === "string" ? manifest.logo : undefined,
-			types: Array.isArray(manifest.types)
-				? manifest.types.filter((t): t is string => typeof t === "string")
-				: [],
+			types: [
+				...new Set(
+					asArray<unknown>(manifest.types).filter(
+						(type): type is string => typeof type === "string",
+					),
+				),
+			],
+			resources: [
+				...new Set(
+					asArray<unknown>(manifest.resources)
+						.map((resource) =>
+							typeof resource === "string"
+								? resource
+								: (resource as { name?: unknown } | null)?.name,
+						)
+						.filter((name): name is string => typeof name === "string"),
+				),
+			],
 		},
 	};
 }
@@ -251,13 +278,6 @@ function contradicts(meta: Meta, requestedId: string): boolean {
 	return keys.length > 0 && !keys.includes(wanted);
 }
 
-function errorMessage(error: unknown): string {
-	if (error instanceof DOMException && error.name === "TimeoutError") {
-		return "Addon timed out";
-	}
-	return error instanceof Error ? error.message : "Addon request failed";
-}
-
 export class AddonClient {
 	constructor(
 		private readonly registry: AddonRegistry,
@@ -356,7 +376,7 @@ export class AddonClient {
 				asArray<Stream>((data as { streams?: unknown } | null)?.streams).map(
 					(stream) => ({
 						...stream,
-						addonId: addon.manifest.id,
+						addonId: this.registry.idOf(addon),
 						addonName: addon.manifest.name,
 					}),
 				),
@@ -376,7 +396,7 @@ export class AddonClient {
 					(data as { subtitles?: unknown } | null)?.subtitles,
 				).map((subtitle) => ({
 					...subtitle,
-					addonId: addon.manifest.id,
+					addonId: this.registry.idOf(addon),
 					addonName: addon.manifest.name,
 				})),
 		);
@@ -404,9 +424,12 @@ export class AddonClient {
 			id,
 		});
 		return {
-			addons: asArray<unknown>((data as { addons?: unknown } | null)?.addons)
-				.map(normalizeAddonCatalogEntry)
-				.filter((entry): entry is AddonCatalogEntry => entry !== null),
+			addons: uniqueBy(
+				asArray<unknown>((data as { addons?: unknown } | null)?.addons)
+					.map(normalizeAddonCatalogEntry)
+					.filter((entry): entry is AddonCatalogEntry => entry !== null),
+				(entry) => entry.transportUrl,
+			),
 		};
 	}
 
@@ -429,11 +452,16 @@ export class AddonClient {
 					const data = await this.request(addon, ref);
 					return map(addon, data);
 				} catch (error) {
+					this.logger?.warn("Addon request failed", {
+						addon: addon.manifest.id,
+						resource: ref.resource,
+						error: String(error),
+					});
 					errors.push({
 						addonUrl: addon.url,
 						addonName: addon.manifest.name,
 						resource: ref.resource,
-						message: errorMessage(error),
+						reason: loadFailure(error),
 					});
 					return [] as T[];
 				}
@@ -465,6 +493,6 @@ export class AddonClient {
 		if (!response.ok) {
 			throw new Error(`${ref.resource} request failed with ${response.status}`);
 		}
-		return response.json();
+		return readJsonCapped(response, MAX_RESPONSE_BYTES);
 	}
 }

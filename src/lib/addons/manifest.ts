@@ -1,4 +1,4 @@
-import { safeFetch } from "#lib/server/safe-fetch.js";
+import { readJsonCapped, safeFetch } from "#lib/server/safe-fetch.js";
 import { TtlCache } from "./cache.ts";
 import type {
 	AddonManifest,
@@ -10,6 +10,7 @@ import type {
 
 const MANIFEST_TTL_MS = 30 * 60 * 1000;
 const manifestCache = new TtlCache<AddonManifest>(MANIFEST_TTL_MS);
+const MAX_MANIFEST_BYTES = 1024 * 1024;
 
 const RESOURCE_NAMES: AddonResourceName[] = [
 	"catalog",
@@ -76,7 +77,10 @@ function normalizeCatalogs(value: unknown): CatalogDef[] {
 		const record = entry as Record<string, unknown>;
 		const type = asString(record.type);
 		const id = asString(record.id);
-		if (!(type && id)) {
+		if (
+			!(type && id) ||
+			out.some((existing) => existing.type === type && existing.id === id)
+		) {
 			continue;
 		}
 		const extra = normalizeCatalogExtra(record.extra);
@@ -217,7 +221,9 @@ export async function fetchManifest(
 	if (!response.ok) {
 		throw new Error(`Manifest request failed with ${response.status}`);
 	}
-	const manifest = validateManifest(await response.json());
+	const manifest = validateManifest(
+		await readJsonCapped(response, MAX_MANIFEST_BYTES),
+	);
 	manifestCache.set(baseUrl, manifest);
 	return { manifest, baseUrl };
 }

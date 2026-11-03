@@ -4,6 +4,13 @@ import {
 	type HomeLayout,
 	homeCatalogs,
 } from "#lib/settings/home-layout.js";
+import type { AddonCatalogEntry } from "./client.ts";
+import {
+	type DirectoryAddon,
+	type DirectorySource,
+	encodeAddonId,
+} from "./directory.ts";
+import { parseAddonUrl } from "./manifest.ts";
 import type { AddonRegistry } from "./registry.ts";
 import type { Meta, MetaPreview } from "./types.ts";
 
@@ -28,7 +35,7 @@ export interface CatalogSource {
 		addonId?: string,
 	) => Promise<{
 		metas: MetaPreview[];
-		from: { addon: { manifest: { id: string; name: string } } };
+		from: { addonId: string; addon: { manifest: { name: string } } };
 	} | null>;
 	getMeta: (
 		type: string,
@@ -85,7 +92,7 @@ export async function homeCatalogRows(
 	const catalogs = homeCatalogs(
 		browsable.map((ref) => ({
 			ref,
-			addonId: ref.addon.manifest.id,
+			addonId: ref.addonId,
 			type: ref.catalog.type,
 			id: ref.catalog.id,
 		})),
@@ -96,10 +103,10 @@ export async function homeCatalogRows(
 		try {
 			const result = await client.getCatalog(
 				{ type: ref.catalog.type, id: ref.catalog.id },
-				ref.addon.manifest.id,
+				ref.addonId,
 			);
 			return {
-				addonId: ref.addon.manifest.id,
+				addonId: ref.addonId,
 				addonName: ref.addon.manifest.name,
 				type: ref.catalog.type,
 				id: ref.catalog.id,
@@ -129,11 +136,11 @@ export async function searchAllCatalogs(
 	const batches = await pooledMap(
 		searchable,
 		CATALOG_CONCURRENCY,
-		async ({ addon, catalog }) => {
+		async ({ addonId, catalog }) => {
 			try {
 				const result = await client.getCatalog(
 					{ type: catalog.type, id: catalog.id, search: term },
-					addon.manifest.id,
+					addonId,
 				);
 				return result?.metas ?? [];
 			} catch {
@@ -177,16 +184,16 @@ export async function similarToTitle(
 	}
 	const wanted = genres.slice(0, 2);
 	const probes = (wanted.length > 0 ? wanted : [undefined]).flatMap((genre) =>
-		candidates.map(({ addon, catalog }) => ({ genre, addon, catalog })),
+		candidates.map(({ addonId, catalog }) => ({ genre, addonId, catalog })),
 	);
 	const results = await pooledMap(
 		probes,
 		CATALOG_CONCURRENCY,
-		async ({ genre, addon, catalog }) => {
+		async ({ genre, addonId, catalog }) => {
 			try {
 				return await client.getCatalog(
 					{ type: catalog.type, id: catalog.id, genre },
-					addon.manifest.id,
+					addonId,
 				);
 			} catch {
 				return null;
@@ -228,7 +235,7 @@ export async function catalogPage(
 	return {
 		metas: result.metas,
 		addon: {
-			id: result.from.addon.manifest.id,
+			id: result.from.addonId,
 			name: result.from.addon.manifest.name,
 		},
 	};
@@ -244,4 +251,73 @@ export async function titleMeta(
 	return result
 		? { meta: result.meta, addonName: result.addon.manifest.name }
 		: null;
+}
+
+const DIRECTORY_CONCURRENCY = 4;
+
+export interface DirectoryClient {
+	getAddonCatalog: (
+		addonId: string,
+		type: string,
+		id: string,
+	) => Promise<{ addons: AddonCatalogEntry[] } | null>;
+}
+
+/** Every addon the profile's addon catalogs list, one entry per transport URL. */
+export async function addonDirectory(
+	client: DirectoryClient,
+	registry: Pick<AddonRegistry, "addonCatalogs">,
+	installedUrls: string[],
+): Promise<{ sources: DirectorySource[]; addons: DirectoryAddon[] }> {
+	const installed = new Set(
+		installedUrls.map((url) => parseAddonUrl(url).baseUrl),
+	);
+	const listings = await pooledMap(
+		registry.addonCatalogs(),
+		DIRECTORY_CONCURRENCY,
+		async ({ addon, addonId, catalog }) => {
+			const result = await client
+				.getAddonCatalog(addonId, catalog.type, catalog.id)
+				.catch(() => null);
+			return {
+				source: {
+					key: `${addonId}|${catalog.type}|${catalog.id}`,
+					name: catalog.name ?? addon.manifest.name,
+					addonName: addon.manifest.name,
+					failed: result === null,
+				},
+				entries: result?.addons ?? [],
+			};
+		},
+	);
+
+	const byUrl = new Map<string, DirectoryAddon>();
+	for (const { source, entries } of listings) {
+		for (const { transportUrl, manifest } of entries) {
+			const baseUrl = parseAddonUrl(transportUrl).baseUrl;
+			const existing = byUrl.get(baseUrl);
+			if (existing) {
+				if (!existing.sources.includes(source.key)) {
+					existing.sources.push(source.key);
+				}
+				continue;
+			}
+			byUrl.set(baseUrl, {
+				detailsId: encodeAddonId(transportUrl),
+				transportUrl,
+				name: manifest.name,
+				version: manifest.version ?? null,
+				description: manifest.description ?? null,
+				logo: manifest.logo ?? null,
+				types: manifest.types,
+				resources: manifest.resources,
+				sources: [source.key],
+				installed: installed.has(baseUrl),
+			});
+		}
+	}
+	return {
+		sources: listings.map(({ source }) => source),
+		addons: [...byUrl.values()],
+	};
 }
