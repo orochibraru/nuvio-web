@@ -41,6 +41,10 @@ describe("safeRedirectPath", () => {
 		expect(safeRedirectPath("/\tevil.com", fallback)).toBe(fallback);
 		expect(safeRedirectPath("/\t/evil.com", fallback)).toBe(fallback);
 		expect(safeRedirectPath("//evil.com", fallback)).toBe(fallback);
+		expect(safeRedirectPath("/..//evil.com", fallback)).toBe(fallback);
+		expect(safeRedirectPath("/.//evil.com", fallback)).toBe(fallback);
+		expect(safeRedirectPath("/%2e%2e//evil.com", fallback)).toBe(fallback);
+		expect(safeRedirectPath("/a/..//evil.com", fallback)).toBe(fallback);
 	});
 
 	it("refuses absolute and non-path values", () => {

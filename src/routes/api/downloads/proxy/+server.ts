@@ -20,10 +20,12 @@ import type { RequestHandler } from "./$types";
  *   exactly as for addon URLs. Upstream error details stay in the server log.
  * - **Streams.** The upstream body is piped through, never buffered, and
  *   `Range` goes up so downloads resume and segments can be byte ranges.
+ * - **Never a page.** The bytes are attacker-chosen, so a navigation is
+ *   refused, a non-media `content-type` becomes `application/octet-stream`,
+ *   and the response is sandboxed, `nosniff` and an attachment.
  */
 
 const PASSED_HEADERS = [
-	"content-type",
 	"content-length",
 	"content-range",
 	"accept-ranges",
@@ -31,9 +33,37 @@ const PASSED_HEADERS = [
 	"etag",
 ];
 
+const MEDIA_TYPES = new Set([
+	"application/vnd.apple.mpegurl",
+	"application/x-mpegurl",
+	"application/octet-stream",
+	"application/mp4",
+	"text/vtt",
+]);
+
+const NAVIGATION_DESTINATIONS = new Set([
+	"document",
+	"iframe",
+	"frame",
+	"embed",
+	"object",
+]);
+
+function mediaType(value: string | null): string {
+	const essence = (value ?? "").split(";")[0].trim().toLowerCase();
+	return /^(video|audio)\/[\w.+-]+$/.test(essence) || MEDIA_TYPES.has(essence)
+		? essence
+		: "application/octet-stream";
+}
+
 export const GET: RequestHandler = async ({ url, request, locals }) => {
 	if (!locals.session) {
 		error(401, m.error_download_sign_in());
+	}
+	if (
+		NAVIGATION_DESTINATIONS.has(request.headers.get("sec-fetch-dest") ?? "")
+	) {
+		error(403, m.error_download_navigation());
 	}
 	const target = httpUrlOrNull(url.searchParams.get("url"));
 	if (!target) {
@@ -59,10 +89,16 @@ export const GET: RequestHandler = async ({ url, request, locals }) => {
 			origin: new URL(target).origin,
 			error: cause instanceof Error ? cause.message : String(cause),
 		});
-		error(502, "The source refused.");
+		error(502, m.error_download_source_refused());
 	}
 
-	const out = new Headers({ "cache-control": "no-store" });
+	const out = new Headers({
+		"cache-control": "no-store",
+		"content-type": mediaType(upstream.headers.get("content-type")),
+		"content-security-policy": "sandbox; default-src 'none'",
+		"x-content-type-options": "nosniff",
+		"content-disposition": "attachment",
+	});
 	for (const name of PASSED_HEADERS) {
 		const value = upstream.headers.get(name);
 		if (value) {

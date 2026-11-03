@@ -37,7 +37,8 @@ export function safeRedirectPath(
 	}
 	// Can't throw: a value starting with "/" always resolves against a base.
 	const url = new URL(value, PROBE_ORIGIN);
-	return url.origin === PROBE_ORIGIN
+	// Dot segments can collapse to `//evil.com`, which a browser reads as a host.
+	return url.origin === PROBE_ORIGIN && !url.pathname.startsWith("//")
 		? url.pathname + url.search + url.hash
 		: fallback;
 }

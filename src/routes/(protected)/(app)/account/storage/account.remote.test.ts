@@ -1,6 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const state = { deleteData: vi.fn(), clearProfile: vi.fn() };
+const state = {
+	deleteData: vi.fn(),
+	clearProfile: vi.fn(),
+	list: vi.fn(),
+};
+
+vi.mock("@sveltejs/kit", () => ({
+	error: (status: number, message: string) => {
+		throw Object.assign(new Error(message), { status });
+	},
+}));
 
 vi.mock("$app/server", () => ({
 	command: (schemaOrFn: unknown, fn?: unknown) => fn ?? schemaOrFn,
@@ -15,9 +25,11 @@ vi.mock("#lib/server/guards.js", () => ({
 			},
 			fetch,
 		},
-		nuvio: { profiles: { deleteData: state.deleteData } },
+		nuvio: {
+			profiles: { deleteData: state.deleteData, list: state.list },
+		},
 		profileId: 5,
-		userId: "u",
+		accountKey: "u",
 	}),
 }));
 
@@ -26,6 +38,7 @@ import { deleteProfileData } from "./account.remote.js";
 beforeEach(() => {
 	state.deleteData = vi.fn(async () => undefined);
 	state.clearProfile = vi.fn();
+	state.list = vi.fn(async () => [{ profile_index: 2, pin_enabled: false }]);
 });
 
 describe("deleteProfileData", () => {
@@ -37,6 +50,14 @@ describe("deleteProfileData", () => {
 			state.clearProfile.mock.invocationCallOrder[0],
 		);
 		expect(out).toEqual({ ok: true });
+	});
+
+	it("refuses a PIN-locked profile", async () => {
+		state.list = vi.fn(async () => [{ profile_index: 2, pin_enabled: true }]);
+		await expect(deleteProfileData({ profileIndex: 2 })).rejects.toMatchObject({
+			status: 403,
+		});
+		expect(state.deleteData).not.toHaveBeenCalled();
 	});
 
 	it("propagates a failure from the underlying call", async () => {

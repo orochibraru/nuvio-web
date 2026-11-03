@@ -302,7 +302,9 @@
 
 	const spotlightHref = $derived(
 		spotlight
-			? resolve(`detail/${spotlight.type}/${encodeURIComponent(spotlight.id)}`)
+			? resolve(
+					`detail/${encodeURIComponent(spotlight.type)}/${encodeURIComponent(spotlight.id)}`,
+				)
 			: "",
 	);
 

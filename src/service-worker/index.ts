@@ -146,6 +146,7 @@ async function serveLocal(
 				"content-type": type,
 				"content-length": String(file.size),
 				"accept-ranges": "bytes",
+				"x-content-type-options": "nosniff",
 			},
 		});
 	}
@@ -156,6 +157,7 @@ async function serveLocal(
 			"content-length": String(range.end - range.start + 1),
 			"content-range": `bytes ${range.start}-${range.end}/${file.size}`,
 			"accept-ranges": "bytes",
+			"x-content-type-options": "nosniff",
 		},
 	});
 }

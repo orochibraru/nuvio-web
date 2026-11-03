@@ -20,7 +20,12 @@ const SOURCE = "http://93.184.216.34/film.mp4";
 
 function call(
 	target: string | null,
-	options: { session?: boolean; range?: string; fetch?: typeof fetch } = {},
+	options: {
+		session?: boolean;
+		range?: string;
+		destination?: string;
+		fetch?: typeof fetch;
+	} = {},
 ) {
 	const url = new URL("http://localhost/api/downloads/proxy");
 	if (target !== null) {
@@ -29,6 +34,9 @@ function call(
 	const headers = new Headers();
 	if (options.range) {
 		headers.set("range", options.range);
+	}
+	if (options.destination) {
+		headers.set("sec-fetch-dest", options.destination);
 	}
 	transport.current = options.fetch ?? (vi.fn() as unknown as typeof fetch);
 	return Promise.resolve(
@@ -96,7 +104,60 @@ describe("GET /api/downloads/proxy", () => {
 		expect(response.headers.get("content-range")).toBe("bytes 0-2/10");
 		expect(response.headers.get("cache-control")).toBe("no-store");
 		expect(response.headers.get("set-cookie")).toBeNull();
+		expect(response.headers.get("content-type")).toBe("video/mp4");
+		expect(response.headers.get("content-security-policy")).toBe(
+			"sandbox; default-src 'none'",
+		);
+		expect(response.headers.get("x-content-type-options")).toBe("nosniff");
+		expect(response.headers.get("content-disposition")).toBe("attachment");
 		expect(await response.text()).toBe("abc");
+	});
+
+	it("refuses to be opened as a page", async () => {
+		for (const destination of ["document", "iframe", "embed", "object"]) {
+			const upstream = vi.fn();
+			expect(
+				await status(
+					call(SOURCE, {
+						destination,
+						fetch: upstream as unknown as typeof fetch,
+					}),
+				),
+			).toBe(403);
+			expect(upstream).not.toHaveBeenCalled();
+		}
+	});
+
+	it("serves the download worker's fetch", async () => {
+		const upstream = vi.fn(async () => new Response("x"));
+		const response = await call(SOURCE, {
+			destination: "empty",
+			fetch: upstream as unknown as typeof fetch,
+		});
+		expect(response.status).toBe(200);
+	});
+
+	it("passes media types through and downgrades anything else", async () => {
+		const typeFor = async (contentType: string) => {
+			const upstream = vi.fn(
+				async () =>
+					new Response("x", { headers: { "content-type": contentType } }),
+			);
+			const response = await call(SOURCE, {
+				fetch: upstream as unknown as typeof fetch,
+			});
+			return response.headers.get("content-type");
+		};
+		expect(await typeFor("Audio/MP4; codecs=mp4a")).toBe("audio/mp4");
+		expect(await typeFor("application/vnd.apple.mpegurl")).toBe(
+			"application/vnd.apple.mpegurl",
+		);
+		expect(await typeFor("text/vtt; charset=utf-8")).toBe("text/vtt");
+		expect(await typeFor("text/html")).toBe("application/octet-stream");
+		expect(await typeFor("image/svg+xml")).toBe("application/octet-stream");
+		expect(await typeFor("video/mp4, text/html")).toBe(
+			"application/octet-stream",
+		);
 	});
 
 	it("drops a malformed range", async () => {

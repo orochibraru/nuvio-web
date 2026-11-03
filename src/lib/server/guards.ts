@@ -18,7 +18,7 @@ export function requireProfile() {
 		event,
 		nuvio: event.locals.nuvio,
 		profileId: event.locals.profileId,
-		userId: event.locals.session.user.id,
+		accountKey: event.locals.session.accountKey,
 	};
 }
 
@@ -28,8 +28,11 @@ export function requireProfile() {
  */
 export function requireAdmin() {
 	const event = getRequestEvent();
-	const email = event.locals.session?.user.email;
-	if (!event.locals.services.get(ADMIN).isAdmin(email)) {
+	const session = event.locals.session;
+	const email = session?.user.email;
+	if (
+		!event.locals.services.get(ADMIN).isAdmin(email, session?.trusted ?? false)
+	) {
 		error(404, m.error_not_found());
 	}
 	return { event, email: email as string };

@@ -1,6 +1,7 @@
 import * as Sentry from "@sentry/browser";
 import type { HandleClientError } from "@sveltejs/kit/hooks";
 import { makeErrorId } from "#lib/core/error-id.js";
+import { scrubBreadcrumb, scrubEvent } from "#lib/core/sentry-scrub.js";
 import { defineHtmlLangStrategy } from "#lib/i18n/client.js";
 import { m } from "#lib/i18n/index.js";
 import { dev, version } from "$app/env";
@@ -17,6 +18,8 @@ if (NUVIO_SENTRY_DSN) {
 		dsn: NUVIO_SENTRY_DSN,
 		release: version,
 		environment: dev ? "development" : "production",
+		beforeBreadcrumb: scrubBreadcrumb,
+		beforeSend: scrubEvent,
 	});
 }
 

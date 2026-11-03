@@ -14,19 +14,28 @@ let events: UserDataEvents;
 let touch: ReturnType<typeof vi.fn>;
 
 function call(
-	options: { session?: boolean; profileId?: number | null } = {},
+	options: {
+		session?: boolean;
+		profileId?: number | null;
+		tabProfile?: number;
+	} = {},
 	controller = new AbortController(),
 ) {
 	const services = new Map<unknown, unknown>([
 		[USER_DATA_EVENTS, events],
 		[NUVIO_SYNC, { touch }],
 	]);
+	const url = new URL(
+		`http://localhost/api/events?profile=${options.tabProfile ?? 1}`,
+	);
 	const response = GET({
-		request: new Request("http://localhost/api/events", {
-			signal: controller.signal,
-		}),
+		url,
+		request: new Request(url, { signal: controller.signal }),
 		locals: {
-			session: options.session === false ? null : { user: { id: "u" } },
+			session:
+				options.session === false
+					? null
+					: { user: { id: "u" }, accountKey: "u" },
 			profileId: options.profileId === undefined ? 1 : options.profileId,
 			services: { get: (token: unknown) => services.get(token) },
 		},
@@ -83,6 +92,25 @@ describe("GET /api/events", () => {
 	it("requires a session and an active profile", async () => {
 		expect(await status(() => call({ session: false }))).toBe(401);
 		expect(await status(() => call({ profileId: null }))).toBe(401);
+	});
+
+	it("refuses a tab whose profile is no longer the active one", async () => {
+		expect(await status(() => call({ tabProfile: 2 }))).toBe(409);
+		expect(live).toBe(0);
+	});
+
+	it("refuses an eleventh concurrent stream for one user", async () => {
+		const open = Array.from({ length: 10 }, () => call());
+		expect(live).toBe(10);
+		expect(await status(() => call())).toBe(429);
+		expect(live).toBe(10);
+
+		open[0].controller.abort();
+		const { controller } = call();
+		expect(live).toBe(10);
+		for (const stream of [...open, { controller }]) {
+			stream.controller.abort();
+		}
 	});
 
 	it("streams server-sent events with no buffering", async () => {

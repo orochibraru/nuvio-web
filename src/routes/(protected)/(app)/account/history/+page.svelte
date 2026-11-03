@@ -118,7 +118,9 @@
 			item.type === "series" && item.season != null && item.episode != null
 				? `${item.contentId}:${item.season}:${item.episode}`
 				: item.contentId;
-		return resolve(`player/${item.type}/${encodeURIComponent(videoId)}`);
+		return resolve(
+			`player/${encodeURIComponent(item.type)}/${encodeURIComponent(videoId)}`,
+		);
 	}
 
 	function remove(item: Row) {
@@ -185,7 +187,7 @@
 							     the row exposes one link to the detail page, not two. -->
               <a
                 href={resolve(
-                  `detail/${item.type}/${encodeURIComponent(item.contentId)}`,
+                  `detail/${encodeURIComponent(item.type)}/${encodeURIComponent(item.contentId)}`,
                 )}
                 aria-hidden="true"
                 tabindex="-1"
@@ -214,7 +216,7 @@
               <div class="flex min-w-0 flex-1 flex-col justify-center gap-1">
                 <a
                   href={resolve(
-                    `detail/${item.type}/${encodeURIComponent(item.contentId)}`,
+                    `detail/${encodeURIComponent(item.type)}/${encodeURIComponent(item.contentId)}`,
                   )}
                   class="line-clamp-2 text-sm font-semibold transition-colors hover:text-primary"
                   >{item.title}</a

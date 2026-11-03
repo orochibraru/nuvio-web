@@ -34,10 +34,14 @@
 	} = $props();
 
 	const detailHref = $derived(
-		resolve(`detail/${item.type}/${encodeURIComponent(item.id)}`),
+		resolve(
+			`detail/${encodeURIComponent(item.type)}/${encodeURIComponent(item.id)}`,
+		),
 	);
 	const playHref = $derived(
-		resolve(`player/${item.type}/${encodeURIComponent(item.videoId)}`),
+		resolve(
+			`player/${encodeURIComponent(item.type)}/${encodeURIComponent(item.videoId)}`,
+		),
 	);
 	const started = $derived(item.progress >= 0.01);
 	const downloaded = $derived(downloads.find(item.videoId)?.status === "done");

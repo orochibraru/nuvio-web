@@ -16,7 +16,7 @@ const net = vi.hoisted(() => ({ request: vi.fn() }));
 vi.mock("node:http", () => ({ default: { request: net.request } }));
 vi.mock("node:https", () => ({ default: { request: net.request } }));
 
-import { pinnedFetch, safeFetch } from "./safe-fetch.ts";
+import { pinnedFetch, readJsonCapped, safeFetch } from "./safe-fetch.ts";
 
 type LookupCallback = (
 	error: Error | null,
@@ -183,6 +183,29 @@ describe("safeFetch", () => {
 		).resolves.toBeInstanceOf(Response);
 	});
 
+	it("blocks NAT64, site-local, multicast and IPv4-compatible literals", async () => {
+		for (const host of [
+			"[64:ff9b::10.0.0.1]",
+			"[64:ff9b::7f00:1]",
+			"[64:ff9b:1::93.184.216.34]",
+			"[fec0::1]",
+			"[feb0::1]",
+			"[ff02::1]",
+			"[::10.0.0.1]",
+			"[::93.184.216.34]",
+		]) {
+			await expect(safeFetch(`https://${host}/x`, okFetch())).rejects.toThrow(
+				/disallowed/,
+			);
+		}
+	});
+
+	it("allows a NAT64 address embedding a public IPv4 host", async () => {
+		await expect(
+			safeFetch("https://[64:ff9b::93.184.216.34]/x", okFetch()),
+		).resolves.toBeInstanceOf(Response);
+	});
+
 	it("blocks the whole of a multicast / reserved range", async () => {
 		for (const host of ["224.0.0.1", "240.0.0.1", "0.0.0.0", "100.64.0.1"]) {
 			await expect(safeFetch(`https://${host}/x`, okFetch())).rejects.toThrow(
@@ -212,6 +235,15 @@ describe("safeFetch host resolution", () => {
 		]);
 		await expect(
 			safeFetch("https://rebind.example/x", okFetch()),
+		).rejects.toThrow(/disallowed/);
+	});
+
+	it("blocks a dotted NAT64 answer from the resolver", async () => {
+		dns.lookup.mockResolvedValue([
+			{ address: "64:ff9b::192.168.1.1", family: 6 },
+		]);
+		await expect(
+			safeFetch("https://nat64.example/x", okFetch()),
 		).rejects.toThrow(/disallowed/);
 	});
 
@@ -294,6 +326,53 @@ describe("pinnedFetch", () => {
 		expect(answer).toEqual({ address: "93.184.216.34", family: 4 });
 	});
 
+	it("sends a string body with its byte length", async () => {
+		let sent: unknown;
+		let headers: Record<string, string> = {};
+		net.request.mockImplementation(
+			(_url: URL, options: FakeOptions, onResponse: (r: unknown) => void) =>
+				Object.assign(new EventEmitter(), {
+					end(body?: string) {
+						sent = body;
+						headers = options.headers;
+						onResponse(
+							Object.assign(Readable.from([]), {
+								statusCode: 204,
+								statusMessage: "",
+								headers: {},
+							}),
+						);
+					},
+				}),
+		);
+		await pinnedFetch("https://backend.example/rpc", {
+			method: "POST",
+			body: '{"name":"é"}',
+		});
+		expect(sent).toBe('{"name":"é"}');
+		expect(headers["content-length"]).toBe("13");
+	});
+
+	it("skips the address block only when asked, for an admin-set URL", async () => {
+		const fetchImpl = vi.fn(
+			async () => new Response("ok"),
+		) as unknown as typeof fetch;
+		await expect(
+			safeFetch("http://192.168.1.10/x", fetchImpl, {}, { allowHttp: true }),
+		).rejects.toThrow(/disallowed/);
+		await expect(
+			safeFetch(
+				"http://192.168.1.10/x",
+				fetchImpl,
+				{},
+				{ allowHttp: true, allowPrivate: true },
+			),
+		).resolves.toBeInstanceOf(Response);
+		await expect(
+			safeFetch("ftp://192.168.1.10/x", fetchImpl, {}, { allowPrivate: true }),
+		).rejects.toThrow(/https/);
+	});
+
 	it("gives a bodiless status and HEAD a null body", async () => {
 		serve(204, {});
 		expect((await pinnedFetch("https://addon.example/x")).body).toBeNull();
@@ -361,5 +440,43 @@ describe("safeFetch DNS deadline", () => {
 				signal: AbortSignal.abort(new Error("gone")),
 			}),
 		).rejects.toThrow(/gone/);
+	});
+});
+
+describe("readJsonCapped", () => {
+	it("parses a body within the cap", async () => {
+		await expect(
+			readJsonCapped(new Response('{"ok":true}'), 100),
+		).resolves.toEqual({ ok: true });
+	});
+
+	it("refuses a declared length past the cap without reading", async () => {
+		const response = new Response("{}", {
+			headers: { "content-length": "5000000" },
+		});
+		await expect(readJsonCapped(response, 1000)).rejects.toThrow(/too large/);
+	});
+
+	it("stops reading a stream once it passes the cap", async () => {
+		let pulled = 0;
+		const body = new ReadableStream<Uint8Array>({
+			pull(controller) {
+				pulled += 1;
+				controller.enqueue(new Uint8Array(400));
+			},
+		});
+		await expect(readJsonCapped(new Response(body), 1000)).rejects.toThrow(
+			/too large/,
+		);
+		expect(pulled).toBeLessThan(5);
+	});
+
+	it("throws a SyntaxError on an empty or invalid body", async () => {
+		await expect(readJsonCapped(new Response(null), 100)).rejects.toThrow(
+			SyntaxError,
+		);
+		await expect(readJsonCapped(new Response("nope"), 100)).rejects.toThrow(
+			SyntaxError,
+		);
 	});
 });

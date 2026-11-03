@@ -1,5 +1,9 @@
 <script lang="ts">
-	import { type ProfileView, profileInitial } from "#lib/nuvio/profile.js";
+	import {
+		type ProfileView,
+		profileInitial,
+		safeColor,
+	} from "#lib/nuvio/profile.js";
 	import { cn } from "#lib/utils.js";
 
 	let { profile, class: className }: { profile: ProfileView; class?: string } =
@@ -18,7 +22,7 @@
 		"flex size-full items-center justify-center overflow-hidden rounded-lg text-lg font-semibold text-white select-none",
 		className,
 	)}
-	style="background-color: {profile.avatar_color_hex}"
+	style="background-color: {safeColor(profile.avatar_color_hex) ?? 'var(--muted)'}"
 >
 	{#if profile.avatarImageUrl && !broken}
 		<img

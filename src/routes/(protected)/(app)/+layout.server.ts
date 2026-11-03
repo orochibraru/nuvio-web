@@ -16,7 +16,7 @@ export const load: LayoutServerLoad = async ({
 	const profile =
 		profiles?.find((entry) => entry.profile_index === locals.profileId) ?? null;
 
-	if (!profile || locals.profileId == null) {
+	if (!profile || locals.profileId == null || profile.pin_enabled) {
 		// Carry the destination through the profile picker so a shared link
 		// (`/detail/...`) lands where it meant to, not on a generic home feed.
 		const target = url.pathname + url.search;

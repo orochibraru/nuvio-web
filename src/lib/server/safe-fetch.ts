@@ -38,38 +38,57 @@ function isBlockedIpv4(ip: string): boolean {
 	);
 }
 
-function isBlockedIpv6(ip: string): boolean {
-	const normalized = ip.toLowerCase().replace(/^\[|\]$/g, "");
-	if (normalized === "::" || normalized === "::1") {
-		return true;
+/** The eight 16-bit groups of an address `isIP` accepted, dotted IPv4 tail included. */
+function ipv6Groups(ip: string): number[] {
+	let text = ip.toLowerCase().replace(/^\[|\]$/g, "");
+	const dotted = text.match(/(\d+)\.(\d+)\.(\d+)\.(\d+)$/);
+	if (dotted) {
+		const [a, b, c, d] = dotted.slice(1).map(Number);
+		text = `${text.slice(0, dotted.index)}${((a << 8) | b).toString(16)}:${((c << 8) | d).toString(16)}`;
 	}
-	if (
-		normalized.startsWith("fe80") ||
-		normalized.startsWith("fc") ||
-		normalized.startsWith("fd")
-	) {
-		return true;
-	}
-	// IPv4-mapped addresses reach the IPv4 host, so they get the IPv4 rules.
-	// Two spellings arrive here: `lookup()` hands back the dotted form
-	// (`::ffff:10.0.0.1`), while `new URL()` normalizes a literal in the host
-	// to hex (`[::ffff:a00:1]`) : missing the second let a mapped literal
-	// through to a private address.
-	const mapped = normalized.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
-	if (mapped) {
-		return isBlockedIpv4(mapped[1]);
-	}
-	const mappedHex = normalized.match(
-		/^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/,
+	const [head, tail] = text.split("::");
+	const left = head ? head.split(":") : [];
+	const right = tail ? tail.split(":") : [];
+	const fill =
+		tail === undefined
+			? []
+			: new Array<string>(8 - left.length - right.length).fill("0");
+	return [...left, ...fill, ...right].map((group) =>
+		Number.parseInt(group, 16),
 	);
-	if (mappedHex) {
-		const high = Number.parseInt(mappedHex[1], 16);
-		const low = Number.parseInt(mappedHex[2], 16);
-		return isBlockedIpv4(
-			[high >>> 8, high & 0xff, low >>> 8, low & 0xff].join("."),
+}
+
+function isBlockedIpv6(ip: string): boolean {
+	const groups = ipv6Groups(ip);
+	const zeroBefore = (end: number) =>
+		groups.slice(0, end).every((group) => group === 0);
+	const embeddedIpv4 = [
+		groups[6] >>> 8,
+		groups[6] & 0xff,
+		groups[7] >>> 8,
+		groups[7] & 0xff,
+	].join(".");
+	// `::/96`: unspecified, loopback and the deprecated IPv4-compatible `::a.b.c.d`.
+	if (zeroBefore(6)) {
+		return true;
+	}
+	// IPv4-mapped and NAT64 addresses reach an IPv4 host, so they get the IPv4 rules.
+	if (zeroBefore(5) && groups[5] === 0xff_ff) {
+		return isBlockedIpv4(embeddedIpv4);
+	}
+	if (groups[0] === 0x64 && groups[1] === 0xff_9b) {
+		return (
+			!groups.slice(2, 6).every((group) => group === 0) ||
+			isBlockedIpv4(embeddedIpv4)
 		);
 	}
-	return false;
+	const first = groups[0];
+	return (
+		(first & 0xfe_00) === 0xfc_00 ||
+		(first & 0xff_c0) === 0xfe_80 ||
+		(first & 0xff_c0) === 0xfe_c0 ||
+		(first & 0xff_00) === 0xff_00
+	);
 }
 
 function isBlockedAddress(ip: string): boolean {
@@ -132,6 +151,7 @@ async function resolvePublic(
 async function assertPublicHost(
 	rawUrl: string,
 	allowHttp: boolean,
+	allowPrivate: boolean,
 	signal?: AbortSignal | null,
 ): Promise<void> {
 	let url: URL;
@@ -143,7 +163,9 @@ async function assertPublicHost(
 	if (url.protocol !== "https:" && !(allowHttp && url.protocol === "http:")) {
 		throw new Error("URL must use https");
 	}
-	await resolvePublic(url.hostname, signal);
+	if (!allowPrivate) {
+		await resolvePublic(url.hostname, signal);
+	}
 }
 
 /** Node's `IncomingMessage` as a streamed WHATWG `Response`. */
@@ -174,9 +196,9 @@ function toResponse(response: IncomingMessage, method: string): Response {
  * `Host` and TLS SNI / certificate checks are the normal ones. Never follows
  * redirects (`safeFetch` does, re-checking each hop) and never sends cookies.
  *
- * Deliberately small: no request body, no decompression (it sends no
- * `accept-encoding`, so servers answer identity). Enough for addon JSON and a
- * streamed download; reach for more only when a caller needs it.
+ * Deliberately small: a string request body at most, no decompression (it
+ * sends no `accept-encoding`, so servers answer identity). Enough for addon
+ * JSON, a streamed download and a custom Nuvio backend's JSON API.
  */
 export const pinnedFetch = (async (
 	input: string | URL | Request,
@@ -207,15 +229,15 @@ export const pinnedFetch = (async (
 		);
 	};
 	const method = init.method ?? "GET";
+	const body = typeof init.body === "string" ? init.body : undefined;
+	const headers = Object.fromEntries(new Headers(init.headers));
+	if (body !== undefined) {
+		headers["content-length"] = String(Buffer.byteLength(body));
+	}
 	return await new Promise<Response>((resolve, reject) => {
 		const request = transport.request(
 			url,
-			{
-				method,
-				headers: Object.fromEntries(new Headers(init.headers)),
-				lookup: pinnedLookup,
-				signal,
-			},
+			{ method, headers, lookup: pinnedLookup, signal },
 			(response) => resolve(toResponse(response, method)),
 		);
 		// Surface an abort as the caller's reason (a `TimeoutError` for
@@ -223,12 +245,14 @@ export const pinnedFetch = (async (
 		request.on("error", (error) =>
 			reject(signal?.aborted ? signal.reason : error),
 		);
-		request.end();
+		request.end(body);
 	});
 }) as typeof fetch;
 
 export interface SafeFetchOptions {
 	allowHttp?: boolean;
+	/** Skips the address block: only for a URL an admin set, never a user's. */
+	allowPrivate?: boolean;
 	maxRedirects?: number;
 }
 
@@ -244,12 +268,16 @@ export async function safeFetch(
 	rawUrl: string,
 	fetchImpl: typeof fetch,
 	init: RequestInit = {},
-	{ allowHttp = false, maxRedirects = 4 }: SafeFetchOptions = {},
+	{
+		allowHttp = false,
+		allowPrivate = false,
+		maxRedirects = 4,
+	}: SafeFetchOptions = {},
 ): Promise<Response> {
 	let target = rawUrl;
 	for (let hop = 0; hop <= maxRedirects; hop += 1) {
 		// biome-ignore lint/performance/noAwaitInLoops: a redirect chain is inherently sequential : each hop's URL comes from the previous response's Location header
-		await assertPublicHost(target, allowHttp, init.signal);
+		await assertPublicHost(target, allowHttp, allowPrivate, init.signal);
 		const response = await fetchImpl(target, { ...init, redirect: "manual" });
 		const location = response.headers.get("location");
 		if (response.status < 300 || response.status >= 400 || !location) {
@@ -258,4 +286,40 @@ export async function safeFetch(
 		target = new URL(location, target).toString();
 	}
 	throw new Error("Too many redirects");
+}
+
+/** `response.json()` that refuses a body past `maxBytes`, declared or streamed. */
+export async function readJsonCapped(
+	response: Response,
+	maxBytes: number,
+): Promise<unknown> {
+	return JSON.parse(await readTextCapped(response, maxBytes));
+}
+
+/** `response.text()` that refuses a body past `maxBytes`, declared or streamed. */
+export async function readTextCapped(
+	response: Response,
+	maxBytes: number,
+): Promise<string> {
+	if (Number(response.headers.get("content-length")) > maxBytes) {
+		await response.body?.cancel().catch(() => undefined);
+		throw new Error("Response too large");
+	}
+	const chunks: Uint8Array[] = [];
+	let size = 0;
+	const reader = response.body?.getReader();
+	for (;;) {
+		// biome-ignore lint/performance/noAwaitInLoops: reading a stream is sequential by nature
+		const chunk = reader ? await reader.read() : { done: true as const };
+		if (chunk.done) {
+			break;
+		}
+		size += chunk.value.byteLength;
+		if (size > maxBytes) {
+			await reader?.cancel().catch(() => undefined);
+			throw new Error("Response too large");
+		}
+		chunks.push(chunk.value);
+	}
+	return new TextDecoder().decode(Buffer.concat(chunks));
 }
