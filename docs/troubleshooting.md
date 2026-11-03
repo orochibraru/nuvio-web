@@ -4,16 +4,14 @@
 
 Almost always the origin.
 
-The server assumes `https://` and takes the host from the `Host` header. Browse
-to a plain-HTTP address, or through a proxy whose headers it isn't told about,
-and that guess disagrees with the browser's `Origin` header, so SvelteKit's
-cross-site check rejects every write with
-`403 Cross-site remote requests are forbidden`. Only non-`GET` requests are
+The server takes the host from the `Host` header. Browse through a proxy that
+rewrites it without saying so, and the host the server sees disagrees with the
+browser's `Origin` header, so SvelteKit's cross-site check rejects every write
+with `403 Cross-site remote requests are forbidden`. Only non-`GET` requests are
 checked, which is why the app looks fine until you try to change something.
 
-Behind a proxy, set `PROTOCOL_HEADER` and `HOST_HEADER`; on plain HTTP the proxy
-must send `X-Forwarded-Proto: http`. `ORIGIN` and `NUVIO_BUILD_ORIGIN` no longer
-do anything. See [Configuration](configuration).
+Behind such a proxy, set `HOST_HEADER` (and `PROTOCOL_HEADER`). `ORIGIN` and
+`NUVIO_BUILD_ORIGIN` no longer do anything. See [Configuration](configuration).
 
 ## The home feed is empty
 

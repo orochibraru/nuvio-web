@@ -1,0 +1,66 @@
+diff --git a/src/handler.js b/src/handler.js
+index a5cce744b7873975a161beb1deb02766e5635deb..a6c1429cc60ddad434592d86c4483a9154f22b01 100644
+--- a/src/handler.js
++++ b/src/handler.js
+@@ -64,16 +64,6 @@ function normalize_request(request) {
+  * @returns {string}
+  */
+ function get_origin(request, url) {
+-	// assume TLS terminates upstream, like adapter-node; an http origin would fail CSRF checks
+-	const protocol = decodeURIComponent(
+-		(protocol_header && request.headers.get(protocol_header)) || 'https'
+-	);
+-	if (!/^https?$/i.test(protocol)) {
+-		throw new Error(
+-			`The ${protocol_header} header specified ${protocol} which is an invalid protocol scheme. It should only contain the protocol scheme (e.g. \`https\`)`
+-		);
+-	}
+-
+ 	const host =
+ 		(host_header && request.headers.get(host_header)) || (request.headers.get('host') ?? url.host);
+ 	if (!host) {
+@@ -82,6 +72,19 @@ function get_origin(request, url) {
+ 		);
+ 	}
+ 
++	// assume TLS terminates upstream, like adapter-node, unless the browser's own
++	// Origin names this very host: then its scheme is the one the page was served on
++	const protocol = decodeURIComponent(
++		(protocol_header && request.headers.get(protocol_header)) ||
++			browser_protocol(request, host) ||
++			'https'
++	);
++	if (!/^https?$/i.test(protocol)) {
++		throw new Error(
++			`The ${protocol_header} header specified ${protocol} which is an invalid protocol scheme. It should only contain the protocol scheme (e.g. \`https\`)`
++		);
++	}
++
+ 	const port = port_header ? request.headers.get(port_header) : null;
+ 	if (port && isNaN(+port)) {
+ 		throw new Error(
+@@ -93,6 +96,24 @@ function get_origin(request, url) {
+ 	return new URL(`${protocol}://${host}${port ? `:${port}` : ''}`).origin;
+ }
+ 
++/**
++ * @param {Request} request
++ * @param {string} host
++ * @returns {string | null}
++ */
++function browser_protocol(request, host) {
++	const value = request.headers.get('origin');
++	if (!value || !URL.canParse(value)) return null;
++	const origin = new URL(value);
++	if (!/^https?:$/.test(origin.protocol) || !URL.canParse(`${origin.protocol}//${host}`)) {
++		return null;
++	}
++	// parsed with the Origin's scheme so a default port (`Host: example.com:80`) compares equal
++	return new URL(`${origin.protocol}//${host}`).host === origin.host
++		? origin.protocol.slice(0, -1)
++		: null;
++}
++
+ /**
+  * @param {Request} request
+  * @param {BunServer<undefined>} bun_server

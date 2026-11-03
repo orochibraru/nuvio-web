@@ -5,6 +5,7 @@ FROM oven/bun:1 AS build
 WORKDIR /app
 
 COPY ./package.json ./bun.lock /app/
+COPY ./patches /app/patches
 
 RUN bun install --frozen-lockfile --ignore-scripts
 

@@ -20,8 +20,8 @@ docker run -p 3000:3000 \
   orochibraru/nuvio-web:latest
 ```
 
-Serve it over HTTPS, behind a reverse proxy: on plain HTTP the app renders but
-nothing saves. See [Configuration](configuration).
+It works on any URL as is, plain HTTP included. Put HTTPS in front before it
+leaves your network. See [Configuration](configuration).
 
 ## Docker Compose
 

@@ -56,8 +56,7 @@ Playwright, in `e2e/`. **After any UI or route change, run it** —
 hydration mismatch, or a broken remote call.
 
 It runs against **the production image on `:3000`**, built and started from
-`compose.e2e.yaml` (Playwright sends `X-Forwarded-Proto: http` and the container
-reads it through `PROTOCOL_HEADER`, as behind a proxy), not `vite dev`: a cold
+`compose.e2e.yaml`, on plain HTTP with no proxy, not `vite dev`: a cold
 dev-server compile made the run flaky, and the image is what ships. It reuses an
 existing server on `:3000` and starts one otherwise, so a `bun run dev` on
 `:5173` is untouched either way.

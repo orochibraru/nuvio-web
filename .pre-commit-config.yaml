@@ -31,7 +31,8 @@ repos:
             introdb-openapi\.yaml|
             \.agents/|
             CHANGELOG\.md|
-            bun\.lock
+            bun\.lock|
+            patches/
           )
 
       - id: end-of-file-fixer

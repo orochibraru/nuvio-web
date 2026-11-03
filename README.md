@@ -161,10 +161,9 @@ Account, profiles, addons and settings still live on your Nuvio account. The
 container serves the app on port `3000`; `GET /api/health` answers 200 while it
 is up, for `HEALTHCHECK` and orchestrator probes.
 
-**Serve it over HTTPS.** SvelteKit rejects any write whose `Origin` header
-doesn't match the app's own origin, and the image assumes `https://` with the
-host from the `Host` header. Behind a reverse proxy, name the headers that carry
-the public scheme and host:
+It works on any URL as is, plain HTTP included: the server takes its origin from
+each request. Behind a reverse proxy that rewrites the scheme or host, name the
+headers that carry the public ones:
 
 | Variable          | Default           | When you need it                      |
 | ----------------- | ----------------- | ------------------------------------- |
@@ -172,12 +171,8 @@ the public scheme and host:
 | `HOST_HEADER`     | the `Host` header | Behind a proxy that rewrites the host |
 | `PORT`            | `3000`            | To listen on another port             |
 
-On plain HTTP (`http://localhost:3000`, a LAN address) the app renders, but
-nothing saves: every write gets `403 Cross-site remote requests are forbidden`.
-Put a proxy in front that sends `X-Forwarded-Proto: http` and set
-`PROTOCOL_HEADER=x-forwarded-proto`; a direct plain-HTTP connection is not
-supported. The `ORIGIN` variable from earlier releases does nothing now. Details
-in [Configuration](docs/configuration.md).
+The `ORIGIN` variable from earlier releases does nothing now. Details in
+[Configuration](docs/configuration.md).
 
 Running it on the public internet is on you: put it behind HTTPS and whatever
 access control you would give any other self-hosted app.

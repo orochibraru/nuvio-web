@@ -45,10 +45,6 @@ export default defineConfig({
 	reporter: "list",
 	use: {
 		baseURL: ORIGIN,
-		// What a reverse proxy adds: the image assumes `https://` otherwise, and
-		// SvelteKit's CSRF check rejects every write from `http://localhost`.
-		// `compose.e2e.yaml` sets `PROTOCOL_HEADER` to read it.
-		extraHTTPHeaders: { "x-forwarded-proto": "http" },
 		trace: "retain-on-failure",
 		navigationTimeout: 45_000,
 	},

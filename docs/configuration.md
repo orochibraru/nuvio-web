@@ -9,11 +9,14 @@ how it sits behind your reverse proxy.
 SvelteKit checks every write (any non-`GET` request) against the app's own
 origin and rejects a mismatch with
 `403 Cross-site remote requests are forbidden`. The published image takes that
-origin from the request: the `Host` header, and **always `https://`**, since TLS
-is expected to end at a proxy in front of it.
+origin from the request: the host from the `Host` header, and the scheme the
+browser's own `Origin` header names when it is for that same host (a patch on
+the adapter, in `patches/`), else `https://`. So the same image works on any
+URL, `http://localhost:3000` and a LAN address included, with nothing to
+configure.
 
-So serve it over HTTPS, behind a reverse proxy. When the proxy rewrites the
-scheme, host or port, name the headers that carry the public ones:
+When a reverse proxy rewrites the scheme, host or port, name the headers that
+carry the public ones:
 
 ```bash
 docker run -p 3000:3000 \
@@ -39,18 +42,8 @@ Only trust these headers when every request reaches the server through a proxy
 you control. The full list is in the
 [adapter's docs](https://svelte.dev/docs/kit/adapter-bun#Environment-variables).
 
-### Plain HTTP
-
-Over plain HTTP (`http://localhost:3000`, a LAN address) the assumed `https://`
-disagrees with the browser's `Origin` header. The app renders and reads fine,
-but **nothing saves**: settings snap back, library toggles revert, progress
-never sticks.
-
-The scheme can only come from a header, so put a proxy in front that sends
-`X-Forwarded-Proto: http` (most do by default) and set
-`PROTOCOL_HEADER=x-forwarded-proto`. Reaching the container directly on plain
-HTTP, with no proxy at all, is not supported: nothing in the request tells the
-server its scheme.
+A request from another site carries that site's `Origin`, which never names this
+host, so the cross-site check still refuses it.
 
 `ORIGIN` and `NUVIO_BUILD_ORIGIN` from earlier releases are gone, and setting
 them does nothing.

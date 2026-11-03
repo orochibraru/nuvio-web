@@ -13,6 +13,7 @@
 	import { streamed } from "#lib/core/stream.svelte.js";
 	import { getLocale, m } from "#lib/i18n/index.js";
 	import { invalidateAll } from "$app/navigation";
+	import { page } from "$app/state";
 	import {
 		createBuiltInAccount,
 		saveDefaultBackend,
@@ -136,6 +137,8 @@
 	<div class="grid w-full gap-6 xl:grid-cols-2">
 		{#if own.current}
 			{@const summary = own.current}
+			<!-- The browser's origin: a page load has no `Origin` header to tell the server its scheme. -->
+			{@const builtInUrl = page.url.origin + new URL(summary.url).pathname}
 			<Card.Root class="border border-foreground/10 xl:col-span-2">
 				<Card.Header>
 					<Card.Title>{m.admin_builtin_title()}</Card.Title>
@@ -143,7 +146,7 @@
 				</Card.Header>
 				<Card.Content class="grid w-full gap-6 lg:grid-cols-2">
 					<div class="flex flex-col gap-4">
-						{@render copyable(m.auth_backend_url(), summary.url)}
+						{@render copyable(m.auth_backend_url(), builtInUrl)}
 						{@render copyable(m.auth_backend_key(), summary.publishableKey)}
 						<p class="text-sm">
 							{m.admin_backends_accounts()}:

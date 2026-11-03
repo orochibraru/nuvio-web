@@ -196,6 +196,7 @@ flowchart LR
 - **The proxy** must not buffer `/api/events` (the server sends
   `X-Accel-Buffering: no` and a keep-alive every 25 seconds).
 - **The origin** comes from each request: the host from `Host` (or
-  `HOST_HEADER`), the scheme from `PROTOCOL_HEADER`, else `https://`. Plain HTTP
-  needs a proxy that says so ([Configuration](configuration)).
+  `HOST_HEADER`), the scheme from `PROTOCOL_HEADER`, else from the browser's
+  `Origin` when it names that host, else `https://`
+  ([Configuration](configuration)).
 - **Health check:** `GET /api/health` answers as long as the process does.

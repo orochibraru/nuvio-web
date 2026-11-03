@@ -35,8 +35,8 @@ export default defineConfig({
 				},
 			}),
 			// No fixed origin, so one published image serves any URL: the adapter
-			// takes it from each request, `PROTOCOL_HEADER` / `HOST_HEADER` behind
-			// a proxy (docs/configuration.md).
+			// takes it from each request, the scheme from the browser's `Origin`
+			// when it names this host (`patches/`, docs/configuration.md).
 			// `relative: false`: otherwise `resolve()` returns a request-relative
 			// path during SSR (`../settings`) and every `pathname === resolve(…)`
 			// check is false until hydration.
