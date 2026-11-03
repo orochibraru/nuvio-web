@@ -35,7 +35,14 @@ const COLOR: Record<LogLevel, string> = {
 };
 const RESET = "\x1b[0m";
 const DIM = "\x1b[2m";
+const BOLD = "\x1b[1m";
 const MAGENTA = "\x1b[35m";
+const GREEN = "\x1b[32m";
+const YELLOW = "\x1b[33m";
+const RED = "\x1b[31m";
+const CYAN = "\x1b[36m";
+const SCOPE_WIDTH = 10;
+const MESSAGE_WIDTH = 48;
 
 const LEVEL_ORDER: Record<LogLevel, number> = {
 	debug: 0,
@@ -131,10 +138,30 @@ function formatConsole(
 	message: string,
 	fields: LogFields,
 ): string {
-	const time = new Date().toTimeString().slice(0, 8);
+	const time = `${DIM}${new Date().toTimeString().slice(0, 8)}${RESET}`;
 	const tag = `${COLOR[level]}${level.toUpperCase().padEnd(5)}${RESET}`;
-	const prefix = scope ? ` ${MAGENTA}[${scope}]${RESET}` : "";
-	return `${DIM}${time}${RESET} ${tag}${prefix} ${message}${formatFields(fields)}`;
+	const prefix = `${MAGENTA}${(scope ?? "").padEnd(SCOPE_WIDTH)}${RESET}`;
+	const { status, ms, ...rest } = fields;
+	if (typeof status === "number" && typeof ms === "number") {
+		return `${time} ${tag} ${prefix} ${formatRequest(message)} ${formatStatus(status)} ${formatDuration(ms)}${formatFields(rest)}`;
+	}
+	return `${time} ${tag} ${prefix} ${message}${formatFields(fields)}`;
+}
+
+function formatRequest(message: string): string {
+	const [method, ...path] = message.split(" ");
+	return `${BOLD}${method.padEnd(6)}${RESET} ${path.join(" ").padEnd(MESSAGE_WIDTH)}`;
+}
+
+function formatStatus(status: number): string {
+	const color =
+		status >= 500 ? RED : status >= 400 ? YELLOW : status >= 300 ? CYAN : GREEN;
+	return `${color}${status}${RESET}`;
+}
+
+function formatDuration(ms: number): string {
+	const color = ms >= 1000 ? RED : ms >= 300 ? YELLOW : DIM;
+	return `${color}${`${ms}`.padStart(6)} ms${RESET}`;
 }
 
 function formatJson(

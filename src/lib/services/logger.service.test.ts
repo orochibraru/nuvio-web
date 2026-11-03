@@ -1,3 +1,4 @@
+import { stripVTControlCharacters } from "node:util";
 import { describe, expect, it } from "vitest";
 import { Logger } from "./logger.service.ts";
 
@@ -37,10 +38,22 @@ describe("Logger", () => {
 		new Logger("info", s).scoped("Hooks").with({ errorId: "abc" }).info("hi", {
 			status: 500,
 		});
-		expect(lines.out[0]).toContain("[Hooks]");
+		expect(lines.out[0]).toContain("Hooks");
 		expect(lines.out[0]).toContain("errorId=");
 		expect(lines.out[0]).toContain("abc");
 		expect(lines.out[0]).toContain("500");
+	});
+
+	it("lays a request line out as method, path, status and duration", () => {
+		const { lines, sink: s } = sink();
+		new Logger("info", s).scoped("Hooks").info("GET /discover", {
+			status: 200,
+			ms: 182,
+		});
+		const plain = stripVTControlCharacters(lines.out[0]);
+		expect(plain).toMatch(/GET\s+\/discover\s+200\s+182 ms$/);
+		expect(plain).not.toContain("status=");
+		expect(plain).not.toContain("ms=");
 	});
 
 	it("emits one parseable object per line in json format, with the Error's stack", () => {
