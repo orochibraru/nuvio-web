@@ -10,6 +10,7 @@ const pages = [
 	{ name: "home", path: "/" },
 	{ name: "discover", path: "/discover" },
 	{ name: "library", path: "/library" },
+	{ name: "calendar", path: "/calendar" },
 	{ name: "collections", path: "/collections" },
 	{ name: "settings", path: "/settings" },
 	{ name: "settings-appearance", path: "/settings/appearance" },
@@ -17,6 +18,11 @@ const pages = [
 	{ name: "settings-playback", path: "/settings/playback" },
 	{ name: "settings-sync", path: "/settings/sync" },
 	{ name: "settings-addons-tab", path: "/settings/addons" },
+	{ name: "addons-browse", path: "/addons" },
+	{
+		name: "addons-details",
+		path: `/addons/${Buffer.from("https://v3-cinemeta.strem.io/manifest.json").toString("base64url")}`,
+	},
 	{ name: "settings-integrations", path: "/settings/integrations" },
 	{ name: "account", path: "/account" },
 	{ name: "account-overview", path: "/account/overview" },
@@ -30,6 +36,9 @@ const pages = [
 	{ name: "player", path: "/player/movie/tt0137523" },
 	// Reachable because playwright.config.ts makes the test account an admin.
 	{ name: "admin", path: "/admin" },
+	{ name: "admin-backends", path: "/admin?tab=backends" },
+	{ name: "admin-notifications", path: "/admin?tab=notifications" },
+	{ name: "admin-settings", path: "/admin?tab=settings" },
 ];
 
 for (const { name, path } of pages) {

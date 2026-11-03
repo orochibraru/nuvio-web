@@ -31,7 +31,8 @@ CREATE TABLE IF NOT EXISTS allowlist (
 CREATE TABLE IF NOT EXISTS sign_in_events (
 	id     INTEGER PRIMARY KEY AUTOINCREMENT,
 	email  TEXT NOT NULL,
-	at     INTEGER NOT NULL
+	at     INTEGER NOT NULL,
+	kind   TEXT NOT NULL DEFAULT 'sign_in'
 );
 
 CREATE INDEX IF NOT EXISTS sign_in_events_at ON sign_in_events (at);
@@ -39,6 +40,7 @@ CREATE INDEX IF NOT EXISTS sign_in_events_at ON sign_in_events (at);
 -- Signed-in sessions. The cookie carries only the signed id; the upstream
 -- tokens live here, AES-256-GCM encrypted (see session-store.service.ts), so a
 -- background job can refresh them without a request. Times are unix seconds.
+-- user_id is the account key; backend_* is a custom backend, null for Nuvio's.
 CREATE TABLE IF NOT EXISTS sessions (
 	id                 TEXT PRIMARY KEY,
 	user_id            TEXT NOT NULL,
@@ -48,11 +50,33 @@ CREATE TABLE IF NOT EXISTS sessions (
 	refresh_token_enc  TEXT NOT NULL,
 	expires_at         INTEGER NOT NULL,
 	created_at         INTEGER NOT NULL,
-	last_seen_at       INTEGER NOT NULL
+	last_seen_at       INTEGER NOT NULL,
+	backend_enc        TEXT,
+	backend_url        TEXT
 );
 
 CREATE INDEX IF NOT EXISTS sessions_user_id ON sessions (user_id);
 CREATE INDEX IF NOT EXISTS sessions_last_seen_at ON sessions (last_seen_at);
+
+-- Backends users signed in through by URL, for the admin to see and ban.
+-- Times are unix ms, like the admin tables above.
+CREATE TABLE IF NOT EXISTS custom_backends (
+	id             TEXT PRIMARY KEY,
+	url            TEXT NOT NULL UNIQUE,
+	first_seen_at  INTEGER NOT NULL,
+	last_seen_at   INTEGER NOT NULL,
+	account_count  INTEGER NOT NULL DEFAULT 0,
+	banned         INTEGER NOT NULL DEFAULT 0,
+	banned_at      INTEGER,
+	banned_by      TEXT
+);
+
+-- Which account keys signed in through each, so account_count stays distinct.
+CREATE TABLE IF NOT EXISTS custom_backend_accounts (
+	backend_id   TEXT NOT NULL,
+	account_key  TEXT NOT NULL,
+	PRIMARY KEY (backend_id, account_key)
+);
 `;
 
 /**
@@ -79,6 +103,36 @@ export class DatabaseService implements DisposableService {
 		db.run("PRAGMA journal_mode = WAL");
 		db.run("PRAGMA foreign_keys = ON");
 		db.run(SCHEMA);
+		const columns = new Set(
+			db
+				.query<{ name: string }, []>(
+					"SELECT name FROM pragma_table_info('sessions')",
+				)
+				.all()
+				.map((column) => column.name),
+		);
+		for (const column of ["backend_enc", "backend_url"]) {
+			if (!columns.has(column)) {
+				db.run(`ALTER TABLE sessions ADD COLUMN ${column} TEXT`);
+			}
+		}
+		db.run(
+			"CREATE INDEX IF NOT EXISTS sessions_backend_url ON sessions (backend_url)",
+		);
+		const eventColumns = db
+			.query<{ name: string }, []>(
+				"SELECT name FROM pragma_table_info('sign_in_events')",
+			)
+			.all();
+		if (!eventColumns.some((column) => column.name === "kind")) {
+			db.run(
+				"ALTER TABLE sign_in_events ADD COLUMN kind TEXT NOT NULL DEFAULT 'sign_in'",
+			);
+		}
+		// At most one "active" event per account per day: `at` is the UTC day start.
+		db.run(
+			"CREATE UNIQUE INDEX IF NOT EXISTS sign_in_events_active_day ON sign_in_events (email, at) WHERE kind = 'active'",
+		);
 		return db;
 	}
 

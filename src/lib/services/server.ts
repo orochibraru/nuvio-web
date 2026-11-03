@@ -1,5 +1,7 @@
 import type { RequestEvent } from "@sveltejs/kit";
-import { NuvioClient } from "#lib/nuvio/index.js";
+import { BuiltInBackend } from "#lib/backend/handler.js";
+import { BUILT_IN_BACKEND } from "#lib/backend/tokens.js";
+import { refreshSession } from "#lib/nuvio/backend.js";
 import { registerUserDataServices } from "#lib/userdata/server.js";
 import { dev } from "$app/env";
 import {
@@ -9,19 +11,29 @@ import {
 	NUVIO_LOG_LEVEL,
 	NUVIO_SESSION_SECRET,
 } from "$app/env/private";
+import { ACTIVITY, ActivityTracker } from "./activity.service.ts";
 import { AdminService } from "./admin.service.ts";
+import {
+	ADMIN_NOTIFICATIONS,
+	AdminNotifierService,
+} from "./admin-notifier.service.ts";
 import { Container } from "./container.ts";
 import { DatabaseService } from "./database.service.ts";
 import { consoleSink, Logger } from "./logger.service.ts";
+import { MAILER_SERVICE, MailerService } from "./mailer.service.ts";
+import { RateLimiter } from "./rate-limit.service.ts";
 import { SessionService } from "./session.service.ts";
 import { loadSessionSecret } from "./session-secret.ts";
 import { SESSION_STORE, SessionStore } from "./session-store.service.ts";
 import {
 	ADMIN,
+	ADMIN_NOTIFIER,
 	COOKIES,
 	DATABASE,
 	LOGGER,
+	MAILER,
 	NUVIO_TOKENS,
+	RATE_LIMITER,
 	REQUEST_EVENT,
 	SESSION,
 	SESSION_SECRET,
@@ -47,6 +59,7 @@ serverServices
 	)
 	.register(DATABASE, (c) => new DatabaseService(NUVIO_DATA_DIR, c.get(LOGGER)))
 	.register(ADMIN, () => new AdminService(NUVIO_ADMIN_EMAILS ?? ""))
+	.register(RATE_LIMITER, () => new RateLimiter())
 	// A singleton so the file is read (or created) once, on the first request.
 	.register(SESSION_SECRET, () =>
 		loadSessionSecret(NUVIO_SESSION_SECRET, NUVIO_DATA_DIR),
@@ -59,11 +72,47 @@ serverServices
 			new SessionStore(
 				c.get(DATABASE),
 				c.get(SESSION_SECRET),
-				(refreshToken) => new NuvioClient().refreshSession(refreshToken),
+				(refreshToken, backend) =>
+					refreshSession(refreshToken, backend, c.get(BUILT_IN_BACKEND)),
 				c.get(LOGGER).scoped("Sessions"),
 			),
 	)
 	.register(NUVIO_TOKENS, (c) => c.get(SESSION_STORE))
+	.register(
+		BUILT_IN_BACKEND,
+		(c) =>
+			new BuiltInBackend(c.get(DATABASE), c.get(SESSION_SECRET), {
+				limiter: c.get(RATE_LIMITER),
+				admin: c.get(ADMIN),
+				logger: c.get(LOGGER).scoped("BuiltInBackend"),
+			}),
+	)
+	.register(
+		MAILER_SERVICE,
+		(c) =>
+			new MailerService(
+				c.get(DATABASE),
+				c.get(SESSION_SECRET),
+				c.get(LOGGER).scoped("Mailer"),
+			),
+	)
+	.register(MAILER, (c) => c.get(MAILER_SERVICE))
+	.register(
+		ADMIN_NOTIFICATIONS,
+		(c) =>
+			new AdminNotifierService(
+				c.get(DATABASE),
+				c.get(ADMIN),
+				c.get(MAILER),
+				c.get(LOGGER).scoped("AdminNotifier"),
+			),
+	)
+	.register(ADMIN_NOTIFIER, (c) => c.get(ADMIN_NOTIFICATIONS))
+	.register(
+		ACTIVITY,
+		(c) =>
+			new ActivityTracker(c.get(DATABASE), c.get(LOGGER).scoped("Activity")),
+	)
 	.register(
 		SESSION,
 		(c) =>

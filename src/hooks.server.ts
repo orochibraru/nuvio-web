@@ -1,16 +1,27 @@
+import type { Database } from "bun:sqlite";
 import type { RequestEvent } from "@sveltejs/kit";
 import {
 	type Handle,
 	type HandleServerError,
 	sequence,
 } from "@sveltejs/kit/hooks";
-import { canSignIn } from "#lib/admin/admin-data.js";
+import { canSignIn, isLocked } from "#lib/admin/admin-data.js";
+import {
+	type BackendPolicy,
+	isBannedBackend,
+	isDefaultBackend,
+	policyOrDefault,
+} from "#lib/admin/backends-data.js";
+import { BUILT_IN_BACKEND } from "#lib/backend/tokens.js";
 import { makeErrorId } from "#lib/core/error-id.js";
 import { m } from "#lib/i18n/index.js";
 import { i18nHandle } from "#lib/i18n/server.js";
-import { NuvioApiError } from "#lib/nuvio/index.js";
+import { backendOrigin } from "#lib/nuvio/backend.js";
+import { NUVIO_BASE_URL, NuvioApiError } from "#lib/nuvio/index.js";
+import { ACTIVITY } from "#lib/services/activity.service.js";
 import {
 	ADMIN,
+	type AdminService,
 	type Container,
 	DATABASE,
 	LOGGER,
@@ -53,7 +64,10 @@ const CONTENT_SECURITY_POLICY = [
 ].join("; ");
 
 function applySecurityHeaders(headers: Headers): void {
-	headers.set("content-security-policy", CONTENT_SECURITY_POLICY);
+	// A route with a stricter policy of its own (the download proxy) keeps it.
+	if (!headers.has("content-security-policy")) {
+		headers.set("content-security-policy", CONTENT_SECURITY_POLICY);
+	}
 	headers.set("x-content-type-options", "nosniff");
 	headers.set("x-frame-options", "DENY");
 	headers.set("referrer-policy", "strict-origin-when-cross-origin");
@@ -124,13 +138,18 @@ function isLogNoise(event: RequestEvent): boolean {
 	if (event.isRemoteRequest || event.isDataRequest) {
 		return true;
 	}
-	const pathname = event.url.pathname;
+	// The raw path: SvelteKit strips `__data.json` from `event.url`.
+	const pathname = new URL(event.request.url).pathname;
 	return (
 		pathname === "/favicon.ico" ||
 		pathname === "/api/health" ||
+		pathname === "/service-worker.js" ||
+		pathname.endsWith("/__data.json") ||
 		pathname.startsWith("/.well-known/") ||
 		pathname.startsWith("/@") ||
-		pathname.startsWith("/_app/")
+		pathname.startsWith("/_app/") ||
+		pathname.startsWith("/node_modules/") ||
+		pathname.startsWith("/src/")
 	);
 }
 
@@ -150,7 +169,6 @@ const CACHED_QUERIES = new Set([
 	"getMeta",
 	"playbackMeta",
 	"browseCatalog",
-	"browseAddonCatalog",
 	"similarTitles",
 ]);
 const CACHED_PAGES = new Set([
@@ -193,23 +211,50 @@ function logAccess(
 	}
 }
 
-/**
- * Locking the instance has to reach sessions that already exist, or the lock
- * does nothing for 30 days : the session outlives the decision. Checked per
- * request against the local database, which is a single indexed lookup. Drops
- * every session the user has here, so the background sync stops for them too.
- */
-function evictIfLocked(services: Container, stored: StoredSession): boolean {
-	const db = services.get(DATABASE).tryConnect();
-	const email = stored.user.email;
-	const isAdmin = services.get(ADMIN).isAdmin(email);
-	if (!(db && email) || canSignIn(db, email, isAdmin)) {
+function isAllowed(
+	db: Database,
+	policy: BackendPolicy,
+	stored: StoredSession,
+	admin: AdminService,
+): boolean {
+	const backend = stored.backend;
+	if (isDefaultBackend(backend, policy)) {
+		const email = stored.user.email;
+		return !email || canSignIn(db, email, admin.isAdmin(email, true));
+	}
+	// An admin default that has since been replaced is trusted no more.
+	if (backend?.trusted) {
 		return false;
 	}
-	services
-		.get(LOGGER)
-		.warn("Signed out an existing session: instance is locked", { email });
-	services.get(SESSION_STORE).deleteAllForUser(stored.user.id);
+	// A user's own backend: its email can't be trusted for the allowlist.
+	return (
+		policy.customAllowed &&
+		!isLocked(db) &&
+		!isBannedBackend(db, backend?.url ?? NUVIO_BASE_URL)
+	);
+}
+
+/**
+ * Locking the instance, disallowing or banning a custom backend, or moving the
+ * default backend has to reach sessions that already exist, or the decision
+ * does nothing for 30 days : the session outlives it. Checked per request
+ * against the local database, a few indexed lookups. Drops every session the
+ * account has here, so the background sync stops for them too.
+ */
+function evictIfNotAllowed(
+	services: Container,
+	db: Database | null,
+	policy: BackendPolicy,
+	stored: StoredSession,
+): boolean {
+	if (!db || isAllowed(db, policy, stored, services.get(ADMIN))) {
+		return false;
+	}
+	services.get(LOGGER).warn("Signed out an existing session: not allowed", {
+		email: stored.user.email,
+		backend: stored.backend ? backendOrigin(stored.backend.url) : "official",
+	});
+	services.get(SESSION_STORE).deleteAllForUser(stored.accountKey);
 	services.get(SESSION).clear();
 	return true;
 }
@@ -233,13 +278,29 @@ export const appHandle: Handle = async ({ event, resolve }) => {
 		stored = null;
 	}
 
-	if (stored && evictIfLocked(services, stored)) {
+	const db = services.get(DATABASE).tryConnect();
+	const policy = policyOrDefault(db);
+	if (stored && evictIfNotAllowed(services, db, policy, stored)) {
 		stored = null;
 	}
+	if (stored) {
+		services.get(ACTIVITY).seen(stored.user.email ?? stored.accountKey);
+	}
 
-	event.locals.session = stored ? { user: stored.user } : null;
+	event.locals.session = stored
+		? {
+				user: stored.user,
+				accountKey: stored.accountKey,
+				backend: stored.backend?.url ?? null,
+				trusted: isDefaultBackend(stored.backend, policy),
+			}
+		: null;
 	event.locals.profileId = stored ? session.readProfileId() : null;
-	event.locals.nuvio = session.createNuvioClient(event.fetch, stored);
+	event.locals.nuvio = session.createNuvioClient(
+		event.fetch,
+		stored,
+		services.get(BUILT_IN_BACKEND),
+	);
 
 	try {
 		const response = await resolve(event);

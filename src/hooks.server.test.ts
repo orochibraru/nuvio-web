@@ -9,10 +9,17 @@ vi.mock("$app/env/private", () => ({
 
 // Declared inside `vi.hoisted` : a plain class would not exist yet when the
 // `vi.mock` factory below is hoisted above it.
-const { FakeApiError, admin, session, store } = vi.hoisted(() => ({
+const { FakeApiError, admin, backends, session, store } = vi.hoisted(() => ({
 	FakeApiError: class extends Error {},
 	store: { deleteAllForUser: vi.fn() },
-	admin: { canSignIn: vi.fn(() => true) },
+	admin: { canSignIn: vi.fn(() => true), isLocked: vi.fn(() => false) },
+	backends: {
+		policy: {
+			customAllowed: false,
+			defaultBackend: null as null | { url: string; trusted: boolean },
+		},
+		banned: new Set<string>(),
+	},
 	session: {
 		stored: null as unknown,
 		read: vi.fn(),
@@ -22,14 +29,30 @@ const { FakeApiError, admin, session, store } = vi.hoisted(() => ({
 }));
 
 vi.mock("#lib/nuvio/index.js", () => ({
+	NUVIO_BASE_URL: "https://api.nuvio.tv",
 	NuvioApiError: FakeApiError,
 	NuvioClient: class {},
 }));
 
 vi.mock("#lib/admin/admin-data.js", () => ({
 	canSignIn: (...args: unknown[]) => admin.canSignIn(...(args as [])),
+	isLocked: () => admin.isLocked(),
 }));
 
+vi.mock("#lib/admin/backends-data.js", () => ({
+	policyOrDefault: (db: unknown) =>
+		db ? backends.policy : { customAllowed: false, defaultBackend: null },
+	isDefaultBackend: (
+		backend: { url: string; trusted: boolean } | null,
+		policy: typeof backends.policy,
+	) =>
+		policy.defaultBackend === null
+			? backend === null
+			: backend?.trusted === true && backend.url === policy.defaultBackend.url,
+	isBannedBackend: (_db: unknown, url: string) => backends.banned.has(url),
+}));
+
+import { BUILT_IN_BACKEND } from "#lib/backend/tokens.js";
 import { DATABASE, LOGGER, SESSION } from "#lib/services/index.js";
 import { serverServices } from "#lib/services/server.js";
 import { SESSION_STORE } from "#lib/services/session-store.service.js";
@@ -53,6 +76,7 @@ serverServices
 	.register(LOGGER, () => logger as never)
 	.register(DATABASE, () => database as never)
 	.register(SESSION_STORE, () => store as never)
+	.register(BUILT_IN_BACKEND, () => ({ owns: () => false }) as never)
 	.register(
 		SESSION,
 		() =>
@@ -71,9 +95,17 @@ function storedSession(over: Record<string, unknown> = {}) {
 		refresh_token: "r",
 		expires_at: Math.floor(Date.now() / 1000) + 3600,
 		user: { id: "u1", email: "someone@example.com" },
+		accountKey: "u1",
+		backend: null,
 		...over,
 	};
 }
+
+const customBackend = {
+	url: "https://backend.example",
+	publishableKey: "key",
+	trusted: false,
+};
 
 function fakeEvent() {
 	return {
@@ -81,7 +113,7 @@ function fakeEvent() {
 		fetch: async () => new Response(),
 		url: new URL("http://localhost/x"),
 		route: { id: null },
-		request: { method: "GET" },
+		request: { method: "GET", url: "http://localhost/x" },
 		locals: {} as Record<string, unknown>,
 	};
 }
@@ -93,6 +125,9 @@ beforeEach(() => {
 	session.read.mockReturnValue(null);
 	session.profileId = null;
 	admin.canSignIn.mockReturnValue(true);
+	admin.isLocked.mockReturnValue(false);
+	backends.policy = { customAllowed: false, defaultBackend: null };
+	backends.banned.clear();
 	database.tryConnect.mockReturnValue(null);
 });
 
@@ -113,6 +148,21 @@ describe("handle", () => {
 		);
 	});
 
+	it("keeps a policy the route set itself", async () => {
+		const sandboxed = vi.fn(
+			async () =>
+				new Response("body", {
+					headers: { "content-security-policy": "sandbox" },
+				}),
+		);
+		const response = await handle({
+			event: fakeEvent(),
+			resolve: sandboxed,
+		} as never);
+
+		expect(response.headers.get("content-security-policy")).toBe("sandbox");
+	});
+
 	it("exposes the user and the selected profile for a live session", async () => {
 		session.read.mockReturnValue(storedSession());
 		session.profileId = 3;
@@ -122,6 +172,9 @@ describe("handle", () => {
 
 		expect(event.locals.session).toEqual({
 			user: { id: "u1", email: "someone@example.com" },
+			accountKey: "u1",
+			backend: null,
+			trusted: true,
 		});
 		expect(event.locals.profileId).toBe(3);
 	});
@@ -156,8 +209,8 @@ describe("handle", () => {
 		expect(store.deleteAllForUser).toHaveBeenCalledWith("u1");
 		expect(event.locals.session).toBeNull();
 		expect(logger.warn).toHaveBeenCalledWith(
-			"Signed out an existing session: instance is locked",
-			{ email: "someone@example.com" },
+			"Signed out an existing session: not allowed",
+			{ email: "someone@example.com", backend: "official" },
 		);
 	});
 
@@ -171,6 +224,82 @@ describe("handle", () => {
 
 		expect(session.clear).not.toHaveBeenCalled();
 		expect(event.locals.session).not.toBeNull();
+	});
+
+	it("keeps an allowed custom-backend session, untrusted and keyed apart", async () => {
+		backends.policy.customAllowed = true;
+		session.read.mockReturnValue(
+			storedSession({ accountKey: "custom-x", backend: customBackend }),
+		);
+		database.tryConnect.mockReturnValue({ marker: "db" });
+		const event = fakeEvent();
+
+		await handle({ event, resolve: ok } as never);
+
+		expect(event.locals.session).toMatchObject({
+			accountKey: "custom-x",
+			backend: "https://backend.example",
+			trusted: false,
+		});
+		// Its email never reaches the allowlist.
+		expect(admin.canSignIn).not.toHaveBeenCalled();
+	});
+
+	it.each([
+		["the admin disallows custom backends", () => {}],
+		[
+			"its backend is banned",
+			() => {
+				backends.policy.customAllowed = true;
+				backends.banned.add(customBackend.url);
+			},
+		],
+		[
+			"the instance is locked",
+			() => {
+				backends.policy.customAllowed = true;
+				admin.isLocked.mockReturnValue(true);
+			},
+		],
+	])("signs out a custom-backend session when %s", async (_case, arrange) => {
+		arrange();
+		session.read.mockReturnValue(
+			storedSession({ accountKey: "custom-x", backend: customBackend }),
+		);
+		database.tryConnect.mockReturnValue({ marker: "db" });
+		const event = fakeEvent();
+
+		await handle({ event, resolve: ok } as never);
+
+		expect(store.deleteAllForUser).toHaveBeenCalledWith("custom-x");
+		expect(event.locals.session).toBeNull();
+		expect(logger.warn).toHaveBeenCalledWith(
+			"Signed out an existing session: not allowed",
+			{ email: "someone@example.com", backend: "https://backend.example" },
+		);
+	});
+
+	it("trusts the admin default, and drops a session on a default since replaced", async () => {
+		const lan = {
+			url: "http://192.168.1.10",
+			publishableKey: "k",
+			trusted: true,
+		};
+		backends.policy.defaultBackend = lan;
+		database.tryConnect.mockReturnValue({ marker: "db" });
+		session.read.mockReturnValue(
+			storedSession({ accountKey: "custom-lan", backend: lan }),
+		);
+		const kept = fakeEvent();
+		await handle({ event: kept, resolve: ok } as never);
+		expect(kept.locals.session).toMatchObject({ trusted: true });
+
+		backends.policy.defaultBackend = { ...lan, url: "http://10.0.0.2" };
+		backends.policy.customAllowed = true;
+		const dropped = fakeEvent();
+		await handle({ event: dropped, resolve: ok } as never);
+		expect(dropped.locals.session).toBeNull();
+		expect(store.deleteAllForUser).toHaveBeenCalledWith("custom-lan");
 	});
 
 	it("logs the access line at the level the status deserves", async () => {
@@ -200,6 +329,24 @@ describe("handle", () => {
 			resolve: ok,
 		} as never);
 		expect(logger.info).not.toHaveBeenCalledWith("GET /x", expect.anything());
+	});
+
+	it("logs no access line for SvelteKit's own paths", async () => {
+		for (const path of [
+			"/x/__data.json",
+			"/_app/immutable/a.js",
+			"/@vite/client",
+		]) {
+			await handle({
+				event: {
+					...fakeEvent(),
+					url: new URL(`http://localhost${path}`),
+					request: { method: "GET", url: `http://localhost${path}` },
+				},
+				resolve: ok,
+			} as never);
+		}
+		expect(logger.info).not.toHaveBeenCalled();
 	});
 
 	it("lets the browser keep addon meta for 15 minutes, and nothing else", async () => {
