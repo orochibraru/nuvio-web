@@ -10,14 +10,6 @@ import type { Database } from "bun:sqlite";
  * provider hands back.
  */
 
-export interface SignInRecord {
-	email: string;
-	userId: string;
-	firstSeenAt: number;
-	lastSeenAt: number;
-	signInCount: number;
-}
-
 export interface AllowlistEntry {
 	email: string;
 	addedAt: number;
@@ -70,86 +62,18 @@ export function recordSignIn(
 	});
 }
 
-/** One day of the activity chart. `day` is `YYYY-MM-DD`, UTC. */
-export interface SignInDay {
-	day: string;
-	signIns: number;
-	people: number;
-}
-
-function utcDay(timestamp: number): string {
-	return new Date(timestamp).toISOString().slice(0, 10);
-}
-
-/**
- * Sign-ins per day over the last `days` days, oldest first, **including the
- * days with none**.
- *
- * The gaps are the point: a chart built only from the days that have rows draws
- * a quiet week as a continuous line and misrepresents it. Days are UTC so the
- * buckets do not shift with the server's timezone.
- */
-export function signInsPerDay(
+// One "active" row per person per UTC day; a repeat is ignored by the unique index.
+export function recordActive(
 	db: Database,
-	days = 30,
+	email: string,
 	now = Date.now(),
-): SignInDay[] {
-	const since = now - (days - 1) * MS_PER_DAY;
-	const rows = db
-		.query(
-			`SELECT at, email FROM sign_in_events
-			 WHERE at >= $since ORDER BY at`,
-		)
-		.all({ $since: new Date(utcDay(since)).getTime() }) as Array<{
-		at: number;
-		email: string;
-	}>;
-
-	const buckets = new Map<string, Set<string>>();
-	const counts = new Map<string, number>();
-	for (const row of rows) {
-		const day = utcDay(row.at);
-		counts.set(day, (counts.get(day) ?? 0) + 1);
-		const people = buckets.get(day) ?? new Set<string>();
-		people.add(row.email);
-		buckets.set(day, people);
-	}
-
-	const out: SignInDay[] = [];
-	for (let index = 0; index < days; index++) {
-		const day = utcDay(since + index * MS_PER_DAY);
-		out.push({
-			day,
-			signIns: counts.get(day) ?? 0,
-			people: buckets.get(day)?.size ?? 0,
-		});
-	}
-	return out;
-}
-
-export function listSignIns(db: Database): SignInRecord[] {
-	return db
-		.query(
-			`SELECT email, user_id, first_seen_at, last_seen_at, sign_in_count
-			 FROM sign_ins ORDER BY last_seen_at DESC`,
-		)
-		.all()
-		.map((row) => {
-			const record = row as {
-				email: string;
-				user_id: string;
-				first_seen_at: number;
-				last_seen_at: number;
-				sign_in_count: number;
-			};
-			return {
-				email: record.email,
-				userId: record.user_id,
-				firstSeenAt: record.first_seen_at,
-				lastSeenAt: record.last_seen_at,
-				signInCount: record.sign_in_count,
-			};
-		});
+): void {
+	db.query(
+		"INSERT OR IGNORE INTO sign_in_events (email, at, kind) VALUES ($email, $day, 'active')",
+	).run({ $email: normalizeEmail(email), $day: now - (now % MS_PER_DAY) });
+	db.query("DELETE FROM sign_in_events WHERE at < $cutoff").run({
+		$cutoff: now - SIGN_IN_EVENT_RETENTION_DAYS * MS_PER_DAY,
+	});
 }
 
 export function isLocked(db: Database): boolean {

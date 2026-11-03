@@ -26,19 +26,26 @@ describe("AdminService.parse", () => {
 describe("isAdmin", () => {
 	it("treats a missing email as not an admin", () => {
 		const admin = new AdminService("someone@example.com");
-		expect(admin.isAdmin(null)).toBe(false);
-		expect(admin.isAdmin(undefined)).toBe(false);
-		expect(admin.isAdmin("")).toBe(false);
+		expect(admin.isAdmin(null, true)).toBe(false);
+		expect(admin.isAdmin(undefined, true)).toBe(false);
+		expect(admin.isAdmin("", true)).toBe(false);
 	});
 
 	it("nobody is an admin when the allowlist is empty", () => {
-		expect(new AdminService("").isAdmin("anyone@example.com")).toBe(false);
+		expect(new AdminService("").isAdmin("anyone@example.com", true)).toBe(
+			false,
+		);
 	});
 
 	it("matches an allowlisted address regardless of case or padding", () => {
 		const admin = new AdminService("Host@Example.com, other@example.com");
-		expect(admin.isAdmin("host@example.com")).toBe(true);
-		expect(admin.isAdmin("  HOST@EXAMPLE.COM  ")).toBe(true);
-		expect(admin.isAdmin("nobody@example.invalid")).toBe(false);
+		expect(admin.isAdmin("host@example.com", true)).toBe(true);
+		expect(admin.isAdmin("  HOST@EXAMPLE.COM  ", true)).toBe(true);
+		expect(admin.isAdmin("nobody@example.invalid", true)).toBe(false);
+	});
+
+	it("is never an admin through a backend other than the instance default", () => {
+		const admin = new AdminService("host@example.com");
+		expect(admin.isAdmin("host@example.com", false)).toBe(false);
 	});
 });

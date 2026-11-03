@@ -10,7 +10,7 @@ test.beforeEach(async ({ context }) => {
 	await signIn(context);
 });
 
-test("admin: the page lists sign-ins and the access controls", async ({
+test("admin: the dashboard and the access controls render", async ({
 	page,
 }) => {
 	const errors = collectRuntimeErrors(page);
@@ -19,17 +19,73 @@ test("admin: the page lists sign-ins and the access controls", async ({
 	await expect(
 		page.getByRole("heading", { name: "Server admin" }),
 	).toBeVisible();
+	await expect(page.getByRole("tab", { name: "Dashboard" })).toHaveAttribute(
+		"aria-selected",
+		"true",
+	);
+	await expect(page.getByText("Active yesterday")).toBeVisible();
+
+	await page.getByRole("tab", { name: "Settings" }).click();
+	await expect(page).toHaveURL(/\/admin\?tab=settings$/);
 	await expect(page.getByText("Access", { exact: true })).toBeVisible();
-	// The card's description rather than its title: "Sign-ins" on its own also
-	// matches the activity chart's table column header.
+	await expect(page.getByText("Email (SMTP)", { exact: true })).toBeVisible();
+
+	expect(errors, "runtime errors").toEqual([]);
+});
+
+test("admin: a tab is deep-linkable", async ({ page }) => {
+	const errors = collectRuntimeErrors(page);
+	await page.goto("/admin?tab=notifications");
+
 	await expect(
-		page.getByText("One row per person, newest first."),
+		page.getByRole("tab", { name: /Notifications/ }),
+	).toHaveAttribute("aria-selected", "true");
+	await expect(page.getByText("Email me notifications")).toBeVisible();
+
+	await page.getByRole("tab", { name: "Dashboard" }).click();
+	await expect(page).toHaveURL(/\/admin$/);
+	await page.goto("/admin?tab=nonsense");
+	await expect(page.getByRole("tab", { name: "Dashboard" })).toHaveAttribute(
+		"aria-selected",
+		"true",
+	);
+
+	expect(errors, "runtime errors").toEqual([]);
+});
+
+test("admin: the SMTP form validates and keeps the password out of the page", async ({
+	page,
+}) => {
+	const errors = collectRuntimeErrors(page);
+	await page.goto("/admin?tab=settings");
+
+	await page.getByLabel("Host").fill("not a host!");
+	await page.getByLabel("From address").fill("nuvio@example.com");
+	await page.getByRole("button", { name: "Save SMTP settings" }).click();
+	await expect(
+		page.getByText(
+			"Enter a host name or IP address, without a scheme or port.",
+		),
+	).toBeVisible();
+
+	await page.getByLabel("Host").fill("smtp.invalid");
+	await page.locator("#smtp-password").fill("e2e-secret-password");
+	await page.getByRole("button", { name: "Save SMTP settings" }).click();
+	await expect(
+		page.getByText("A password is saved. Type a new one to replace it."),
+	).toBeVisible();
+	expect(await page.content()).not.toContain("e2e-secret-password");
+
+	await page.getByLabel("Remove the saved password").check();
+	await page.getByRole("button", { name: "Save SMTP settings" }).click();
+	await expect(
+		page.getByText("Leave empty if the server needs no password."),
 	).toBeVisible();
 
 	expect(errors, "runtime errors").toEqual([]);
 });
 
-test("admin: the sign-in log records the account that signed in", async ({
+test("admin: a sign-in is counted, and no email reaches the dashboard", async ({
 	page,
 	context,
 }) => {
@@ -45,17 +101,16 @@ test("admin: the sign-in log records the account that signed in", async ({
 	await expect(page).not.toHaveURL(/\/auth\/sign-in/, { timeout: 30_000 });
 
 	await page.goto("/admin");
+	await expect(page.getByText("Accounts", { exact: true })).toBeVisible();
 	const email = (process.env.NUVIO_TEST_EMAIL ?? "").toLowerCase();
-	await expect(
-		page.getByRole("cell", { name: email, exact: true }),
-	).toBeVisible();
+	await expect(page.getByText(email)).toHaveCount(0);
 });
 
 test("admin: locking is reflected in the page, and unlocking restores it", async ({
 	page,
 }) => {
 	const errors = collectRuntimeErrors(page);
-	await page.goto("/admin");
+	await page.goto("/admin?tab=settings");
 
 	const lock = page.getByRole("button", { name: "Lock server" });
 	const unlock = page.getByRole("button", { name: "Unlock server" });
@@ -72,7 +127,7 @@ test("admin: locking is reflected in the page, and unlocking restores it", async
 
 	// The admin is never locked out by their own lock : this navigation would
 	// bounce to sign-in if eviction did not exempt them.
-	await page.goto("/admin");
+	await page.goto("/admin?tab=settings");
 	await expect(
 		page.getByRole("heading", { name: "Server admin" }),
 	).toBeVisible();
@@ -84,7 +139,7 @@ test("admin: locking is reflected in the page, and unlocking restores it", async
 });
 
 test("admin: an address can be allowed and revoked", async ({ page }) => {
-	await page.goto("/admin");
+	await page.goto("/admin?tab=settings");
 
 	const guest = "e2e-guest@example.com";
 	await page.getByLabel("Allow an email address").fill(guest);

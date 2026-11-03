@@ -106,12 +106,12 @@ test("admin: the activity chart counts the event log and stays accessible", asyn
 	);
 
 	// Identity without the chart: the numbers are in a table too.
-	await page.getByText("Show the numbers").click();
+	await figure.getByText("Show the numbers").click();
 	await expect(
-		page.getByRole("columnheader", { name: "Sign-ins" }),
+		figure.getByRole("columnheader", { name: "Sign-ins" }),
 	).toBeVisible();
 	await expect(
-		page.getByRole("columnheader", { name: "People" }),
+		figure.getByRole("columnheader", { name: "People" }),
 	).toBeVisible();
 
 	const { violations } = await new AxeBuilder({ page })

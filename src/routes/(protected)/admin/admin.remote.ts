@@ -6,8 +6,11 @@ import {
 	setLocked,
 } from "#lib/admin/admin-data.js";
 import { m } from "#lib/i18n/index.js";
+import { passwordChange, smtpSettingsSchema } from "#lib/notifications/smtp.js";
 import { requireAdmin } from "#lib/server/guards.js";
+import { ADMIN_NOTIFICATIONS } from "#lib/services/admin-notifier.service.js";
 import { DATABASE, LOGGER } from "#lib/services/index.js";
+import { MAILER_SERVICE } from "#lib/services/mailer.service.js";
 import { form } from "$app/server";
 
 // Every one of these re-checks `requireAdmin()`. The page guard only protects
@@ -56,5 +59,53 @@ export const revokeEmail = form(
 			event.locals.services.get(DATABASE).connect(),
 			data.email,
 		);
+	},
+);
+
+export const saveSmtpSettings = form(smtpSettingsSchema, (data) => {
+	const { email, event } = requireAdmin();
+	const services = event.locals.services;
+	services.get(MAILER_SERVICE).save(
+		{
+			host: data.host,
+			port: data.port,
+			security: data.security,
+			username: data.username,
+			from: data.from,
+		},
+		passwordChange(data),
+	);
+	services.get(LOGGER).warn("SMTP settings changed", { by: email });
+});
+
+export const sendTestEmail = form(v.object({}), async () => {
+	const { email, event } = requireAdmin();
+	return await event.locals.services.get(MAILER_SERVICE).deliver({
+		to: email,
+		subject: "Nuvio: test email",
+		text: "This is a test email from your Nuvio server. SMTP works.",
+	});
+});
+
+export const markNotificationRead = form(
+	v.object({ id: v.pipe(v.string(), v.toNumber(), v.integer()) }),
+	(data) => {
+		const { email, event } = requireAdmin();
+		event.locals.services.get(ADMIN_NOTIFICATIONS).markRead(email, data.id);
+	},
+);
+
+export const markAllNotificationsRead = form(v.object({}), () => {
+	const { email, event } = requireAdmin();
+	event.locals.services.get(ADMIN_NOTIFICATIONS).markAllRead(email);
+});
+
+export const setNotificationEmail = form(
+	v.object({ enabled: v.picklist(["on", "off"]) }),
+	(data) => {
+		const { email, event } = requireAdmin();
+		event.locals.services
+			.get(ADMIN_NOTIFICATIONS)
+			.setEmailEnabled(email, data.enabled === "on");
 	},
 );

@@ -28,10 +28,12 @@ export class AdminService {
 	/**
 	 * Callers also use this to let an admin sign in while the instance is
 	 * locked and their address is off the allowlist : otherwise a typo in the
-	 * allowlist locks the host out of the page that fixes it.
+	 * allowlist locks the host out of the page that fixes it. Only when the
+	 * email comes from the instance's default backend (`trusted`): any other
+	 * backend decides for itself which email it vouches for.
 	 */
-	isAdmin(email: string | null | undefined): boolean {
-		if (!email) {
+	isAdmin(email: string | null | undefined, trusted: boolean): boolean {
+		if (!(email && trusted)) {
 			return false;
 		}
 		return this.#emails.includes(email.trim().toLowerCase());
