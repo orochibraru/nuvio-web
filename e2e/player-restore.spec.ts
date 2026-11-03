@@ -1,5 +1,8 @@
 import { expect, type Page, test } from "@playwright/test";
 import { collectRuntimeErrors } from "./errors.ts";
+import { serveFixtures } from "./fixtures.ts";
+
+test.beforeEach(({ context }) => serveFixtures(context));
 
 // dual-audio.mkv : VP9 with two AC-3 tracks, "Ita Ac3" (default) then "Eng Ac3".
 const DUAL = "/dev/player?src=/e2e/dual-audio.mkv";

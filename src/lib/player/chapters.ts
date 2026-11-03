@@ -69,7 +69,7 @@ interface Element {
 }
 
 /** An EBML variable-length integer at `pos`; `keepMarker` for element ids. */
-function vint(
+export function vint(
 	bytes: Uint8Array,
 	pos: number,
 	keepMarker: boolean,
@@ -91,7 +91,7 @@ function vint(
 	return { value: !keepMarker && allOnes ? -1 : value, length };
 }
 
-function element(bytes: Uint8Array, pos: number): Element | null {
+export function element(bytes: Uint8Array, pos: number): Element | null {
 	const id = vint(bytes, pos, true);
 	if (!id) {
 		return null;
@@ -108,7 +108,7 @@ function element(bytes: Uint8Array, pos: number): Element | null {
 }
 
 /** The direct children of `[start, end)`. */
-function* children(bytes: Uint8Array, start: number, end: number) {
+export function* children(bytes: Uint8Array, start: number, end: number) {
 	let pos = start;
 	while (pos < end) {
 		const child = element(bytes, pos);
@@ -120,7 +120,7 @@ function* children(bytes: Uint8Array, start: number, end: number) {
 	}
 }
 
-function uint(bytes: Uint8Array, el: Element): number {
+export function uint(bytes: Uint8Array, el: Element): number {
 	let value = 0;
 	for (let i = 0; i < el.size; i += 1) {
 		value = value * 256 + bytes[el.data + i];
@@ -129,7 +129,7 @@ function uint(bytes: Uint8Array, el: Element): number {
 }
 
 /** The children of `el` (a parsed master element). */
-function inside(bytes: Uint8Array, el: Element) {
+export function inside(bytes: Uint8Array, el: Element) {
 	return children(bytes, el.data, el.data + el.size);
 }
 

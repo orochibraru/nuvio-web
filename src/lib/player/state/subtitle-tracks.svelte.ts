@@ -1,4 +1,4 @@
-import { srtToVtt } from "#lib/player/subtitles.js";
+import { decodeSubtitle, vttBlobUrl } from "#lib/player/subtitles.js";
 
 interface TrackSource {
 	key: string;
@@ -54,8 +54,8 @@ export function createSubtitleTracks(tracks: () => TrackSource[]) {
 			if (!response.ok) {
 				throw new Error(`subtitle fetch ${response.status}`);
 			}
-			const url = URL.createObjectURL(
-				new Blob([srtToVtt(await response.text())], { type: "text/vtt" }),
+			const url = vttBlobUrl(
+				decodeSubtitle(new Uint8Array(await response.arrayBuffer())),
 			);
 			objectUrls.push(url);
 			ready = { ...ready, [key]: url };

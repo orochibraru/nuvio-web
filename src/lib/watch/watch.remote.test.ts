@@ -69,7 +69,7 @@ describe("resolveStreams", () => {
 					behaviorHints: { notWebReady: true },
 				},
 			],
-			errors: [{ addonName: "Broken", message: "timeout" }],
+			errors: [{ addonName: "Broken", reason: "timeout" }],
 		}));
 
 		const out = await resolveStreams({ type: "movie", id: "tt1" });
@@ -89,7 +89,7 @@ describe("resolveStreams", () => {
 			infoHash: "y",
 			fileSize: null,
 		});
-		expect(out.errors).toEqual([{ addonName: "Broken", message: "timeout" }]);
+		expect(out.errors).toEqual([{ addonName: "Broken", reason: "timeout" }]);
 	});
 });
 

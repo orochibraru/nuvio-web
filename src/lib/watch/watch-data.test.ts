@@ -9,6 +9,8 @@ import {
 	pullPlaybackMeta,
 	pullPlaybackResume,
 	pullProgressRows,
+	pullStreams,
+	pullSubtitles,
 	pullUpcoming,
 } from "./watch-data.ts";
 
@@ -454,5 +456,80 @@ describe("pullProgressRows", () => {
 			nuvioWith([row({ content_id: "tt4" })]),
 		);
 		expect(rows.map((entry) => entry.contentId)).toEqual(["tt4"]);
+	});
+});
+
+describe("pullStreams", () => {
+	it("shapes each stream and keeps its binge group", async () => {
+		const getStreams = vi.fn(async () => ({
+			streams: [
+				{
+					url: "https://cdn/e2.mp4",
+					addonId: "torrentio",
+					addonName: "Torrentio",
+					behaviorHints: { bingeGroup: "torrentio|1080p" },
+				},
+				{ infoHash: "abc", addonId: "torrentio", addonName: "Torrentio" },
+			],
+			errors: [],
+		}));
+		const streams = await pullStreams(
+			{ getStreams },
+			{ type: "series", id: "tt1:1:2" },
+		);
+		expect(getStreams).toHaveBeenCalledWith("series", "tt1:1:2");
+		expect(streams[0]).toMatchObject({
+			index: 0,
+			url: "https://cdn/e2.mp4",
+			bingeGroup: "torrentio|1080p",
+		});
+		expect(streams[1]).toMatchObject({
+			index: 1,
+			url: null,
+			infoHash: "abc",
+			bingeGroup: null,
+		});
+	});
+});
+
+describe("pullSubtitles", () => {
+	it("keeps one option per url and flags SDH", async () => {
+		const subtitle = (id: string, url: string, lang = "eng") => ({
+			id,
+			url,
+			lang,
+			addonId: "os",
+			addonName: "OpenSubtitles",
+		});
+		const options = await pullSubtitles(
+			{
+				getSubtitles: vi.fn(async () => ({
+					subtitles: [
+						subtitle("1", "https://s/1.srt"),
+						subtitle("2", "https://s/1.srt"),
+						subtitle("", "https://s/2.srt", "eng sdh"),
+						subtitle("4", ""),
+					],
+					errors: [],
+				})),
+			},
+			{ type: "movie", id: "tt1" },
+		);
+		expect(options).toEqual([
+			{
+				id: "os:1",
+				lang: "eng",
+				url: "https://s/1.srt",
+				addonName: "OpenSubtitles",
+				sdh: false,
+			},
+			{
+				id: "os:1",
+				lang: "eng sdh",
+				url: "https://s/2.srt",
+				addonName: "OpenSubtitles",
+				sdh: true,
+			},
+		]);
 	});
 });

@@ -13,12 +13,14 @@ export interface SubtitleTrack {
 export interface SubtitleOption extends SubtitleTrack {
 	key: string;
 	name: string;
+	embedded?: boolean;
 }
 
 export interface SubtitleAppearance {
 	subtitleSize?: SubtitleSize;
 	subtitleColor?: string;
 	subtitleBackground?: boolean;
+	subtitleOutline?: boolean;
 }
 
 export interface VideoPlayerProps {
@@ -45,6 +47,7 @@ export interface VideoPlayerProps {
 	subtitleSize?: SubtitleSize;
 	subtitleColor?: string;
 	subtitleBackground?: boolean;
+	subtitleOutline?: boolean;
 	preferredLanguage?: string;
 	/** Audio languages wanted, best first : picks the track on a multi-audio source. */
 	audioLanguages?: string[];
@@ -53,7 +56,12 @@ export interface VideoPlayerProps {
 	/** Volume boost level restored from a reload; 1 is off. */
 	initialBoost?: number;
 	/** The viewer changed the boost or the audio track. */
-	onPlaybackSettings?: (patch: { boost?: number; audioTrack?: number }) => void;
+	initialSubtitleOffset?: number;
+	onPlaybackSettings?: (patch: {
+		boost?: number;
+		audioTrack?: number;
+		subtitleOffset?: number;
+	}) => void;
 	/** The stream label hints at an audio codec the browser can't decode. */
 	audioRisky?: boolean;
 	/** The stream label hints at a video codec the browser can't decode. */

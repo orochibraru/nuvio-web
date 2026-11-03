@@ -20,14 +20,13 @@
 	import { getLocale, m } from "#lib/i18n/index.js";
 	import { audioTrackName } from "#lib/player/audio-language.js";
 	import { BOOST_LEVELS } from "#lib/player/boost.js";
+	import { PLAYBACK_RATES } from "#lib/player/rates.js";
 	import type { PlayerMenu } from "#lib/player/state/panel-toggles.svelte.js";
 	import type { createPlayerTransportActions } from "#lib/player/state/transport-actions.svelte.js";
 	import type { PlayerTransportState } from "#lib/player/state/transport-state.svelte.js";
 	import { cn } from "#lib/utils.js";
 	import Hint from "./hint.svelte";
 	import OptionMenu from "./option-menu.svelte";
-
-	const RATES = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
 	let {
 		transport,
@@ -214,7 +213,7 @@
       open={openMenu === "speed"}
       onOpenChange={(open) => onMenuOpenChange("speed", open)}
       label={m.player_playback_speed()}
-      options={RATES.map((rate) => ({
+      options={PLAYBACK_RATES.map((rate) => ({
         value: String(rate),
         label: rate === 1 ? m.player_speed_normal() : `${rate}×`,
       }))}

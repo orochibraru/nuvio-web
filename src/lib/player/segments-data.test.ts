@@ -1,11 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-
-vi.mock("$app/server", () => ({
-	query: (schemaOrFn: unknown, fn?: unknown) => fn ?? schemaOrFn,
-}));
-vi.mock("#lib/server/guards.js", () => ({ requireProfile: () => ({}) }));
-
-import { mediaSegments } from "./segments.remote.ts";
+import { pullMediaSegments } from "./segments-data.ts";
 
 const realFetch = globalThis.fetch;
 afterEach(() => {
@@ -23,12 +17,16 @@ function mockFetch(status: number, body: unknown) {
 	return spy;
 }
 
-describe("mediaSegments", () => {
+describe("pullMediaSegments", () => {
 	it("returns nulls for an id nothing can map (no request made)", async () => {
 		const spy = vi.fn();
 		globalThis.fetch = spy as unknown as typeof fetch;
 		expect(
-			await mediaSegments({ contentId: "local:abc", season: 1, episode: 1 }),
+			await pullMediaSegments({
+				contentId: "local:abc",
+				season: 1,
+				episode: 1,
+			}),
 		).toEqual({ intro: null, credits: null });
 		expect(spy).not.toHaveBeenCalled();
 	});
@@ -39,7 +37,7 @@ describe("mediaSegments", () => {
 			credits: [{ start_ms: 2_785_000, end_ms: null }],
 		});
 		expect(
-			await mediaSegments({
+			await pullMediaSegments({
 				contentId: "tt0903747",
 				season: 2,
 				episode: 1,
@@ -54,7 +52,7 @@ describe("mediaSegments", () => {
 	it("resolves to nulls on a 404 / rate limit", async () => {
 		mockFetch(404, {});
 		expect(
-			await mediaSegments({
+			await pullMediaSegments({
 				contentId: "tt1375666",
 				season: null,
 				episode: null,
@@ -64,7 +62,7 @@ describe("mediaSegments", () => {
 
 	it("sends a Bearer header when an apiKey is given, omits it otherwise", async () => {
 		const keyed = mockFetch(200, {});
-		await mediaSegments({
+		await pullMediaSegments({
 			contentId: "tmdb:550",
 			season: null,
 			episode: null,
@@ -79,7 +77,11 @@ describe("mediaSegments", () => {
 		);
 
 		const keyless = mockFetch(200, {});
-		await mediaSegments({ contentId: "tmdb:550", season: null, episode: null });
+		await pullMediaSegments({
+			contentId: "tmdb:550",
+			season: null,
+			episode: null,
+		});
 		const [, keylessInit] = keyless.mock.calls[0] as unknown as [
 			string,
 			RequestInit,
@@ -91,7 +93,11 @@ describe("mediaSegments", () => {
 
 	it("identifies itself to TheIntroDB with a User-Agent", async () => {
 		const spy = mockFetch(200, {});
-		await mediaSegments({ contentId: "tmdb:550", season: null, episode: null });
+		await pullMediaSegments({
+			contentId: "tmdb:550",
+			season: null,
+			episode: null,
+		});
 		const [, init] = spy.mock.calls[0] as unknown as [string, RequestInit];
 		expect((init.headers as Record<string, string>)["user-agent"]).toMatch(
 			/^nuvio-web\/\d+\.\d+\.\d+ /,
@@ -103,7 +109,7 @@ describe("mediaSegments", () => {
 			throw new Error("timeout");
 		}) as unknown as typeof fetch;
 		expect(
-			await mediaSegments({
+			await pullMediaSegments({
 				contentId: "tmdb:550",
 				season: null,
 				episode: null,
@@ -135,7 +141,7 @@ const ANISKIP_HIT = {
 	],
 };
 
-describe("mediaSegments: AniSkip fallback", () => {
+describe("pullMediaSegments: AniSkip fallback", () => {
 	it("maps a Kitsu id through ARM and returns AniSkip's times", async () => {
 		const spy = routeFetch([
 			[
@@ -146,7 +152,11 @@ describe("mediaSegments: AniSkip fallback", () => {
 			[/api\.aniskip\.com\/v2\/skip-times\/52991\/5\?/, 200, ANISKIP_HIT],
 		]);
 		expect(
-			await mediaSegments({ contentId: "kitsu:46474", season: 1, episode: 5 }),
+			await pullMediaSegments({
+				contentId: "kitsu:46474",
+				season: 1,
+				episode: 5,
+			}),
 		).toEqual({ intro: { start: 3.2, end: 93.2 }, credits: { start: 1417.1 } });
 		// TheIntroDB cannot take a Kitsu id, so it is never asked.
 		expect(
@@ -167,7 +177,7 @@ describe("mediaSegments: AniSkip fallback", () => {
 			],
 			[/skip-times\/59978\/3\?/, 200, ANISKIP_HIT],
 		]);
-		const result = await mediaSegments({
+		const result = await pullMediaSegments({
 			contentId: "tt22248376",
 			season: 2,
 			episode: 3,
@@ -179,7 +189,7 @@ describe("mediaSegments: AniSkip fallback", () => {
 		const spy = routeFetch([
 			[/theintrodb/, 200, { intro: [{ start_ms: 1000, end_ms: 60_000 }] }],
 		]);
-		await mediaSegments({
+		await pullMediaSegments({
 			contentId: "tt0111161",
 			season: null,
 			episode: null,
@@ -194,7 +204,11 @@ describe("mediaSegments: AniSkip fallback", () => {
 			[/arm\.haglund\.dev\/api\/v2\/imdb\?id=tt0903747/, 200, []],
 		]);
 		expect(
-			await mediaSegments({ contentId: "tt0903747", season: 1, episode: 1 }),
+			await pullMediaSegments({
+				contentId: "tt0903747",
+				season: 1,
+				episode: 1,
+			}),
 		).toEqual({ intro: null, credits: null });
 		expect(
 			spy.mock.calls.some(([url]) => String(url).includes("aniskip")),
@@ -206,8 +220,16 @@ describe("mediaSegments: AniSkip fallback", () => {
 			[/ids\?source=anilist&id=154587/, 200, { myanimelist: 52_991 }],
 			[/skip-times\/52991\//, 200, ANISKIP_HIT],
 		]);
-		await mediaSegments({ contentId: "anilist:154587", season: 1, episode: 1 });
-		await mediaSegments({ contentId: "anilist:154587", season: 1, episode: 2 });
+		await pullMediaSegments({
+			contentId: "anilist:154587",
+			season: 1,
+			episode: 1,
+		});
+		await pullMediaSegments({
+			contentId: "anilist:154587",
+			season: 1,
+			episode: 2,
+		});
 		const armCalls = spy.mock.calls.filter(([url]) =>
 			String(url).includes("haglund"),
 		);
@@ -220,14 +242,18 @@ describe("mediaSegments: AniSkip fallback", () => {
 			[/skip-times/, 404, { found: false, results: [] }],
 		]);
 		expect(
-			await mediaSegments({ contentId: "kitsu:1", season: 1, episode: 9999 }),
+			await pullMediaSegments({
+				contentId: "kitsu:1",
+				season: 1,
+				episode: 9999,
+			}),
 		).toEqual({ intro: null, credits: null });
 
 		globalThis.fetch = vi.fn(async () => {
 			throw new Error("network down");
 		}) as unknown as typeof fetch;
 		expect(
-			await mediaSegments({ contentId: "mal:2", season: 1, episode: 1 }),
+			await pullMediaSegments({ contentId: "mal:2", season: 1, episode: 1 }),
 		).toEqual({ intro: null, credits: null });
 	});
 });

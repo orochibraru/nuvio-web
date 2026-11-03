@@ -97,7 +97,7 @@
       >
         {#each suggestions as meta (meta.id)}
           <a
-            href={resolve(`detail/${meta.type}/${encodeURIComponent(meta.id)}`)}
+            href={resolve(`detail/${encodeURIComponent(meta.type)}/${encodeURIComponent(meta.id)}`)}
             class="group/sug"
           >
             <div

@@ -80,12 +80,15 @@
      `viewport-fit=cover`); it's 0 everywhere else. -->
 <div
   class={cn(
-    "pointer-events-none absolute inset-0 z-30 flex flex-col justify-between pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] bg-linear-to-t from-black/60 via-transparent to-black/60 transition-[opacity,visibility] duration-200",
+    "pointer-events-none absolute inset-0 z-30 bg-linear-to-t from-black/60 via-transparent to-black/60 transition-[opacity,visibility] duration-200",
     minimized || !transport.controlsVisible || fatalError
       ? "invisible opacity-0"
       : "opacity-100",
   )}
 >
+  <div
+    class="player-frame flex h-full flex-col justify-between pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)]"
+  >
   <TopBar
     {title}
     {subheading}
@@ -150,5 +153,6 @@
       {boostPending}
       {onBoostSelect}
     />
+  </div>
   </div>
 </div>

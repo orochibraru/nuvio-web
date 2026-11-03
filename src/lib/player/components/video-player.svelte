@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from "svelte";
 	import { toast } from "svelte-sonner";
 	import { m } from "#lib/i18n/index.js";
 	import {
@@ -8,10 +9,12 @@
 		segmentChapters,
 	} from "#lib/player/chapters.js";
 	import { handlePlayerKey } from "#lib/player/keymap.js";
+	import { stepRate } from "#lib/player/rates.js";
 	import { createPlayerBroadcastSync } from "#lib/player/state/broadcast.svelte.js";
 	import { createPlayerController } from "#lib/player/state/controller.svelte.js";
 	import { createPlaybackDiagnostics } from "#lib/player/state/diagnostics.svelte.js";
 	import { createInfoOverlayController } from "#lib/player/state/info-overlay.svelte.js";
+	import { createMediaSession } from "#lib/player/state/media-session.svelte.js";
 	import { createPlaybackMilestones } from "#lib/player/state/milestones.svelte.js";
 	import { createMobilePlayback } from "#lib/player/state/mobile.svelte.js";
 	import { createPanelToggles } from "#lib/player/state/panel-toggles.svelte.js";
@@ -19,6 +22,7 @@
 	import { createSubtitleController } from "#lib/player/state/subtitle-controller.svelte.js";
 	import { createTouchGestures } from "#lib/player/state/touch-gestures.svelte.js";
 	import { createVolumeBoost } from "#lib/player/state/volume-boost.svelte.js";
+	import { delayLabel } from "#lib/player/subtitles.js";
 	import type { TransmuxReason } from "#lib/player/transmux-session.js";
 	import type { VideoPlayerProps } from "#lib/player/types.js";
 	import { theme } from "#lib/settings/theme.svelte.js";
@@ -26,6 +30,7 @@
 	import { cn } from "#lib/utils.js";
 	import GestureFeedback from "./gesture-feedback.svelte";
 	import PlayerOverlays from "./overlays.svelte";
+	import ShortcutsDialog from "./shortcuts-dialog.svelte";
 	import SubtitlePanel from "./subtitle-panel.svelte";
 	import TransportControls from "./transport-controls.svelte";
 
@@ -47,10 +52,12 @@
 		subtitleSize = "medium",
 		subtitleColor = "#ffffff",
 		subtitleBackground = true,
+		subtitleOutline = false,
 		preferredLanguage = "",
 		audioLanguages = [],
 		initialAudioTrack = null,
 		initialBoost = 1,
+		initialSubtitleOffset = 0,
 		onPlaybackSettings,
 		audioRisky = false,
 		videoRisky = false,
@@ -139,6 +146,7 @@
 		introStart: () => introStart,
 		introEnd: () => introEnd,
 		outroStart: () => outroStart,
+		autoSkip: () => theme.current.autoSkipSegments,
 		onOutro: () => onOutro?.(),
 	});
 
@@ -170,8 +178,21 @@
 				track: initialAudioTrack,
 			}),
 			tryFix: (reason) => fixSource(reason),
-			onProgress: (position, total) => onProgress?.(position, total),
+			onProgress: (position, total) => reportProgress?.(position, total),
 		});
+	// Read once: a save that lands after a navigation still belongs to this video.
+	const reportProgress = untrack(() => onProgress);
+
+	createMediaSession({
+		video: () => video,
+		title: () => title,
+		subheading: () => subheading,
+		artwork: () => posterImage ?? poster,
+		seek: player.seek,
+		onNext: () => onNext,
+	});
+
+	let shortcutsOpen = $state(false);
 
 	// The in-browser fix for a file this browser can't play as is. The swap
 	// shows the stream loader, which says so when the audio is being converted.
@@ -191,6 +212,8 @@
 		tracks: () => subtitles,
 		video: () => video,
 		preferredLanguage: () => preferredLanguage,
+		initialOffset: () => initialSubtitleOffset,
+		onOffset: (offset) => onPlaybackSettings?.({ subtitleOffset: offset }),
 	});
 
 	// Cast to a TV via whichever API the browser has (Remote Playback /
@@ -277,6 +300,11 @@
 	const cueBackground = $derived(
 		subtitleBackground ? "rgba(0,0,0,0.75)" : "transparent",
 	);
+	const cueShadow = $derived(
+		subtitleOutline
+			? "-0.06em -0.06em 0 #000, 0.06em -0.06em 0 #000, -0.06em 0.06em 0 #000, 0.06em 0.06em 0 #000"
+			: "none",
+	);
 
 	function onReady() {
 		transport.loading = false;
@@ -337,10 +365,31 @@
 		const handled = handlePlayerKey(event, {
 			togglePlay: player.togglePlay,
 			seek: player.seek,
+			seekToFraction: (fraction) => {
+				if (video && Number.isFinite(video.duration)) {
+					video.currentTime = video.duration * fraction;
+				}
+			},
+			changeRate: (step) => {
+				transport.rate = stepRate(transport.rate, step);
+			},
+			togglePip: () => void player.togglePip().catch(() => undefined),
+			toggleHelp: () => {
+				shortcutsOpen = !shortcutsOpen;
+			},
 			adjustVolume: player.adjustVolume,
 			toggleFullscreen: () => void player.toggleFullscreen(),
 			toggleMute: () => (transport.muted = !transport.muted),
 			cycleCaption: captions.cycleCaption,
+			nudgeSubtitles: (delta) => {
+				captions.nudgeSubtitleOffset(delta);
+				toast(
+					m.player_subtitle_delay({
+						delay: delayLabel(captions.subtitleOffset),
+					}),
+					{ id: "subtitle-delay" },
+				);
+			},
 			toggleInfo: () => {
 				if (info) {
 					panels.toggleInfo();
@@ -382,6 +431,7 @@
   style:--cue-size={cueFontSize}
   style:--cue-color={subtitleColor}
   style:--cue-bg={cueBackground}
+  style:--cue-shadow={cueShadow}
   onmousemove={player.nudgeControls}
   onmouseleave={() =>
     !transport.paused &&
@@ -424,6 +474,7 @@
     {#each captions.options as track (track.key)}
       {#if captions.ready[track.key]}
         <track
+          data-addon
           kind="subtitles"
           srclang={track.lang}
           label={track.key}
@@ -480,6 +531,7 @@
       {subtitleSize}
       {subtitleColor}
       {subtitleBackground}
+      {subtitleOutline}
       subtitleOffset={captions.subtitleOffset}
       onOpenChange={panels.setSubtitlesOpen}
       onSelect={captions.setCaption}
@@ -517,14 +569,17 @@
     onMenuOpenChange={panels.setMenuOpen}
   />
 
+  <ShortcutsDialog bind:open={shortcutsOpen} />
+
 </div>
 
 <style>
-  /* `::cue` only honours a small set of properties; size / colour / plate are it. */
+  /* `::cue` only honours a small set of properties; size / colour / plate / outline are it. */
   :global(.nuvio-player video::cue) {
     font-size: var(--cue-size);
     color: var(--cue-color);
     background-color: var(--cue-bg);
+    text-shadow: var(--cue-shadow);
     line-height: 1.3;
   }
 </style>

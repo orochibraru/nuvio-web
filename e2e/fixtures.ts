@@ -25,7 +25,13 @@ export async function serveFixtures(context: BrowserContext): Promise<void> {
 		(url) => url.pathname.startsWith("/e2e/"),
 		async (route) => {
 			const { pathname } = new URL(route.request().url());
-			const body = await readFile(STATIC_DIR + decodeURIComponent(pathname));
+			const body = await readFile(
+				STATIC_DIR + decodeURIComponent(pathname),
+			).catch(() => null);
+			if (!body) {
+				await route.fulfill({ status: 404 });
+				return;
+			}
 			const extension = pathname.split(".").at(-1) ?? "";
 			const headers: Record<string, string> = {
 				"content-type": TYPES[extension] ?? "application/octet-stream",

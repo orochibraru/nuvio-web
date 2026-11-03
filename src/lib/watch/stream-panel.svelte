@@ -226,11 +226,13 @@
 				return;
 			}
 		}
-		playbackHandoff.select(videoId, row, row.info.title);
+		const key = playbackHandoff.select(videoId, row, row.info.title);
 		// Not playable here still goes to the player: it owns the "can't play in
 		// the browser" screen, with the external-player link and the copy
 		// fallback. The (watch) layout closes the drawer on `afterNavigate`.
-		void goto(resolve(`player/${type}/${encodeURIComponent(videoId)}`));
+		void goto(
+			`${resolve(`player/${type}/${encodeURIComponent(videoId)}`)}?stream=${key}`,
+		);
 	}
 
 	function onKeydown(event: KeyboardEvent) {

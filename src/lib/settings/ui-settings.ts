@@ -83,6 +83,8 @@ export const uiSettingsSchema = v.object({
 	darkStyle: v.fallback(v.picklist(["dim", "amoled"]), "dim"),
 	accent: v.fallback(v.picklist(ACCENTS), "blue"),
 	autoPlayNext: v.fallback(v.boolean(), true),
+	/** Skip the intro, and the credits to the next episode, when segment data has them. */
+	autoSkipSegments: v.fallback(v.boolean(), false),
 	/** Phone / tablet player gestures : double-tap seek, hold for 2x, swipe for
 	 *  volume (right) and brightness (left). */
 	touchGestures: v.fallback(v.boolean(), true),
@@ -94,6 +96,7 @@ export const uiSettingsSchema = v.object({
 	subtitleColor: v.fallback(v.string(), "#ffffff"),
 	/** Semi-opaque black plate behind the text. */
 	subtitleBackground: v.fallback(v.boolean(), true),
+	subtitleOutline: v.fallback(v.boolean(), false),
 	/** Audio track picked when a file carries several : a language code, `device`
 	 *  (the browser's languages), `default` (the file's own), or "" to follow
 	 *  the Nuvio mobile app's setting. */
@@ -128,12 +131,14 @@ export const DEFAULT_UI_SETTINGS: UiSettings = {
 	darkStyle: "dim",
 	accent: "blue",
 	autoPlayNext: true,
+	autoSkipSegments: false,
 	touchGestures: true,
 	preferredQuality: "auto",
 	externalPlayer: "browser",
 	subtitleSize: "medium",
 	subtitleColor: "#ffffff",
 	subtitleBackground: true,
+	subtitleOutline: false,
 	audioLanguage: "",
 	subtitleLanguage: "",
 	watchRegion: "auto",

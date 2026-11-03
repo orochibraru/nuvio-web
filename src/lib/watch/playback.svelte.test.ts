@@ -69,3 +69,31 @@ describe("picked streams", () => {
 		expect(recallPick("tt1", key, -1)).toBeNull();
 	});
 });
+
+describe("playbackHandoff.select", () => {
+	it("returns the key the player URL names the pick by", () => {
+		store.clear();
+		const key = playbackHandoff.select(
+			"tt1:1:2",
+			{
+				index: 0,
+				url: "https://cdn/e2.mp4",
+				externalUrl: null,
+				notWebReady: false,
+				name: null,
+				title: "E2 1080p",
+				description: null,
+				addonName: "Torrentio",
+				fileSize: null,
+				infoHash: null,
+				filename: null,
+				bingeGroup: "torrentio|1080p",
+			},
+			"E2",
+		);
+		expect(recallPick("tt1:1:2", key, 3)).toMatchObject({
+			url: "https://cdn/e2.mp4",
+			bingeGroup: "torrentio|1080p",
+		});
+	});
+});

@@ -1,6 +1,9 @@
 import { expect, test } from "@playwright/test";
 import { signIn } from "./auth.ts";
 import { collectRuntimeErrors } from "./errors.ts";
+import { serveFixtures } from "./fixtures.ts";
+
+test.beforeEach(({ context }) => serveFixtures(context));
 
 const VIDEO_ID = "tt0903747:1:2";
 
@@ -78,6 +81,17 @@ test("player: the URL carries the stream and the position across a reload", asyn
 		timeout: 15_000,
 	});
 	await expect(page).toHaveURL(/[?&]stream=/);
+	// A pause only fires (and flushes) once playback has actually started.
+	await expect
+		.poll(
+			() =>
+				page.evaluate(() => {
+					const video = document.querySelector("video");
+					return Boolean(video && !video.paused && video.currentTime > 0);
+				}),
+			{ timeout: 15_000 },
+		)
+		.toBe(true);
 
 	// Seek, then pause : a pause flushes progress, which writes the position.
 	await page.evaluate(() => {

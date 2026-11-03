@@ -24,7 +24,6 @@
 		externalPlayerHandoff,
 		prefersExternal,
 	} from "#lib/player/external-player.js";
-	import { mediaSegments } from "#lib/player/segments.remote.js";
 	import { saveUiSettings } from "#lib/settings/settings.remote.js";
 	import { theme } from "#lib/settings/theme.svelte.js";
 	import type { UiSettings } from "#lib/settings/ui-settings.js";
@@ -39,6 +38,7 @@
 		type SelectedStream,
 	} from "#lib/watch/playback.svelte.js";
 	import {
+		assemblePlaybackContext,
 		parseVideoId,
 		resumePoint,
 		resumeRowFor,
@@ -48,10 +48,12 @@
 	import {
 		audioSupport,
 		describeStream,
+		pickBingeStream,
 		pickPreferredStream,
+		type ResolvedStream,
 		riskyVideoCodec,
 	} from "#lib/watch/stream-format.js";
-	import { getSubtitles, resolveStreams } from "#lib/watch/watch.remote.js";
+	import { resolveStreams } from "#lib/watch/watch.remote.js";
 	import { EMPTY_PROVIDERS } from "#lib/watch/watch-providers.js";
 	import { watchProviders } from "#lib/watch/watch-providers.remote.js";
 	import WatchProvidersList from "#lib/watch/watch-providers-list.svelte";
@@ -98,36 +100,9 @@
 	);
 	const contextReady = $derived(contextStream.ready);
 	const contextFallback = $derived({
-		metaType: type === "series" ? "series" : "movie",
-		contentId: parseVideoId(type, id).contentId,
-		season: null,
-		episode: null,
-		videoId: id,
+		...assemblePlaybackContext({ type, id, meta: undefined }),
 		heading: m.common_loading(),
-		subheading: null,
-		background: null,
-		poster: null,
-		logo: null,
-		certification: null,
-		genres: [],
-		info: {
-			description: null,
-			imdbRating: null,
-			releaseInfo: null,
-			runtime: null,
-			status: null,
-			country: null,
-			awards: null,
-			cast: [],
-			director: [],
-			writer: [],
-			episodeTitle: null,
-			episodeOverview: null,
-		},
-		episodes: [],
-		next: null,
-		upcoming: null,
-	} satisfies PlaybackCtx);
+	});
 	const context = $derived<PlaybackCtx>(
 		contextStream.current ?? contextFallback,
 	);
@@ -177,6 +152,7 @@
 
 	function playVideo(videoId: string) {
 		episodesOpen = false;
+		bingeFrom = null;
 		void goto(playerHref(videoId));
 	}
 
@@ -237,14 +213,28 @@
 				? recallLink(id, theme.current.linkCacheDays)
 				: null),
 	);
-	const streamsQuery = $derived(
-		handed || offlineSrc ? undefined : resolveStreams({ type, id }),
+	// The load resolves them; a URL naming a stream this browser doesn't hold
+	// (opened elsewhere), or a retry, asks from here.
+	const loadedStreams = streamed(
+		() => data.streams ?? undefined,
+		null as ResolvedStream[] | null,
 	);
+	let retried = $state(false);
+	const streamsQuery = $derived(
+		handed || offlineSrc || !(retried || data.streams === null)
+			? undefined
+			: resolveStreams({ type, id }),
+	);
+	const streams = $derived(
+		streamsQuery
+			? (streamsQuery.current?.streams ?? null)
+			: loadedStreams.current,
+	);
+	// The release the previous episode played, for the next one to stay on.
+	let bingeFrom = $state.raw<SelectedStream | null>(null);
 	const autoStream = $derived(
-		pickPreferredStream(
-			streamsQuery?.current?.streams ?? [],
-			theme.current.preferredQuality,
-		),
+		pickBingeStream(streams ?? [], bingeFrom) ??
+			pickPreferredStream(streams ?? [], theme.current.preferredQuality),
 	);
 
 	const active = $derived.by(() => {
@@ -259,6 +249,7 @@
 				label: describeStream(autoStream).title,
 				addonName: autoStream.addonName,
 				infoHash: autoStream.infoHash,
+				bingeGroup: autoStream.bingeGroup,
 			};
 		}
 		return null;
@@ -292,10 +283,21 @@
 	// The stream fan-out rejected (addon host down, CORS, network) : a distinct
 	// state from "still loading" so the shell can offer a retry instead of
 	// spinning forever.
-	const streamsError = $derived(!handed && streamsQuery?.error != null);
-	const resolving = $derived(
-		!(handed || streamsQuery?.current || streamsError),
+	const streamsError = $derived(
+		!handed &&
+			(streamsQuery
+				? streamsQuery.error != null
+				: loadedStreams.ready && loadedStreams.current === null),
 	);
+	const resolving = $derived(!(handed || streams || streamsError));
+
+	function retryStreams() {
+		if (streamsQuery) {
+			void streamsQuery.refresh();
+		} else {
+			retried = true;
+		}
+	}
 
 	// Official "where to watch" : the fallback when no addon stream plays here.
 	const providersQuery = $derived(
@@ -343,6 +345,7 @@
 	const restoredSettings = () => ({
 		boost: restored.boost ?? 1,
 		audio: restored.audio,
+		subtitleOffset: 0,
 	});
 	let playbackSettings = $state(untrack(restoredSettings));
 	$effect(() => {
@@ -384,11 +387,7 @@
 			: null,
 	});
 
-	const subtitlesQuery = $derived(
-		playableSrc
-			? getSubtitles({ type: context.metaType, id: context.videoId })
-			: undefined,
-	);
+	const subtitles = streamed(() => data.subtitles, []);
 
 	function saveSubtitleAppearance(patch: Partial<UiSettings>) {
 		const next = { ...theme.current, ...patch };
@@ -411,6 +410,7 @@
 					audioRisky,
 					videoRisky: videoCodec !== null,
 					videoCodec,
+					bingeGroup: active.bingeGroup ?? null,
 				}
 			: null,
 	);
@@ -435,27 +435,40 @@
 		});
 	});
 
-	function report(position: number, duration: number) {
-		progressed = true;
-		setQuery({ t: String(Math.floor(position)) });
-		// First progress tick means the stream actually played : remember its URL
-		// for "reuse last link".
-		if (!linkRemembered && position > 2 && selection) {
-			linkRemembered = true;
-			rememberLink(selection);
-		}
-		if (!resumeKnown) {
-			return;
-		}
-		sync.saveProgress({
+	// Bound to the video the player mounted for: its last save can land after
+	// a navigation, and must neither go under the new id nor touch the new URL.
+	function progressReporter() {
+		const path = page.url.pathname;
+		const stream = selection;
+		const record = {
 			contentId: parsed.contentId,
-			contentType: type === "series" ? "series" : "movie",
+			contentType: type === "series" ? ("series" as const) : ("movie" as const),
 			videoId: id,
 			season: parsed.season ?? null,
 			episode: parsed.episode ?? null,
-			position: position * 1000,
-			duration: duration * 1000,
-		});
+		};
+		let known = false;
+		return (position: number, duration: number) => {
+			if (page.url.pathname === path) {
+				known ||= resumeKnown;
+				progressed = true;
+				setQuery({ t: String(Math.floor(position)) });
+				// First progress tick means the stream actually played : remember its
+				// URL for "reuse last link".
+				if (!linkRemembered && position > 2 && stream) {
+					linkRemembered = true;
+					rememberLink(stream);
+				}
+			}
+			if (!known) {
+				return;
+			}
+			sync.saveProgress({
+				...record,
+				position: position * 1000,
+				duration: duration * 1000,
+			});
+		};
 	}
 
 	function playerHref(videoId: string): string {
@@ -464,22 +477,15 @@
 
 	// Detail page keys on the base content id, not an episode's `video_id`.
 	const detailHref = $derived(
-		resolve(`detail/${type}/${encodeURIComponent(context.contentId)}`),
+		resolve(
+			`detail/${encodeURIComponent(type)}/${encodeURIComponent(context.contentId)}`,
+		),
 	);
 
 	// Intro / outro timestamps (TheIntroDB) : power "Skip intro" and the
 	// outro handoff (next-episode card / end-of-show panel).
-	const segmentsQuery = $derived(
-		playableSrc && contextReady
-			? mediaSegments({
-					contentId: context.contentId,
-					season: context.season,
-					episode: context.episode,
-					apiKey: theme.current.introDbApiKey,
-				})
-			: undefined,
-	);
-	const segments = $derived(segmentsQuery?.current ?? null);
+	const segmentsStream = streamed(() => data.segments, null);
+	const segments = $derived(segmentsStream.current);
 
 	// Two end states: "up next" (there is a next episode) and "end of show"
 	// (there isn't : shrink the player, show suggestions).
@@ -512,6 +518,7 @@
 		const target = context.next;
 		cancelUpNext();
 		if (target) {
+			bingeFrom = selection;
 			void goto(playerHref(target.videoId));
 		}
 	}
@@ -542,7 +549,9 @@
 		if (ended) {
 			trueEnd = true;
 		}
-		if (context.next) {
+		if (context.next && !ended && theme.current.autoSkipSegments) {
+			goToNext();
+		} else if (context.next) {
 			openUpNext();
 		} else {
 			endOfShow = true;
@@ -580,6 +589,7 @@
 		linkRemembered = false;
 		namedStream = null;
 		progressed = false;
+		retried = false;
 		return cancelUpNext;
 	});
 
@@ -592,7 +602,7 @@
 	function goBack() {
 		void goto(
 			resolve(
-				`detail/${context.metaType}/${encodeURIComponent(context.contentId)}`,
+				`detail/${encodeURIComponent(context.metaType)}/${encodeURIComponent(context.contentId)}`,
 			),
 			{ replaceState: true },
 		);
@@ -713,7 +723,7 @@
         {startTime}
         subtitles={[
           ...(offlineSrc && download ? playbackSubtitles(download) : []),
-          ...(subtitlesQuery?.current ?? []),
+          ...subtitles.current,
         ]}
         certification={context.certification}
         genres={context.genres}
@@ -721,14 +731,18 @@
         subtitleSize={theme.current.subtitleSize}
         subtitleColor={theme.current.subtitleColor}
         subtitleBackground={theme.current.subtitleBackground}
+        subtitleOutline={theme.current.subtitleOutline}
         preferredLanguage={theme.current.subtitleLanguage}
         {audioLanguages}
         initialAudioTrack={playbackSettings.audio}
         initialBoost={playbackSettings.boost}
+        initialSubtitleOffset={playbackSettings.subtitleOffset}
         onPlaybackSettings={(patch) => {
           playbackSettings = {
             boost: patch.boost ?? playbackSettings.boost,
             audio: patch.audioTrack ?? playbackSettings.audio,
+            subtitleOffset:
+              patch.subtitleOffset ?? playbackSettings.subtitleOffset,
           };
         }}
         {audioRisky}
@@ -738,14 +752,14 @@
         introEnd={segments?.intro?.end ?? null}
         outroStart={segments?.credits?.start ?? null}
         minimized={endOfShow}
-        onProgress={report}
+        onProgress={progressReporter()}
         onEnded={() => reachedEnd(true)}
         onOutro={() => reachedEnd(false)}
         onBack={goBack}
         onSources={openSources}
         onSubtitleAppearance={saveSubtitleAppearance}
         onEpisodes={hasEpisodes ? () => (episodesOpen = true) : undefined}
-        onNext={nextVideoId ? () => playVideo(nextVideoId) : undefined}
+        onNext={nextVideoId ? goToNext : undefined}
       />
     {/key}
 
@@ -799,7 +813,7 @@
         {m.watch_stream_error_body()}
       </p>
       <div class="flex flex-wrap items-center justify-center gap-2">
-        <Button onclick={() => streamsQuery?.refresh()}>
+        <Button onclick={retryStreams}>
           <RotateCcwIcon data-icon="inline-start" /> {m.common_try_again()}
         </Button>
         <Button variant="secondary" onclick={openSources}

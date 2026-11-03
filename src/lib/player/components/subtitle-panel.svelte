@@ -8,6 +8,7 @@
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { getLocale, m } from "#lib/i18n/index.js";
 	import { groupSubtitles } from "#lib/player/subtitle-groups.js";
+	import { delayLabel } from "#lib/player/subtitles.js";
 	import type {
 		SubtitleAppearance,
 		SubtitleOption,
@@ -38,6 +39,7 @@
 		subtitleSize,
 		subtitleColor,
 		subtitleBackground,
+		subtitleOutline,
 		subtitleOffset,
 		onOpenChange,
 		onSelect,
@@ -54,6 +56,7 @@
 		subtitleSize: SubtitleSize;
 		subtitleColor: string;
 		subtitleBackground: boolean;
+		subtitleOutline: boolean;
 		subtitleOffset: number;
 		onOpenChange: (open: boolean) => void;
 		onSelect: (key: string | null) => void;
@@ -63,6 +66,10 @@
 
 	const groups = $derived(
 		groupSubtitles(options, preferredLanguage, getLocale()),
+	);
+	const activeName = $derived(
+		options.find((option) => option.key === activeCaption)?.name ??
+			activeCaption,
 	);
 	let view = $state<"tracks" | "style">("tracks");
 	let search = $state("");
@@ -112,7 +119,7 @@
 <Popover.Root {open} {onOpenChange}>
   <Hint
     label={activeCaption
-      ? m.player_subtitles_on_hint({ caption: activeCaption })
+      ? m.player_subtitles_on_hint({ caption: activeName ?? "" })
       : m.player_subtitles_off_hint()}
   >
     {#snippet child({ props: hintProps })}
@@ -215,7 +222,7 @@
                     {/snippet}
                   </Hint>
                   <span class="w-12 text-center tabular-nums text-white">
-                    {subtitleOffset > 0 ? "+" : ""}{subtitleOffset.toFixed(1)}s
+                    {delayLabel(subtitleOffset)}
                   </span>
                   <Hint label={m.player_subtitles_later()}>
                     {#snippet child({ props })}
@@ -283,6 +290,12 @@
                                 {option.addonName ??
                                   m.player_subtitle_track({ number: index + 1 })}
                               </span>
+                              {#if option.embedded}
+                                <span
+                                  class="rounded bg-white/10 px-1 text-[10px] font-medium tracking-wide"
+                                  >{m.player_subtitle_embedded()}</span
+                                >
+                              {/if}
                               {#if option.sdh}
                                 <span
                                   class="rounded bg-white/10 px-1 text-[10px] font-medium tracking-wide"
@@ -375,6 +388,25 @@
                 )}
               >
                 {subtitleBackground ? m.player_on() : m.player_off()}
+              </span>
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              aria-pressed={subtitleOutline}
+              onclick={() => onAppearance({ subtitleOutline: !subtitleOutline })}
+              class="h-11 w-full justify-between rounded-2xl"
+            >
+              {m.player_subtitle_outline()}
+              <span
+                class={cn(
+                  "rounded-full px-2 py-0.5 text-[10px]",
+                  subtitleOutline
+                    ? "bg-primary/20 text-primary"
+                    : "bg-white/10 text-white/60",
+                )}
+              >
+                {subtitleOutline ? m.player_on() : m.player_off()}
               </span>
             </Button>
           </div>

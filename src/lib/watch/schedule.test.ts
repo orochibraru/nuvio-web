@@ -93,6 +93,15 @@ describe("nextAiring", () => {
 		}) as unknown as typeof fetch;
 		expect(await nextAiring("tt0000004", fetchImpl)).toBeNull();
 	});
+
+	it("doesn't cache a rate-limited answer", async () => {
+		const fetchImpl = vi.fn(
+			async () => new Response("", { status: 429 }),
+		) as unknown as typeof fetch;
+		expect(await nextAiring("tt0000005", fetchImpl)).toBeNull();
+		expect(await nextAiring("tt0000005", fetchImpl)).toBeNull();
+		expect(fetchImpl).toHaveBeenCalledTimes(2);
+	});
 });
 
 describe("upcomingAfter", () => {

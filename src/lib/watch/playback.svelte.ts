@@ -24,6 +24,8 @@ export interface SelectedStream {
 	videoRisky: boolean;
 	/** The `stream-format` video-codec label (HEVC / AV1 / …), for a real probe. */
 	videoCodec: string | null;
+	/** The addon's release name across episodes; absent on links saved before it. */
+	bingeGroup?: string | null;
 }
 
 /**
@@ -34,7 +36,8 @@ export interface SelectedStream {
 class PlaybackHandoff {
 	#current = $state<SelectedStream | null>(null);
 
-	select(videoId: string, stream: ResolvedStream, label: string): void {
+	/** Returns the key the player URL names the pick by (see `rememberPick`). */
+	select(videoId: string, stream: ResolvedStream, label: string): string {
 		const value: SelectedStream = {
 			videoId,
 			url: stream.url,
@@ -46,6 +49,7 @@ class PlaybackHandoff {
 			audioRisky: audioSupport(stream) === "risky",
 			videoRisky: videoSupport(stream) === "risky",
 			videoCodec: riskyVideoCodec(stream),
+			bingeGroup: stream.bingeGroup,
 		};
 		this.#current = value;
 		if (browser) {
@@ -55,6 +59,7 @@ class PlaybackHandoff {
 				// storage unavailable : in-memory handoff still covers the common nav
 			}
 		}
+		return rememberPick(value);
 	}
 
 	/** The pick made in this page's lifetime, not one read back from storage. */

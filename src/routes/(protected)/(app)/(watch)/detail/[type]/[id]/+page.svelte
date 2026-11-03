@@ -39,6 +39,7 @@
 		episodeLabel,
 		randomEpisode,
 	} from "#lib/watch/episodes.js";
+	import { playbackHandoff } from "#lib/watch/playback.svelte.js";
 	import {
 		parseVideoId,
 		playOrder,
@@ -47,6 +48,10 @@
 	} from "#lib/watch/playback-context.js";
 	import { parseRuntimeMs } from "#lib/watch/runtime.js";
 	import { sourcesPanel } from "#lib/watch/sources-panel.svelte.js";
+	import {
+		describeStream,
+		pickPreferredStream,
+	} from "#lib/watch/stream-format.js";
 	import { resolveStreams } from "#lib/watch/watch.remote.js";
 	import { EMPTY_PROVIDERS } from "#lib/watch/watch-providers.js";
 	import { watchProviders } from "#lib/watch/watch-providers.remote.js";
@@ -177,7 +182,22 @@
 		return resolve(`player/${type}/${encodeURIComponent(videoId)}`);
 	}
 	function watch(videoId: string) {
-		void goto(playerHref(videoId));
+		// Hand off the CTA's already-resolved pick so the player load skips its own fan-out.
+		const warmedStreams =
+			videoId === ctaVideoId ? ctaStreamsResult?.current?.streams : undefined;
+		const pick = warmedStreams
+			? pickPreferredStream(warmedStreams, theme.current.preferredQuality)
+			: null;
+		if (!pick) {
+			void goto(playerHref(videoId));
+			return;
+		}
+		const key = playbackHandoff.select(
+			videoId,
+			pick,
+			describeStream(pick).title,
+		);
+		void goto(`${playerHref(videoId)}?stream=${key}`);
 	}
 
 	// Rolled on click, not derived: a derived pick would reshuffle on every

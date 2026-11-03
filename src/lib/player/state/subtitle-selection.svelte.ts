@@ -1,31 +1,74 @@
 import { tick } from "svelte";
 import { toast } from "svelte-sonner";
 import { m } from "#lib/i18n/index.js";
-import type { SubtitleCatalog } from "./subtitle-catalog.svelte.ts";
+import {
+	isSubtitleKind,
+	type SubtitleCatalog,
+} from "./subtitle-catalog.svelte.ts";
 
 export interface SubtitleSelectionState {
 	activeCaption: string | null;
 	// The track key currently being fetched + converted (drives a row spinner).
 	pendingCaption: string | null;
-	// Timing nudge (seconds), applied as a delta to the showing track's cues.
-	// Resets when the track changes.
+	// Timing nudge (seconds), applied to whichever track is showing.
 	subtitleOffset: number;
+}
+
+type CueTimings = WeakMap<TextTrackCue, { start: number; end: number }>;
+
+function shiftCues(
+	cues: TextTrackCueList,
+	offset: number,
+	natural: CueTimings,
+) {
+	for (const cue of Array.from(cues)) {
+		const timing = natural.get(cue) ?? {
+			start: cue.startTime,
+			end: cue.endTime,
+		};
+		const start = Math.max(0, timing.start + offset);
+		if (cue.startTime !== start) {
+			natural.set(cue, timing);
+			cue.startTime = start;
+			cue.endTime = Math.max(0, timing.end + offset);
+		}
+	}
+}
+
+function showOnly(video: HTMLVideoElement, target: TextTrack | null) {
+	for (const track of Array.from(video.textTracks)) {
+		if (isSubtitleKind(track)) {
+			track.mode = track === target ? "showing" : "disabled";
+		}
+	}
 }
 
 /**
  * Which caption is showing, and switching it: resolving the picked track's
  * WebVTT blob (via the catalog) before flipping the `<video>`'s own
- * `textTracks`, and nudging cue timing on the currently-showing track.
+ * `textTracks`, and shifting the showing track's cues by the timing nudge.
  */
 export function createSubtitleSelection(deps: {
 	catalog: SubtitleCatalog;
 	video: () => HTMLVideoElement | null;
+	initialOffset: () => number;
+	onOffset: (offset: number) => void;
 }) {
 	const state = $state<SubtitleSelectionState>({
 		activeCaption: null,
 		pendingCaption: null,
-		subtitleOffset: 0,
+		subtitleOffset: deps.initialOffset(),
 	});
+	const natural: CueTimings = new WeakMap();
+
+	// Cues land late (a `<track>` loading, HLS fragments, the remux path), so this re-runs on every timeupdate.
+	function applyOffset() {
+		for (const track of Array.from(deps.video()?.textTracks ?? [])) {
+			if (track.mode === "showing" && track.cues) {
+				shiftCues(track.cues, state.subtitleOffset, natural);
+			}
+		}
+	}
 
 	async function setCaption(key: string | null) {
 		// Fetch + convert the picked track before switching to it. A failed
@@ -45,36 +88,40 @@ export function createSubtitleSelection(deps: {
 		if (!video) {
 			return;
 		}
-		for (const track of Array.from(video.textTracks)) {
-			track.mode = track.label === key ? "showing" : "disabled";
-		}
+		showOnly(video, key ? deps.catalog.textTrack(key) : null);
 		state.activeCaption = key;
-		// A fresh track starts at its natural timing.
-		state.subtitleOffset = 0;
+		applyOffset();
 	}
 
 	function nudgeSubtitleOffset(delta: number) {
+		state.subtitleOffset = Math.round((state.subtitleOffset + delta) * 10) / 10;
+		applyOffset();
+		deps.onOffset(state.subtitleOffset);
+	}
+
+	// The browser's own menu or hls.js can switch tracks too : follow what shows.
+	$effect(() => {
 		const video = deps.video();
 		if (!video) {
 			return;
 		}
-		state.subtitleOffset = Math.round((state.subtitleOffset + delta) * 10) / 10;
-		for (const track of Array.from(video.textTracks)) {
-			if (track.mode !== "showing" || !track.cues) {
-				continue;
+		const list = video.textTracks;
+		const onChange = () => {
+			if (state.pendingCaption) {
+				return;
 			}
-			for (const cue of Array.from(track.cues)) {
-				cue.startTime = Math.max(0, cue.startTime + delta);
-				cue.endTime = Math.max(0, cue.endTime + delta);
-			}
-		}
-	}
+			const showing = Array.from(list).find(
+				(track) => track.mode === "showing" && isSubtitleKind(track),
+			);
+			state.activeCaption = showing ? deps.catalog.keyOf(showing) : null;
+		};
+		list.addEventListener("change", onChange);
+		video.addEventListener("timeupdate", applyOffset);
+		return () => {
+			list.removeEventListener("change", onChange);
+			video.removeEventListener("timeupdate", applyOffset);
+		};
+	});
 
-	// New source, same component instance (e.g. an in-place HLS reload) : the
-	// active caption survives; only any timing nudge from the old track resets.
-	function reset() {
-		state.subtitleOffset = 0;
-	}
-
-	return { state, setCaption, nudgeSubtitleOffset, reset };
+	return { state, setCaption, nudgeSubtitleOffset };
 }

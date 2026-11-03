@@ -13,6 +13,8 @@ export interface ResolvedStream {
 	infoHash: string | null;
 	/** `behaviorHints.filename` : the exact release file name, when the addon sends it. */
 	filename: string | null;
+	/** `behaviorHints.bingeGroup` : the addon's name for this release, shared across episodes. */
+	bingeGroup: string | null;
 }
 
 export type StreamKind = "direct" | "p2p";
@@ -399,4 +401,25 @@ export function pickPreferredStream(
 			a.order - b.order,
 	);
 	return scored[0]?.stream ?? playable[0];
+}
+
+/**
+ * The next episode's stream from the same release as the one just watched:
+ * same addon, same `bingeGroup`. Null when there is none to match.
+ */
+export function pickBingeStream(
+	streams: ResolvedStream[],
+	previous: { addonName: string; bingeGroup?: string | null } | null,
+): ResolvedStream | null {
+	if (!previous?.bingeGroup) {
+		return null;
+	}
+	return (
+		streams.find(
+			(stream) =>
+				isPlayable(stream) &&
+				stream.addonName === previous.addonName &&
+				stream.bingeGroup === previous.bingeGroup,
+		) ?? null
+	);
 }

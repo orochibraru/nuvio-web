@@ -13,9 +13,11 @@ export function createPlaybackMilestones(deps: {
 	introStart: () => number | null;
 	introEnd: () => number | null;
 	outroStart: () => number | null;
+	autoSkip: () => boolean;
 	onOutro?: () => void;
 }) {
 	let outroFired = false;
+	let introSkipped = false;
 
 	const showSkipIntro = $derived(
 		deps.introEnd() != null &&
@@ -33,6 +35,20 @@ export function createPlaybackMilestones(deps: {
 			void video.play();
 		}
 	}
+
+	// Once per source, so seeking back into the intro on purpose stays there.
+	$effect(() => {
+		if (
+			showSkipIntro &&
+			!introSkipped &&
+			deps.autoSkip() &&
+			!deps.transport.paused &&
+			!deps.transport.loading
+		) {
+			introSkipped = true;
+			skipIntro();
+		}
+	});
 
 	// Fire `onOutro` once as playback crosses into the credits.
 	$effect(() => {
@@ -52,6 +68,7 @@ export function createPlaybackMilestones(deps: {
 	// New source: the outro hasn't happened yet on it.
 	function reset() {
 		outroFired = false;
+		introSkipped = false;
 	}
 
 	return {

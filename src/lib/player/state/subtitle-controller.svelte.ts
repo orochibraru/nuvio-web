@@ -15,9 +15,19 @@ export function createSubtitleController(deps: {
 	tracks: () => SubtitleTrack[];
 	video: () => HTMLVideoElement | null;
 	preferredLanguage: () => string;
+	initialOffset: () => number;
+	onOffset: (offset: number) => void;
 }) {
-	const catalog = createSubtitleCatalog({ tracks: deps.tracks });
-	const selection = createSubtitleSelection({ catalog, video: deps.video });
+	const catalog = createSubtitleCatalog({
+		tracks: deps.tracks,
+		video: deps.video,
+	});
+	const selection = createSubtitleSelection({
+		catalog,
+		video: deps.video,
+		initialOffset: deps.initialOffset,
+		onOffset: deps.onOffset,
+	});
 	const shortcuts = createSubtitleShortcuts({
 		catalog,
 		selection: selection.state,
@@ -25,11 +35,6 @@ export function createSubtitleController(deps: {
 		preferredLanguage: deps.preferredLanguage,
 		languageMatches,
 	});
-
-	function reset() {
-		selection.reset();
-		shortcuts.reset();
-	}
 
 	return {
 		get options() {
@@ -54,6 +59,6 @@ export function createSubtitleController(deps: {
 		nudgeSubtitleOffset: selection.nudgeSubtitleOffset,
 		cycleCaption: shortcuts.cycleCaption,
 		trySelectPreferred: shortcuts.trySelectPreferred,
-		reset,
+		reset: shortcuts.reset,
 	};
 }

@@ -56,15 +56,18 @@ async function getJson<T>(
 	url: string,
 	fetchImpl: typeof fetch,
 ): Promise<T | null> {
-	try {
-		const response = await fetchImpl(url, {
-			headers: { accept: "application/json" },
-			signal: AbortSignal.timeout(TIMEOUT_MS),
-		});
-		return response.ok ? ((await response.json()) as T) : null;
-	} catch {
+	const response = await fetchImpl(url, {
+		headers: { accept: "application/json" },
+		signal: AbortSignal.timeout(TIMEOUT_MS),
+	});
+	if (response.status === 404) {
 		return null;
 	}
+	// Anything else that isn't a 2xx (429, 5xx) throws, so the cache doesn't keep it.
+	if (!response.ok) {
+		throw new Error(`TVmaze answered ${response.status}`);
+	}
+	return (await response.json()) as T;
 }
 
 /**
@@ -78,17 +81,19 @@ export function nextAiring(
 	if (!/^tt\d{7,8}$/.test(contentId)) {
 		return Promise.resolve(null);
 	}
-	return cache.wrap(contentId, async () => {
-		const show = await getJson<TvmazeShow>(
-			`${TVMAZE_BASE}/lookup/shows?imdb=${contentId}`,
-			fetchImpl,
-		);
-		const href = show?._links?.nextepisode?.href;
-		if (!href?.startsWith(`${TVMAZE_BASE}/`)) {
-			return null;
-		}
-		return fromTvmazeEpisode(await getJson<TvmazeEpisode>(href, fetchImpl));
-	});
+	return cache
+		.wrap(contentId, async () => {
+			const show = await getJson<TvmazeShow>(
+				`${TVMAZE_BASE}/lookup/shows?imdb=${contentId}`,
+				fetchImpl,
+			);
+			const href = show?._links?.nextepisode?.href;
+			if (!href?.startsWith(`${TVMAZE_BASE}/`)) {
+				return null;
+			}
+			return fromTvmazeEpisode(await getJson<TvmazeEpisode>(href, fetchImpl));
+		})
+		.catch(() => null);
 }
 
 /**

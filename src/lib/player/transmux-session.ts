@@ -19,6 +19,7 @@ import {
 import { m } from "#lib/i18n/index.js";
 import { preferredTrackIndex } from "#lib/player/audio-language.js";
 import type { AudioTrackOption } from "#lib/player/media.js";
+import { MkvTextTracks } from "#lib/player/mkv-text-tracks.js";
 import {
 	audioTrackLabel,
 	bufferedAhead,
@@ -135,9 +136,11 @@ export async function prepareTransmux(
 	}
 	// A dead link fails at once while probing; a blip mid-film keeps retrying.
 	const retry: { live: boolean } = { live: false };
+	const subtitles = new MkvTextTracks();
 	const input = new Input({
 		source: new UrlSource(src, {
 			requestInit: { credentials: "omit" },
+			fetchFn: subtitles.fetch as typeof fetch,
 			getRetryDelay: (attempts) =>
 				retry.live ? Math.min(0.5 * 2 ** attempts, 8) : null,
 		}),
@@ -152,7 +155,7 @@ export async function prepareTransmux(
 		return null;
 	}
 	retry.live = true;
-	return new TransmuxSession(input, opened);
+	return new TransmuxSession(input, opened, subtitles);
 }
 
 async function encodableCodec(): Promise<EncodedCodec | null> {
@@ -284,6 +287,7 @@ export class TransmuxSession {
 	readonly #input: Input;
 	readonly #opened: Opened;
 	readonly #keyPackets: EncodedPacketSink;
+	readonly #subtitles: MkvTextTracks;
 	#active: number;
 	#disposed = false;
 	#generation = 0;
@@ -292,8 +296,9 @@ export class TransmuxSession {
 	#pendingTarget: number | null = null;
 	#attached: Attachment | null = null;
 
-	constructor(input: Input, opened: Opened) {
+	constructor(input: Input, opened: Opened, subtitles: MkvTextTracks) {
 		this.#input = input;
+		this.#subtitles = subtitles;
 		this.#opened = opened;
 		this.#active = opened.active;
 		this.#keyPackets = new EncodedPacketSink(opened.video);
@@ -352,7 +357,9 @@ export class TransmuxSession {
 			{ once: true },
 		);
 		el.src = objectUrl;
+		this.#subtitles.attach(el);
 		return () => {
+			this.#subtitles.detach();
 			this.dispose();
 			el.removeEventListener("seeking", onSeeking);
 			URL.revokeObjectURL(objectUrl);

@@ -2,10 +2,13 @@ import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { signIn } from "./auth.ts";
 import { collectRuntimeErrors } from "./errors.ts";
+import { serveFixtures } from "./fixtures.ts";
 
 // Committed VP8/WebM sample (~7.8s) : Playwright's Chromium has no H.264, and a
 // local file keeps the test off the network.
 const SAMPLE = "/e2e/sample.webm";
+
+test.beforeEach(({ context }) => serveFixtures(context));
 
 function harness(params: Record<string, string> = {}): string {
 	return `/dev/player?${new URLSearchParams({ src: SAMPLE, ...params }).toString()}`;

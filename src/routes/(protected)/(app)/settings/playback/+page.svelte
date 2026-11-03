@@ -132,6 +132,16 @@
     </SettingsRow>
     <SettingsRow
       inline
+      label={m.settings_auto_skip()}
+      hint={m.settings_auto_skip_hint()}
+    >
+      <Switch
+        checked={theme.current.autoSkipSegments}
+        onCheckedChange={(value) => update({ autoSkipSegments: value })}
+      />
+    </SettingsRow>
+    <SettingsRow
+      inline
       label={m.settings_touch_gestures()}
       hint={m.settings_touch_gestures_hint()}
     >
@@ -299,6 +309,16 @@
       <Switch
         checked={theme.current.subtitleBackground}
         onCheckedChange={(value) => update({ subtitleBackground: value })}
+      />
+    </SettingsRow>
+    <SettingsRow
+      inline
+      label={m.settings_subtitle_outline()}
+      hint={m.settings_subtitle_outline_hint()}
+    >
+      <Switch
+        checked={theme.current.subtitleOutline}
+        onCheckedChange={(value) => update({ subtitleOutline: value })}
       />
     </SettingsRow>
   </SettingsGroup>

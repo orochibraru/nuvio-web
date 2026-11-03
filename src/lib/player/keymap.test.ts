@@ -5,10 +5,15 @@ function actions() {
 	return {
 		togglePlay: vi.fn(),
 		seek: vi.fn(),
+		seekToFraction: vi.fn(),
+		changeRate: vi.fn(),
+		togglePip: vi.fn(),
+		toggleHelp: vi.fn(),
 		adjustVolume: vi.fn(),
 		toggleFullscreen: vi.fn(),
 		toggleMute: vi.fn(),
 		cycleCaption: vi.fn(),
+		nudgeSubtitles: vi.fn(),
 		toggleInfo: vi.fn(),
 		next: vi.fn(),
 		episodes: vi.fn(),
@@ -25,6 +30,25 @@ function key(k: string, target?: EventTarget): KeyboardEvent {
 }
 
 describe("handlePlayerKey", () => {
+	it("maps speed, picture in picture, help and the digit seeks", () => {
+		const a = actions();
+		handlePlayerKey(key("<"), a);
+		expect(a.changeRate).toHaveBeenCalledWith(-1);
+		handlePlayerKey(key(">"), a);
+		expect(a.changeRate).toHaveBeenCalledWith(1);
+		handlePlayerKey(key("p"), a);
+		expect(a.togglePip).toHaveBeenCalledOnce();
+		handlePlayerKey(key("?"), a);
+		expect(a.toggleHelp).toHaveBeenCalledOnce();
+		expect(handlePlayerKey(key("0"), a)).toBe(true);
+		expect(a.seekToFraction).toHaveBeenCalledWith(0);
+		handlePlayerKey(key("7"), a);
+		expect(a.seekToFraction).toHaveBeenCalledWith(0.7);
+		expect(handlePlayerKey(key("x"), a)).toBe(false);
+		const withCommand = { ...key("1"), metaKey: true } as KeyboardEvent;
+		expect(handlePlayerKey(withCommand, a)).toBe(false);
+	});
+
 	it("maps transport keys to actions and reports handled", () => {
 		const a = actions();
 		expect(handlePlayerKey(key("k"), a)).toBe(true);
@@ -63,6 +87,14 @@ describe("handlePlayerKey", () => {
 			handlePlayerKey(key(k), a);
 			expect(fn, `key ${k}`).toHaveBeenCalled();
 		}
+	});
+
+	it("nudges the subtitle delay with g / h, like VLC", () => {
+		const a = actions();
+		expect(handlePlayerKey(key("g"), a)).toBe(true);
+		expect(a.nudgeSubtitles).toHaveBeenLastCalledWith(-0.1);
+		expect(handlePlayerKey(key("h"), a)).toBe(true);
+		expect(a.nudgeSubtitles).toHaveBeenLastCalledWith(0.1);
 	});
 
 	it("ignores unknown keys", () => {

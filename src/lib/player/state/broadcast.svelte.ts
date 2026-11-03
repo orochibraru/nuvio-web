@@ -1,6 +1,8 @@
 import { onDestroy } from "svelte";
 
 const CHANNEL_NAME = "nuvio-player-tabs";
+// Per page, not per player: a player remounted on another source must not read the old one's "playing" as another tab's.
+const TAB_ID = Math.random().toString(36).slice(2);
 
 /**
  * Multi-tab coherence for playback: when this tab's video starts playing, tell
@@ -15,18 +17,17 @@ export function createPlayerBroadcastSync(deps: {
 	if (typeof BroadcastChannel === "undefined") {
 		return;
 	}
-	const tabId = Math.random().toString(36).slice(2);
 	const channel = new BroadcastChannel(CHANNEL_NAME);
 
 	channel.onmessage = (event) => {
-		if (event.data?.type === "playing" && event.data.tabId !== tabId) {
+		if (event.data?.type === "playing" && event.data.tabId !== TAB_ID) {
 			deps.video()?.pause();
 		}
 	};
 
 	$effect(() => {
 		if (!deps.paused()) {
-			channel.postMessage({ type: "playing", tabId });
+			channel.postMessage({ type: "playing", tabId: TAB_ID });
 		}
 	});
 

@@ -1,10 +1,16 @@
 export interface PlayerKeyActions {
 	togglePlay: () => void;
 	seek: (delta: number) => void;
+	/** 0 to 0.9 of the duration, from the digit keys. */
+	seekToFraction: (fraction: number) => void;
+	changeRate: (step: 1 | -1) => void;
+	togglePip: () => void;
+	toggleHelp: () => void;
 	adjustVolume: (delta: number) => void;
 	toggleFullscreen: () => void;
 	toggleMute: () => void;
 	cycleCaption: () => void;
+	nudgeSubtitles: (delta: number) => void;
 	toggleInfo: () => void;
 	next: () => void;
 	episodes: () => void;
@@ -40,7 +46,12 @@ export function handlePlayerKey(
 	const target = event.target as {
 		closest?: (selector: string) => unknown;
 	} | null;
-	if (target?.closest?.(INTERACTIVE)) {
+	if (
+		target?.closest?.(INTERACTIVE) ||
+		event.ctrlKey ||
+		event.metaKey ||
+		event.altKey
+	) {
 		return false;
 	}
 	switch (event.key) {
@@ -72,6 +83,12 @@ export function handlePlayerKey(
 		case "c":
 			actions.cycleCaption();
 			return true;
+		case "g":
+			actions.nudgeSubtitles(-0.1);
+			return true;
+		case "h":
+			actions.nudgeSubtitles(0.1);
+			return true;
 		case "i":
 			actions.toggleInfo();
 			return true;
@@ -81,7 +98,23 @@ export function handlePlayerKey(
 		case "e":
 			actions.episodes();
 			return true;
+		case "<":
+			actions.changeRate(-1);
+			return true;
+		case ">":
+			actions.changeRate(1);
+			return true;
+		case "p":
+			actions.togglePip();
+			return true;
+		case "?":
+			actions.toggleHelp();
+			return true;
 		default:
+			if (/^\d$/.test(event.key)) {
+				actions.seekToFraction(Number(event.key) / 10);
+				return true;
+			}
 			return false;
 	}
 }

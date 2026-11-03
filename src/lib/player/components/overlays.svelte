@@ -94,12 +94,13 @@
 {/if}
 
 {#if showSkipIntro}
-  <Button
-    onclick={onSkipIntro}
-    class="absolute right-4 bottom-32 z-20 shadow-lg sm:right-6 sm:bottom-40"
+  <div
+    class="player-frame pointer-events-none absolute inset-x-0 bottom-32 z-20 flex justify-end px-4 sm:bottom-40 sm:px-6"
   >
-    {m.player_skip_intro()}
-  </Button>
+    <Button onclick={onSkipIntro} class="pointer-events-auto shadow-lg">
+      {m.player_skip_intro()}
+    </Button>
+  </div>
 {/if}
 
 {#if infoOpen && info && !minimized}

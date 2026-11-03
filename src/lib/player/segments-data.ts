@@ -1,7 +1,4 @@
-import * as v from "valibot";
 import { TtlCache } from "#lib/addons/cache.js";
-import { requireProfile } from "#lib/server/guards.js";
-import { query } from "$app/server";
 import {
 	type AniSkipResponse,
 	ARM_BASE,
@@ -100,19 +97,20 @@ async function fromAniSkip(
  * limit or a timeout all mean "no segments", and the player just doesn't show
  * the skip affordances.
  */
-export const mediaSegments = query(
-	v.object({
-		contentId: v.string(),
-		season: v.nullable(v.number()),
-		episode: v.nullable(v.number()),
-		apiKey: v.optional(v.string()),
-	}),
-	async ({ contentId, season, episode, apiKey }): Promise<MediaSegments> => {
-		requireProfile();
-		const introDb = await fromIntroDb(contentId, season, episode, apiKey);
-		if (introDb.intro || introDb.credits) {
-			return introDb;
-		}
-		return await fromAniSkip(contentId, season, episode);
-	},
-);
+export async function pullMediaSegments({
+	contentId,
+	season,
+	episode,
+	apiKey,
+}: {
+	contentId: string;
+	season: number | null;
+	episode: number | null;
+	apiKey?: string;
+}): Promise<MediaSegments> {
+	const introDb = await fromIntroDb(contentId, season, episode, apiKey);
+	if (introDb.intro || introDb.credits) {
+		return introDb;
+	}
+	return await fromAniSkip(contentId, season, episode);
+}

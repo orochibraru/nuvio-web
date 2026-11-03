@@ -5,6 +5,7 @@ import {
 	describeStream,
 	formatFileSize,
 	isPlayable,
+	pickBingeStream,
 	pickPreferredStream,
 	type ResolvedStream,
 	riskyVideoCodec,
@@ -27,6 +28,7 @@ function stream(over: Partial<ResolvedStream>): ResolvedStream {
 		fileSize: null,
 		infoHash: null,
 		filename: null,
+		bingeGroup: null,
 		...over,
 	};
 }
@@ -290,5 +292,38 @@ describe("videoSupport", () => {
 	it("riskyVideoCodec returns the label to probe", () => {
 		expect(riskyVideoCodec(stream({ title: "Movie 4K HEVC DV" }))).toBe("HEVC");
 		expect(riskyVideoCodec(stream({ title: "Movie 1080p H.264" }))).toBeNull();
+	});
+});
+
+describe("pickBingeStream", () => {
+	const previous = {
+		addonName: "Torrentio",
+		bingeGroup: "torrentio|1080p|WEB",
+	};
+
+	it("takes the same addon's stream from the same binge group", () => {
+		const other = stream({ index: 0, bingeGroup: "torrentio|720p" });
+		const same = stream({ index: 1, bingeGroup: "torrentio|1080p|WEB" });
+		expect(pickBingeStream([other, same], previous)).toBe(same);
+	});
+
+	it("ignores the same group from another addon, or one that can't play", () => {
+		expect(
+			pickBingeStream(
+				[
+					stream({ addonName: "Comet", bingeGroup: "torrentio|1080p|WEB" }),
+					stream({ bingeGroup: "torrentio|1080p|WEB", url: null }),
+				],
+				previous,
+			),
+		).toBeNull();
+	});
+
+	it("has nothing to match without a previous binge group", () => {
+		const streams = [stream({ bingeGroup: "torrentio|1080p|WEB" })];
+		expect(pickBingeStream(streams, null)).toBeNull();
+		expect(
+			pickBingeStream(streams, { addonName: "Torrentio", bingeGroup: null }),
+		).toBeNull();
 	});
 });

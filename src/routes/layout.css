@@ -189,6 +189,13 @@
 	--color-sidebar-ring: var(--sidebar-ring);
 }
 
+/* The player's controls and overlays stay over a 16:9 frame centred in the
+   viewport, so an ultrawide screen doesn't fling them to its edges. */
+@utility player-frame {
+	margin-inline: auto;
+	max-width: calc(100dvh * 16 / 9);
+}
+
 /* A frosted surface for hand-written chrome (header, drawers, palette). The
    shadcn primitives get the same treatment from the `data-slot` rule in the
    base layer, so their own classes stay untouched. */

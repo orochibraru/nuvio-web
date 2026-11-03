@@ -1,9 +1,7 @@
-import { onDestroy } from "svelte";
-
 interface ProgressDeps {
 	video: () => HTMLVideoElement | null;
 	duration: () => number;
-	/** Reactive `currentTime` (the `bind:currentTime` value), for the heartbeat. */
+	/** The bound `currentTime`: still the last real position once the media is torn down. */
 	currentTime: () => number;
 	onProgress?: (position: number, duration: number) => void;
 }
@@ -22,10 +20,12 @@ export function createProgressReporter(deps: ProgressDeps) {
 	function flush() {
 		const video = deps.video();
 		const duration = deps.duration();
-		if (!(video && duration > 0 && Number.isFinite(video.currentTime))) {
+		// On unmount the media teardown (`load()` with no source) runs first.
+		const position =
+			video && video.readyState > 0 ? video.currentTime : deps.currentTime();
+		if (!(duration > 0 && Number.isFinite(position))) {
 			return;
 		}
-		const position = video.currentTime;
 		if (position < 5 && furthest > 30) {
 			return;
 		}
@@ -36,9 +36,8 @@ export function createProgressReporter(deps: ProgressDeps) {
 	$effect(() => {
 		const timer = setInterval(() => {
 			const video = deps.video();
-			const duration = deps.duration();
-			if (video && !video.paused && duration > 0) {
-				deps.onProgress?.(deps.currentTime(), duration);
+			if (video && !video.paused) {
+				flush();
 			}
 		}, 15_000);
 		return () => clearInterval(timer);
@@ -61,7 +60,7 @@ export function createProgressReporter(deps: ProgressDeps) {
 		};
 	});
 
-	onDestroy(flush);
+	$effect(() => () => flush());
 
 	return {
 		flush,

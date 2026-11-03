@@ -1,5 +1,6 @@
-import type { Meta } from "#lib/addons/index.js";
+import type { AddonClient, Meta, StreamWithSource } from "#lib/addons/index.js";
 import { pooledMap } from "#lib/core/pool.js";
+import { httpUrlOrNull } from "#lib/core/url.js";
 import type { ProgressRecord } from "#lib/sync/types.js";
 import type { ProfileData } from "#lib/userdata/types.js";
 import { CONTINUE_WATCHING_LIMIT, resumeName } from "./continue-watching.ts";
@@ -17,6 +18,7 @@ import {
 	resumeRowFor,
 } from "./playback-context.ts";
 import { nextAiring, upcomingAfter } from "./schedule.ts";
+import type { ResolvedStream } from "./stream-format.ts";
 
 // Each row fans out to every meta-providing addon inside `getMeta`; an
 // unbounded pass over a full row could burst 30-50+ concurrent requests
@@ -277,4 +279,72 @@ export async function pullNextToAir(
  */
 export function pullProgressRows(data: ProfileData): Promise<ProgressLike[]> {
 	return data.progress();
+}
+
+/** One addon stream in the shape the source drawer and the player read. */
+export function shapeStream(
+	stream: StreamWithSource,
+	index: number,
+): ResolvedStream {
+	return {
+		index,
+		url: httpUrlOrNull(stream.url),
+		externalUrl: httpUrlOrNull(stream.externalUrl),
+		notWebReady: Boolean(stream.behaviorHints?.notWebReady),
+		name: stream.name ?? null,
+		title: stream.title ?? null,
+		description: stream.description ?? null,
+		addonName: stream.addonName,
+		fileSize: stream.behaviorHints?.videoSize ?? null,
+		infoHash: stream.infoHash ?? null,
+		filename: stream.behaviorHints?.filename ?? null,
+		bingeGroup: stream.behaviorHints?.bingeGroup ?? null,
+	};
+}
+
+/** Every addon's streams for a video : the player load's cold-start pick. */
+export async function pullStreams(
+	client: Pick<AddonClient, "getStreams">,
+	video: { type: string; id: string },
+): Promise<ResolvedStream[]> {
+	const { streams } = await client.getStreams(video.type, video.id);
+	return streams.map(shapeStream);
+}
+
+const SDH_MARKER = /\b(sdh|cc|hi|hearing[- ]impaired)\b|\[cc\]/i;
+
+export interface SubtitleOption {
+	id: string;
+	lang: string;
+	url: string;
+	addonName: string;
+	sdh: boolean;
+}
+
+/**
+ * Every subtitle the addons offer for a video, one per source rather than one
+ * per language : the picker lets the viewer choose the exact release. Only
+ * exact URL duplicates are dropped.
+ */
+export async function pullSubtitles(
+	client: Pick<AddonClient, "getSubtitles">,
+	video: { type: string; id: string },
+): Promise<SubtitleOption[]> {
+	const { subtitles } = await client.getSubtitles(video.type, video.id);
+	const seen = new Set<string>();
+	const options: SubtitleOption[] = [];
+	for (const subtitle of subtitles) {
+		if (!subtitle.url || seen.has(subtitle.url)) {
+			continue;
+		}
+		seen.add(subtitle.url);
+		options.push({
+			id: `${subtitle.addonId}:${subtitle.id || options.length}`,
+			lang: subtitle.lang,
+			url: subtitle.url,
+			addonName: subtitle.addonName,
+			sdh: SDH_MARKER.test(`${subtitle.lang} ${subtitle.id}`),
+		});
+	}
+	return options;
 }
