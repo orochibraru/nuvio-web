@@ -186,9 +186,9 @@ export class SessionStore implements NuvioTokenSource {
 		this.#db()?.run("DELETE FROM sessions WHERE user_id = ?", [accountKey]);
 	}
 
-	/** Signs out everyone who signed in through this backend URL, e.g. when it is banned. */
-	deleteAllForBackend(url: string): void {
-		this.#db()?.run("DELETE FROM sessions WHERE backend_url = ?", [url]);
+	/** Signs out everyone who signed in through this backend URL (null: the official API), e.g. when it is banned. */
+	deleteAllForBackend(url: string | null): void {
+		this.#db()?.run("DELETE FROM sessions WHERE backend_url IS ?", [url]);
 	}
 
 	/** Marks the session used, at most once a minute. */

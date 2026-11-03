@@ -63,11 +63,10 @@ is fine), but it is still HTTP or HTTPS only, without credentials in the URL,
 and every request to it has the same timeout and response cap as any other
 backend.
 
-Changing the default signs out everyone on the previous one. Users of the
-official API who signed in before you set a default are no longer on the default
-either: from then on they are treated like any custom backend, so they are
-signed out on their next request unless custom backends are allowed. Their data
-stays where it was and comes back when the official API is the default again.
+Changing the default signs out everyone on the previous one, the official API
+included when it was the default (you too: sign back in through the new one to
+keep reaching this page). Their data stays where it was and comes back when that
+backend is the default again.
 
 **Allow custom backends** (off by default) shows a **Custom backend** section on
 the sign-in and sign-up forms, where a user types a backend URL and its key.

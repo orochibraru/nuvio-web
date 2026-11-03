@@ -191,6 +191,15 @@ describe("saveDefaultBackend", () => {
 			"http://192.168.1.10",
 		);
 	});
+
+	it("ends the official API's sessions when it replaces it", () => {
+		data.policy.defaultBackend = null;
+		saveDefaultBackend(
+			{ url: "https://own.example", publishableKey: "sb_publishable_x" },
+			issue,
+		);
+		expect(store.deleteAllForBackend).toHaveBeenCalledWith(null);
+	});
 });
 
 describe("setBackendBan", () => {

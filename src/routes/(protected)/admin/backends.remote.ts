@@ -32,8 +32,9 @@ function changeDefault(
 ): void {
 	const previous = backendPolicy(db).defaultBackend;
 	setDefaultBackend(db, next);
-	if (previous && previous.url !== next?.url) {
-		services.get(SESSION_STORE).deleteAllForBackend(previous.url);
+	// No previous default is the official API: its sessions end too.
+	if ((previous?.url ?? null) !== (next?.url ?? null)) {
+		services.get(SESSION_STORE).deleteAllForBackend(previous?.url ?? null);
 	}
 	services.get(LOGGER).warn("Default backend changed", {
 		by: email,

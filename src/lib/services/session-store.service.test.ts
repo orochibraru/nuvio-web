@@ -288,4 +288,12 @@ describe("custom backends", () => {
 		expect(row(custom)).toBeNull();
 		expect(row(official)).not.toBeNull();
 	});
+
+	it("ends the official API's sessions, and only those, for a null URL", () => {
+		const official = store.create(auth());
+		const custom = store.create(auth(), backend);
+		store.deleteAllForBackend(null);
+		expect(row(official)).toBeNull();
+		expect(row(custom)).not.toBeNull();
+	});
 });
