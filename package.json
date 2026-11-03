@@ -7,7 +7,7 @@
 	"packageManager": "bun@1.4.2",
 	"scripts": {
 		"dev": "vite dev",
-		"build": "bun --bun vite build",
+		"build": "vite build",
 		"start": "./build/server",
 		"preview": "vite preview",
 		"prepare": "prek install --allow-missing-config || true; bun run i18n || echo ''; svelte-kit sync || echo ''",
