@@ -1,3 +1,5 @@
+import { BUILT_IN_BACKEND } from "#lib/backend/tokens.js";
+import { clientOptions } from "#lib/nuvio/backend.js";
 import { type AuthSession, NuvioClient } from "#lib/nuvio/index.js";
 import {
 	type Container,
@@ -28,8 +30,13 @@ export function registerUserDataServices(container: Container): Container {
 					c.get(LOGGER).scoped("NuvioSync"),
 					{
 						// The client only reads the access token off its session.
-						clientFor: (accessToken) =>
+						clientFor: ({ accessToken, backend }) =>
 							new NuvioClient({
+								...clientOptions(
+									backend,
+									globalThis.fetch,
+									c.get(BUILT_IN_BACKEND),
+								),
 								session: { access_token: accessToken } as AuthSession,
 							}),
 					},
@@ -46,7 +53,7 @@ export function profileData(
 	locals: App.Locals,
 	fetch: typeof globalThis.fetch,
 ): ProfileData {
-	const userId = locals.session?.user.id;
+	const userId = locals.session?.accountKey;
 	const profileId = locals.profileId;
 	if (userId === undefined || profileId == null) {
 		const none = () => Promise.resolve([]);

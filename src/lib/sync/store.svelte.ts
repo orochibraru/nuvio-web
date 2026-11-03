@@ -1,7 +1,9 @@
+import { isHttpError } from "@sveltejs/kit";
 import type { UserDataEvent } from "#lib/userdata/types.js";
 import { browser } from "$app/env";
+import { resolve } from "$app/paths";
 import { fromBroadcastMessage, toBroadcastMessage } from "./broadcast.ts";
-import { clearOwner, purgeOtherOwners, readAll, readOne } from "./idb.ts";
+import { clearOwner, purgeOtherAccounts, readAll, readOne } from "./idb.ts";
 import { LiveSync, streamedAction } from "./live.ts";
 import {
 	META_BOOTSTRAPPED,
@@ -10,21 +12,18 @@ import {
 	persistEverything,
 	persistQueue,
 } from "./persist.svelte.ts";
-import type { PendingLibraryWrite } from "./reconcile.ts";
 import {
 	buildFlushPayload,
 	libraryHas,
 	libraryProgressMap,
-	overlayPendingLibrary,
-	overlayPendingProgress,
-	pendingLibraryWrites,
-	pendingProgressWrites,
+	overlayPendingWrites,
 	splitPendingWrites,
 } from "./reconcile.ts";
 import { flushWrites, syncDeltas, syncSnapshot } from "./sync.remote.ts";
 import type {
 	ContentType,
 	HistoryRecord,
+	LibraryInput,
 	LibraryRecord,
 	MarkWatchedInput,
 	PendingWrite,
@@ -39,8 +38,12 @@ import {
 	EMPTY_CURSORS,
 	historyKey,
 	libraryKey,
+	libraryRecordFromInput,
+	MAX_FLUSH_WRITES,
+	PROFILE_MISMATCH_STATUS,
 	progressKeyFor,
 	syncOwner,
+	writeKey,
 	writeTarget,
 } from "./types.ts";
 
@@ -123,10 +126,10 @@ class SyncStore {
 		this.#profileId = profileId;
 		this.#owner = owner;
 
-		// Anything another account (or another profile) left behind goes now,
-		// not whenever it happens to be overwritten. Not awaited with the reads
-		// below: it only ever deletes rows this attach will not read.
-		void purgeOtherOwners(owner);
+		// Anything another account left behind goes now, not whenever it happens
+		// to be overwritten. Not awaited with the reads below: it only ever
+		// deletes rows this attach will not read.
+		void purgeOtherAccounts(userId);
 
 		const [library, progress, history, cursors, queue, bootstrapped] =
 			await Promise.all([
@@ -164,7 +167,7 @@ class SyncStore {
 				}
 			};
 			document.addEventListener("visibilitychange", this.#onVisible);
-			this.#live = new LiveSync({
+			this.#live = new LiveSync(profileId, {
 				poll: () => void this.sync(),
 				catchUp: () => this.#catchUp(),
 				change: (event) => this.#applyStreamed(event),
@@ -199,6 +202,9 @@ class SyncStore {
 	}
 
 	detach(): void {
+		const profileId = this.#profileId;
+		const owner = this.#owner;
+		const queue = this.#queue;
 		this.#live?.close();
 		this.#live = undefined;
 		this.#catchUpPending = false;
@@ -225,10 +231,18 @@ class SyncStore {
 		this.synced = false;
 		this.mutated = false;
 		this.#publish();
+		// Best effort while the server still has this profile active; the persisted queue covers a failure.
+		if (profileId != null && owner != null && queue.length > 0 && online()) {
+			const batch = queue.slice(0, MAX_FLUSH_WRITES);
+			flushWrites({ profileId, ...buildFlushPayload(batch) })
+				.then(() => persistQueue(owner, queue.slice(batch.length)))
+				.catch(() => undefined);
+		}
 	}
 
 	async sync(): Promise<void> {
-		if (this.#profileId == null || this.#syncing || !online()) {
+		const profileId = this.#profileId;
+		if (profileId == null || this.#syncing || !online()) {
 			return;
 		}
 		this.#syncing = true;
@@ -240,8 +254,9 @@ class SyncStore {
 			}
 			await this.#pullDeltas();
 			await this.#flush();
-		} catch {
-			// leave state as-is; the next tick retries
+		} catch (error) {
+			// Otherwise leave state as-is; the next tick retries.
+			this.#handleProfileMismatch(error, profileId);
 		} finally {
 			this.#syncing = false;
 		}
@@ -257,21 +272,12 @@ class SyncStore {
 		if (profileId == null) {
 			return;
 		}
-		const snap = await syncSnapshot();
+		const snap = await syncSnapshot({ profileId });
 		if (this.#profileId !== profileId) {
 			return;
 		}
 
-		this.#library = new Map(
-			snap.library.map((record) => [
-				libraryKey(record.contentType, record.contentId),
-				record,
-			]),
-		);
-		this.#progress = new Map(
-			snap.progress.map((record) => [record.progressKey, record]),
-		);
-		this.#history = new Map(snap.history.map((record) => [record.id, record]));
+		this.#adopt(fromBroadcastMessage(snap));
 		this.#cursors = snap.cursors;
 		this.#bootstrapped = true;
 		this.synced = true;
@@ -285,7 +291,7 @@ class SyncStore {
 		if (profileId == null) {
 			return;
 		}
-		const deltas = await syncDeltas(this.#cursors);
+		const deltas = await syncDeltas({ profileId, cursors: this.#cursors });
 		if (this.#profileId !== profileId) {
 			return;
 		}
@@ -309,16 +315,7 @@ class SyncStore {
 		applyTouched(library, changes.library);
 		applyTouched(progress, changes.progress);
 		applyTouched(history, changes.history);
-
-		this.#library = overlayPendingLibrary(library, this.#pendingLibrary());
-		this.#progress = overlayPendingProgress(progress, this.#pendingProgress());
-		// Honour still-pending "mark unwatched" deletes over a stale delta.
-		for (const write of this.#queue) {
-			if (write.kind === "progress.delete") {
-				this.#progress.delete(write.progressKey);
-			}
-		}
-		this.#history = history;
+		this.#adopt({ library, progress, history });
 		this.#cursors = cursors;
 		await this.#persistAll();
 		this.#publish();
@@ -327,18 +324,18 @@ class SyncStore {
 		}
 	}
 
-	toggleLibrary(input: {
-		contentId: string;
-		contentType: ContentType;
-		remove: boolean;
-		name?: string;
-		poster?: string | null;
-		background?: string | null;
-		description?: string | null;
-		releaseInfo?: string | null;
-		imdbRating?: number | null;
-		genres?: string[];
-	}): void {
+	#adopt(server: Parameters<typeof overlayPendingWrites>[0]): void {
+		const { library, progress, history } = overlayPendingWrites(
+			server,
+			this.#pendingWrites(),
+			this.#queue,
+		);
+		this.#library = library;
+		this.#progress = progress;
+		this.#history = history;
+	}
+
+	toggleLibrary(input: LibraryInput & { remove: boolean }): void {
 		const key = libraryKey(input.contentType, input.contentId);
 		if (input.remove) {
 			this.#enqueue({
@@ -349,18 +346,7 @@ class SyncStore {
 			});
 			this.#commit({ library: { [key]: null } });
 		} else {
-			const record: LibraryRecord = {
-				contentId: input.contentId,
-				contentType: input.contentType,
-				name: input.name ?? input.contentId,
-				poster: input.poster ?? null,
-				background: input.background ?? null,
-				description: input.description ?? null,
-				releaseInfo: input.releaseInfo ?? null,
-				imdbRating: input.imdbRating ?? null,
-				genres: input.genres ?? [],
-				addedAt: Date.now(),
-			};
+			const record = libraryRecordFromInput(input, Date.now());
 			this.#enqueue({ kind: "library.upsert", record, queuedAt: Date.now() });
 			this.#commit({ library: { [key]: record } });
 		}
@@ -465,13 +451,11 @@ class SyncStore {
 		this.#scheduleFlush();
 	}
 
-	/** Undo `deleteHistory` (best-effort : no restore endpoint, so a delete
-	 *  that already flushed wins back on the next pull). */
+	/** Undo `deleteHistory`: a restore write, so it also undoes a delete that already flushed. */
 	restoreHistory(record: HistoryRecord): void {
-		this.#queue = this.#queue.filter(
-			(w) => !(w.kind === "history.delete" && w.record.id === record.id),
-		);
+		this.#enqueue({ kind: "history.restore", record, queuedAt: Date.now() });
 		this.#commit({ history: { [record.id]: record } });
+		this.#scheduleFlush();
 	}
 
 	async clear(): Promise<void> {
@@ -495,7 +479,7 @@ class SyncStore {
 	/** Wipes every account's mirror and detaches. See `sync/local-data.ts`. */
 	async forget(): Promise<void> {
 		this.detach();
-		await purgeOtherOwners(null);
+		await purgeOtherAccounts(null);
 	}
 
 	/** Queued writes plus recently-flushed ones, oldest first so a fresh queued
@@ -508,14 +492,6 @@ class SyncStore {
 		);
 		this.#recentlyFlushed = pruned;
 		return pending;
-	}
-
-	#pendingLibrary(): PendingLibraryWrite[] {
-		return pendingLibraryWrites(this.#pendingWrites());
-	}
-
-	#pendingProgress(): ProgressRecord[] {
-		return pendingProgressWrites(this.#pendingWrites());
 	}
 
 	/** Queue writes, dropping any queued write they supersede. Not persisted
@@ -554,12 +530,7 @@ class SyncStore {
 			return;
 		}
 		const message: SyncChannelMessage = changes
-			? {
-					patch: changes,
-					cursors: this.#cursors,
-					queue: this.#queue,
-					bootstrapped: this.#bootstrapped,
-				}
+			? { patch: changes, queue: this.#queue }
 			: toBroadcastMessage({
 					library: this.#library,
 					progress: this.#progress,
@@ -588,12 +559,15 @@ class SyncStore {
 			this.#library = library;
 			this.#progress = progress;
 			this.#history = history;
+			this.#cursors = message.cursors;
+			this.#bootstrapped = message.bootstrapped;
+			this.synced = this.#bootstrapped;
 		}
-		this.#cursors = message.cursors;
 		this.#queue = message.queue;
-		this.#bootstrapped = message.bootstrapped;
-		this.synced = this.#bootstrapped;
-		this.mutated = this.#queue.length > 0;
+		// Latched like the sender's: an emptied queue is no reason to fall back to stale SSR data.
+		if (this.#queue.length > 0) {
+			this.mutated = true;
+		}
 		this.#publish("patch" in message ? message.patch : undefined);
 		this.#applyingBroadcast = false;
 	}
@@ -610,26 +584,40 @@ class SyncStore {
 	}
 
 	async #flush(): Promise<void> {
-		if (this.#profileId == null || this.#flushing || !online()) {
+		const profileId = this.#profileId;
+		if (profileId == null || this.#flushing || !online()) {
 			return;
 		}
-		const batch = this.#queue.slice();
+		const batch = this.#queue.slice(0, MAX_FLUSH_WRITES);
 		if (batch.length === 0) {
 			return;
 		}
 		this.#flushing = true;
 		try {
-			await flushWrites(buildFlushPayload(batch));
-			const flushed = new Set(batch);
-			this.#queue = this.#queue.filter((write) => !flushed.has(write));
+			await flushWrites({ profileId, ...buildFlushPayload(batch) });
+			if (this.#profileId !== profileId) {
+				return;
+			}
+			const flushed = new Set(batch.map(writeKey));
+			this.#queue = this.#queue.filter(
+				(write) => !flushed.has(writeKey(write)),
+			);
 			const flushedAt = Date.now();
 			this.#recentlyFlushed.push(
 				...batch.map((write) => ({ write, at: flushedAt })),
 			);
 			void this.#persistQueue();
+			this.#broadcast({});
 			this.#flushFailures = 0;
 			this.stalled = false;
-		} catch {
+			// The rest of a long queue, or writes made while this one was in flight.
+			if (this.#queue.length > 0) {
+				this.#scheduleFlush();
+			}
+		} catch (error) {
+			if (this.#handleProfileMismatch(error, profileId)) {
+				return;
+			}
 			// keep the queue; a later sync retries
 			this.#flushFailures += 1;
 			if (this.#flushFailures >= 2 && this.#queue.length > 0) {
@@ -638,6 +626,18 @@ class SyncStore {
 		} finally {
 			this.#flushing = false;
 		}
+	}
+
+	/** Another tab switched the shared profile cookie: stop before any data crosses profiles. */
+	#handleProfileMismatch(error: unknown, profileId: number): boolean {
+		if (!isHttpError(error, PROFILE_MISMATCH_STATUS)) {
+			return false;
+		}
+		if (this.#profileId === profileId) {
+			this.detach();
+			location.assign(resolve("profiles"));
+		}
+		return true;
 	}
 
 	/** Re-publish the sorted arrays : all three, or only those `changes`

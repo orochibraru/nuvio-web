@@ -1,7 +1,7 @@
 import { Database } from "bun:sqlite";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { NuvioClient } from "#lib/nuvio/index.js";
-import { Logger } from "#lib/services/index.js";
+import { Logger, type NuvioCredentials } from "#lib/services/index.js";
 import type { LibraryRecord } from "#lib/sync/types.js";
 import { UserDataEvents } from "./events.ts";
 import { NuvioSync, pushCalls } from "./nuvio-sync.ts";
@@ -13,21 +13,21 @@ function fakeClient() {
 	return {
 		library: {
 			deltaCursor: vi.fn(async () => 11),
-			pull: vi.fn(async () => [] as unknown[]),
+			pull: vi.fn(async (_params: unknown) => [] as unknown[]),
 			pullDelta: vi.fn(async () => [] as unknown[]),
 			upsertItems: vi.fn(async () => undefined),
 			deleteItems: vi.fn(async () => undefined),
 		},
 		watchProgress: {
 			deltaCursor: vi.fn(async () => 22),
-			pull: vi.fn(async () => [] as unknown[]),
+			pull: vi.fn(async (_params: unknown) => [] as unknown[]),
 			pullDelta: vi.fn(async () => [] as unknown[]),
 			push: vi.fn(async () => undefined),
 			deleteMany: vi.fn(async () => undefined),
 		},
 		watchHistory: {
 			deltaCursor: vi.fn(async () => 33),
-			pull: vi.fn(async () => [] as unknown[]),
+			pull: vi.fn(async (_params: unknown) => [] as unknown[]),
 			pullDelta: vi.fn(async () => [] as unknown[]),
 			push: vi.fn(async () => undefined),
 			delete: vi.fn(async () => undefined),
@@ -66,8 +66,8 @@ const libraryItem = (id: string, addedAt: number) => ({
 let client: ReturnType<typeof fakeClient>;
 let store: UserDataStore;
 let tokens: {
-	accessTokenFor: ReturnType<
-		typeof vi.fn<(userId: string) => Promise<string | null>>
+	credentialsFor: ReturnType<
+		typeof vi.fn<(accountKey: string) => Promise<NuvioCredentials | null>>
 	>;
 };
 let logged: string[];
@@ -84,8 +84,11 @@ beforeEach(() => {
 		() => now,
 	);
 	tokens = {
-		accessTokenFor: vi.fn(
-			async (_userId: string): Promise<string | null> => "token",
+		credentialsFor: vi.fn(
+			async (_accountKey: string): Promise<NuvioCredentials | null> => ({
+				accessToken: "token",
+				backend: null,
+			}),
 		),
 	};
 	logged = [];
@@ -132,6 +135,62 @@ describe("ensureImported", () => {
 		expect(client.library.pull).toHaveBeenCalledTimes(1);
 	});
 
+	it("pages every collection until a short page, not just the first 1000 rows", async () => {
+		const rows = (count: number, from: number) =>
+			Array.from({ length: count }, (_, index) => from + index);
+		// 2500 rows each: two full pages and a half one.
+		const pageOf = (page: number) => rows(page < 2 ? 1000 : 500, page * 1000);
+		client.library.pull.mockImplementation(async (params) =>
+			pageOf((params as { p_offset: number }).p_offset / 1000).map((n) =>
+				libraryItem(`tt${n}`, n + 1),
+			),
+		);
+		client.watchHistory.pull.mockImplementation(async (params) =>
+			pageOf((params as { p_page: number }).p_page - 1).map((n) => ({
+				content_id: `tt${n}`,
+				content_type: "movie",
+				title: `tt${n}`,
+				season: null,
+				episode: null,
+				watched_at: n + 1,
+			})),
+		);
+		// Progress pages by `last_watched`, oldest first; rows 999 and 1000 share
+		// a timestamp across the first page boundary.
+		const progressRows = rows(2500, 0).map((n) => ({
+			progress_key: `tt${n}`,
+			content_id: `tt${n}`,
+			content_type: "movie",
+			video_id: `tt${n}`,
+			season: null,
+			episode: null,
+			position: 1,
+			duration: 2,
+			last_watched: n === 1000 ? 1000 : n + 1,
+		}));
+		client.watchProgress.pull.mockImplementation(async (params) => {
+			const { p_since_last_watched: since, p_limit: limit } = params as {
+				p_since_last_watched: number;
+				p_limit: number;
+			};
+			return progressRows
+				.filter((row) => row.last_watched > since)
+				.slice(0, limit);
+		});
+
+		await imported();
+
+		expect(store.list(U, 1, "library")).toHaveLength(2500);
+		expect(store.list(U, 1, "history")).toHaveLength(2500);
+		expect(store.list(U, 1, "progress")).toHaveLength(2500);
+		expect(client.library.pull).toHaveBeenCalledTimes(3);
+		expect(client.watchHistory.pull).toHaveBeenCalledTimes(3);
+		expect(client.watchProgress.pull).toHaveBeenCalledWith(
+			expect.objectContaining({ p_since_last_watched: 0 }),
+		);
+		expect(store.profile(U, 1)?.importedAt).not.toBeNull();
+	});
+
 	it("reports failure without throwing, and retries next time", async () => {
 		client.library.deltaCursor.mockRejectedValueOnce(new Error("down"));
 		expect(await sync.ensureImported(U, 1, client as never)).toBe(false);
@@ -144,14 +203,14 @@ describe("ensureImported", () => {
 
 describe("syncUser", () => {
 	it("skips a user with no token", async () => {
-		tokens.accessTokenFor.mockResolvedValue(null);
+		tokens.credentialsFor.mockResolvedValue(null);
 		await imported();
 		await sync.syncUser(U);
 		expect(client.library.pullDelta).not.toHaveBeenCalled();
 	});
 
 	it("skips, rather than throws, when the token lookup itself fails", async () => {
-		tokens.accessTokenFor.mockRejectedValue(new Error("database is locked"));
+		tokens.credentialsFor.mockRejectedValue(new Error("database is locked"));
 		await imported();
 		await expect(sync.syncUser(U)).resolves.toBeUndefined();
 		expect(client.library.pullDelta).not.toHaveBeenCalled();
@@ -253,7 +312,7 @@ describe("syncUser", () => {
 		const [a, b] = [sync.syncUser(U), sync.syncUser(U)];
 		expect(a).toBe(b);
 		await a;
-		expect(tokens.accessTokenFor).toHaveBeenCalledTimes(1);
+		expect(tokens.credentialsFor).toHaveBeenCalledTimes(1);
 	});
 });
 
@@ -262,14 +321,14 @@ describe("scheduling", () => {
 		sync.touch(U);
 		sync.touch(U);
 		await vi.waitFor(() => {
-			expect(tokens.accessTokenFor).toHaveBeenCalledTimes(1);
+			expect(tokens.credentialsFor).toHaveBeenCalledTimes(1);
 		});
 		// Let that sync settle: a touch during a running one joins it.
 		await new Promise((resolve) => setTimeout(resolve, 0));
 		now += 31_000;
 		sync.touch(U);
 		await vi.waitFor(() => {
-			expect(tokens.accessTokenFor).toHaveBeenCalledTimes(2);
+			expect(tokens.credentialsFor).toHaveBeenCalledTimes(2);
 		});
 	});
 
@@ -278,20 +337,20 @@ describe("scheduling", () => {
 		sync.touch(U);
 		sync.touch("user-2");
 		await vi.waitFor(() => {
-			expect(tokens.accessTokenFor).toHaveBeenCalledTimes(2);
+			expect(tokens.credentialsFor).toHaveBeenCalledTimes(2);
 		});
 
 		now += 5 * 60_000;
 		await vi.advanceTimersByTimeAsync(5 * 60_000);
-		expect(tokens.accessTokenFor).toHaveBeenCalledTimes(4);
+		expect(tokens.credentialsFor).toHaveBeenCalledTimes(4);
 
 		now += 31 * 60_000;
 		await sync.tick();
-		expect(tokens.accessTokenFor).toHaveBeenCalledTimes(4);
+		expect(tokens.credentialsFor).toHaveBeenCalledTimes(4);
 
 		sync.dispose();
 		await vi.advanceTimersByTimeAsync(10 * 60_000);
-		expect(tokens.accessTokenFor).toHaveBeenCalledTimes(4);
+		expect(tokens.credentialsFor).toHaveBeenCalledTimes(4);
 	});
 
 	it("an unavailable store skips the sync rather than throwing", async () => {

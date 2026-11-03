@@ -27,6 +27,17 @@ export class UserDataEvents {
 		};
 	}
 
+	/** Listeners across every profile of one user. */
+	count(userId: string): number {
+		let total = 0;
+		for (const [key, listeners] of this.#listeners) {
+			if (key.startsWith(`${userId}:`)) {
+				total += listeners.size;
+			}
+		}
+		return total;
+	}
+
 	emit(userId: string, profileId: number, change: UserDataEvent): void {
 		for (const listener of this.#listeners.get(channel(userId, profileId)) ??
 			[]) {

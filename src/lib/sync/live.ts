@@ -37,6 +37,7 @@ export class LiveSync {
 	#pollMs = 0;
 
 	constructor(
+		private readonly profileId: number,
 		private readonly handlers: {
 			poll: () => void;
 			/** After a reconnect: whatever changed meanwhile never came down. */
@@ -56,7 +57,9 @@ export class LiveSync {
 		) {
 			return;
 		}
-		const source = new EventSource(resolve("api/events"));
+		const source = new EventSource(
+			`${resolve("api/events")}?profile=${this.profileId}`,
+		);
 		this.#source = source;
 		let opened = false;
 		source.onopen = () => {

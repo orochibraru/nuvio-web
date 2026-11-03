@@ -1,3 +1,4 @@
+import { error } from "@sveltejs/kit";
 import { IDBDatabase, IDBFactory, IDBObjectStore } from "fake-indexeddb";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { LibraryRecord, SyncChanges, SyncCursors } from "./types.ts";
@@ -181,9 +182,8 @@ describe("attach", () => {
 
 		expect(remote.syncSnapshot).toHaveBeenCalledTimes(1);
 		expect(remote.syncDeltas).toHaveBeenCalledWith({
-			library: 10,
-			watchProgress: 10,
-			watchHistory: 10,
+			profileId: 1,
+			cursors: { library: 10, watchProgress: 10, watchHistory: 10 },
 		});
 		expect(sync.library.map((record) => record.contentId)).toEqual(["tt1"]);
 	});
@@ -244,6 +244,7 @@ describe("persistence and owner scoping", () => {
 			remove: false,
 		});
 		sync.detach();
+		remote.flushWrites.mockClear();
 
 		sync = await freshStore();
 		await sync.attach(1, USER_B);
@@ -322,21 +323,43 @@ describe("optimistic writes", () => {
 		expect(sync.mutated).toBe(false);
 	});
 
-	it("restoreHistory drops the queued delete it undoes", async () => {
+	const watchedOne = {
+		id: "tt1::",
+		contentId: "tt1",
+		contentType: "movie" as const,
+		title: "One",
+		season: null,
+		episode: null,
+		watchedAt: 1,
+	};
+
+	it("restoreHistory supersedes the queued delete it undoes", async () => {
 		await sync.attach(1, USER_A);
 		sync.deleteHistory({ contentId: "tt1", season: null, episode: null });
 
-		sync.restoreHistory({
-			id: "tt1::",
-			contentId: "tt1",
-			contentType: "movie",
-			title: "One",
-			season: null,
-			episode: null,
-			watchedAt: 1,
-		});
+		sync.restoreHistory(watchedOne);
 		await sync.flushNow();
-		expect(remote.flushWrites).not.toHaveBeenCalled();
+		const [payload] = remote.flushWrites.mock.calls[0];
+		expect(payload.historyDeletes).toEqual([]);
+		expect(payload.historyRestores).toEqual([
+			expect.objectContaining({ content_id: "tt1", title: "One" }),
+		]);
+		expect(sync.history.map((entry) => entry.id)).toEqual(["tt1::"]);
+	});
+
+	// The undo toast outlives the flush debounce: the delete is already on the server.
+	it("restoreHistory puts back a delete that already flushed", async () => {
+		await sync.attach(1, USER_A);
+		sync.deleteHistory({ contentId: "tt1", season: null, episode: null });
+		await vi.advanceTimersByTimeAsync(1500);
+		expect(remote.flushWrites.mock.calls[0][0].historyDeletes).toHaveLength(1);
+
+		sync.restoreHistory(watchedOne);
+		await vi.advanceTimersByTimeAsync(1500);
+		expect(remote.flushWrites).toHaveBeenCalledTimes(2);
+		expect(remote.flushWrites.mock.calls[1][0].historyRestores).toEqual([
+			expect.objectContaining({ content_id: "tt1", watched_at: 1 }),
+		]);
 		expect(sync.history.map((entry) => entry.id)).toEqual(["tt1::"]);
 	});
 });
@@ -434,9 +457,10 @@ describe("cursors", () => {
 
 		remote.syncDeltas.mockResolvedValue(NO_DELTAS);
 		await sync.sync();
-		expect(remote.syncDeltas).toHaveBeenLastCalledWith(
-			expect.objectContaining({ library: 17 }),
-		);
+		expect(remote.syncDeltas).toHaveBeenLastCalledWith({
+			profileId: 1,
+			cursors: cursorsAt(17),
+		});
 	});
 });
 
@@ -890,7 +914,7 @@ describe("live stream", () => {
 	it("opens one stream for the profile, closed on switch and detach", async () => {
 		await sync.attach(1, USER_A);
 		expect(FakeEventSource.instances).toHaveLength(1);
-		expect(lastStream().url).toBe("/api/events");
+		expect(lastStream().url).toBe("/api/events?profile=1");
 
 		const first = lastStream();
 		await sync.attach(2, USER_A);
@@ -911,7 +935,10 @@ describe("live stream", () => {
 
 		// The next pull starts from the streamed cursors.
 		await sync.sync();
-		expect(remote.syncDeltas).toHaveBeenCalledWith(cursorsAt(11));
+		expect(remote.syncDeltas).toHaveBeenCalledWith({
+			profileId: 1,
+			cursors: cursorsAt(11),
+		});
 	});
 
 	it("drops a change it already has", async () => {
@@ -930,7 +957,10 @@ describe("live stream", () => {
 			expect(sync.isInLibrary("movie", "tt4")).toBe(true);
 		});
 		expect(remote.syncDeltas).toHaveBeenCalledTimes(1);
-		expect(remote.syncDeltas).toHaveBeenCalledWith(cursorsAt(10));
+		expect(remote.syncDeltas).toHaveBeenCalledWith({
+			profileId: 1,
+			cursors: cursorsAt(10),
+		});
 	});
 
 	it("a gap found mid-sync is filled by one more pull once it ends", async () => {
@@ -1029,5 +1059,227 @@ describe("live stream", () => {
 		stale.send(streamed(10, 11));
 		await vi.advanceTimersByTimeAsync(0);
 		expect(sync.isInLibrary("movie", "tt5")).toBe(false);
+	});
+});
+
+/** What the sync endpoints throw once another tab switched the profile cookie. */
+function profileMismatch(): unknown {
+	try {
+		error(409, "profile changed");
+	} catch (thrown) {
+		return thrown;
+	}
+}
+
+/** Lets a `BroadcastChannel` message land before asserting on the other tab. */
+async function settleBroadcasts(): Promise<void> {
+	await new Promise((resolve) => setImmediate(resolve));
+	await new Promise((resolve) => setImmediate(resolve));
+}
+
+function addToLibrary(store: Store, id: string): void {
+	store.toggleLibrary({ contentId: id, contentType: "movie", remove: false });
+}
+
+describe("profile switched in another tab", () => {
+	let assign: ReturnType<typeof vi.fn>;
+
+	beforeEach(() => {
+		assign = vi.fn();
+		vi.stubGlobal("location", { assign });
+	});
+
+	it("sends its profile id with every sync call and its stream", async () => {
+		await sync.attach(2, USER_A);
+		expect(lastStream().url).toBe("/api/events?profile=2");
+		await sync.sync();
+		expect(remote.syncSnapshot).toHaveBeenCalledWith({ profileId: 2 });
+		addToLibrary(sync, "tt1");
+		await sync.flushNow();
+		expect(remote.flushWrites.mock.calls[0][0]).toMatchObject({ profileId: 2 });
+	});
+
+	it("stops and sends the user to the picker instead of applying the other profile's data", async () => {
+		await sync.attach(1, USER_A);
+		await sync.sync();
+		remote.syncDeltas.mockRejectedValue(profileMismatch());
+
+		await sync.sync();
+		expect(assign).toHaveBeenCalledWith("/profiles");
+		expect(sync.ready).toBe(false);
+		expect(lastStream().readyState).toBe(FakeEventSource.CLOSED);
+	});
+
+	it("keeps a write the server refused for the wrong profile, for that profile's next attach", async () => {
+		await sync.attach(1, USER_A);
+		remote.flushWrites.mockRejectedValue(profileMismatch());
+		addToLibrary(sync, "tt1");
+		await sync.flushNow();
+		expect(assign).toHaveBeenCalledWith("/profiles");
+
+		remote.flushWrites.mockReset().mockResolvedValue({ ok: true });
+		sync = await freshStore();
+		await sync.attach(1, USER_A);
+		await sync.flushNow();
+		expect(remote.flushWrites.mock.calls[0][0]).toMatchObject({
+			profileId: 1,
+			libraryUpserts: [expect.objectContaining({ content_id: "tt1" })],
+		});
+	});
+});
+
+describe("switching profile keeps unflushed writes", () => {
+	it("flushes the queue on detach, best effort", async () => {
+		await sync.attach(1, USER_A);
+		addToLibrary(sync, "tt1");
+		sync.detach();
+		expect(remote.flushWrites).toHaveBeenCalledWith(
+			expect.objectContaining({
+				profileId: 1,
+				libraryUpserts: [expect.objectContaining({ content_id: "tt1" })],
+			}),
+		);
+	});
+
+	it("leaves another profile's queue in IndexedDB when that flush fails", async () => {
+		remote.flushWrites.mockRejectedValue(new Error("offline"));
+		await sync.attach(1, USER_A);
+		addToLibrary(sync, "tt1");
+		await sync.attach(2, USER_A);
+		await vi.advanceTimersByTimeAsync(0);
+
+		remote.flushWrites.mockReset().mockResolvedValue({ ok: true });
+		sync = await freshStore();
+		await sync.attach(1, USER_A);
+		expect(sync.isInLibrary("movie", "tt1")).toBe(true);
+		await sync.flushNow();
+		expect(remote.flushWrites).toHaveBeenCalledWith(
+			expect.objectContaining({ profileId: 1 }),
+		);
+	});
+});
+
+describe("bootstrap keeps pending writes", () => {
+	it("overlays the queue on a snapshot that predates it", async () => {
+		remote.flushWrites.mockRejectedValue(new Error("offline"));
+		remote.syncSnapshot.mockResolvedValue({
+			...snapshot([libraryItem("tt2")]),
+			history: [
+				{
+					id: "tt3::",
+					contentId: "tt3",
+					contentType: "movie",
+					title: "Three",
+					season: null,
+					episode: null,
+					watchedAt: 1,
+				},
+			],
+		});
+		await sync.attach(1, USER_A);
+		addToLibrary(sync, "tt1");
+		sync.toggleLibrary({
+			contentId: "tt2",
+			contentType: "movie",
+			remove: true,
+		});
+		sync.deleteHistory({ contentId: "tt3", season: null, episode: null });
+
+		await sync.sync();
+		expect(sync.synced).toBe(true);
+		expect(sync.library.map((record) => record.contentId)).toEqual(["tt1"]);
+		expect(sync.history).toEqual([]);
+	});
+});
+
+describe("cross-tab cursors and queue", () => {
+	it("a patch from another tab does not move this tab's cursors", async () => {
+		await sync.attach(1, USER_A);
+		await sync.sync();
+		const stream = lastStream();
+		const other = await freshStore();
+		await other.attach(1, USER_A);
+
+		// This tab applies a streamed change and moves to 11; the other tab has not.
+		stream.send({ ...libraryDeltas(11, ["tt5"]), since: cursorsAt(10) });
+		await vi.waitFor(() => {
+			expect(sync.isInLibrary("movie", "tt5")).toBe(true);
+		});
+		addToLibrary(sync, "tt1");
+		await vi.waitFor(() => {
+			expect(other.isInLibrary("movie", "tt1")).toBe(true);
+		});
+
+		remote.syncDeltas.mockClear();
+		await other.sync();
+		expect(remote.syncDeltas).toHaveBeenCalledWith({
+			profileId: 1,
+			cursors: cursorsAt(10),
+		});
+	});
+
+	it("another tab drops writes this tab flushed", async () => {
+		await sync.attach(1, USER_A);
+		const other = await freshStore();
+		await other.attach(1, USER_A);
+		addToLibrary(sync, "tt1");
+		await settleBroadcasts();
+
+		await sync.flushNow();
+		await settleBroadcasts();
+		await other.flushNow();
+		expect(remote.flushWrites).toHaveBeenCalledTimes(1);
+	});
+
+	it("drops flushed writes even when a broadcast swapped the queue mid-flush", async () => {
+		await sync.attach(1, USER_A);
+		const other = await freshStore();
+		await other.attach(1, USER_A);
+		let release: (value: { ok: true }) => void = () => {};
+		remote.flushWrites.mockReturnValueOnce(
+			new Promise((resolve) => {
+				release = resolve;
+			}),
+		);
+		addToLibrary(sync, "tt1");
+		await settleBroadcasts();
+		const flushing = sync.flushNow();
+
+		// The other tab's write replaces this tab's queue with structured clones.
+		addToLibrary(other, "tt2");
+		await vi.waitFor(() => {
+			expect(sync.isInLibrary("movie", "tt2")).toBe(true);
+		});
+		release({ ok: true });
+		await flushing;
+
+		await sync.flushNow();
+		expect(remote.flushWrites.mock.calls[1][0].libraryUpserts).toEqual([
+			expect.objectContaining({ content_id: "tt2" }),
+		]);
+	});
+});
+
+describe("flush size", () => {
+	it("sends a long queue in chunks the server accepts", async () => {
+		await sync.attach(1, USER_A);
+		sync.markManyWatched(
+			Array.from({ length: 1200 }, (_, index) => ({
+				contentId: "tt9",
+				contentType: "series" as const,
+				videoId: `tt9:1:${index}`,
+				season: 1,
+				episode: index,
+				durationMs: 0,
+			})),
+		);
+		await sync.flushNow();
+		await vi.advanceTimersByTimeAsync(1500);
+		await vi.advanceTimersByTimeAsync(1500);
+		expect(
+			remote.flushWrites.mock.calls.map(
+				([payload]) => payload.progressPushes.length,
+			),
+		).toEqual([500, 500, 200]);
 	});
 });

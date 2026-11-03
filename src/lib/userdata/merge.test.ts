@@ -231,16 +231,19 @@ describe("localWrites", () => {
 		progressPushes: [],
 		progressDeletes: [],
 		historyDeletes: [],
+		historyRestores: [],
 	};
 
-	it("turns a flush batch into rows, upserts dated by their own clock", () => {
+	it("turns a flush batch into rows, every write dated by the client's clock", () => {
 		const rows = localWrites(
 			{
 				...empty,
 				libraryUpserts: [
 					{ content_id: "tt1", content_type: "movie", added_at: 50 },
 				],
-				libraryDeletes: [{ content_id: "tt2", content_type: "series" }],
+				libraryDeletes: [
+					{ content_id: "tt2", content_type: "series", deleted_at: 60 },
+				],
 				progressPushes: [
 					{
 						content_id: "tt3",
@@ -253,8 +256,19 @@ describe("localWrites", () => {
 						last_watched: 70,
 					},
 				],
-				progressDeletes: ["tt4"],
-				historyDeletes: [{ content_id: "tt5" }],
+				progressDeletes: [{ progress_key: "tt4", deleted_at: 80 }],
+				historyDeletes: [{ content_id: "tt5", deleted_at: 90 }],
+				historyRestores: [
+					{
+						content_id: "tt6",
+						content_type: "series",
+						title: "Six",
+						season: 1,
+						episode: 2,
+						watched_at: 3,
+						restored_at: 95,
+					},
+				],
 			},
 			1000,
 		);
@@ -262,11 +276,13 @@ describe("localWrites", () => {
 			rows.map((entry) => [entry.entity, entry.key, entry.deleted, entry.at]),
 		).toEqual([
 			["library", "movie:tt1", false, 50],
-			["library", "series:tt2", true, 1000],
+			["library", "series:tt2", true, 60],
 			["progress", "tt3_s1e2", false, 70],
-			["progress", "tt4", true, 1000],
-			["history", "tt5::", true, 1000],
+			["progress", "tt4", true, 80],
+			["history", "tt5::", true, 90],
+			["history", "tt6:1:2", false, 95],
 		]);
+		expect(rows[5].record).toMatchObject({ title: "Six", watchedAt: 3 });
 		expect(rows[0].record).toMatchObject({ name: "tt1", genres: [] });
 		expect(rows[2].record).toMatchObject({ position: 11, duration: 99 });
 	});
@@ -282,6 +298,21 @@ describe("localWrites", () => {
 			1000,
 		);
 		expect(write.at).toBe(1000);
+	});
+
+	it("caps a delete's timestamp the same way", () => {
+		const rows = localWrites(
+			{
+				...empty,
+				libraryDeletes: [
+					{ content_id: "tt1", content_type: "movie", deleted_at: 5000 },
+				],
+				progressDeletes: [{ progress_key: "tt2", deleted_at: 5000 }],
+				historyDeletes: [{ content_id: "tt3", deleted_at: 5000 }],
+			},
+			1000,
+		);
+		expect(rows.map((row) => row.at)).toEqual([1000, 1000, 1000]);
 	});
 });
 

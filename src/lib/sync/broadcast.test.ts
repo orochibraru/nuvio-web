@@ -65,9 +65,6 @@ describe("fromBroadcastMessage", () => {
 			library: [libRecord],
 			progress: [progRecord],
 			history: [histRecord],
-			cursors: EMPTY_CURSORS,
-			queue: [],
-			bootstrapped: false,
 		});
 		expect(library.get("movie:tt1")).toBe(libRecord);
 		expect(progress.get("tt1")).toBe(progRecord);

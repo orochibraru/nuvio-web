@@ -181,20 +181,21 @@ export async function clearOwner(owner: string): Promise<void> {
 }
 
 /**
- * Drops every row that is not `keep`'s, across every store.
+ * Drops every row that is not one of `userId`'s profiles, across every store.
  *
  * Signing out clears cookies, not IndexedDB, so without this the previous
  * account's mirror sits on the device until something overwrites it. Running it
  * on attach is what makes "sign out, sign in as someone else" leave nothing
- * behind, and it self-heals a device that was already in that state. `null`
- * keeps nothing, which is the sign-out case.
+ * behind, and it self-heals a device that was already in that state. The
+ * account's other profiles stay: their unflushed queues go out when they are
+ * picked again. `null` keeps nothing, which is the sign-out case.
  */
-export async function purgeOtherOwners(keep: string | null): Promise<void> {
+export async function purgeOtherAccounts(userId: string | null): Promise<void> {
 	const db = await openDb();
 	if (!db) {
 		return;
 	}
-	const prefix = keep === null ? null : `${keep}:`;
+	const prefix = userId === null ? null : `${userId}:`;
 	await Promise.all(
 		STORES.map(async (store) => {
 			try {

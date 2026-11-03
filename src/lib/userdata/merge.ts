@@ -192,7 +192,11 @@ export interface FlushBatch {
 		genres?: string[];
 		added_at: number;
 	}>;
-	libraryDeletes: Array<{ content_id: string; content_type: ContentType }>;
+	libraryDeletes: Array<{
+		content_id: string;
+		content_type: ContentType;
+		deleted_at: number;
+	}>;
 	progressPushes: Array<{
 		content_id: string;
 		content_type: ContentType;
@@ -203,18 +207,29 @@ export interface FlushBatch {
 		duration: number;
 		last_watched: number;
 	}>;
-	progressDeletes: string[];
+	progressDeletes: Array<{ progress_key: string; deleted_at: number }>;
 	historyDeletes: Array<{
 		content_id: string;
 		season?: number;
 		episode?: number;
+		deleted_at: number;
+	}>;
+	historyRestores: Array<{
+		content_id: string;
+		content_type: ContentType;
+		title: string;
+		season?: number;
+		episode?: number;
+		watched_at: number;
+		restored_at: number;
 	}>;
 }
 
 /**
- * A client write batch as rows. Upserts are dated by their own timestamp
- * (capped at `now`, so a fast client clock can't win every future conflict);
- * deletes are dated `now`. A delete's record only carries the identity : the
+ * A client write batch as rows. Every write is dated by the client's own
+ * timestamp, capped at `now` so a fast client clock can't win every future
+ * conflict: one clock for upserts and deletes alike, so a skewed client still
+ * orders its own writes. A delete's record only carries the identity : the
  * store keeps the existing row's fields in the tombstone when it has them.
  */
 export function localWrites(batch: FlushBatch, now: number): StoredRow[] {
@@ -222,8 +237,9 @@ export function localWrites(batch: FlushBatch, now: number): StoredRow[] {
 		...batch.libraryUpserts.map((entry) => libraryUpsert(entry, now)),
 		...batch.libraryDeletes.map((entry) => libraryDelete(entry, now)),
 		...batch.progressPushes.map((entry) => progressPush(entry, now)),
-		...batch.progressDeletes.map((key) => progressDelete(key, now)),
+		...batch.progressDeletes.map((entry) => progressDelete(entry, now)),
 		...batch.historyDeletes.map((entry) => historyDelete(entry, now)),
+		...batch.historyRestores.map((entry) => historyRestore(entry, now)),
 	];
 }
 
@@ -257,7 +273,7 @@ function libraryDelete(
 	now: number,
 ): StoredRow {
 	return {
-		...libraryUpsert({ ...entry, added_at: now }, now),
+		...libraryUpsert({ ...entry, added_at: entry.deleted_at }, now),
 		deleted: true,
 	};
 }
@@ -289,7 +305,14 @@ function progressPush(
 	};
 }
 
-function progressDelete(progressKey: string, now: number): StoredRow {
+function progressDelete(
+	{
+		progress_key: progressKey,
+		deleted_at,
+	}: FlushBatch["progressDeletes"][number],
+	now: number,
+): StoredRow {
+	const at = Math.min(deleted_at, now);
 	return {
 		entity: "progress",
 		key: progressKey,
@@ -302,10 +325,10 @@ function progressDelete(progressKey: string, now: number): StoredRow {
 			episode: null,
 			position: 0,
 			duration: 0,
-			lastWatched: now,
+			lastWatched: at,
 		},
 		deleted: true,
-		at: now,
+		at,
 	};
 }
 
@@ -315,6 +338,7 @@ function historyDelete(
 ): StoredRow {
 	const season = entry.season ?? null;
 	const episode = entry.episode ?? null;
+	const at = Math.min(entry.deleted_at, now);
 	const record: HistoryRecord = {
 		id: historyKey(entry.content_id, season, episode),
 		contentId: entry.content_id,
@@ -322,9 +346,34 @@ function historyDelete(
 		title: entry.content_id,
 		season,
 		episode,
-		watchedAt: now,
+		watchedAt: at,
 	};
-	return { entity: "history", key: record.id, record, deleted: true, at: now };
+	return { entity: "history", key: record.id, record, deleted: true, at };
+}
+
+/** An undone history delete: the row comes back as it was, dated by the undo. */
+function historyRestore(
+	entry: FlushBatch["historyRestores"][number],
+	now: number,
+): StoredRow {
+	const season = entry.season ?? null;
+	const episode = entry.episode ?? null;
+	const record: HistoryRecord = {
+		id: historyKey(entry.content_id, season, episode),
+		contentId: entry.content_id,
+		contentType: entry.content_type,
+		title: entry.title,
+		season,
+		episode,
+		watchedAt: entry.watched_at,
+	};
+	return {
+		entity: "history",
+		key: record.id,
+		record,
+		deleted: false,
+		at: Math.min(entry.restored_at, now),
+	};
 }
 
 const BACKOFF_BASE_MS = 30_000;

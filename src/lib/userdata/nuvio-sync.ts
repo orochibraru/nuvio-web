@@ -1,8 +1,9 @@
 import { pooledMap } from "#lib/core/pool.js";
-import type { NuvioClient } from "#lib/nuvio/index.js";
+import type { NuvioClient, WatchProgress } from "#lib/nuvio/index.js";
 import type {
 	DisposableService,
 	Logger,
+	NuvioCredentials,
 	NuvioTokenSource,
 } from "#lib/services/index.js";
 import type {
@@ -25,6 +26,8 @@ const ORIGIN = "nuvio-web";
 const PAGE_SIZE = 1000;
 // A profile this far behind catches up over several syncs rather than one.
 const MAX_PAGES = 10;
+// Bounds the first import against a server that never sends a short page.
+const MAX_IMPORT_PAGES = 100;
 
 export interface NuvioSyncOptions {
 	/** Background cadence per active user. */
@@ -36,8 +39,8 @@ export interface NuvioSyncOptions {
 	/** Users synced at once by the scheduler. */
 	concurrency?: number;
 	now?: () => number;
-	/** Builds a Nuvio client authenticated as the user. */
-	clientFor: (accessToken: string) => NuvioClient;
+	/** Builds a Nuvio client authenticated as the user, on their backend. */
+	clientFor: (credentials: NuvioCredentials) => NuvioClient;
 }
 
 interface PushCall {
@@ -63,7 +66,7 @@ export class NuvioSync implements DisposableService {
 	readonly #touchAfterMs: number;
 	readonly #concurrency: number;
 	readonly #now: () => number;
-	readonly #clientFor: (accessToken: string) => NuvioClient;
+	readonly #clientFor: (credentials: NuvioCredentials) => NuvioClient;
 
 	constructor(
 		private readonly store: UserDataStore,
@@ -159,19 +162,21 @@ export class NuvioSync implements DisposableService {
 				progress: await client.watchProgress.deltaCursor(profileId),
 				history: await client.watchHistory.deltaCursor(profileId),
 			};
-			const library = await client.library.pull({
-				p_profile_id: profileId,
-				p_limit: PAGE_SIZE,
-			});
-			const progress = await client.watchProgress.pull({
-				p_profile_id: profileId,
-				p_limit: PAGE_SIZE,
-			});
-			const history = await client.watchHistory.pull({
-				p_profile_id: profileId,
-				p_page: 1,
-				p_page_size: PAGE_SIZE,
-			});
+			const library = await pullPages((page) =>
+				client.library.pull({
+					p_profile_id: profileId,
+					p_limit: PAGE_SIZE,
+					p_offset: page * PAGE_SIZE,
+				}),
+			);
+			const progress = await pullAllProgress(client, profileId);
+			const history = await pullPages((page) =>
+				client.watchHistory.pull({
+					p_profile_id: profileId,
+					p_page: page + 1,
+					p_page_size: PAGE_SIZE,
+				}),
+			);
 			this.store.applyRemote(
 				userId,
 				profileId,
@@ -191,12 +196,14 @@ export class NuvioSync implements DisposableService {
 	}
 
 	async #sync(userId: string): Promise<void> {
-		const token = await this.tokens.accessTokenFor(userId).catch(() => null);
-		if (!token) {
+		const credentials = await this.tokens
+			.credentialsFor(userId)
+			.catch(() => null);
+		if (!credentials) {
 			this.logger.debug("No Nuvio token; sync skipped", { userId });
 			return;
 		}
-		const client = this.#clientFor(token);
+		const client = this.#clientFor(credentials);
 		for (const profileId of this.#profiles(userId)) {
 			try {
 				// biome-ignore lint/performance/noAwaitInLoops: one profile at a time keeps a user's sync to one request in flight
@@ -317,6 +324,48 @@ export class NuvioSync implements DisposableService {
 			}
 		}
 	}
+}
+
+async function pullPages<T>(
+	pull: (page: number) => Promise<T[]>,
+): Promise<T[]> {
+	const rows: T[] = [];
+	for (let page = 0; page < MAX_IMPORT_PAGES; page++) {
+		// biome-ignore lint/performance/noAwaitInLoops: each page follows the last
+		const batch = await pull(page);
+		rows.push(...batch);
+		if (batch.length < PAGE_SIZE) {
+			break;
+		}
+	}
+	return rows;
+}
+
+// No offset for progress, only a `last_watched` cursor; pages overlap by 1 ms so rows sharing a timestamp aren't skipped.
+async function pullAllProgress(
+	client: NuvioClient,
+	profileId: number,
+): Promise<WatchProgress[]> {
+	const rows = new Map<string, WatchProgress>();
+	let since = 0;
+	for (let page = 0; page < MAX_IMPORT_PAGES; page++) {
+		// biome-ignore lint/performance/noAwaitInLoops: each page starts at the previous page's cursor
+		const batch = await client.watchProgress.pull({
+			p_profile_id: profileId,
+			p_since_last_watched: since,
+			p_limit: PAGE_SIZE,
+		});
+		for (const row of batch) {
+			rows.set(row.progress_key, row);
+		}
+		const next =
+			Math.max(since + 1, ...batch.map((row) => row.last_watched)) - 1;
+		if (batch.length < PAGE_SIZE || next <= since) {
+			break;
+		}
+		since = next;
+	}
+	return [...rows.values()];
 }
 
 /** The outbox as Nuvio calls: one per entity and operation. */

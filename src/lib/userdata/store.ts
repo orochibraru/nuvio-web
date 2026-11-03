@@ -30,6 +30,8 @@ CREATE TABLE IF NOT EXISTS userdata_records (
 );
 CREATE INDEX IF NOT EXISTS userdata_records_seq
 	ON userdata_records (user_id, profile_id, entity, seq);
+CREATE INDEX IF NOT EXISTS userdata_records_entity_updated
+	ON userdata_records (entity, updated_at);
 
 CREATE TABLE IF NOT EXISTS userdata_profiles (
 	user_id          TEXT NOT NULL,

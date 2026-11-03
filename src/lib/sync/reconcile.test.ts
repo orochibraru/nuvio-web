@@ -201,7 +201,7 @@ describe("pendingLibraryWrites", () => {
 				kind: "library.delete",
 				contentType: "series",
 				contentId: "tt2",
-				queuedAt: 0,
+				queuedAt: 7,
 			},
 		];
 		expect(pendingLibraryWrites(writes)).toEqual([
@@ -255,7 +255,7 @@ describe("buildFlushPayload", () => {
 				kind: "library.delete",
 				contentType: "series",
 				contentId: "tt2",
-				queuedAt: 0,
+				queuedAt: 7,
 			},
 			{
 				kind: "progress.push",
@@ -272,10 +272,10 @@ describe("buildFlushPayload", () => {
 					lastWatched: 20,
 				},
 			},
-			{ kind: "progress.delete", progressKey: "tt4", queuedAt: 0 },
+			{ kind: "progress.delete", progressKey: "tt4", queuedAt: 8 },
 			{
 				kind: "history.delete",
-				queuedAt: 0,
+				queuedAt: 9,
 				record: {
 					id: "tt5::",
 					contentId: "tt5",
@@ -284,6 +284,19 @@ describe("buildFlushPayload", () => {
 					season: null,
 					episode: null,
 					watchedAt: 1,
+				},
+			},
+			{
+				kind: "history.restore",
+				queuedAt: 11,
+				record: {
+					id: "tt6:1:2",
+					contentId: "tt6",
+					contentType: "series",
+					title: "Six",
+					season: 1,
+					episode: 2,
+					watchedAt: 3,
 				},
 			},
 		];
@@ -305,7 +318,7 @@ describe("buildFlushPayload", () => {
 			},
 		]);
 		expect(payload.libraryDeletes).toEqual([
-			{ content_id: "tt2", content_type: "series" },
+			{ content_id: "tt2", content_type: "series", deleted_at: 7 },
 		]);
 		expect(payload.progressPushes).toEqual([
 			{
@@ -319,9 +332,27 @@ describe("buildFlushPayload", () => {
 				last_watched: 20,
 			},
 		]);
-		expect(payload.progressDeletes).toEqual(["tt4"]);
+		expect(payload.progressDeletes).toEqual([
+			{ progress_key: "tt4", deleted_at: 8 },
+		]);
 		expect(payload.historyDeletes).toEqual([
-			{ content_id: "tt5", season: undefined, episode: undefined },
+			{
+				content_id: "tt5",
+				season: undefined,
+				episode: undefined,
+				deleted_at: 9,
+			},
+		]);
+		expect(payload.historyRestores).toEqual([
+			{
+				content_id: "tt6",
+				content_type: "series",
+				title: "Six",
+				season: 1,
+				episode: 2,
+				watched_at: 3,
+				restored_at: 11,
+			},
 		]);
 	});
 });

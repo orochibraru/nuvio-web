@@ -37,19 +37,24 @@ function load(owner: string | null): string[] {
 }
 
 /**
- * Drops the unscoped key written by earlier versions, plus every other owner's.
- * Runs on attach, so signing in as someone else leaves nothing of the previous
- * account behind. `null` keeps nothing, which is the sign-out case.
+ * Drops the unscoped key written by earlier versions, plus every other
+ * account's. Runs on attach, so signing in as someone else leaves nothing of
+ * the previous account behind, while this account's other profiles keep
+ * theirs. `null` keeps nothing, which is the sign-out case.
  */
-function purgeOtherOwners(keep: string | null): void {
+function purgeOtherAccounts(owner: string | null): void {
 	if (!browser) {
 		return;
 	}
 	try {
-		const mine = keep === null ? null : keyFor(keep);
+		// `<userId>:` : the owner minus its trailing profile index.
+		const account =
+			owner === null
+				? null
+				: keyFor(owner.slice(0, owner.lastIndexOf(":") + 1));
 		for (const key of Object.keys(localStorage)) {
 			const isOurs = key === KEY_PREFIX || key.startsWith(`${KEY_PREFIX}:`);
-			if (isOurs && key !== mine) {
+			if (isOurs && !(account && key.startsWith(account))) {
 				localStorage.removeItem(key);
 			}
 		}
@@ -72,7 +77,7 @@ class SearchHistory {
 			return;
 		}
 		this.#owner = owner;
-		purgeOtherOwners(owner);
+		purgeOtherAccounts(owner);
 		this.#entries = load(owner);
 	}
 
@@ -80,7 +85,7 @@ class SearchHistory {
 	forget() {
 		this.#owner = null;
 		this.#entries = [];
-		purgeOtherOwners(null);
+		purgeOtherAccounts(null);
 	}
 
 	#persist() {

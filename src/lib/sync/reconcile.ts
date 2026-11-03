@@ -5,7 +5,7 @@ import type {
 	PendingWrite,
 	ProgressRecord,
 } from "./types.ts";
-import { libraryKey } from "./types.ts";
+import { libraryKey, writeTarget } from "./types.ts";
 
 export type PendingLibraryWrite =
 	| { kind: "library.upsert"; record: LibraryRecord }
@@ -47,6 +47,41 @@ export function overlayPendingProgress(
 		}
 	}
 	return next;
+}
+
+/**
+ * Server rows with still-pending local writes laid back on top: `pending`
+ * (queued plus recently flushed) for library and progress, the queue alone for
+ * deletes and history.
+ */
+export function overlayPendingWrites(
+	server: {
+		library: Map<string, LibraryRecord>;
+		progress: Map<string, ProgressRecord>;
+		history: Map<string, HistoryRecord>;
+	},
+	pending: PendingWrite[],
+	queue: readonly PendingWrite[],
+) {
+	const library = overlayPendingLibrary(
+		server.library,
+		pendingLibraryWrites(pending),
+	);
+	const progress = overlayPendingProgress(
+		server.progress,
+		pendingProgressWrites(pending),
+	);
+	const history = new Map(server.history);
+	for (const write of queue) {
+		if (write.kind === "progress.delete") {
+			progress.delete(write.progressKey);
+		} else if (write.kind === "history.delete") {
+			history.delete(write.record.id);
+		} else if (write.kind === "history.restore") {
+			history.set(write.record.id, write.record);
+		}
+	}
+	return { library, progress, history };
 }
 
 /** Drops entries older than `graceMs`. Used to keep just-flushed writes around
@@ -126,8 +161,16 @@ export function buildFlushPayload(batch: PendingWrite[]) {
 		libraryDeletes: batch
 			.filter((write) => write.kind === "library.delete")
 			.map((write) => {
-				const w = write as { contentId: string; contentType: ContentType };
-				return { content_id: w.contentId, content_type: w.contentType };
+				const w = write as {
+					contentId: string;
+					contentType: ContentType;
+					queuedAt: number;
+				};
+				return {
+					content_id: w.contentId,
+					content_type: w.contentType,
+					deleted_at: w.queuedAt,
+				};
 			}),
 		progressPushes: batch
 			.filter((write) => write.kind === "progress.push")
@@ -146,15 +189,39 @@ export function buildFlushPayload(batch: PendingWrite[]) {
 			}),
 		progressDeletes: batch
 			.filter((write) => write.kind === "progress.delete")
-			.map((write) => (write as { progressKey: string }).progressKey),
+			.map((write) => {
+				const w = write as { progressKey: string; queuedAt: number };
+				return { progress_key: w.progressKey, deleted_at: w.queuedAt };
+			}),
 		historyDeletes: batch
 			.filter((write) => write.kind === "history.delete")
 			.map((write) => {
-				const { record } = write as { record: HistoryRecord };
+				const { record, queuedAt } = write as {
+					record: HistoryRecord;
+					queuedAt: number;
+				};
 				return {
 					content_id: record.contentId,
 					season: record.season ?? undefined,
 					episode: record.episode ?? undefined,
+					deleted_at: queuedAt,
+				};
+			}),
+		historyRestores: batch
+			.filter((write) => write.kind === "history.restore")
+			.map((write) => {
+				const { record, queuedAt } = write as {
+					record: HistoryRecord;
+					queuedAt: number;
+				};
+				return {
+					content_id: record.contentId,
+					content_type: record.contentType,
+					title: record.title,
+					season: record.season ?? undefined,
+					episode: record.episode ?? undefined,
+					watched_at: record.watchedAt,
+					restored_at: queuedAt,
 				};
 			}),
 	};
@@ -198,8 +265,9 @@ export function sameTarget(a: PendingWrite, b: PendingWrite): boolean {
 	if (ap && bp) {
 		return ap === bp;
 	}
-	if (a.kind === "history.delete" && b.kind === "history.delete") {
-		return a.record.id === b.record.id;
+	const historyKinds = ["history.delete", "history.restore"];
+	if (historyKinds.includes(a.kind) && historyKinds.includes(b.kind)) {
+		return writeTarget(a) === writeTarget(b);
 	}
 	return false;
 }

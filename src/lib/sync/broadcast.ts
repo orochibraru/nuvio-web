@@ -31,8 +31,10 @@ export function toBroadcastMessage(
 	};
 }
 
-/** Rebuild the store's private maps from a message received from another tab. */
-export function fromBroadcastMessage(message: SyncBroadcastMessage): {
+/** Rebuild the store's private maps from another tab's message, or a snapshot. */
+export function fromBroadcastMessage(
+	message: Pick<SyncBroadcastMessage, "library" | "progress" | "history">,
+): {
 	library: Map<string, LibraryRecord>;
 	progress: Map<string, ProgressRecord>;
 	history: Map<string, HistoryRecord>;

@@ -80,12 +80,11 @@ export interface SyncChanges {
 }
 
 /** A local mutation broadcast to other same-profile tabs: only the touched
- *  records, plus the small shared bits (queue, cursors) whole. */
+ *  records, plus the queue whole. No cursors: those only travel with the data
+ *  they describe, in a full-state message. */
 export interface SyncPatchMessage {
 	patch: SyncChanges;
-	cursors: SyncCursors;
 	queue: PendingWrite[];
-	bootstrapped: boolean;
 }
 
 /** Anything on the sync `BroadcastChannel`: a full resync or a patch. */
@@ -102,7 +101,15 @@ export type PendingWrite =
 	  }
 	| { kind: "progress.push"; record: ProgressRecord; queuedAt: number }
 	| { kind: "progress.delete"; progressKey: string; queuedAt: number }
-	| { kind: "history.delete"; record: HistoryRecord; queuedAt: number };
+	| { kind: "history.delete"; record: HistoryRecord; queuedAt: number }
+	| { kind: "history.restore"; record: HistoryRecord; queuedAt: number };
+
+/** Most writes one `flushWrites` call takes; the client sends a longer queue in chunks. */
+export const MAX_FLUSH_WRITES = 500;
+
+/** What the sync endpoints answer when the request's profile is no longer the
+ *  session's active one (another tab switched it). */
+export const PROFILE_MISMATCH_STATUS = 409;
 
 /** What a queued write targets : two writes with the same target collapse,
  *  the later one wins. The keyed form of `sameTarget` in `reconcile.ts`. */
@@ -119,6 +126,11 @@ export function writeTarget(write: PendingWrite): string {
 		default:
 			return `history:${write.record.id}`;
 	}
+}
+
+/** Survives the structured clone a broadcast puts the queue through, unlike identity. */
+export function writeKey(write: PendingWrite): string {
+	return `${writeTarget(write)}@${write.queuedAt}`;
 }
 
 /** Set or (for `null`) delete each row `touched` names. */
@@ -145,6 +157,37 @@ export interface MarkWatchedInput {
 	season: number | null;
 	episode: number | null;
 	durationMs: number;
+}
+
+/** What a page knows about a title it adds to the library. */
+export interface LibraryInput {
+	contentId: string;
+	contentType: ContentType;
+	name?: string;
+	poster?: string | null;
+	background?: string | null;
+	description?: string | null;
+	releaseInfo?: string | null;
+	imdbRating?: number | null;
+	genres?: string[];
+}
+
+export function libraryRecordFromInput(
+	input: LibraryInput,
+	addedAt: number,
+): LibraryRecord {
+	return {
+		contentId: input.contentId,
+		contentType: input.contentType,
+		name: input.name ?? input.contentId,
+		poster: input.poster ?? null,
+		background: input.background ?? null,
+		description: input.description ?? null,
+		releaseInfo: input.releaseInfo ?? null,
+		imdbRating: input.imdbRating ?? null,
+		genres: input.genres ?? [],
+		addedAt,
+	};
 }
 
 export function contentType(value: string): ContentType {
