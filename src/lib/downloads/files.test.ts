@@ -46,6 +46,23 @@ describe("contentTypeFor", () => {
 		expect(contentTypeFor("video-seg-00001.TS", null)).toBe("video/mp2t");
 		expect(contentTypeFor("mystery", null)).toBe("application/octet-stream");
 	});
+
+	it("serves an upstream type for a direct file only when it is media", () => {
+		expect(contentTypeFor("media", "audio/mpeg")).toBe("audio/mpeg");
+		expect(contentTypeFor("media", "application/x-mpegURL")).toBe(
+			"application/x-mpegURL",
+		);
+		expect(contentTypeFor("media", "application/mp4")).toBe("application/mp4");
+		for (const hostile of [
+			"text/html",
+			"image/svg+xml",
+			"application/javascript",
+			"video/mp4\r\nx-evil: 1",
+			"",
+		]) {
+			expect(contentTypeFor("media", hostile)).toBe("video/mp4");
+		}
+	});
 });
 
 describe("parseRange", () => {

@@ -63,10 +63,14 @@ const TYPES: Record<string, string> = {
 	mkv: "video/x-matroska",
 };
 
+// The recorded type is the upstream's word, served same-origin: only media may pass.
+const MEDIA_TYPE =
+	/^(?:(?:video|audio)\/[\w.+-]+|application\/(?:vnd\.apple\.mpegurl|x-mpegurl|mp4))$/i;
+
 /** The content type to serve a local file with. `media` uses the recorded one. */
 export function contentTypeFor(path: string, mediaType: string | null): string {
 	if (path === "media") {
-		return mediaType ?? "video/mp4";
+		return mediaType && MEDIA_TYPE.test(mediaType) ? mediaType : "video/mp4";
 	}
 	const extension = path.split(".").at(-1)?.toLowerCase() ?? "";
 	return TYPES[extension] ?? "application/octet-stream";

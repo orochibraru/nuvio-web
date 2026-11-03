@@ -1,4 +1,4 @@
-import { pooledMap } from "#lib/core/pool.js";
+import { eachUntilFailure } from "./fan-out.ts";
 import { DOWNLOADS_DIR, PLAN_FILE, proxiedUrl } from "./files.ts";
 import {
 	chooseAudio,
@@ -476,28 +476,33 @@ async function downloadSegments(
 		}
 	}
 	const pending = plan.files.filter((file) => !done.has(file.name));
-	await pooledMap(pending, SEGMENT_CONCURRENCY, async (file) => {
-		if (signal.aborted) {
-			throw new Aborted();
-		}
-		const response = checkedResponse(
-			await fetchSource(file.url, plan, signal, file.range),
-			`Segment ${file.name}`,
-		);
-		let data = new Uint8Array(await response.arrayBuffer());
-		if (file.range && response.status !== 206) {
-			// The server ignored the range: cut the piece out ourselves.
-			data = data.slice(file.range.start, file.range.end + 1);
-		}
-		bytes += await writeWhole(dir, file.name, data);
-		plan.done.push(file.name);
-		await savePlan();
-		progress({
-			bytes,
-			filesDone: plan.done.length,
-			filesTotal: plan.files.length,
-		});
-	});
+	await eachUntilFailure(
+		pending,
+		SEGMENT_CONCURRENCY,
+		signal,
+		async (file, segmentSignal) => {
+			const response = checkedResponse(
+				await fetchSource(file.url, plan, segmentSignal, file.range),
+				`Segment ${file.name}`,
+			);
+			let data = new Uint8Array(await response.arrayBuffer());
+			if (file.range && response.status !== 206) {
+				// The server ignored the range: cut the piece out ourselves.
+				data = data.slice(file.range.start, file.range.end + 1);
+			}
+			bytes += await writeWhole(dir, file.name, data);
+			plan.done.push(file.name);
+			await savePlan();
+			progress({
+				bytes,
+				filesDone: plan.done.length,
+				filesTotal: plan.files.length,
+			});
+		},
+	);
+	if (signal.aborted) {
+		throw new Aborted();
+	}
 	return bytes;
 }
 
