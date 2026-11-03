@@ -172,10 +172,10 @@ test("below md the nav moves into a bottom tab bar", async ({ page }) => {
 	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
 
 	// One "Main" nav is visible at a time : the header's row hides below md,
-	// the tab bar takes over, with the Nuvio app's four tabs.
+	// the tab bar takes over, with the Nuvio app's five tabs.
 	const tabs = page.getByRole("navigation", { name: "Main" });
 	await expect(tabs).toHaveCount(1);
-	await expect(tabs.getByRole("link")).toHaveCount(4);
+	await expect(tabs.getByRole("link")).toHaveCount(5);
 	await tabs.getByRole("link", { name: "Search" }).click();
 
 	await expect(page).toHaveURL(/\/search$/);

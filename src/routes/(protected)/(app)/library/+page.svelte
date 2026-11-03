@@ -114,6 +114,8 @@
 	const progress = $derived(
 		useStore ? sync.libraryProgress : progressStream.current,
 	);
+	const newEpisodesStream = streamed(() => data.newEpisodes, [] as string[]);
+	const newEpisodes = $derived(new Set(newEpisodesStream.current));
 
 	const shown = $derived.by(() => {
 		let list = items;
@@ -215,6 +217,7 @@
 						item={item}
 						progress={progress[item.id]}
 						libraryBadge={false}
+						newEpisode={item.type === "series" && newEpisodes.has(item.id)}
 					/>
 					<!-- Hover-only, desktop: a phone removes from the long-press
 					     sheet, and a permanent X would sit on the poster's badges. -->

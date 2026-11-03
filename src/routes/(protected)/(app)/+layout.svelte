@@ -1,5 +1,6 @@
 <script lang="ts">
 	import BookmarkIcon from "@lucide/svelte/icons/bookmark";
+	import CalendarDaysIcon from "@lucide/svelte/icons/calendar-days";
 	import CircleUserIcon from "@lucide/svelte/icons/circle-user";
 	import DownloadIcon from "@lucide/svelte/icons/download";
 	import HouseIcon from "@lucide/svelte/icons/house";
@@ -30,7 +31,7 @@
 	import { sync } from "#lib/sync/store.svelte.js";
 	import { syncOwner } from "#lib/sync/types.js";
 	import { cn } from "#lib/utils.js";
-	import { afterNavigate } from "$app/navigation";
+	import { afterNavigate, goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
 	import { signOut } from "../../auth/auth.remote.ts";
@@ -46,6 +47,11 @@
 		},
 		{ href: resolve("search"), label: m.nav_search(), icon: SearchIcon },
 		{ href: resolve("library"), label: m.nav_library(), icon: BookmarkIcon },
+		{
+			href: resolve("calendar"),
+			label: m.nav_calendar(),
+			icon: CalendarDaysIcon,
+		},
 		{
 			href: resolve("collections"),
 			label: m.nav_collections(),
@@ -64,12 +70,14 @@
 			onReselect: () => window.dispatchEvent(new Event(SEARCH_FOCUS_EVENT)),
 		},
 		nav[2],
+		nav[3],
 		{
 			href: resolve("account"),
 			label: m.nav_profile(),
 			profile: data.profile,
 			also: [
 				resolve("settings"),
+				resolve("addons"),
 				resolve("collections"),
 				resolve("downloads"),
 				resolve("profiles"),
@@ -159,11 +167,11 @@
 	// the whole app shell unmounts.
 	$effect(() => {
 		const profileIndex = data.profile?.profile_index;
-		const userId = data.user?.id;
-		if (profileIndex != null && userId) {
-			void sync.attach(profileIndex, userId);
-			searchHistory.attach(syncOwner(userId, profileIndex));
-			void downloads.attach(syncOwner(userId, profileIndex));
+		const accountKey = data.accountKey;
+		if (profileIndex != null && accountKey) {
+			void sync.attach(profileIndex, accountKey);
+			searchHistory.attach(syncOwner(accountKey, profileIndex));
+			void downloads.attach(syncOwner(accountKey, profileIndex));
 		}
 	});
 	$effect(() => () => sync.detach());
@@ -182,9 +190,35 @@
 			delete root.dataset.amoled;
 		};
 	});
+
+	// `/` opens search from anywhere but a text field or the player.
+	function searchShortcut(event: KeyboardEvent) {
+		if (
+			event.key !== "/" ||
+			event.ctrlKey ||
+			event.metaKey ||
+			event.altKey ||
+			(event.target instanceof Element &&
+				event.target.closest(
+					'input, textarea, select, [contenteditable="true"]',
+				)) ||
+			page.route.id?.includes("/player/")
+		) {
+			return;
+		}
+		event.preventDefault();
+		if (page.url.pathname === resolve("search")) {
+			window.dispatchEvent(new Event(SEARCH_FOCUS_EVENT));
+		} else {
+			void goto(resolve("search"));
+		}
+	}
 </script>
 
-<svelte:window onscroll={() => (scrolled = window.scrollY > 12)} />
+<svelte:window
+  onscroll={() => (scrolled = window.scrollY > 12)}
+  onkeydown={searchShortcut}
+/>
 
 <FirstRunNotice />
 

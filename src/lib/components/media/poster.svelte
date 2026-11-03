@@ -31,6 +31,7 @@
 		class: className,
 		preload = "hover",
 		libraryBadge = true,
+		newEpisode = false,
 	}: {
 		item: Pick<
 			MetaPreview,
@@ -46,6 +47,7 @@
 		class?: string;
 		/** Off where every poster is in the library anyway (the library page). */
 		libraryBadge?: boolean;
+		newEpisode?: boolean;
 		/**
 		 * When to start loading the title's page. `hover` everywhere by
 		 * default; see the collection page for the one place that needs `tap`.
@@ -106,6 +108,7 @@
 			rating ? m.media_poster_rated({ rating }) : null,
 			watched ? m.media_poster_watched() : null,
 			inLibrary ? m.media_poster_in_library() : null,
+			newEpisode ? m.media_poster_new_episode() : null,
 		]
 			.filter(Boolean)
 			.join(", "),
@@ -216,14 +219,18 @@
 			icon: InfoIcon,
 			separator: true,
 			onSelect: () =>
-				goto(resolve(`detail/${item.type}/${encodeURIComponent(item.id)}`)),
+				goto(
+					resolve(
+						`detail/${encodeURIComponent(item.type)}/${encodeURIComponent(item.id)}`,
+					),
+				),
 		},
 	]);
 </script>
 
 <ActionMenu title={item.name} actions={menuActions}>
     <a
-      href={resolve(`detail/${item.type}/${encodeURIComponent(item.id)}`)}
+      href={resolve(`detail/${encodeURIComponent(item.type)}/${encodeURIComponent(item.id)}`)}
       aria-label={linkLabel}
       class={cn("group/poster flex flex-col gap-2.5", className)}
       data-sveltekit-preload-data={preload}
@@ -309,6 +316,15 @@
               </span>
             {/if}
           </div>
+        {/if}
+
+        {#if newEpisode}
+          <span
+            aria-hidden="true"
+            class="absolute bottom-2.5 left-2 rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground shadow-sm ring-1 ring-black/10"
+          >
+            {m.media_new_episode()}
+          </span>
         {/if}
 
         {#if progress != null && progress > 0}

@@ -64,7 +64,7 @@
   aria-label={m.shell_nav_main()}
   class="glass fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-50 rounded-3xl p-1.5 md:hidden"
 >
-  <ul class="grid grid-cols-4 gap-1">
+  <ul class="grid grid-cols-5 gap-1">
     {#each tabs as tab (tab.href)}
       {@const active = isActive(tab)}
       <li>
