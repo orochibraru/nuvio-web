@@ -29,6 +29,8 @@ export function serviceToken<T>(name: string): ServiceToken<T> {
 /** Implement to get cleaned up by `Container.dispose()`. */
 export interface DisposableService {
 	dispose: () => void;
+	/** Finishes in-flight work before a shutdown disposes it. */
+	settle?: () => Promise<void>;
 }
 
 export type ServiceFactory<T> = (container: Container) => T;
@@ -162,6 +164,14 @@ export class Container {
 		}
 		this.#created.length = 0;
 		this.#instances.clear();
+	}
+
+	/** Lets every built service finish its in-flight work, then disposes. */
+	async shutdown(): Promise<void> {
+		await Promise.allSettled(
+			this.#created.filter(hasDispose).map((instance) => instance.settle?.()),
+		);
+		this.dispose();
 	}
 
 	#find(token: ServiceToken<unknown>): Registration | null {

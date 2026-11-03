@@ -149,6 +149,15 @@ export class NuvioSync implements DisposableService {
 		this.#timer = undefined;
 	}
 
+	/** No new passes; resolves once the syncs and imports already running are done. */
+	async settle(): Promise<void> {
+		this.dispose();
+		await Promise.allSettled([
+			...this.#running.values(),
+			...this.#imports.values(),
+		]);
+	}
+
 	async #import(
 		userId: string,
 		profileId: number,

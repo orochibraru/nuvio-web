@@ -48,6 +48,15 @@ host, so the cross-site check still refuses it.
 `ORIGIN` and `NUVIO_BUILD_ORIGIN` from earlier releases are gone, and setting
 them does nothing.
 
+### Shutdown
+
+On `SIGTERM` or `SIGINT` the server stops taking connections, waits for the
+requests in flight, lets a running background Nuvio sync finish, then closes the
+database. An open tab keeps its live-update stream open until the
+`SHUTDOWN_TIMEOUT` deadline (8 seconds in the image, inside the 10 that
+`docker stop` waits before killing the container); the tab reconnects on its
+own.
+
 ## Admin surface
 
 The admin page is opt-in and off unless you name at least one administrator.

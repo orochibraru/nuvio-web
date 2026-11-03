@@ -1,4 +1,5 @@
 import type { Database } from "bun:sqlite";
+import process from "node:process";
 import type { RequestEvent } from "@sveltejs/kit";
 import {
 	type Handle,
@@ -323,3 +324,13 @@ export const appHandle: Handle = async ({ event, resolve }) => {
 // Locale first, so everything below (and the render) runs in the visitor's
 // language.
 export const handle = sequence(i18nHandle, appHandle);
+
+// The adapter emits it on SIGTERM / SIGINT once in-flight requests are done
+// (or cut off at `SHUTDOWN_TIMEOUT`): let background syncs finish, then close
+// SQLite. Not under `vite dev`, which never emits it and re-imports this file.
+if (!dev) {
+	process.on("sveltekit:shutdown", async (reason: string) => {
+		hooksLogger().info("Shutting down", { reason });
+		await serverServices.shutdown();
+	});
+}

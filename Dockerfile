@@ -30,6 +30,10 @@ RUN mkdir -p /app/data && chown -R app:app /app/data
 
 USER app
 
+# An open tab holds `/api/events` until the drain deadline: keep it under the
+# 10 s `docker stop` gives before SIGKILL, so the shutdown hook still runs.
+ENV SHUTDOWN_TIMEOUT=8
+
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=1s \
     CMD ["curl", "-fsS", "http://localhost:3000/api/health"]
 

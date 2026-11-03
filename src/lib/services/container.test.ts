@@ -128,6 +128,21 @@ describe("dispose", () => {
 		expect(order).toEqual(["second", "first"]);
 	});
 
+	it("shutdown lets in-flight work settle before disposing", async () => {
+		const order: string[] = [];
+		const token = serviceToken<DisposableService>("Settling");
+		const c = root().register(token, () => ({
+			dispose: () => order.push("dispose"),
+			settle: async () => {
+				await Promise.resolve();
+				order.push("settle");
+			},
+		}));
+		c.get(token);
+		await c.shutdown();
+		expect(order).toEqual(["settle", "dispose"]);
+	});
+
 	it("a scope disposing does not touch the parent's singletons", () => {
 		let disposed = false;
 		const token = serviceToken<DisposableService>("Singleton");

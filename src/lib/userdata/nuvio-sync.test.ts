@@ -353,6 +353,17 @@ describe("scheduling", () => {
 		expect(tokens.credentialsFor).toHaveBeenCalledTimes(4);
 	});
 
+	it("settle waits for the running sync and stops the schedule", async () => {
+		await imported();
+		let finished = false;
+		const running = sync.syncUser(U).then(() => {
+			finished = true;
+		});
+		await sync.settle();
+		expect(finished).toBe(true);
+		await running;
+	});
+
 	it("an unavailable store skips the sync rather than throwing", async () => {
 		const broken = new UserDataStore(
 			{
