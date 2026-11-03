@@ -1,17 +1,17 @@
-# The production image, built for plain HTTP, as `playwright.config.ts` runs it.
+# The production image, as published, the way `playwright.config.ts` runs it.
 name: nuvio-e2e
 
 services:
   app:
     build:
       context: .
-      args:
-        NUVIO_BUILD_ORIGIN: ${NUVIO_BUILD_ORIGIN:-}
     container_name: nuvio-e2e
     network_mode: bridge
     ports:
       - 3000:3000
     environment:
       NUVIO_E2E: "1"
+      # Playwright sends it, the way a reverse proxy would: see playwright.config.ts.
+      PROTOCOL_HEADER: x-forwarded-proto
       NUVIO_ADMIN_EMAILS: ${NUVIO_ADMIN_EMAILS:-}
       NUVIO_SESSION_SECRET: ${NUVIO_SESSION_SECRET:-}

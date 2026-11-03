@@ -10,10 +10,6 @@ RUN bun install --frozen-lockfile --ignore-scripts
 
 COPY . /app/
 
-# Unset for the published image. A self-built one for plain HTTP sets it: see
-# docs/configuration.md.
-ARG NUVIO_BUILD_ORIGIN
-
 RUN bun run build
 
 # Runtime : no Bun, no node_modules. @sveltejs/adapter-bun compiles the app

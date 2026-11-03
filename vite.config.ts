@@ -1,4 +1,3 @@
-import process from "node:process";
 import { paraglideVitePlugin } from "@inlang/paraglide-js";
 import adapter from "@sveltejs/adapter-bun";
 import { sveltekit } from "@sveltejs/kit/vite";
@@ -35,14 +34,13 @@ export default defineConfig({
 					compile: true,
 				},
 			}),
-			// SvelteKit 3 reads the origin at build time only. The published image
-			// leaves it unset and takes it from the request (`PROTOCOL_HEADER` /
-			// `HOST_HEADER` behind a proxy); a build for one known URL, like the
-			// e2e server on plain http, bakes it in.
+			// No fixed origin, so one published image serves any URL: the adapter
+			// takes it from each request, `PROTOCOL_HEADER` / `HOST_HEADER` behind
+			// a proxy (docs/configuration.md).
 			// `relative: false`: otherwise `resolve()` returns a request-relative
 			// path during SSR (`../settings`) and every `pathname === resolve(…)`
 			// check is false until hydration.
-			paths: { origin: process.env.NUVIO_BUILD_ORIGIN, relative: false },
+			paths: { relative: false },
 			experimental: {
 				remoteFunctions: true,
 				// Off: a hover preload's speculative render can write Svelte's

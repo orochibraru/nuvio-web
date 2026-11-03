@@ -56,10 +56,11 @@ Playwright, in `e2e/`. **After any UI or route change, run it** —
 hydration mismatch, or a broken remote call.
 
 It runs against **the production image on `:3000`**, built and started from
-`compose.e2e.yaml` (with `NUVIO_BUILD_ORIGIN` set for plain HTTP), not
-`vite dev`: a cold dev-server compile made the run flaky, and the image is what
-ships. It reuses an existing server on `:3000` and starts one otherwise, so a
-`bun run dev` on `:5173` is untouched either way.
+`compose.e2e.yaml` (Playwright sends `X-Forwarded-Proto: http` and the container
+reads it through `PROTOCOL_HEADER`, as behind a proxy), not `vite dev`: a cold
+dev-server compile made the run flaky, and the image is what ships. It reuses an
+existing server on `:3000` and starts one otherwise, so a `bun run dev` on
+`:5173` is untouched either way.
 
 The reuse is blind: a leftover `bun run start` or `nuvio-e2e` container from an
 older build answers the run, and the suite passes against code you no longer

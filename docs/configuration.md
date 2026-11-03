@@ -46,15 +46,14 @@ disagrees with the browser's `Origin` header. The app renders and reads fine,
 but **nothing saves**: settings snap back, library toggles revert, progress
 never sticks.
 
-There is no runtime switch for this: SvelteKit 3 only takes a fixed origin at
-build time. To run on plain HTTP, build your own image with it baked in:
+The scheme can only come from a header, so put a proxy in front that sends
+`X-Forwarded-Proto: http` (most do by default) and set
+`PROTOCOL_HEADER=x-forwarded-proto`. Reaching the container directly on plain
+HTTP, with no proxy at all, is not supported: nothing in the request tells the
+server its scheme.
 
-```bash
-docker buildx build --build-arg NUVIO_BUILD_ORIGIN=http://localhost:3000 \
-  -t nuvio-web:latest .
-```
-
-`ORIGIN` from earlier releases is gone, and setting it does nothing.
+`ORIGIN` and `NUVIO_BUILD_ORIGIN` from earlier releases are gone, and setting
+them does nothing.
 
 ## Admin surface
 

@@ -45,6 +45,10 @@ export default defineConfig({
 	reporter: "list",
 	use: {
 		baseURL: ORIGIN,
+		// What a reverse proxy adds: the image assumes `https://` otherwise, and
+		// SvelteKit's CSRF check rejects every write from `http://localhost`.
+		// `compose.e2e.yaml` sets `PROTOCOL_HEADER` to read it.
+		extraHTTPHeaders: { "x-forwarded-proto": "http" },
 		trace: "retain-on-failure",
 		navigationTimeout: 45_000,
 	},
@@ -76,12 +80,6 @@ export default defineConfig({
 		// binary) is several minutes on a CI runner.
 		timeout: 360_000,
 		env: {
-			// A build argument, read by `vite.config.ts`. Without it the adapter
-			// assumes `https://`, so SvelteKit's CSRF check saw
-			// `https://localhost:3000` against the browser's
-			// `Origin: http://localhost:3000` and rejected every remote function
-			// with 403 "Cross-site remote requests are forbidden".
-			NUVIO_BUILD_ORIGIN: ORIGIN,
 			// Makes the shared test account a server admin so `admin.spec.ts` can
 			// reach /admin. Its database lives in the container, which every run
 			// recreates, so a run never touches a real `data/`.

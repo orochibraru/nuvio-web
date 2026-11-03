@@ -195,7 +195,7 @@ flowchart LR
   again and a re-copy from Nuvio.
 - **The proxy** must not buffer `/api/events` (the server sends
   `X-Accel-Buffering: no` and a keep-alive every 25 seconds).
-- **The origin** is fixed at build time. The published image takes the host from
-  the request and assumes `https://`; plain HTTP needs a build with the origin
-  baked in ([Configuration](configuration)).
+- **The origin** comes from each request: the host from `Host` (or
+  `HOST_HEADER`), the scheme from `PROTOCOL_HEADER`, else `https://`. Plain HTTP
+  needs a proxy that says so ([Configuration](configuration)).
 - **Health check:** `GET /api/health` answers as long as the process does.

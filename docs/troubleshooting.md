@@ -11,9 +11,9 @@ cross-site check rejects every write with
 `403 Cross-site remote requests are forbidden`. Only non-`GET` requests are
 checked, which is why the app looks fine until you try to change something.
 
-Behind a proxy, set `PROTOCOL_HEADER` and `HOST_HEADER`. On plain HTTP, build
-the image with `NUVIO_BUILD_ORIGIN`. `ORIGIN` no longer does anything. See
-[Configuration](configuration).
+Behind a proxy, set `PROTOCOL_HEADER` and `HOST_HEADER`; on plain HTTP the proxy
+must send `X-Forwarded-Proto: http`. `ORIGIN` and `NUVIO_BUILD_ORIGIN` no longer
+do anything. See [Configuration](configuration).
 
 ## The home feed is empty
 

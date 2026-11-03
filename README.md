@@ -174,10 +174,10 @@ the public scheme and host:
 
 On plain HTTP (`http://localhost:3000`, a LAN address) the app renders, but
 nothing saves: every write gets `403 Cross-site remote requests are forbidden`.
-SvelteKit 3 only takes a fixed origin at build time, so plain HTTP needs your
-own image built with `--build-arg NUVIO_BUILD_ORIGIN=http://…`. The `ORIGIN`
-variable from earlier releases does nothing now. Details in
-[Configuration](docs/configuration.md).
+Put a proxy in front that sends `X-Forwarded-Proto: http` and set
+`PROTOCOL_HEADER=x-forwarded-proto`; a direct plain-HTTP connection is not
+supported. The `ORIGIN` variable from earlier releases does nothing now. Details
+in [Configuration](docs/configuration.md).
 
 Running it on the public internet is on you: put it behind HTTPS and whatever
 access control you would give any other self-hosted app.

@@ -89,10 +89,11 @@ prek run --all-files
 ## Docker
 
 ```bash
-docker buildx build --build-arg NUVIO_BUILD_ORIGIN=http://localhost:3000 \
-  -t nuvio-web:latest .
-docker run --rm -p 3000:3000 nuvio-web:latest
+docker buildx build -t nuvio-web:latest .
+docker run --rm -p 3000:3000 -e PROTOCOL_HEADER=x-forwarded-proto nuvio-web:latest
 ```
 
-The build argument bakes the origin in so the image works on plain HTTP; see
-[docs/configuration.md](docs/configuration.md) for why it's needed.
+Opened straight on `http://localhost:3000`, the image renders but refuses every
+write: it assumes `https://` unless a proxy sends `X-Forwarded-Proto: http`
+(Playwright does, for the e2e run). Use `bun run dev` for clicking around; see
+[docs/configuration.md](docs/configuration.md) for why.
