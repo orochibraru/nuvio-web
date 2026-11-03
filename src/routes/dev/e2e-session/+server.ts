@@ -10,6 +10,9 @@ const bodySchema = v.object({
 	refresh_token: v.pipe(v.string(), v.nonEmpty()),
 	expires_in: v.pipe(v.number(), v.integer(), v.minValue(0)),
 	user: v.looseObject({ id: v.pipe(v.string(), v.nonEmpty()) }),
+	profileId: v.optional(
+		v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(6)),
+	),
 });
 
 /**
@@ -31,10 +34,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	if (!body.success) {
 		error(400, "Expected { access_token, refresh_token, expires_in, user }");
 	}
-	const session = {
-		...body.output,
-		token_type: "bearer",
-	} as AuthSession;
-	locals.services.get(SESSION).write(session);
+	const { profileId, ...tokens } = body.output;
+	const session = locals.services.get(SESSION);
+	session.write({ ...tokens, token_type: "bearer" } as AuthSession);
+	if (profileId !== undefined) {
+		session.writeProfileId(profileId, true);
+	}
 	return json({ ok: true });
 };

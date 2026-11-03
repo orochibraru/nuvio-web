@@ -12,6 +12,9 @@ const email = v.pipe(
 	v.email(() => m.common_email_invalid()),
 );
 const redirectTo = v.optional(v.string(), "/");
+// A user's own backend; empty for the instance default. Validated by the handler.
+const backendUrl = v.optional(v.pipe(v.string(), v.maxLength(4096)), "");
+const backendKey = v.optional(v.pipe(v.string(), v.maxLength(4096)), "");
 
 export const signInSchema = v.object({
 	email,
@@ -20,6 +23,8 @@ export const signInSchema = v.object({
 		v.nonEmpty(() => m.auth_error_password_required()),
 	),
 	redirectTo,
+	backendUrl,
+	backendKey,
 });
 
 export const signUpSchema = v.object({
@@ -29,6 +34,8 @@ export const signUpSchema = v.object({
 		v.minLength(8, () => m.auth_error_password_short()),
 	),
 	redirectTo,
+	backendUrl,
+	backendKey,
 });
 
 /** A profile name, as both the create and the edit form take it. */

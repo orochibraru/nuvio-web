@@ -15,6 +15,9 @@
 	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
 	import { signIn } from "../auth.remote.ts";
+	import CustomBackend from "../custom-backend.svelte";
+
+	let { data } = $props();
 
 	pageTitle.set(m.auth_sign_in());
 
@@ -105,6 +108,13 @@
 				</Field.Field>
 
 				<input {...signIn.fields.redirectTo.as('hidden', redirectTo)}>
+
+				<CustomBackend
+					url={signIn.fields.backendUrl}
+					publishableKey={signIn.fields.backendKey}
+					allowed={data.customBackendsAllowed}
+					defaultHost={data.defaultBackendHost}
+				/>
 
 				<Field.Field>
 					<Button type="submit" disabled={signIn.pending > 0}>

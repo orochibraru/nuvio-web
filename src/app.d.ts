@@ -8,7 +8,19 @@ declare global {
 			nuvio: NuvioClient;
 			/** This request's service scope. See `#lib/services/server.js`. */
 			services: Container;
-			session: { user: NuvioUser } | null;
+			/**
+			 * `accountKey` is what this server keys the user's data by (see
+			 * `#lib/nuvio/backend.ts`); `backend` is a non-official backend's
+			 * URL, null for the official Nuvio API; `trusted` is true when it is
+			 * the instance default, the only backend whose emails count for
+			 * admin and the allowlist.
+			 */
+			session: {
+				user: NuvioUser;
+				accountKey: string;
+				backend: string | null;
+				trusted: boolean;
+			} | null;
 			profileId: number | null;
 			authCookie: string;
 			error: string;

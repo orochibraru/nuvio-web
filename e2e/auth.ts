@@ -89,21 +89,12 @@ export async function signIn(
 			// The grant is memoised: send what is left of it, not its original life.
 			expires_in: Math.max(0, Math.floor((tokenExpiresAt - Date.now()) / 1000)),
 			user: data.user,
+			profileId,
 		},
 	});
 	if (!response.ok()) {
 		throw new Error(`Could not start an e2e session: ${response.status()}`);
 	}
-
-	await context.addCookies([
-		{
-			name: "nuvio_profile",
-			value: String(profileId),
-			domain: "localhost",
-			path: "/",
-			httpOnly: true,
-		},
-	]);
 
 	// Suppress the first-run disclaimer modal so it doesn't block interaction in
 	// every spec. `first-run-notice.spec.ts` opts out to cover the modal itself.

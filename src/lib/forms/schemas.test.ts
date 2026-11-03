@@ -26,7 +26,13 @@ describe("form schemas", () => {
 			m.auth_error_password_required(),
 		);
 		expect(v.parse(signInSchema, { email: " a@b.co ", password: "x" })).toEqual(
-			{ email: "a@b.co", password: "x", redirectTo: "/" },
+			{
+				email: "a@b.co",
+				password: "x",
+				redirectTo: "/",
+				backendUrl: "",
+				backendKey: "",
+			},
 		);
 	});
 

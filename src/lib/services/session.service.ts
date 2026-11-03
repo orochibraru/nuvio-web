@@ -1,5 +1,11 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import type { Cookies } from "@sveltejs/kit";
+import {
+	accountKey,
+	clientOptions,
+	type LocalBackend,
+	type NuvioBackend,
+} from "#lib/nuvio/backend.js";
 import { type AuthSession, NuvioClient } from "#lib/nuvio/index.js";
 import {
 	isSessionId,
@@ -51,8 +57,9 @@ export function verifySessionValue(
  * user live server-side, so `hooks.server.ts` can trust the `user` it gets for
  * the admin guard and the instance lock. A cookie written before the store
  * existed (signed JSON, or unsigned) is not an id and reads as signed-out. The
- * profile cookie is not signed: it only picks one of the signed-in account's
- * own profiles, and the upstream token scopes every call to that account.
+ * profile cookie is signed too and bound to the session id, so only the
+ * server's own profile picker can set it (a PIN-locked profile stays locked),
+ * and a new sign-in drops back to the picker.
  *
  * **Request-scoped.** It closes over one request's cookie jar, so it is
  * registered `scoped` and only resolves from a request scope; asking the root
@@ -86,12 +93,15 @@ export class SessionService {
 	}
 
 	/** Starts a store session for a fresh sign-in, replacing this browser's old one. */
-	write(session: AuthSession): StoredSession {
+	write(
+		session: AuthSession,
+		backend: NuvioBackend | null = null,
+	): StoredSession {
 		const previous = this.#sessionId();
 		if (previous) {
 			this.store.delete(previous);
 		}
-		const id = this.store.create(session);
+		const id = this.store.create(session, backend);
 		this.cookies.set(
 			COOKIE_NAME,
 			signSessionValue(id, this.secret),
@@ -103,6 +113,8 @@ export class SessionService {
 			refresh_token: session.refresh_token,
 			expires_at: Math.floor(Date.now() / 1000) + session.expires_in,
 			user: session.user,
+			accountKey: accountKey(session.user.id, backend),
+			backend,
 		};
 	}
 
@@ -117,20 +129,32 @@ export class SessionService {
 
 	readProfileId(): number | null {
 		const raw = this.cookies.get(PROFILE_COOKIE_NAME);
-		if (!raw) {
+		const sessionId = this.#sessionId();
+		if (!(raw && sessionId)) {
 			return null;
 		}
-		const id = Number(raw);
+		const [boundTo, value] =
+			verifySessionValue(raw, this.secret)?.split(":") ?? [];
+		if (boundTo !== sessionId) {
+			return null;
+		}
+		const id = Number(value);
 		return Number.isInteger(id) && id >= MIN_PROFILE_ID && id <= MAX_PROFILE_ID
 			? id
 			: null;
 	}
 
-	writeProfileId(profileId: number): void {
+	// `remember: false` makes it a browser-session cookie: the picker comes back after a restart.
+	writeProfileId(profileId: number, remember: boolean): void {
+		const sessionId = this.#sessionId();
+		if (!sessionId) {
+			return;
+		}
+		const { maxAge, ...browserSession } = this.#cookieOptions();
 		this.cookies.set(
 			PROFILE_COOKIE_NAME,
-			String(profileId),
-			this.#cookieOptions(),
+			signSessionValue(`${sessionId}:${profileId}`, this.secret),
+			remember ? { ...browserSession, maxAge } : browserSession,
 		);
 	}
 
@@ -139,20 +163,23 @@ export class SessionService {
 	}
 
 	/**
-	 * A client bound to this request: uses the request `fetch`, carries the
-	 * stored token, and routes a session change (sign-out, a new sign-in) back
-	 * through this service. Refreshing is the store's job, not the client's.
+	 * A client bound to this request: the session's backend, the request
+	 * `fetch` (the guarded one for a custom backend), the stored token, and a
+	 * session change (sign-out, a new sign-in) routed back through this
+	 * service. Refreshing is the store's job, not the client's.
 	 */
 	createNuvioClient(
 		fetchImpl: typeof fetch,
 		stored: StoredSession | null,
+		local: LocalBackend | null = null,
 	): NuvioClient {
+		const backend = stored?.backend ?? null;
 		return new NuvioClient({
-			fetch: fetchImpl,
+			...clientOptions(backend, fetchImpl, local),
 			session: stored ? SessionService.toAuthSession(stored) : null,
 			onSessionChange: (session) => {
 				if (session) {
-					this.write(session);
+					this.write(session, backend);
 				} else {
 					this.clear();
 				}

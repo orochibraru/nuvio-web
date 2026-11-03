@@ -1,46 +1,86 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { Redirect, Invalid, NuvioApiError, client, session, event, adminData } =
-	vi.hoisted(() => {
-		class Redirect {
-			constructor(
-				public status: number,
-				public location: string,
-			) {}
+const {
+	Redirect,
+	Invalid,
+	NuvioApiError,
+	client,
+	clientOptions,
+	session,
+	event,
+	adminData,
+	backendsData,
+	notifier,
+} = vi.hoisted(() => {
+	class Redirect {
+		constructor(
+			public status: number,
+			public location: string,
+		) {}
+	}
+	class Invalid {
+		constructor(public payload: unknown) {}
+	}
+	class NuvioApiError extends Error {
+		constructor(public status: number) {
+			super(`api ${status}`);
 		}
-		class Invalid {
-			constructor(public payload: unknown) {}
-		}
-		class NuvioApiError extends Error {
-			constructor(public status: number) {
-				super(`api ${status}`);
-			}
-		}
-		return {
-			Redirect,
-			Invalid,
-			NuvioApiError,
-			client: {
-				signInWithPassword: vi.fn(),
-				signUp: vi.fn(),
-				signOut: vi.fn(),
+	}
+	return {
+		Redirect,
+		Invalid,
+		NuvioApiError,
+		client: {
+			signInWithPassword: vi.fn(),
+			signUp: vi.fn(),
+			signOut: vi.fn(),
+		},
+		clientOptions: [] as Array<Record<string, unknown>>,
+		backendsData: {
+			policy: {
+				customAllowed: false,
+				defaultBackend: null as null | {
+					url: string;
+					publishableKey: string;
+					trusted: boolean;
+				},
 			},
-			session: { write: vi.fn(), clear: vi.fn() },
-			adminData: {
-				canSignIn: vi.fn(() => true),
-				recordSignIn: vi.fn(),
-			},
-			event: {
-				cookies: {},
-				fetch: vi.fn(),
-				locals: {} as Record<string, unknown>,
-			},
-		};
-	});
+			banned: new Set<string>(),
+			recordCustomSignIn: vi.fn(() => ({ id: "b1", firstSeen: true })),
+		},
+		notifier: { notify: vi.fn(async () => {}) },
+		session: { write: vi.fn(), clear: vi.fn() },
+		adminData: {
+			canSignIn: vi.fn(() => true),
+			isLocked: vi.fn(() => false),
+			recordSignIn: vi.fn(),
+		},
+		event: {
+			cookies: {},
+			fetch: vi.fn(),
+			getClientAddress: (): string => "203.0.113.7",
+			locals: {} as Record<string, unknown>,
+		},
+	};
+});
 
 vi.mock("#lib/admin/admin-data.js", () => ({
 	canSignIn: (...args: unknown[]) => adminData.canSignIn(...(args as [])),
+	isLocked: () => adminData.isLocked(),
 	recordSignIn: (...args: unknown[]) => adminData.recordSignIn(...(args as [])),
+}));
+vi.mock("#lib/admin/backends-data.js", () => ({
+	policyOrDefault: () => backendsData.policy,
+	isDefaultBackend: (
+		backend: { url: string; trusted: boolean } | null,
+		policy: typeof backendsData.policy,
+	) =>
+		policy.defaultBackend === null
+			? backend === null
+			: backend?.trusted === true && backend.url === policy.defaultBackend.url,
+	isBannedBackend: (_db: unknown, url: string) => backendsData.banned.has(url),
+	recordCustomSignIn: (...args: unknown[]) =>
+		backendsData.recordCustomSignIn(...(args as [])),
 }));
 
 vi.mock("@sveltejs/kit", () => ({
@@ -63,21 +103,29 @@ vi.mock("$app/env/private", () => ({
 }));
 vi.mock("#lib/nuvio/index.js", () => ({
 	NuvioApiError,
+	NUVIO_BASE_URL: "https://api.nuvio.tv",
 	NuvioClient: class {
 		signInWithPassword = client.signInWithPassword;
 		signUp = client.signUp;
+		constructor(options: Record<string, unknown>) {
+			clientOptions.push(options);
+		}
 	},
 }));
 
+import { BUILT_IN_BACKEND } from "#lib/backend/tokens.js";
 import {
 	ADMIN,
+	ADMIN_NOTIFIER,
 	AdminService,
 	Container,
 	DATABASE,
 	LOGGER,
 	Logger,
+	RATE_LIMITER,
 	SESSION,
 } from "#lib/services/index.js";
+import { RateLimiter } from "#lib/services/rate-limit.service.js";
 import { NUVIO_SYNC } from "#lib/userdata/tokens.js";
 import * as authForms from "./auth.remote.js";
 
@@ -86,12 +134,20 @@ import * as authForms from "./auth.remote.js";
 // returning null is the documented "no admin database" path.
 const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
 const nuvioSync = { touch: vi.fn() };
+let limiter = new RateLimiter();
+const rateLimiter = {
+	attempt: (...args: Parameters<RateLimiter["attempt"]>) =>
+		limiter.attempt(...args),
+};
 const testServices = new Container("test")
 	.provide(SESSION, session as never)
 	.provide(DATABASE, { tryConnect: () => null } as never)
 	.provide(ADMIN, new AdminService(""))
 	.provide(LOGGER, new Logger("error", { out: () => {}, err: () => {} }))
-	.provide(NUVIO_SYNC, nuvioSync as never);
+	.provide(NUVIO_SYNC, nuvioSync as never)
+	.provide(RATE_LIMITER, rateLimiter as never)
+	.provide(ADMIN_NOTIFIER, notifier)
+	.provide(BUILT_IN_BACKEND, { owns: () => false } as never);
 
 // The same scope with an admin database present : the lock check and the
 // sign-in metrics only exist on this path.
@@ -100,7 +156,10 @@ const withDatabase = new Container("test-db")
 	.provide(DATABASE, { tryConnect: () => ({ marker: "db" }) } as never)
 	.provide(ADMIN, new AdminService(""))
 	.provide(LOGGER, logger as never)
-	.provide(NUVIO_SYNC, nuvioSync as never);
+	.provide(NUVIO_SYNC, nuvioSync as never)
+	.provide(RATE_LIMITER, rateLimiter as never)
+	.provide(ADMIN_NOTIFIER, notifier)
+	.provide(BUILT_IN_BACKEND, { owns: () => false } as never);
 
 // What `/auth/v1/token` actually returns : a token *and* the user. The thin
 // `{ access_token }` stub only passed because `writeStoredSession` is mocked.
@@ -115,8 +174,13 @@ type FormHandler = (
 	data: Record<string, unknown>,
 	issue: Record<string, (msg: string) => unknown>,
 ) => Promise<unknown>;
-const signIn = authForms.signIn as unknown as FormHandler;
-const signUp = authForms.signUp as unknown as FormHandler;
+// The schema's defaults never run here, so the handlers get them by hand.
+const withDefaults =
+	(handler: FormHandler): FormHandler =>
+	(data, fieldIssue) =>
+		handler({ backendUrl: "", backendKey: "", ...data }, fieldIssue);
+const signIn = withDefaults(authForms.signIn as unknown as FormHandler);
+const signUp = withDefaults(authForms.signUp as unknown as FormHandler);
 const signOut = authForms.signOut as unknown as FormHandler;
 
 const issue = new Proxy(
@@ -136,7 +200,18 @@ beforeEach(() => {
 		fn.mockReset();
 	}
 	adminData.canSignIn.mockReset().mockReturnValue(true);
+	adminData.isLocked.mockReset().mockReturnValue(false);
 	adminData.recordSignIn.mockReset();
+	backendsData.policy = { customAllowed: false, defaultBackend: null };
+	backendsData.banned.clear();
+	backendsData.recordCustomSignIn
+		.mockReset()
+		.mockReturnValue({ id: "b1", firstSeen: true });
+	notifier.notify.mockClear();
+	nuvioSync.touch.mockClear();
+	clientOptions.length = 0;
+	limiter = new RateLimiter();
+	event.getClientAddress = () => "203.0.113.7";
 	event.locals = {
 		nuvio: { signOut: client.signOut },
 		services: testServices,
@@ -304,6 +379,55 @@ describe("the instance lock", () => {
 	});
 });
 
+describe("the attempt limit", () => {
+	const attempt = (email: string) =>
+		signIn({ email, password: "pw", redirectTo: "/" }, issue);
+
+	it("refuses a sixth attempt on one email, before it reaches Nuvio", async () => {
+		client.signInWithPassword.mockRejectedValue(new NuvioApiError(401));
+		for (let count = 0; count < 5; count++) {
+			await expect(attempt("a@b.com")).rejects.toMatchObject({
+				payload: { field: "password" },
+			});
+		}
+		client.signInWithPassword.mockClear();
+		await expect(attempt("A@B.com")).rejects.toMatchObject({
+			payload: expect.stringContaining("Too many attempts"),
+		});
+		expect(client.signInWithPassword).not.toHaveBeenCalled();
+	});
+
+	it("refuses an eleventh attempt from one address, whatever the email", async () => {
+		client.signInWithPassword.mockRejectedValue(new NuvioApiError(401));
+		for (let count = 0; count < 10; count++) {
+			await expect(attempt(`user${count}@b.com`)).rejects.toBeInstanceOf(
+				Invalid,
+			);
+		}
+		await expect(attempt("fresh@b.com")).rejects.toMatchObject({
+			payload: expect.stringContaining("Too many attempts"),
+		});
+		event.getClientAddress = () => "198.51.100.1";
+		await expect(attempt("fresh@b.com")).rejects.toMatchObject({
+			payload: { field: "password" },
+		});
+	});
+
+	it("throttles sign-up too", async () => {
+		client.signUp.mockRejectedValue(new NuvioApiError(409));
+		for (let count = 0; count < 5; count++) {
+			await expect(
+				signUp({ email: "a@b.com", password: "pw", redirectTo: "/" }, issue),
+			).rejects.toMatchObject({ payload: { field: "email" } });
+		}
+		await expect(
+			signUp({ email: "a@b.com", password: "pw", redirectTo: "/" }, issue),
+		).rejects.toMatchObject({
+			payload: expect.stringContaining("Too many attempts"),
+		});
+	});
+});
+
 describe("signUp redirect targets", () => {
 	it("carries a redirectTo through to the sign-in page", async () => {
 		client.signUp.mockResolvedValue({ session: null, user: { id: "u" } });
@@ -324,5 +448,168 @@ describe("signOut failures", () => {
 		client.signOut.mockRejectedValue(new TypeError("network down"));
 		await expect(signOut({}, issue)).rejects.toThrow("network down");
 		expect(session.clear).not.toHaveBeenCalled();
+	});
+});
+
+describe("backends", () => {
+	const custom = {
+		backendUrl: "https://backend.example/",
+		backendKey: "sb_publishable_custom",
+	};
+	const signInWith = (extra: Record<string, unknown>) =>
+		signIn(
+			{ email: "a@b.com", password: "pw", redirectTo: "/", ...extra },
+			issue,
+		);
+
+	beforeEach(() => {
+		event.locals.services = withDatabase;
+	});
+
+	it("refuses a typed-in backend unless the admin allows custom backends", async () => {
+		await expect(signInWith(custom)).rejects.toMatchObject({
+			payload: expect.stringContaining("doesn't allow custom backends"),
+		});
+		expect(client.signInWithPassword).not.toHaveBeenCalled();
+	});
+
+	it("signs in against an allowed backend, keyed apart, and tells the admins the first time", async () => {
+		backendsData.policy.customAllowed = true;
+		client.signInWithPassword.mockResolvedValue({
+			...apiSession,
+			refresh_token: "r",
+			expires_in: 3600,
+		});
+		await expect(signInWith(custom)).rejects.toBeInstanceOf(Redirect);
+		expect(clientOptions[0]).toMatchObject({
+			baseUrl: "https://backend.example",
+			publishableKey: "sb_publishable_custom",
+			keepFetch: true,
+		});
+		const backend = {
+			url: "https://backend.example",
+			publishableKey: "sb_publishable_custom",
+			trusted: false,
+		};
+		expect(session.write).toHaveBeenCalledWith(expect.anything(), backend);
+		const [, , key] = adminData.recordSignIn.mock.calls[0] as unknown as [
+			unknown,
+			string,
+			string,
+		];
+		expect(key).toMatch(/^custom-/);
+		expect(nuvioSync.touch).toHaveBeenCalledWith(key);
+		expect(notifier.notify).toHaveBeenCalledWith({
+			kind: "custom_backend_seen",
+			backendId: "b1",
+			url: "https://backend.example",
+		});
+	});
+
+	it("does not notify for a backend already seen", async () => {
+		backendsData.policy.customAllowed = true;
+		backendsData.recordCustomSignIn.mockReturnValue({
+			id: "b1",
+			firstSeen: false,
+		});
+		client.signInWithPassword.mockResolvedValue({
+			...apiSession,
+			refresh_token: "r",
+			expires_in: 3600,
+		});
+		await expect(signInWith(custom)).rejects.toBeInstanceOf(Redirect);
+		expect(notifier.notify).not.toHaveBeenCalled();
+	});
+
+	it("refuses a banned backend before the credentials leave", async () => {
+		backendsData.policy.customAllowed = true;
+		backendsData.banned.add("https://backend.example");
+		await expect(signInWith(custom)).rejects.toMatchObject({
+			payload: expect.stringContaining("blocked that backend"),
+		});
+		expect(client.signInWithPassword).not.toHaveBeenCalled();
+	});
+
+	it("refuses a custom backend outright while the instance is locked", async () => {
+		backendsData.policy.customAllowed = true;
+		adminData.isLocked.mockReturnValue(true);
+		await expect(signInWith(custom)).rejects.toMatchObject({
+			payload: expect.stringContaining("invite-only"),
+		});
+		expect(adminData.canSignIn).not.toHaveBeenCalled();
+		expect(client.signInWithPassword).not.toHaveBeenCalled();
+	});
+
+	it.each([
+		["javascript:alert(1)", "sb_key"],
+		["https://user:pass@backend.example", "sb_key"],
+		["https://backend.example/a b", "sb_key"],
+		["https://backend.example/\u0000", "sb_key"],
+		["https://backend.example/?x=1", "sb_key"],
+		[`https://backend.example/${"a".repeat(2100)}`, "sb_key"],
+	])("refuses the URL %s", async (backendUrl, backendKey) => {
+		backendsData.policy.customAllowed = true;
+		await expect(signInWith({ backendUrl, backendKey })).rejects.toMatchObject({
+			payload: { field: "backendUrl" },
+		});
+	});
+
+	it.each(["", "key\r\nx-injected: 1", "key with spaces", "k".repeat(1025)])(
+		"refuses the key %j",
+		async (backendKey) => {
+			backendsData.policy.customAllowed = true;
+			await expect(
+				signInWith({ backendUrl: custom.backendUrl, backendKey }),
+			).rejects.toMatchObject({ payload: { field: "backendKey" } });
+		},
+	);
+
+	it("refuses a session whose user id or email is not sane", async () => {
+		backendsData.policy.customAllowed = true;
+		client.signInWithPassword.mockResolvedValue({
+			access_token: "t",
+			refresh_token: "r",
+			expires_in: 3600,
+			user: { id: "../../etc\npasswd", email: "a@b.com" },
+		});
+		await expect(signInWith(custom)).rejects.toMatchObject({
+			payload: expect.stringContaining("did not answer like a Nuvio backend"),
+		});
+		expect(session.write).not.toHaveBeenCalled();
+	});
+
+	it("words a blocked address without the transport's own text", async () => {
+		backendsData.policy.customAllowed = true;
+		client.signInWithPassword.mockRejectedValue(
+			Object.assign(new NuvioApiError(502), { code: "backend_blocked" }),
+		);
+		await expect(signInWith(custom)).rejects.toMatchObject({
+			payload: expect.stringContaining("private or local address"),
+		});
+	});
+
+	it("signs in through the admin default when the form names none, trusting its email", async () => {
+		const defaultBackend = {
+			url: "http://192.168.1.10:8000",
+			publishableKey: "anon",
+			trusted: true,
+		};
+		backendsData.policy.defaultBackend = defaultBackend;
+		client.signInWithPassword.mockResolvedValue({
+			...apiSession,
+			refresh_token: "r",
+			expires_in: 3600,
+		});
+		await expect(signInWith({})).rejects.toBeInstanceOf(Redirect);
+		expect(clientOptions[0]).toMatchObject({
+			baseUrl: "http://192.168.1.10:8000",
+		});
+		expect(session.write).toHaveBeenCalledWith(
+			expect.anything(),
+			defaultBackend,
+		);
+		// The allowlist applies to it like to the official API, and it is not "seen".
+		expect(adminData.canSignIn).toHaveBeenCalled();
+		expect(backendsData.recordCustomSignIn).not.toHaveBeenCalled();
 	});
 });

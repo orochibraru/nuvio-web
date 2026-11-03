@@ -1,5 +1,6 @@
 import { Database } from "bun:sqlite";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { accountKey, type NuvioBackend } from "#lib/nuvio/backend.js";
 import { type AuthSession, NuvioApiError } from "#lib/nuvio/index.js";
 import { DatabaseService } from "./database.service.ts";
 import { Logger } from "./logger.service.ts";
@@ -14,7 +15,9 @@ const logger = new Logger("error", { out: () => {}, err: () => {} });
 
 let db: Database;
 let refresher: ReturnType<
-	typeof vi.fn<(token: string) => Promise<AuthSession>>
+	typeof vi.fn<
+		(token: string, backend: NuvioBackend | null) => Promise<AuthSession>
+	>
 >;
 let store: SessionStore;
 
@@ -144,7 +147,7 @@ describe("create / get / delete", () => {
 		);
 		expect(offline.get("x")).toBeNull();
 		expect(() => offline.create(auth())).toThrow("Session store unavailable");
-		expect(await offline.accessTokenFor("u1")).toBeNull();
+		expect(await offline.credentialsFor("u1")).toBeNull();
 		offline.touch("x");
 		offline.delete("x");
 		offline.deleteAllForUser("u1");
@@ -168,7 +171,7 @@ describe("fresh", () => {
 			auth({ access_token: "at2", refresh_token: "rt2" }),
 		);
 		const fresh = await store.fresh(id);
-		expect(refresher).toHaveBeenCalledWith("rt");
+		expect(refresher).toHaveBeenCalledWith("rt", null);
 		expect(fresh).toMatchObject({ access_token: "at2", refresh_token: "rt2" });
 		// Persisted: a later read (another request, the sync) sees the new pair
 		// and does not refresh again.
@@ -190,11 +193,11 @@ describe("fresh", () => {
 		);
 		const first = store.fresh(id);
 		const second = store.fresh(id);
-		const viaSync = store.accessTokenFor("u1");
+		const viaSync = store.credentialsFor("u1");
 		release(auth({ access_token: "at2", refresh_token: "rt2" }));
 		expect((await first)?.access_token).toBe("at2");
 		expect((await second)?.access_token).toBe("at2");
-		expect(await viaSync).toBe("at2");
+		expect((await viaSync)?.accessToken).toBe("at2");
 		expect(refresher).toHaveBeenCalledTimes(1);
 	});
 
@@ -216,17 +219,17 @@ describe("fresh", () => {
 	});
 });
 
-describe("accessTokenFor", () => {
+describe("credentialsFor", () => {
 	it("picks the most recently seen live session", async () => {
 		vi.useFakeTimers();
 		const older = store.create(auth({ access_token: "older" }));
 		vi.setSystemTime(Date.now() + 120_000);
 		store.create(auth({ access_token: "newer" }));
-		expect(await store.accessTokenFor("u1")).toBe("newer");
+		expect((await store.credentialsFor("u1"))?.accessToken).toBe("newer");
 
 		vi.setSystemTime(Date.now() + 120_000);
 		store.touch(older);
-		expect(await store.accessTokenFor("u1")).toBe("older");
+		expect((await store.credentialsFor("u1"))?.accessToken).toBe("older");
 	});
 
 	it("falls through to the next session when the most recent one is dead", async () => {
@@ -235,11 +238,54 @@ describe("accessTokenFor", () => {
 		vi.setSystemTime(Date.now() + 120_000);
 		const dead = store.create(auth({ expires_in: 0 }));
 		refresher.mockRejectedValue(apiError(401));
-		expect(await store.accessTokenFor("u1")).toBe("fallback");
+		expect((await store.credentialsFor("u1"))?.accessToken).toBe("fallback");
 		expect(row(dead)).toBeNull();
 	});
 
 	it("is null for a user with no session here", async () => {
-		expect(await store.accessTokenFor("nobody")).toBeNull();
+		expect(await store.credentialsFor("nobody")).toBeNull();
+	});
+});
+
+describe("custom backends", () => {
+	const backend: NuvioBackend = {
+		url: "https://backend.example",
+		publishableKey: "key",
+		trusted: false,
+	};
+
+	it("keeps the backend encrypted, keys the row by account, and refreshes against it", async () => {
+		const id = store.create(auth({ expires_in: 0 }), backend);
+		expect(String(row(id)?.backend_enc)).not.toContain("backend.example");
+		expect(row(id)?.user_id).toBe(accountKey("u1", backend));
+		expect(row(id)?.user_id).not.toBe("u1");
+		refresher.mockResolvedValue(auth({ access_token: "at2" }));
+		const fresh = await store.fresh(id);
+		expect(refresher).toHaveBeenCalledWith("rt", backend);
+		expect(fresh).toMatchObject({
+			backend,
+			accountKey: accountKey("u1", backend),
+		});
+		expect(await store.credentialsFor(accountKey("u1", backend))).toEqual({
+			accessToken: "at2",
+			backend,
+		});
+	});
+
+	it("keeps the same user id on two backends apart", async () => {
+		store.create(auth({ access_token: "official" }));
+		store.create(auth({ access_token: "custom" }), backend);
+		expect((await store.credentialsFor("u1"))?.accessToken).toBe("official");
+		expect(
+			(await store.credentialsFor(accountKey("u1", backend)))?.accessToken,
+		).toBe("custom");
+	});
+
+	it("ends every session on a banned backend and only those", () => {
+		const official = store.create(auth());
+		const custom = store.create(auth(), backend);
+		store.deleteAllForBackend(backend.url);
+		expect(row(custom)).toBeNull();
+		expect(row(official)).not.toBeNull();
 	});
 });

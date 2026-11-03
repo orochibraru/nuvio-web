@@ -100,6 +100,8 @@ export interface NuvioClientOptions {
 	websiteUrl?: string;
 	publishableKey?: string;
 	fetch?: FetchImplementation;
+	/** `withFetch` keeps this client's own `fetch` (a custom backend's guarded one). */
+	keepFetch?: boolean;
 	session?: AuthSession | null;
 	onSessionChange?: (session: AuthSession | null) => void;
 	/** Per-request timeout in ms. Default {@link DEFAULT_REQUEST_TIMEOUT_MS}. */
@@ -132,6 +134,7 @@ export class NuvioClient {
 	readonly publishableKey: string;
 
 	private readonly fetchImplementation: FetchImplementation;
+	private readonly keepFetch: boolean;
 	private readonly onSessionChange?: (session: AuthSession | null) => void;
 	private readonly requestTimeoutMs: number;
 	private currentSession: AuthSession | null;
@@ -144,6 +147,7 @@ export class NuvioClient {
 		);
 		this.publishableKey = options.publishableKey ?? NUVIO_PUBLISHABLE_KEY;
 		this.fetchImplementation = options.fetch ?? globalThis.fetch;
+		this.keepFetch = options.keepFetch ?? false;
 		this.currentSession = options.session ?? null;
 		this.onSessionChange = options.onSessionChange;
 		this.requestTimeoutMs =
@@ -165,7 +169,8 @@ export class NuvioClient {
 			baseUrl: this.baseUrl,
 			websiteUrl: this.websiteUrl,
 			publishableKey: this.publishableKey,
-			fetch,
+			fetch: this.keepFetch ? this.fetchImplementation : fetch,
+			keepFetch: this.keepFetch,
 			session: this.currentSession,
 			requestTimeoutMs: this.requestTimeoutMs,
 		});

@@ -5,11 +5,12 @@ import {
 	hkdfSync,
 	randomBytes,
 } from "node:crypto";
+import { accountKey, type NuvioBackend } from "#lib/nuvio/backend.js";
 import { type AuthSession, NuvioApiError } from "#lib/nuvio/index.js";
 import { serviceToken } from "./container.ts";
 import type { DatabaseService } from "./database.service.ts";
 import type { Logger } from "./logger.service.ts";
-import type { NuvioTokenSource } from "./tokens.ts";
+import type { NuvioCredentials, NuvioTokenSource } from "./tokens.ts";
 
 /** A live session as the rest of the server sees it: decrypted, one row. */
 export interface StoredSession {
@@ -19,17 +20,26 @@ export interface StoredSession {
 	/** Unix seconds. */
 	expires_at: number;
 	user: AuthSession["user"];
+	/** What this server keys the user's data by; see `accountKey`. */
+	accountKey: string;
+	/** Null for the official Nuvio API. */
+	backend: NuvioBackend | null;
 }
 
-/** Trades a refresh token for a new session (the rotated one included). */
-export type SessionRefresher = (refreshToken: string) => Promise<AuthSession>;
+/** Trades a refresh token with the backend that issued it (the rotated one included). */
+export type SessionRefresher = (
+	refreshToken: string,
+	backend: NuvioBackend | null,
+) => Promise<AuthSession>;
 
 interface SessionRow {
 	id: string;
+	user_id: string;
 	user_json: string;
 	access_token_enc: string;
 	refresh_token_enc: string;
 	expires_at: number;
+	backend_enc: string | null;
 }
 
 /**
@@ -71,7 +81,7 @@ export function isSessionId(value: string): boolean {
  *
  * **The one refresh path.** Nuvio auth is Supabase-style: refresh tokens
  * rotate, and replaying a spent one can revoke the whole session. So requests
- * ({@link fresh}) and the background sync ({@link accessTokenFor}) both go
+ * ({@link fresh}) and the background sync ({@link credentialsFor}) both go
  * through {@link fresh}, which refreshes at most once at a time per session
  * (an in-process single-flight) and persists the rotated token before anyone
  * else reads the row. That guarantee is per process: run one instance per
@@ -99,7 +109,7 @@ export class SessionStore implements NuvioTokenSource {
 	}
 
 	/** Stores a fresh sign-in and returns its id. Throws with no database. */
-	create(session: AuthSession): string {
+	create(session: AuthSession, backend: NuvioBackend | null = null): string {
 		const db = this.#db();
 		if (!db) {
 			throw new Error(
@@ -116,11 +126,12 @@ export class SessionStore implements NuvioTokenSource {
 		);
 		db.run(
 			`INSERT INTO sessions (id, user_id, email, user_json, access_token_enc,
-				refresh_token_enc, expires_at, created_at, last_seen_at)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				refresh_token_enc, expires_at, created_at, last_seen_at, backend_enc,
+				backend_url)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			[
 				id,
-				session.user.id,
+				accountKey(session.user.id, backend),
 				session.user.email ?? null,
 				JSON.stringify(session.user),
 				this.encrypt(id, session.access_token),
@@ -128,6 +139,8 @@ export class SessionStore implements NuvioTokenSource {
 				now + session.expires_in,
 				now,
 				now,
+				backend ? this.encrypt(id, JSON.stringify(backend)) : null,
+				backend?.url ?? null,
 			],
 		);
 		return id;
@@ -137,7 +150,8 @@ export class SessionStore implements NuvioTokenSource {
 	get(id: string): StoredSession | null {
 		const row = this.#db()
 			?.query<SessionRow, [string, number]>(
-				`SELECT id, user_json, access_token_enc, refresh_token_enc, expires_at
+				`SELECT id, user_id, user_json, access_token_enc, refresh_token_enc,
+					expires_at, backend_enc
 				FROM sessions WHERE id = ? AND last_seen_at >= ?`,
 			)
 			.get(id, nowInSeconds() - SESSION_IDLE_SECONDS);
@@ -151,6 +165,11 @@ export class SessionStore implements NuvioTokenSource {
 				refresh_token: this.decrypt(id, row.refresh_token_enc),
 				expires_at: row.expires_at,
 				user: JSON.parse(row.user_json),
+				accountKey: row.user_id,
+				backend:
+					row.backend_enc === null
+						? null
+						: JSON.parse(this.decrypt(id, row.backend_enc)),
 			};
 		} catch {
 			// Wrong key (the secret changed) or a tampered row: unusable either way.
@@ -163,8 +182,13 @@ export class SessionStore implements NuvioTokenSource {
 		this.#db()?.run("DELETE FROM sessions WHERE id = ?", [id]);
 	}
 
-	deleteAllForUser(userId: string): void {
-		this.#db()?.run("DELETE FROM sessions WHERE user_id = ?", [userId]);
+	deleteAllForUser(accountKey: string): void {
+		this.#db()?.run("DELETE FROM sessions WHERE user_id = ?", [accountKey]);
+	}
+
+	/** Signs out everyone who signed in through this backend URL, e.g. when it is banned. */
+	deleteAllForBackend(url: string): void {
+		this.#db()?.run("DELETE FROM sessions WHERE backend_url = ?", [url]);
 	}
 
 	/** Marks the session used, at most once a minute. */
@@ -198,20 +222,20 @@ export class SessionStore implements NuvioTokenSource {
 		return refresh;
 	}
 
-	/** {@link NuvioTokenSource}: the user's most recently seen live session. */
-	async accessTokenFor(userId: string): Promise<string | null> {
+	/** {@link NuvioTokenSource}: the account's most recently seen live session. */
+	async credentialsFor(accountKey: string): Promise<NuvioCredentials | null> {
 		const ids =
 			this.#db()
 				?.query<{ id: string }, [string, number]>(
 					`SELECT id FROM sessions WHERE user_id = ? AND last_seen_at >= ?
 					ORDER BY last_seen_at DESC, created_at DESC`,
 				)
-				.all(userId, nowInSeconds() - SESSION_IDLE_SECONDS) ?? [];
+				.all(accountKey, nowInSeconds() - SESSION_IDLE_SECONDS) ?? [];
 		for (const { id } of ids) {
 			// biome-ignore lint/performance/noAwaitInLoops: sequential on purpose; the next session only matters when this one turned out dead, and each may cost an upstream refresh.
 			const session = await this.fresh(id);
 			if (session) {
-				return session.access_token;
+				return { accessToken: session.access_token, backend: session.backend };
 			}
 		}
 		return null;
@@ -220,7 +244,7 @@ export class SessionStore implements NuvioTokenSource {
 	async #refresh(stored: StoredSession): Promise<StoredSession | null> {
 		let next: AuthSession;
 		try {
-			next = await this.refresher(stored.refresh_token);
+			next = await this.refresher(stored.refresh_token, stored.backend);
 		} catch (error) {
 			if (
 				error instanceof NuvioApiError &&
@@ -253,6 +277,8 @@ export class SessionStore implements NuvioTokenSource {
 			refresh_token: next.refresh_token,
 			expires_at: expiresAt,
 			user: next.user,
+			accountKey: stored.accountKey,
+			backend: stored.backend,
 		};
 	}
 

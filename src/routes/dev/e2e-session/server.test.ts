@@ -11,6 +11,7 @@ import { Container, SESSION } from "#lib/services/index.js";
 import { POST } from "./+server.ts";
 
 const write = vi.fn();
+const writeProfileId = vi.fn();
 
 function call(body: unknown) {
 	return POST({
@@ -19,7 +20,10 @@ function call(body: unknown) {
 			body: JSON.stringify(body),
 		}),
 		locals: {
-			services: new Container("test").provide(SESSION, { write } as never),
+			services: new Container("test").provide(SESSION, {
+				write,
+				writeProfileId,
+			} as never),
 		},
 	} as never);
 }
@@ -34,6 +38,7 @@ const valid = {
 afterEach(() => {
 	vi.unstubAllEnvs();
 	write.mockReset();
+	writeProfileId.mockReset();
 });
 
 describe("POST /dev/e2e-session", () => {
@@ -48,6 +53,14 @@ describe("POST /dev/e2e-session", () => {
 		const response = await call(valid);
 		expect(response.status).toBe(200);
 		expect(write).toHaveBeenCalledWith({ ...valid, token_type: "bearer" });
+		expect(writeProfileId).not.toHaveBeenCalled();
+	});
+
+	it("selects the posted profile through the signed cookie", async () => {
+		vi.stubEnv("NUVIO_E2E", "1");
+		await call({ ...valid, profileId: 2 });
+		expect(write).toHaveBeenCalledWith({ ...valid, token_type: "bearer" });
+		expect(writeProfileId).toHaveBeenCalledWith(2, true);
 	});
 
 	it("rejects a malformed body", async () => {

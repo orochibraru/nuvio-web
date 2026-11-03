@@ -15,7 +15,8 @@ const SECRET = "test-secret";
 
 let db: Database;
 let store: SessionStore;
-const refresher = vi.fn<(token: string) => Promise<AuthSession>>();
+const refresher =
+	vi.fn<(token: string, backend: unknown) => Promise<AuthSession>>();
 
 beforeEach(() => {
 	db = DatabaseService.migrate(new Database(":memory:"));
@@ -131,7 +132,7 @@ describe("read", () => {
 			auth({ access_token: "at2", refresh_token: "rt2" }),
 		);
 		expect((await session.read())?.access_token).toBe("at2");
-		expect(refresher).toHaveBeenCalledWith("rt");
+		expect(refresher).toHaveBeenCalledWith("rt", null);
 	});
 });
 
@@ -161,12 +162,14 @@ describe("write", () => {
 	// test; reading `dev` off the module graph made this untestable.
 	it("marks the cookie secure only when the instance says to", () => {
 		const insecure = service({}, false);
-		insecure.session.writeProfileId(1);
-		expect(insecure.sets[0].opts).toMatchObject({ secure: false });
+		insecure.session.write(auth());
+		insecure.session.writeProfileId(1, true);
+		expect(insecure.sets[1].opts).toMatchObject({ secure: false });
 
 		const secure = service({}, true);
-		secure.session.writeProfileId(1);
-		expect(secure.sets[0].opts).toMatchObject({ secure: true });
+		secure.session.write(auth());
+		secure.session.writeProfileId(1, true);
+		expect(secure.sets[1].opts).toMatchObject({ secure: true });
 	});
 });
 
@@ -181,18 +184,75 @@ describe("clear", () => {
 });
 
 describe("profile id cookie", () => {
+	function signedIn() {
+		const jar = service();
+		const { id } = jar.session.write(auth());
+		return { ...jar, sessionId: id };
+	}
+
 	it("round-trips a valid id", () => {
-		const { session } = service();
-		session.writeProfileId(3);
+		const { session } = signedIn();
+		session.writeProfileId(3, true);
 		expect(session.readProfileId()).toBe(3);
 	});
 
+	it("keeps the pick for 30 days only when asked to remember it", () => {
+		const remembered = signedIn();
+		remembered.session.writeProfileId(2, true);
+		expect(remembered.sets.at(-1)?.opts).toMatchObject({
+			maxAge: 60 * 60 * 24 * 30,
+		});
+
+		const forgotten = signedIn();
+		forgotten.session.writeProfileId(2, false);
+		expect(forgotten.sets.at(-1)?.opts).not.toHaveProperty("maxAge");
+		expect(forgotten.sets.at(-1)?.opts).toMatchObject({
+			httpOnly: true,
+			path: "/",
+		});
+		expect(forgotten.session.readProfileId()).toBe(2);
+	});
+
+	it("writes nothing without a session", () => {
+		const { session, sets } = service();
+		session.writeProfileId(3, true);
+		expect(sets).toEqual([]);
+	});
+
+	it("rejects an unsigned or forged cookie", () => {
+		const { session, jar, sessionId } = signedIn();
+		jar.set("nuvio_profile", "2");
+		expect(session.readProfileId()).toBeNull();
+		jar.set("nuvio_profile", signSessionValue(`${sessionId}:2`, "other"));
+		expect(session.readProfileId()).toBeNull();
+	});
+
+	it("rejects a cookie bound to another session", () => {
+		const first = signedIn();
+		first.session.writeProfileId(2, true);
+		const second = signedIn();
+		second.jar.set("nuvio_profile", first.jar.get("nuvio_profile") ?? "");
+		expect(second.session.readProfileId()).toBeNull();
+	});
+
+	it("drops the profile on a new sign-in", () => {
+		const { session } = signedIn();
+		session.writeProfileId(2, true);
+		session.write(auth());
+		expect(session.readProfileId()).toBeNull();
+	});
+
 	it("rejects out-of-range or non-integer values", () => {
-		expect(service({ nuvio_profile: "0" }).session.readProfileId()).toBeNull();
-		expect(service({ nuvio_profile: "7" }).session.readProfileId()).toBeNull();
-		expect(
-			service({ nuvio_profile: "abc" }).session.readProfileId(),
-		).toBeNull();
+		const { session, jar, sessionId } = signedIn();
+		for (const value of ["0", "7", "abc", ""]) {
+			jar.set(
+				"nuvio_profile",
+				signSessionValue(`${sessionId}:${value}`, SECRET),
+			);
+			expect(session.readProfileId()).toBeNull();
+		}
+		jar.set("nuvio_profile", signSessionValue(sessionId, SECRET));
+		expect(session.readProfileId()).toBeNull();
 	});
 
 	it("clearProfileId only drops the profile cookie", () => {
@@ -217,5 +277,27 @@ describe("createNuvioClient", () => {
 		const client = session.createNuvioClient(globalThis.fetch, null);
 		client.setSession(auth());
 		expect(rowCount()).toBe(1);
+	});
+
+	it("builds a custom-backend session's client against that backend, keeping its guarded fetch", async () => {
+		const { session } = service();
+		const backend = {
+			url: "https://backend.example",
+			publishableKey: "custom-key",
+			trusted: false,
+		};
+		const stored = session.write(auth(), backend);
+		expect(stored.accountKey).toMatch(/^custom-/);
+		const requestFetch = vi.fn() as unknown as typeof fetch;
+		const client = session.createNuvioClient(requestFetch, stored);
+		expect(client.baseUrl).toBe("https://backend.example");
+		expect(client.publishableKey).toBe("custom-key");
+		const forLoad = client.withFetch(requestFetch);
+		expect(forLoad.baseUrl).toBe("https://backend.example");
+		expect(
+			(forLoad as unknown as { fetchImplementation: unknown })
+				.fetchImplementation,
+		).not.toBe(requestFetch);
+		await expect(session.read()).resolves.toMatchObject({ backend });
 	});
 });
