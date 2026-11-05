@@ -78,7 +78,7 @@
 					<div class="flex items-center justify-between">
 						<Field.FieldLabel for="password">{m.auth_password()}</Field.FieldLabel>
 						<a
-							href={NUVIO_WEBSITE_URL}
+							href={`${NUVIO_WEBSITE_URL}/account/reset-password?next=%2Faccount`}
 							target="_blank"
 							rel="noopener noreferrer"
 							class="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground"
