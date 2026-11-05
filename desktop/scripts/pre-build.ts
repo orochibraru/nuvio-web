@@ -107,6 +107,10 @@ if (mpvBuild) {
 }
 
 if (process.env.ELECTROBUN_OS === "macos") {
+	run(["bun", join(desktop, "scripts", "build-mpv-macos.ts")]);
+}
+
+if (process.env.ELECTROBUN_OS === "macos") {
 	const iconset = join(desktop, "icon.iconset");
 	const source = join(root, "static", "icon-512.png");
 	rmSync(iconset, { recursive: true, force: true });

@@ -24,13 +24,50 @@ export interface MpvEvent {
 
 export const MPV_EVENT = "nuvio:mpv";
 
+/** mpv drawing under the page, in the app's window: its state, four times a second. */
+export interface EngineState {
+	position: number;
+	duration: number;
+	paused: boolean;
+	buffering: boolean;
+	ended: boolean;
+	/** 0 to 1. */
+	volume: number;
+	muted: boolean;
+}
+
+export type EngineCommand =
+	| { op: "pause"; value: boolean }
+	| { op: "seek"; position: number }
+	| { op: "volume"; value: number }
+	| { op: "mute"; value: boolean }
+	| { op: "speed"; value: number };
+
+export const ENGINE_EVENT = "nuvio:engine";
+
+export interface DesktopEngine {
+	open: (request: MpvRequest) => void;
+	command: (command: EngineCommand) => void;
+	close: () => void;
+	/** Every source plays in the engine (`NUVIO_MPV_ENGINE=always`), not only those the web view refuses. */
+	always?: boolean;
+}
+
 declare global {
 	interface Window {
 		nuvioDesktop?: {
 			mpv?: (request: MpvRequest) => void;
 			stopMpv?: () => void;
+			engine?: DesktopEngine;
 		};
 	}
+}
+
+/** The in-window engine, when the desktop app has one (macOS). */
+export function desktopEngine(): DesktopEngine | null {
+	return typeof window === "undefined"
+		? null
+		: (window.nuvioDesktop?.engine ?? null);
 }
 
 export interface DesktopMpv {

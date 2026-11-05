@@ -30,6 +30,17 @@ build time. The Intel Mac build of it needs macOS 15. On Linux the app uses the
 system's mpv (`apt install mpv`, `dnf install mpv`, …); without one, such
 sources show the usual "can't play" screen.
 
+### In the window (macOS, experimental)
+
+On macOS, mpv draws inside the app's own window instead, under the page, and the
+player's controls (play and pause, seeking, ±10 s, mute, fullscreen, the
+keyboard shortcuts) drive it. It is libmpv from
+[MPVKit](https://github.com/mpvkit/MPVKit), linked with a small native view into
+one library the app loads at start; the build fetches MPVKit's archives and
+checks each against its pinned checksum. Set `NUVIO_MPV_ENGINE=always` before
+starting the app to play every source this way, not only those the web view
+refuses.
+
 ## Logs
 
 Every launch logs into one SQLite file in the system's temporary folder,

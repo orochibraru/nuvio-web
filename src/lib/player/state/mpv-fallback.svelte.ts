@@ -1,5 +1,6 @@
 import { untrack } from "svelte";
 import {
+	desktopEngine,
 	desktopMpv,
 	MPV_EVENT,
 	type MpvEvent,
@@ -27,10 +28,14 @@ interface MpvFallbackDeps {
  */
 export function createMpvFallback(deps: MpvFallbackDeps) {
 	const desktop = desktopMpv();
+	// Preferred: mpv drawing under our own controls, in this window.
+	const engine = desktopEngine();
 	let session = $state<{
 		url: string;
 		status: Status;
 		position: number;
+		/** Playing in this window, under the page, rather than in mpv's own. */
+		embedded: boolean;
 	} | null>(null);
 	const shown = $derived(
 		session && deps.url() === session.url ? session : null,
@@ -38,19 +43,32 @@ export function createMpvFallback(deps: MpvFallbackDeps) {
 
 	function play(position: number) {
 		const url = deps.url();
-		if (!(desktop && mpvCanOpen(url))) {
+		if (!((engine || desktop) && mpvCanOpen(url))) {
 			return;
 		}
-		session = { url, status: "playing", position };
-		desktop.play({ url, title: deps.title(), start: position });
+		const request = { url, title: deps.title(), start: position };
+		session = { url, status: "playing", position, embedded: Boolean(engine) };
+		if (engine) {
+			engine.open(request);
+		} else {
+			desktop?.play(request);
+		}
+	}
+
+	function stop() {
+		if (session?.embedded) {
+			engine?.close();
+		} else {
+			desktop?.stop();
+		}
 	}
 
 	$effect(() => {
 		const url = deps.url();
 		if (
-			desktop &&
+			(engine || desktop) &&
 			mpvCanOpen(url) &&
-			deps.blocked() &&
+			(deps.blocked() || engine?.always) &&
 			deps.ready() &&
 			session?.url !== url
 		) {
@@ -62,18 +80,18 @@ export function createMpvFallback(deps: MpvFallbackDeps) {
 	// left, by picking another or leaving the player.
 	$effect(() => {
 		if (session?.status === "playing" && deps.url() !== session.url) {
-			desktop?.stop();
+			stop();
 			session = null;
 		}
 	});
 	$effect(() => () => {
 		if (untrack(() => session?.status) === "playing") {
-			desktop?.stop();
+			stop();
 		}
 	});
 
 	$effect(() => {
-		if (!desktop) {
+		if (!(engine || desktop)) {
 			return;
 		}
 		const report = deps.reporter();
@@ -97,11 +115,14 @@ export function createMpvFallback(deps: MpvFallbackDeps) {
 
 	return {
 		/** Whether this runs in the desktop app with an mpv to hand sources to. */
-		available: desktop !== null,
+		available: engine !== null || desktop !== null,
 		/** The mpv session for the current source, while there is one. */
 		get shown() {
 			return shown;
 		},
 		play,
+		/** Ends an in-window session: back to the page. */
+		close: stop,
+		engine,
 	};
 }

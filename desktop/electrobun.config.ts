@@ -23,6 +23,10 @@ export default {
 			[server]: server,
 			// Fetched by the pre-build on macOS and Windows; Linux uses the system's.
 			...(process.platform === "linux" ? {} : { mpv: "mpv" }),
+			// mpv in the app's own window (scripts/build-mpv-macos.ts).
+			...(process.platform === "darwin"
+				? { "native/build/libnuvio-mpv.dylib": "native/libnuvio-mpv.dylib" }
+				: {}),
 		},
 		mac: {
 			bundleCEF: false,

@@ -7,3 +7,4 @@ icon.iconset/
 server/
 mpv/
 .cache/
+native/build/

@@ -60,6 +60,15 @@ jobs:
         with:
           bun-version-file: package.json
 
+      # The Intel macOS runner ran out of disk making the DMG: the Android SDK
+      # it ships is the one large thing nothing here uses.
+      - name: Free disk space (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          df -h /
+          rm -rf "$HOME/Library/Android"
+          df -h /
+
       - run: bun install --frozen-lockfile --ignore-scripts
 
       - run: bun run sync

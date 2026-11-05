@@ -17,12 +17,38 @@ interface SilentAudioDeps {
 	hls: () => HlsLike | null;
 	/** The stream label hints at a codec the browser can't decode. */
 	audioRisky: () => boolean;
+	/** The transmux fix runs: it chose audio the browser plays, so silence isn't the codec. */
+	audioPlanned: () => boolean;
 	/** True while a fatal error screen is up : pause sampling. */
 	blocked: () => boolean;
 	/** Called when the watch flips to an alternate HLS audio track. */
 	onTrackSwitch: (index: number) => void;
 	/** The in-browser fix : true when the source now has sound. */
 	tryFix: (reason: "probe" | "silent") => Promise<boolean>;
+}
+
+type CountedVideo = HTMLVideoElement & {
+	webkitAudioDecodedByteCount?: number;
+	webkitVideoDecodedByteCount?: number;
+	mozHasAudio?: boolean;
+};
+
+/** Chromium's decoder byte counters, as a rolling window of 14 readings. */
+function recordSample(samples: AudioByteSample[], el: CountedVideo) {
+	samples.push({
+		video: el.webkitVideoDecodedByteCount ?? 0,
+		audio: el.webkitAudioDecodedByteCount ?? 0,
+	});
+	if (samples.length > 14) {
+		samples.shift();
+	}
+}
+
+/** WebKit decodes Dolby Digital (Plus) itself; Chromium and Firefox don't. */
+function decodesDolby(el: HTMLVideoElement): boolean {
+	return ["ac-3", "ec-3"].some(
+		(codec) => el.canPlayType(`audio/mp4; codecs="${codec}"`) !== "",
+	);
 }
 
 /**
@@ -49,42 +75,34 @@ export function createSilentAudioWatch(deps: SilentAudioDeps) {
 			return;
 		}
 		void deps.tryFix("probe");
-		const el = video as HTMLVideoElement & {
-			webkitAudioDecodedByteCount?: number;
-			webkitVideoDecodedByteCount?: number;
-			mozHasAudio?: boolean;
-		};
+		const el = video as CountedVideo;
 		const haveCounters = el.webkitVideoDecodedByteCount !== undefined;
 		const audioRisky = deps.audioRisky();
 		if (!(haveCounters || audioRisky) && typeof el.mozHasAudio !== "boolean") {
 			return; // nothing to go on
 		}
 
+		const dolby = decodesDolby(el);
 		const needed = audioRisky ? 2 : 4;
 		const samples: AudioByteSample[] = [];
 		let playedSeconds = 0;
 		let trackTried = false;
 		let stale = false;
 
-		function recordSample() {
-			if (!haveCounters) {
-				return;
-			}
-			samples.push({
-				video: el.webkitVideoDecodedByteCount ?? 0,
-				audio: el.webkitAudioDecodedByteCount ?? 0,
-			});
-			if (samples.length > 14) {
-				samples.shift();
-			}
-		}
-
 		function tick() {
-			if (deps.blocked() || el.paused || el.currentTime < 3 || issue) {
+			if (
+				deps.blocked() ||
+				deps.audioPlanned() ||
+				el.paused ||
+				el.currentTime < 3 ||
+				issue
+			) {
 				return;
 			}
 			playedSeconds += 1;
-			recordSample();
+			if (haveCounters) {
+				recordSample(samples, el);
+			}
 
 			const hls = deps.hls();
 			const action = evaluateAudioTick({
@@ -97,6 +115,7 @@ export function createSilentAudioWatch(deps: SilentAudioDeps) {
 					hls && hls.audioTracks.length > 1 && !trackTried,
 				),
 				audioRisky,
+				decodesDolby: dolby,
 				playedSeconds,
 			});
 

@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { release } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
@@ -11,6 +11,7 @@ import Electrobun, {
 import root from "../../../package.json" with { type: "json" };
 import { openLogDb, PAGE_LOGGER } from "./log-db.ts";
 import { findMpv, MpvPlayer, parseMpvRequest } from "./mpv.ts";
+import { type EngineCommand, MpvEngine } from "./mpv-engine.ts";
 
 // Nuvio Web's own server, run on loopback with its data in the user's app-data
 // folder, and a window that waits for it. Signing in goes to the official Nuvio
@@ -81,6 +82,11 @@ logs.write("shell", "info", "Starting", {
 });
 
 const mpvBinary = findMpv();
+const engineAvailable =
+	process.platform === "darwin" &&
+	existsSync(
+		join(PATHS.RESOURCES_FOLDER, "app", "native", "libnuvio-mpv.dylib"),
+	);
 logs.write(
 	"shell",
 	mpvBinary ? "info" : "warn",
@@ -95,13 +101,39 @@ const MPV_BRIDGE = `window.nuvioDesktop = {
 	mpv: (request) => window.__electrobunSendToHost({ nuvioMpv: request }),
 	stopMpv: () => window.__electrobunSendToHost({ nuvioMpvStop: true }),
 };`;
+// mpv drawing in this window, under the page: macOS only for now.
+const ENGINE_BRIDGE = `window.nuvioDesktop = Object.assign(window.nuvioDesktop || {}, { engine: {
+	open: (request) => window.__electrobunSendToHost({ nuvioEngine: { op: "open", request } }),
+	command: (command) => window.__electrobunSendToHost({ nuvioEngine: { op: "command", command } }),
+	close: () => window.__electrobunSendToHost({ nuvioEngine: { op: "close" } }),
+	always: ${process.env.NUVIO_MPV_ENGINE === "always"},
+} });`;
 
 const window = new BrowserWindow({
 	title: "Nuvio Web",
 	html: page("Starting…"),
 	frame: { width: 1280, height: 800 },
-	preload: mpvBinary ? `${PAGE_LOGGER}\n${MPV_BRIDGE}` : PAGE_LOGGER,
+	preload: [
+		PAGE_LOGGER,
+		mpvBinary ? MPV_BRIDGE : "",
+		engineAvailable ? ENGINE_BRIDGE : "",
+	].join("\n"),
 });
+
+function dispatch(name: string, detail: unknown) {
+	window.webview.executeJavascript(
+		`window.dispatchEvent(new CustomEvent(${JSON.stringify(name)}, { detail: ${JSON.stringify(detail)} }))`,
+	);
+}
+
+const engine = engineAvailable
+	? MpvEngine.load({
+			window: () => window.ptr,
+			onState: (state) => dispatch("nuvio:engine", state),
+			onProgress: (event) => dispatch("nuvio:mpv", event),
+			log: (level, message, data) => logs.write("mpv", level, message, data),
+		})
+	: null;
 
 const mpv = mpvBinary
 	? new MpvPlayer(
@@ -116,6 +148,15 @@ const mpv = mpvBinary
 
 Electrobun.events.on("host-message", (event) => {
 	const detail = (event as { data?: { detail?: unknown } }).data?.detail;
+	const engineMessage = (
+		detail as
+			| { nuvioEngine?: { op?: unknown; request?: unknown; command?: unknown } }
+			| undefined
+	)?.nuvioEngine;
+	if (engineMessage) {
+		handleEngine(engineMessage);
+		return;
+	}
 	if ((detail as { nuvioMpvStop?: unknown } | undefined)?.nuvioMpvStop) {
 		mpv?.stop();
 		return;
@@ -152,6 +193,43 @@ for (const name of ["did-navigate", "dom-ready"] as const) {
 		});
 	});
 }
+const ENGINE_OPS = new Set(["pause", "seek", "volume", "mute", "speed"]);
+
+/** Only well-formed engine requests from the page reach mpv. */
+function handleEngine(message: {
+	op?: unknown;
+	request?: unknown;
+	command?: unknown;
+}) {
+	if (!engine) {
+		return;
+	}
+	if (message.op === "open") {
+		const request = parseMpvRequest(message.request);
+		if (request) {
+			engine.open(request);
+		} else {
+			logs.write("shell", "warn", "Refused an engine request", { message });
+		}
+	} else if (message.op === "close") {
+		engine.close();
+	} else if (message.op === "command") {
+		const command = message.command as Partial<EngineCommand> | null;
+		const value =
+			command && "value" in command
+				? command.value
+				: (command as { position?: unknown } | null)?.position;
+		if (
+			command &&
+			typeof command.op === "string" &&
+			ENGINE_OPS.has(command.op) &&
+			(typeof value === "boolean" || Number.isFinite(value))
+		) {
+			engine.command(command as EngineCommand);
+		}
+	}
+}
+
 // What the system may open for a link: the web, mail, and the video players
 // the app hands streams to. Anything else (file:, custom app schemes a page
 // could aim at) stays shut.

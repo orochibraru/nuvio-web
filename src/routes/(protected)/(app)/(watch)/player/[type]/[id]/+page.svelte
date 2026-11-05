@@ -18,6 +18,7 @@
 	import { browserCanPlayCodec } from "#lib/player/codec-support.js";
 	import PlayerEndPanel from "#lib/player/components/end-panel.svelte";
 	import PlayerEpisodesPanel from "#lib/player/components/episodes-panel.svelte";
+	import MpvScreen from "#lib/player/components/mpv-screen.svelte";
 	import PlaybackLoading from "#lib/player/components/playback-loading.svelte";
 	import VideoPlayer from "#lib/player/components/video-player.svelte";
 	import {
@@ -611,8 +612,7 @@
 
 	const mpv = createMpvFallback({
 		url: () => active?.url ?? null,
-		title: () =>
-			subheading ? `${context.heading} · ${subheading}` : context.heading,
+		title: () => [context.heading, subheading].filter(Boolean).join(" · "),
 		blocked: () =>
 			Boolean(
 				active && (active.notWebReady || codecBlocked) && !preferExternal,
@@ -692,7 +692,7 @@
 >
   <h1 class="sr-only">{context.heading}</h1>
 
-  {#if !playableSrc}
+  {#if !playableSrc && !mpv.shown?.embedded}
     <button
       type="button"
       onclick={goBack}
@@ -702,7 +702,7 @@
     </button>
   {/if}
 
-  {#if (!playableSrc || mpv.shown) && (context.background ?? context.poster)}
+  {#if (!playableSrc || mpv.shown) && !mpv.shown?.embedded && (context.background ?? context.poster)}
     <img
       src={context.background ?? context.poster}
       alt=""
@@ -711,36 +711,13 @@
   {/if}
 
   {#if mpv.shown}
-    {@const session = mpv.shown}
-    <div
-      class="relative z-10 flex max-w-md flex-col items-center gap-4 px-6 text-center"
-      data-testid="mpv-screen"
-    >
-      <p class="text-lg font-semibold">
-        {#if session.status === "playing"}
-          {m.player_mpv_playing()}
-        {:else if session.status === "failed"}
-          {m.player_mpv_failed()}
-        {:else}
-          {m.player_mpv_closed()}
-        {/if}
-      </p>
-      <p class="text-sm text-white/60">{m.player_mpv_body()}</p>
-      <div class="flex flex-wrap items-center justify-center gap-2">
-        {#if session.status !== "playing"}
-          <Button onclick={() => mpv.play(session.position)}>
-            <PlayIcon data-icon="inline-start" class="fill-current" />
-            {m.player_mpv_reopen()}
-          </Button>
-        {/if}
-        <Button variant="secondary" onclick={openSources}>
-          {m.watch_choose_source()}
-        </Button>
-        <Button variant="ghost" onclick={goBack}>
-          <ArrowLeftIcon data-icon="inline-start" /> {m.common_back()}
-        </Button>
-      </div>
-    </div>
+    <MpvScreen
+      {mpv}
+      title={context.heading}
+      {subheading}
+      onBack={goBack}
+      onSources={openSources}
+    />
   {:else if playableSrc}
     {#if endOfShow}
       <PlayerEndPanel

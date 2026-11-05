@@ -11,6 +11,12 @@
       notarization, publishing the installers with a release, Electrobun's
       updater. The `Desktop` workflow builds every platform but hasn't run yet:
       the first run tells whether Windows and Linux build at all.
+- [ ] **Desktop in-window mpv (macOS spike): judge it, then finish or drop.**
+      libmpv draws under the page; the engine screen has play/pause, seek, ±10
+      s, mute and fullscreen. Missing before it can replace the separate window:
+      audio and subtitle tracks, subtitles from addons, speed, volume slider,
+      skip intro / chapters, the info overlay, up next, and any Windows / Linux
+      equivalent. OpenGL is deprecated on macOS.
 - [ ] **Desktop mpv fallback: play a real unplayable source.** Bundling (macOS
       arm64) and discovery were run; the hand-off itself wasn't: open a source
       the web view refuses and check mpv opens at the saved position, progress
