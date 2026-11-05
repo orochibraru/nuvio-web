@@ -34,7 +34,8 @@ export default {
 		},
 		win: {
 			bundleCEF: false,
-			icon: "../static/icon-512.png",
+			// Windows icons stop at 256 px; a larger PNG is refused.
+			icon: "../static/icon-192.png",
 		},
 	},
 	scripts: {

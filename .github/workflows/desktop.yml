@@ -8,7 +8,7 @@ on:
       - "desktop/**"
       - "package.json"
       - "bun.lock"
-      - "static/icon-512.png"
+      - "static/icon-*.png"
       - ".github/workflows/desktop.yml"
   push:
     branches:
@@ -17,7 +17,7 @@ on:
       - "desktop/**"
       - "package.json"
       - "bun.lock"
-      - "static/icon-512.png"
+      - "static/icon-*.png"
       - ".github/workflows/desktop.yml"
   workflow_dispatch:
 
