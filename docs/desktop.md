@@ -44,16 +44,16 @@ refuses.
 ## Logs
 
 Every launch logs into one SQLite file in the system's temporary folder,
-`$TMPDIR/nuvio-web-desktop/logs.sqlite` on macOS, which can be queried while the
-app runs. Each row has the launch it belongs to (`run`), a time, a `source`
-(`shell` for the app itself, `server` for its built-in server at debug level,
-`page` for the window), a level, a message and its fields as JSON. The page
-reports its console, failed requests, byte-range requests, CSP refusals, video
-events and the codec questions the player asks the browser. Rows older than a
-week are dropped.
+`$TMPDIR/nuvio-web-desktop-<uid>/logs.sqlite` on macOS (a folder of the user's
+own, readable by them only), which can be queried while the app runs. Each row
+has the launch it belongs to (`run`), a time, a `source` (`shell` for the app
+itself, `server` for its built-in server at debug level, `page` for the window),
+a level, a message and its fields as JSON. The page reports its console, failed
+requests, byte-range requests, CSP refusals, video events and the codec
+questions the player asks the browser. Rows older than a week are dropped.
 
 ```bash
-sqlite3 "$TMPDIR/nuvio-web-desktop/logs.sqlite" \
+sqlite3 "$TMPDIR/nuvio-web-desktop-$(id -u)/logs.sqlite" \
   "SELECT at, source, level, message, data FROM logs
    WHERE run = (SELECT max(run) FROM logs) ORDER BY id"
 ```

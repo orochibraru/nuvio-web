@@ -35,6 +35,34 @@ interface EngineOptions {
 	log: (level: string, message: string, data?: unknown) => void;
 }
 
+/** A command from the page, if every field is there with the right type. */
+export function parseEngineCommand(value: unknown): EngineCommand | null {
+	if (typeof value !== "object" || value === null) {
+		return null;
+	}
+	const command = value as Record<string, unknown>;
+	const finite = (field: unknown): field is number =>
+		typeof field === "number" && Number.isFinite(field);
+	switch (command.op) {
+		case "pause":
+		case "mute":
+			return typeof command.value === "boolean"
+				? { op: command.op, value: command.value }
+				: null;
+		case "volume":
+		case "speed":
+			return finite(command.value)
+				? { op: command.op, value: command.value }
+				: null;
+		case "seek":
+			return finite(command.position)
+				? { op: "seek", position: command.position }
+				: null;
+		default:
+			return null;
+	}
+}
+
 const POLL_MS = 250;
 const REPORT_EVERY_MS = 5000;
 
@@ -74,6 +102,7 @@ function library() {
 			args: [FFIType.ptr, FFIType.i32],
 			returns: FFIType.void,
 		},
+		nuvio_mpv_poll_end: { args: [FFIType.ptr], returns: FFIType.i32 },
 		nuvio_mpv_destroy: { args: [FFIType.ptr], returns: FFIType.void },
 	}).symbols;
 }
@@ -91,8 +120,17 @@ export class MpvEngine {
 
 	/** The engine, or null where its library isn't bundled (not macOS). */
 	static load(options: EngineOptions): MpvEngine | null {
-		const native = library();
-		return native ? new MpvEngine(native, options) : null;
+		try {
+			const native = library();
+			return native ? new MpvEngine(native, options) : null;
+		} catch (error) {
+			// A library that won't load (a broken build, a missing system
+			// framework) means no engine, not no app.
+			options.log("error", "mpv engine library failed to load", {
+				error: String(error),
+			});
+			return null;
+		}
 	}
 
 	private constructor(
@@ -135,6 +173,10 @@ export class MpvEngine {
 			start: request.start,
 			result,
 		});
+		if (result < 0) {
+			this.#fail(this.#player, request.start);
+			return;
+		}
 		this.#watch();
 	}
 
@@ -201,6 +243,16 @@ export class MpvEngine {
 		};
 	}
 
+	/** mpv gave up on the source: back to the page, which says so. */
+	#fail(player: Pointer, position: number) {
+		if (this.#timer) {
+			clearInterval(this.#timer);
+			this.#timer = null;
+		}
+		this.#native.nuvio_mpv_set_visible(player, 0);
+		this.#emitProgress({ type: "closed", position, duration: 0, failed: true });
+	}
+
 	#watch() {
 		if (this.#timer) {
 			clearInterval(this.#timer);
@@ -212,6 +264,11 @@ export class MpvEngine {
 				return;
 			}
 			const state = this.#state(player);
+			if (this.#native.nuvio_mpv_poll_end(player) < 0) {
+				this.#log("error", "mpv engine could not play the source", state);
+				this.#fail(player, state.position);
+				return;
+			}
 			this.#emitState(state);
 			if (!state.paused && Date.now() - lastReport >= REPORT_EVERY_MS) {
 				lastReport = Date.now();

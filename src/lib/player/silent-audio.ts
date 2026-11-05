@@ -84,8 +84,8 @@ export function evaluateAudioTick(input: {
 	reported: boolean | null;
 	canSwitchTrack: boolean;
 	audioRisky: boolean;
-	/** The browser decodes Dolby Digital (WebKit does): a Dolby label proves nothing. */
-	decodesDolby: boolean;
+	/** The transmux fix chose audio the browser plays: the label proves nothing. */
+	audioPlanned: boolean;
 	playedSeconds: number;
 }): AudioTickAction {
 	if (input.mozHasAudio === false) {
@@ -101,7 +101,7 @@ export function evaluateAudioTick(input: {
 		}
 		return { kind: "flag", issue: input.reported === true ? "codec" : verdict };
 	}
-	if (input.audioRisky && !input.decodesDolby && input.playedSeconds >= 6) {
+	if (input.audioRisky && !input.audioPlanned && input.playedSeconds >= 6) {
 		return { kind: "flag", issue: "codec" };
 	}
 	return { kind: "continue" };

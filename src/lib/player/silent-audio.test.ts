@@ -111,7 +111,7 @@ describe("evaluateAudioTick", () => {
 		reported: null,
 		canSwitchTrack: false,
 		audioRisky: false,
-		decodesDolby: false,
+		audioPlanned: false,
 		playedSeconds: 1,
 	};
 
@@ -192,13 +192,13 @@ describe("evaluateAudioTick", () => {
 		).toEqual({ kind: "continue" });
 	});
 
-	it("never flags on the label alone in a browser that decodes Dolby (WebKit)", () => {
+	it("never flags on the label alone once the transmux fix planned the audio", () => {
 		expect(
 			evaluateAudioTick({
 				...base,
 				haveCounters: false,
 				audioRisky: true,
-				decodesDolby: true,
+				audioPlanned: true,
 				playedSeconds: 60,
 			}),
 		).toEqual({ kind: "continue" });

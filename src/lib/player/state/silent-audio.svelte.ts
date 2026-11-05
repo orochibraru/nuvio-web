@@ -17,7 +17,7 @@ interface SilentAudioDeps {
 	hls: () => HlsLike | null;
 	/** The stream label hints at a codec the browser can't decode. */
 	audioRisky: () => boolean;
-	/** The transmux fix runs: it chose audio the browser plays, so silence isn't the codec. */
+	/** The transmux fix runs: it chose audio the browser plays, so the label proves nothing. */
 	audioPlanned: () => boolean;
 	/** True while a fatal error screen is up : pause sampling. */
 	blocked: () => boolean;
@@ -42,13 +42,6 @@ function recordSample(samples: AudioByteSample[], el: CountedVideo) {
 	if (samples.length > 14) {
 		samples.shift();
 	}
-}
-
-/** WebKit decodes Dolby Digital (Plus) itself; Chromium and Firefox don't. */
-function decodesDolby(el: HTMLVideoElement): boolean {
-	return ["ac-3", "ec-3"].some(
-		(codec) => el.canPlayType(`audio/mp4; codecs="${codec}"`) !== "",
-	);
 }
 
 /**
@@ -82,7 +75,6 @@ export function createSilentAudioWatch(deps: SilentAudioDeps) {
 			return; // nothing to go on
 		}
 
-		const dolby = decodesDolby(el);
 		const needed = audioRisky ? 2 : 4;
 		const samples: AudioByteSample[] = [];
 		let playedSeconds = 0;
@@ -90,13 +82,7 @@ export function createSilentAudioWatch(deps: SilentAudioDeps) {
 		let stale = false;
 
 		function tick() {
-			if (
-				deps.blocked() ||
-				deps.audioPlanned() ||
-				el.paused ||
-				el.currentTime < 3 ||
-				issue
-			) {
+			if (deps.blocked() || el.paused || el.currentTime < 3 || issue) {
 				return;
 			}
 			playedSeconds += 1;
@@ -115,7 +101,7 @@ export function createSilentAudioWatch(deps: SilentAudioDeps) {
 					hls && hls.audioTracks.length > 1 && !trackTried,
 				),
 				audioRisky,
-				decodesDolby: dolby,
+				audioPlanned: deps.audioPlanned(),
 				playedSeconds,
 			});
 

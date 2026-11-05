@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { release } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
@@ -11,7 +11,7 @@ import Electrobun, {
 import root from "../../../package.json" with { type: "json" };
 import { openLogDb, PAGE_LOGGER } from "./log-db.ts";
 import { findMpv, MpvPlayer, parseMpvRequest } from "./mpv.ts";
-import { type EngineCommand, MpvEngine } from "./mpv-engine.ts";
+import { MpvEngine, parseEngineCommand } from "./mpv-engine.ts";
 
 // Nuvio Web's own server, run on loopback with its data in the user's app-data
 // folder, and a window that waits for it. Signing in goes to the official Nuvio
@@ -82,11 +82,6 @@ logs.write("shell", "info", "Starting", {
 });
 
 const mpvBinary = findMpv();
-const engineAvailable =
-	process.platform === "darwin" &&
-	existsSync(
-		join(PATHS.RESOURCES_FOLDER, "app", "native", "libnuvio-mpv.dylib"),
-	);
 logs.write(
 	"shell",
 	mpvBinary ? "info" : "warn",
@@ -109,6 +104,21 @@ const ENGINE_BRIDGE = `window.nuvioDesktop = Object.assign(window.nuvioDesktop |
 	always: ${process.env.NUVIO_MPV_ENGINE === "always"},
 } });`;
 
+function dispatch(name: string, detail: unknown) {
+	window.webview.executeJavascript(
+		`window.dispatchEvent(new CustomEvent(${JSON.stringify(name)}, { detail: ${JSON.stringify(detail)} }))`,
+	);
+}
+
+// Loaded before the window so the page is only offered an engine that works;
+// it reaches the window lazily, on the first source it opens.
+const engine = MpvEngine.load({
+	window: () => window.ptr,
+	onState: (state) => dispatch("nuvio:engine", state),
+	onProgress: (event) => dispatch("nuvio:mpv", event),
+	log: (level, message, data) => logs.write("mpv", level, message, data),
+});
+
 const window = new BrowserWindow({
 	title: "Nuvio Web",
 	html: page("Starting…"),
@@ -116,24 +126,9 @@ const window = new BrowserWindow({
 	preload: [
 		PAGE_LOGGER,
 		mpvBinary ? MPV_BRIDGE : "",
-		engineAvailable ? ENGINE_BRIDGE : "",
+		engine ? ENGINE_BRIDGE : "",
 	].join("\n"),
 });
-
-function dispatch(name: string, detail: unknown) {
-	window.webview.executeJavascript(
-		`window.dispatchEvent(new CustomEvent(${JSON.stringify(name)}, { detail: ${JSON.stringify(detail)} }))`,
-	);
-}
-
-const engine = engineAvailable
-	? MpvEngine.load({
-			window: () => window.ptr,
-			onState: (state) => dispatch("nuvio:engine", state),
-			onProgress: (event) => dispatch("nuvio:mpv", event),
-			log: (level, message, data) => logs.write("mpv", level, message, data),
-		})
-	: null;
 
 const mpv = mpvBinary
 	? new MpvPlayer(
@@ -193,8 +188,6 @@ for (const name of ["did-navigate", "dom-ready"] as const) {
 		});
 	});
 }
-const ENGINE_OPS = new Set(["pause", "seek", "volume", "mute", "speed"]);
-
 /** Only well-formed engine requests from the page reach mpv. */
 function handleEngine(message: {
 	op?: unknown;
@@ -214,18 +207,11 @@ function handleEngine(message: {
 	} else if (message.op === "close") {
 		engine.close();
 	} else if (message.op === "command") {
-		const command = message.command as Partial<EngineCommand> | null;
-		const value =
-			command && "value" in command
-				? command.value
-				: (command as { position?: unknown } | null)?.position;
-		if (
-			command &&
-			typeof command.op === "string" &&
-			ENGINE_OPS.has(command.op) &&
-			(typeof value === "boolean" || Number.isFinite(value))
-		) {
-			engine.command(command as EngineCommand);
+		const command = parseEngineCommand(message.command);
+		if (command) {
+			engine.command(command);
+		} else {
+			logs.write("shell", "warn", "Refused an engine command", { message });
 		}
 	}
 }

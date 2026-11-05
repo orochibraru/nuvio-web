@@ -1,7 +1,8 @@
 import { Database } from "bun:sqlite";
 import { chmodSync, mkdirSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { tmpdir, userInfo } from "node:os";
 import { join } from "node:path";
+import process from "node:process";
 
 // Every launch's logs, in one SQLite file anyone can query while the app runs:
 // the shell's own, the server's (its JSON lines), and the page's (console,
@@ -24,14 +25,31 @@ export interface LogDb {
 	pipe: (stream: ReadableStream<Uint8Array>, level: string) => Promise<void>;
 }
 
-export function openLogDb(): LogDb {
-	const dir = join(tmpdir(), "nuvio-web-desktop");
-	// Stream links carry tokens: on a shared /tmp, only this user may read them.
-	mkdirSync(dir, { recursive: true, mode: 0o700 });
-	chmodSync(dir, 0o700);
+/**
+ * The log file, in a folder of this user's own: on a shared /tmp another
+ * user's would be unwritable, and stream links carry tokens, so it is private.
+ * Logs are never worth not starting, so memory stands in when it can't open.
+ */
+function openFile(): { path: string; db: Database } {
+	const user =
+		typeof process.getuid === "function"
+			? String(process.getuid())
+			: userInfo().username;
+	const dir = join(tmpdir(), `nuvio-web-desktop-${user}`);
 	const path = join(dir, "logs.sqlite");
-	const db = new Database(path, { create: true });
-	chmodSync(path, 0o600);
+	try {
+		mkdirSync(dir, { recursive: true, mode: 0o700 });
+		chmodSync(dir, 0o700);
+		const db = new Database(path, { create: true });
+		chmodSync(path, 0o600);
+		return { path, db };
+	} catch {
+		return { path: ":memory:", db: new Database(":memory:") };
+	}
+}
+
+export function openLogDb(): LogDb {
+	const { path, db } = openFile();
 	db.run("PRAGMA journal_mode = WAL");
 	db.run("PRAGMA busy_timeout = 2000");
 	db.run(`CREATE TABLE IF NOT EXISTS logs (

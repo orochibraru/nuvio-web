@@ -93,6 +93,9 @@ const AUDIO_CODEC_TOKENS: Array<[RegExp, string]> = [
 // tagged with one of these tends to play with no sound in the browser. Chrome's
 // support for AC-3 / E-AC-3 is platform- and build-dependent, so this is a
 // "likely" signal, not a guarantee.
+// The tokens a browser that decodes Dolby Digital (Plus) plays anyway; Atmos
+// here is the E-AC-3 kind (TrueHD Atmos still says TrueHD).
+const DOLBY_TOKENS = new Set(["Atmos", "EAC3", "AC3"]);
 const RISKY_AUDIO_TOKENS: Array<[RegExp, string]> = [
 	[/\b(atmos)\b/i, "Atmos"],
 	[/\b(e-?ac-?3|eac3|dd\s?\+|ddp\d?\.?\d?|dolby\s?digital\s?plus)\b/i, "EAC3"],
@@ -177,10 +180,18 @@ function firstMatch(
 /**
  * Best guess at whether this stream's audio will play in the browser, from its
  * label. `risky` = a Dolby/DTS codec tag with no AAC/Opus fallback mentioned.
+ * `decodesDolby`: the browser plays Dolby Digital (Plus) itself (WebKit), so
+ * only DTS / TrueHD / PCM tags are risky there.
  */
-export function audioSupport(stream: ResolvedStream): AudioSupport {
+export function audioSupport(
+	stream: ResolvedStream,
+	decodesDolby = false,
+): AudioSupport {
 	const raw = flatLabel(stream);
-	const risky = RISKY_AUDIO_TOKENS.some(([pattern]) => pattern.test(raw));
+	const risky = RISKY_AUDIO_TOKENS.some(
+		([pattern, label]) =>
+			!(decodesDolby && DOLBY_TOKENS.has(label)) && pattern.test(raw),
+	);
 	if (!risky) {
 		return "ok";
 	}

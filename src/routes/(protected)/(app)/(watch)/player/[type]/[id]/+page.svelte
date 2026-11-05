@@ -31,6 +31,7 @@
 	import type { UiSettings } from "#lib/settings/ui-settings.js";
 	import { sync } from "#lib/sync/store.svelte.js";
 	import {
+		audioRiskyHere,
 		forgetLink,
 		playbackHandoff,
 		recallLink,
@@ -48,7 +49,6 @@
 	} from "#lib/watch/playback-context.js";
 	import { sourcesPanel } from "#lib/watch/sources-panel.svelte.js";
 	import {
-		audioSupport,
 		describeStream,
 		pickBingeStream,
 		pickPreferredStream,
@@ -321,7 +321,7 @@
 		handed
 			? handed.audioRisky
 			: autoStream
-				? audioSupport(autoStream) === "risky"
+				? audioRiskyHere(autoStream)
 				: false,
 	);
 

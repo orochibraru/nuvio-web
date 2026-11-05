@@ -202,6 +202,28 @@ int nuvio_mpv_get_flag(void *pointer, const char *name) {
   return value;
 }
 
+// Drains mpv's event queue: -1 when a file failed to load or play, 1 when one
+// ended normally, 0 otherwise. Called on every poll, so the queue never fills.
+int nuvio_mpv_poll_end(void *pointer) {
+  NuvioMpvPlayer *player = (__bridge NuvioMpvPlayer *)pointer;
+  int outcome = 0;
+  for (;;) {
+    mpv_event *event = mpv_wait_event(player.mpv, 0);
+    if (event->event_id == MPV_EVENT_NONE) {
+      break;
+    }
+    if (event->event_id == MPV_EVENT_END_FILE) {
+      mpv_event_end_file *end = (mpv_event_end_file *)event->data;
+      if (end->reason == MPV_END_FILE_REASON_ERROR) {
+        outcome = -1;
+      } else if (end->reason == MPV_END_FILE_REASON_EOF && outcome == 0) {
+        outcome = 1;
+      }
+    }
+  }
+  return outcome;
+}
+
 void nuvio_mpv_set_visible(void *pointer, int visible) {
   NuvioMpvPlayer *player = (__bridge NuvioMpvPlayer *)pointer;
   on_main(^{
