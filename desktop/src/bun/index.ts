@@ -91,8 +91,10 @@ logs.write(
 );
 
 // The page asks for mpv through this; it only exists when there is one.
-const MPV_BRIDGE =
-	"window.nuvioDesktop = { mpv: (request) => window.__electrobunSendToHost({ nuvioMpv: request }) };";
+const MPV_BRIDGE = `window.nuvioDesktop = {
+	mpv: (request) => window.__electrobunSendToHost({ nuvioMpv: request }),
+	stopMpv: () => window.__electrobunSendToHost({ nuvioMpvStop: true }),
+};`;
 
 const window = new BrowserWindow({
 	title: "Nuvio Web",
@@ -114,6 +116,10 @@ const mpv = mpvBinary
 
 Electrobun.events.on("host-message", (event) => {
 	const detail = (event as { data?: { detail?: unknown } }).data?.detail;
+	if ((detail as { nuvioMpvStop?: unknown } | undefined)?.nuvioMpvStop) {
+		mpv?.stop();
+		return;
+	}
 	const mpvRequest = (detail as { nuvioMpv?: unknown } | undefined)?.nuvioMpv;
 	if (mpvRequest !== undefined) {
 		const request = parseMpvRequest(mpvRequest);
@@ -146,6 +152,39 @@ for (const name of ["did-navigate", "dom-ready"] as const) {
 		});
 	});
 }
+// What the system may open for a link: the web, mail, and the video players
+// the app hands streams to. Anything else (file:, custom app schemes a page
+// could aim at) stays shut.
+const OUTSIDE_SCHEMES = new Set([
+	"http:",
+	"https:",
+	"mailto:",
+	"vlc:",
+	"vlc-x-callback:",
+	"infuse:",
+	"outplayer:",
+	"open-vidhub:",
+	"iina:",
+]);
+
+function openOutside(raw: string) {
+	let scheme: string;
+	try {
+		scheme = new URL(raw).protocol;
+	} catch {
+		logs.write("shell", "warn", "Refused to open a malformed link", {
+			url: raw,
+		});
+		return;
+	}
+	if (!OUTSIDE_SCHEMES.has(scheme)) {
+		logs.write("shell", "warn", "Refused to open a link", { url: raw, scheme });
+		return;
+	}
+	logs.write("shell", "info", "Opened outside the app", { url: raw });
+	Utils.openExternal(raw);
+}
+
 window.webview.on("will-navigate", (event) => {
 	const detail = (event as { data?: { detail?: string } }).data?.detail ?? "";
 	try {
@@ -154,8 +193,7 @@ window.webview.on("will-navigate", (event) => {
 			allowed?: boolean;
 		};
 		if (url && allowed === false && url !== "about:blank") {
-			logs.write("shell", "info", "Opened outside the app", { url });
-			Utils.openExternal(url);
+			openOutside(url);
 		}
 	} catch {
 		// not a navigation we can act on
@@ -168,8 +206,7 @@ Electrobun.events.on("new-window-open", (event) => {
 			? detail
 			: (detail as { url?: string } | undefined)?.url;
 	if (url) {
-		logs.write("shell", "info", "Opened outside the app", { url });
-		Utils.openExternal(url);
+		openOutside(url);
 	}
 });
 

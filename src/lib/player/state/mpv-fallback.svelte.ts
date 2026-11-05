@@ -3,6 +3,7 @@ import {
 	desktopMpv,
 	MPV_EVENT,
 	type MpvEvent,
+	mpvCanOpen,
 } from "#lib/player/desktop-mpv.js";
 
 type Status = "playing" | "closed" | "failed";
@@ -12,6 +13,8 @@ interface MpvFallbackDeps {
 	title: () => string;
 	/** The source is known not to play in the web view: hand it over at once. */
 	blocked: () => boolean;
+	/** `start` is the resume position, not a guess that would overwrite it. */
+	ready: () => boolean;
 	start: () => number;
 	/** A progress saver bound to the current video. */
 	reporter: () => (position: number, duration: number) => void;
@@ -23,7 +26,7 @@ interface MpvFallbackDeps {
  * the in-app player's. Inert outside the desktop app.
  */
 export function createMpvFallback(deps: MpvFallbackDeps) {
-	const send = desktopMpv();
+	const desktop = desktopMpv();
 	let session = $state<{
 		url: string;
 		status: Status;
@@ -35,22 +38,42 @@ export function createMpvFallback(deps: MpvFallbackDeps) {
 
 	function play(position: number) {
 		const url = deps.url();
-		if (!(send && url)) {
+		if (!(desktop && mpvCanOpen(url))) {
 			return;
 		}
 		session = { url, status: "playing", position };
-		send({ url, title: deps.title(), start: position });
+		desktop.play({ url, title: deps.title(), start: position });
 	}
 
 	$effect(() => {
 		const url = deps.url();
-		if (send && url && deps.blocked() && session?.url !== url) {
+		if (
+			desktop &&
+			mpvCanOpen(url) &&
+			deps.blocked() &&
+			deps.ready() &&
+			session?.url !== url
+		) {
 			untrack(() => play(deps.start()));
 		}
 	});
 
+	// mpv runs in its own window: it must not keep playing a source the viewer
+	// left, by picking another or leaving the player.
 	$effect(() => {
-		if (!send) {
+		if (session?.status === "playing" && deps.url() !== session.url) {
+			desktop?.stop();
+			session = null;
+		}
+	});
+	$effect(() => () => {
+		if (untrack(() => session?.status) === "playing") {
+			desktop?.stop();
+		}
+	});
+
+	$effect(() => {
+		if (!desktop) {
 			return;
 		}
 		const report = deps.reporter();
@@ -74,7 +97,7 @@ export function createMpvFallback(deps: MpvFallbackDeps) {
 
 	return {
 		/** Whether this runs in the desktop app with an mpv to hand sources to. */
-		available: send !== null,
+		available: desktop !== null,
 		/** The mpv session for the current source, while there is one. */
 		get shown() {
 			return shown;

@@ -1,5 +1,5 @@
 import { Database } from "bun:sqlite";
-import { mkdirSync } from "node:fs";
+import { chmodSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -26,10 +26,14 @@ export interface LogDb {
 
 export function openLogDb(): LogDb {
 	const dir = join(tmpdir(), "nuvio-web-desktop");
-	mkdirSync(dir, { recursive: true });
+	// Stream links carry tokens: on a shared /tmp, only this user may read them.
+	mkdirSync(dir, { recursive: true, mode: 0o700 });
+	chmodSync(dir, 0o700);
 	const path = join(dir, "logs.sqlite");
 	const db = new Database(path, { create: true });
+	chmodSync(path, 0o600);
 	db.run("PRAGMA journal_mode = WAL");
+	db.run("PRAGMA busy_timeout = 2000");
 	db.run(`CREATE TABLE IF NOT EXISTS logs (
 		id INTEGER PRIMARY KEY,
 		run INTEGER NOT NULL,
@@ -57,17 +61,24 @@ export function openLogDb(): LogDb {
 		scope?: string | null;
 		at?: string;
 	}) {
-		insert.run(
-			run,
-			entry.at ?? new Date().toISOString(),
-			entry.source,
-			entry.level,
-			entry.scope ?? null,
-			entry.message.slice(0, MAX_TEXT),
-			entry.data === undefined
-				? null
-				: JSON.stringify(entry.data).slice(0, MAX_TEXT),
-		);
+		// Logging never takes the app down: a write that fails (a full disk,
+		// another instance holding the lock) is dropped, and the pipes reading
+		// the server keep draining it.
+		try {
+			insert.run(
+				run,
+				entry.at ?? new Date().toISOString(),
+				entry.source,
+				entry.level,
+				entry.scope ?? null,
+				entry.message.slice(0, MAX_TEXT),
+				entry.data === undefined
+					? null
+					: JSON.stringify(entry.data).slice(0, MAX_TEXT),
+			);
+		} catch {
+			// dropped
+		}
 	}
 
 	function recordLine(line: string, level: string) {

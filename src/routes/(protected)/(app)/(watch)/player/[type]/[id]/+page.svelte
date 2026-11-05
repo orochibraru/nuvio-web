@@ -617,10 +617,10 @@
 			Boolean(
 				active && (active.notWebReady || codecBlocked) && !preferExternal,
 			),
+		ready: () => resumeKnown,
 		start: () => startTime,
 		reporter: progressReporter,
 	});
-	const mpvShown = $derived(mpv.shown);
 
 	// A stream that can't play here (P2P-only, or a codec this browser lacks) but
 	// has a direct URL : hand it to an external player, or let the viewer copy
@@ -702,7 +702,7 @@
     </button>
   {/if}
 
-  {#if (!playableSrc || mpvShown) && (context.background ?? context.poster)}
+  {#if (!playableSrc || mpv.shown) && (context.background ?? context.poster)}
     <img
       src={context.background ?? context.poster}
       alt=""
@@ -710,15 +710,16 @@
     />
   {/if}
 
-  {#if mpvShown}
+  {#if mpv.shown}
+    {@const session = mpv.shown}
     <div
       class="relative z-10 flex max-w-md flex-col items-center gap-4 px-6 text-center"
       data-testid="mpv-screen"
     >
       <p class="text-lg font-semibold">
-        {#if mpvShown.status === "playing"}
+        {#if session.status === "playing"}
           {m.player_mpv_playing()}
-        {:else if mpvShown.status === "failed"}
+        {:else if session.status === "failed"}
           {m.player_mpv_failed()}
         {:else}
           {m.player_mpv_closed()}
@@ -726,8 +727,8 @@
       </p>
       <p class="text-sm text-white/60">{m.player_mpv_body()}</p>
       <div class="flex flex-wrap items-center justify-center gap-2">
-        {#if mpvShown.status !== "playing"}
-          <Button onclick={() => mpv.play(mpvShown.position)}>
+        {#if session.status !== "playing"}
+          <Button onclick={() => mpv.play(session.position)}>
             <PlayIcon data-icon="inline-start" class="fill-current" />
             {m.player_mpv_reopen()}
           </Button>

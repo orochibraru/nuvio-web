@@ -128,7 +128,13 @@ export class MpvPlayer {
 
 		const state = { position: request.start, duration: 0, ended: false };
 		let lastReport = 0;
+		// Events from an mpv already replaced or stopped would land on the
+		// page's next session: only the current one reports.
+		const current = () => this.#child === child;
 		const report = (force = false) => {
+			if (!current()) {
+				return;
+			}
 			if (force || Date.now() - lastReport >= REPORT_EVERY_MS) {
 				lastReport = Date.now();
 				this.#onEvent({ type: "progress", ...state });
@@ -148,13 +154,14 @@ export class MpvPlayer {
 		});
 
 		void child.exited.then((code) => {
-			if (this.#child === child) {
-				this.#child = null;
-				this.#socket?.destroy();
-				this.#socket = null;
-			}
 			const failed = code === EXIT_PLAYBACK_FAILED;
 			this.#log(failed ? "error" : "info", "mpv exited", { code, ...state });
+			if (!current()) {
+				return;
+			}
+			this.#child = null;
+			this.#socket?.destroy();
+			this.#socket = null;
 			this.#onEvent({ type: "closed", ...state, failed });
 		});
 	}
@@ -198,8 +205,9 @@ export class MpvPlayer {
 			if (socket) {
 				this.#socket = socket;
 				let buffer = "";
-				socket.on("data", (chunk) => {
-					buffer += chunk.toString("utf8");
+				socket.setEncoding("utf8");
+				socket.on("data", (chunk: string) => {
+					buffer += chunk;
 					let newline = buffer.indexOf("\n");
 					while (newline >= 0) {
 						const line = buffer.slice(0, newline);

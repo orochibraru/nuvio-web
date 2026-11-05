@@ -25,7 +25,8 @@ export function createRangeFetch(
 		const known = finalUrls.get(link);
 		if (known) {
 			const direct = await base(known, init).catch(() => null);
-			if (direct?.ok) {
+			// Only a partial answer proves the shortcut still honours ranges.
+			if (direct?.status === 206) {
 				return direct;
 			}
 			await direct?.body?.cancel().catch(() => undefined);

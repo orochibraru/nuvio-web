@@ -50,6 +50,24 @@ describe("createRangeFetch", () => {
 		]);
 	});
 
+	it("goes back to the link once the final URL stops honouring ranges", async () => {
+		const cdn = { status: 206 };
+		const base = vi.fn(async (input: RequestInfo | URL) =>
+			String(input) === LINK ? reply(200, CDN, true) : reply(cdn.status, CDN),
+		);
+		const rangeFetch = createRangeFetch(base);
+		await rangeFetch(LINK, RANGE);
+
+		cdn.status = 200;
+		base.mockClear();
+		await rangeFetch(LINK, RANGE);
+		expect(base.mock.calls.map(([input]) => String(input))).toEqual([
+			CDN,
+			LINK,
+			CDN,
+		]);
+	});
+
 	it("leaves a request without a range, a 206 and an unredirected 200 alone", async () => {
 		const base = vi.fn(async () => reply(200, LINK));
 		const rangeFetch = createRangeFetch(base);

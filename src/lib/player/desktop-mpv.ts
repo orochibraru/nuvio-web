@@ -26,12 +26,29 @@ export const MPV_EVENT = "nuvio:mpv";
 
 declare global {
 	interface Window {
-		nuvioDesktop?: { mpv?: (request: MpvRequest) => void };
+		nuvioDesktop?: {
+			mpv?: (request: MpvRequest) => void;
+			stopMpv?: () => void;
+		};
 	}
 }
 
-export function desktopMpv(): ((request: MpvRequest) => void) | null {
-	return typeof window === "undefined"
-		? null
-		: (window.nuvioDesktop?.mpv ?? null);
+export interface DesktopMpv {
+	play: (request: MpvRequest) => void;
+	stop: () => void;
+}
+
+export function desktopMpv(): DesktopMpv | null {
+	const bridge =
+		typeof window === "undefined" ? undefined : window.nuvioDesktop;
+	const play = bridge?.mpv;
+	if (!play) {
+		return null;
+	}
+	return { play, stop: () => bridge.stopMpv?.() };
+}
+
+/** Whether mpv can open `url` at all: the desktop app only hands it http(s). */
+export function mpvCanOpen(url: string | null): url is string {
+	return url !== null && /^https?:\/\//i.test(url);
 }

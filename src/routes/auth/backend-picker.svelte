@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from "svelte";
+	import { onMount, untrack } from "svelte";
 	import * as Field from "#lib/components/ui/field/index.js";
 	import { Input } from "#lib/components/ui/input/index.js";
 	import { m } from "#lib/i18n/index.js";
@@ -28,7 +28,9 @@
 		"official",
 		...(customAllowed ? (["custom"] as const) : []),
 	]);
-	let choice = $state<Choice>("official");
+	// The first choice from the start, so the server-rendered form (and a submit
+	// before hydration) already targets the instance default.
+	let choice = $state<Choice>(untrack(() => choices[0]));
 	let custom = $state({ url: "", key: "" });
 
 	const urlIssue = $derived(url.issues()?.[0]?.message);
@@ -70,7 +72,6 @@
 	}
 
 	onMount(() => {
-		choice = choices[0];
 		try {
 			const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "null");
 			if (typeof saved?.url === "string" && typeof saved?.key === "string") {
