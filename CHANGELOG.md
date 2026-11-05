@@ -1,5 +1,34 @@
 # Changelog
 
+## [1.0.29](https://github.com/orochibraru/nuvio-web/compare/v1.0.28...v1.0.29) (2026-11-05)
+
+### Features
+
+* **server:** graceful shutdown that lets background syncs finish ([cf25501](https://github.com/orochibraru/nuvio-web/commit/cf255019d45a309785e6ca0b92f068859426cd5c))
+* **backend:** built-in Nuvio-compatible backend without Supabase ([9dbbe15](https://github.com/orochibraru/nuvio-web/commit/9dbbe15e23bf7d0f56d89be8babd8f48c4fc8be7))
+* **admin:** tabs, anonymous stats, notifications and SMTP ([963b6c9](https://github.com/orochibraru/nuvio-web/commit/963b6c9e9f823fd3d113b0bd9a05e003c7d153a6))
+* **auth:** sign in through a custom Nuvio-compatible backend ([b68d8f6](https://github.com/orochibraru/nuvio-web/commit/b68d8f693587bf17a9f79ef95d40a0bedfd103c7))
+* **profiles:** remember the selected profile in this browser ([d7ca305](https://github.com/orochibraru/nuvio-web/commit/d7ca3057bba8cbd65877c62e11b280b1b7688355))
+* **addons:** paginated browse page, addon details and type labels ([87786fa](https://github.com/orochibraru/nuvio-web/commit/87786fab16fe6455463e12f590bfc9e9a0815495))
+* **calendar:** upcoming episodes page and new-episode badges ([29a6472](https://github.com/orochibraru/nuvio-web/commit/29a6472e250077432e6572fddd8c99356d881e58))
+* **player:** media session, shortcuts, MKV subtitles and an ultrawide frame ([bfe7813](https://github.com/orochibraru/nuvio-web/commit/bfe7813761a26e6ce5e790471d3c9fb50352214a))
+* **logger:** aligned access lines with response times ([10166d5](https://github.com/orochibraru/nuvio-web/commit/10166d57964f21bebcacf7a497a0ad227f6735c8))
+* **i18n:** add the strings for the new screens ([2d40595](https://github.com/orochibraru/nuvio-web/commit/2d4059589ce322de3cae32878de281336ff3dffb))
+
+### Bug Fixes
+
+* **auth:** link forgot password directly to reset page (#57) ([5c3bbba](https://github.com/orochibraru/nuvio-web/commit/5c3bbba78e9045edd0c8b007ea91ea8415d8caa5))
+* **admin:** sign out official API sessions when the default backend changes ([7ca5314](https://github.com/orochibraru/nuvio-web/commit/7ca531432fbc527a61de24fafb0ffe8c499d757e))
+* **server:** accept any URL the browser is on, plain HTTP included ([f4a6e2b](https://github.com/orochibraru/nuvio-web/commit/f4a6e2bbebcb1cb848ba799ba418bef19f846a62))
+* **docker:** drop the build-time origin, read the scheme from PROTOCOL_HEADER ([7e97a73](https://github.com/orochibraru/nuvio-web/commit/7e97a73eea2f174b4baa54e6e54975fddc6d18d5))
+* **downloads:** bound the fan-out and validate stored files ([9214796](https://github.com/orochibraru/nuvio-web/commit/9214796aecacda53524f96db9aaecd5a6455a35c))
+* **sync:** stop losing queued writes and scope data per account ([d16dfcd](https://github.com/orochibraru/nuvio-web/commit/d16dfcdf72c836e15e9f4f3e96400b0d485aede6))
+* **security:** harden fetches, profile data and response headers ([33170c4](https://github.com/orochibraru/nuvio-web/commit/33170c4ff7d48fad249d6c586387836b678319ca))
+
+### Documentation
+
+* backends, admin, player, sync and security changes ([3b0439c](https://github.com/orochibraru/nuvio-web/commit/3b0439c8811daff3bde5fc499249fbfbb025171c))
+
 ## [1.0.28](https://github.com/orochibraru/nuvio-web/compare/v1.0.27...v1.0.28) (2026-10-29)
 
 ### Features
