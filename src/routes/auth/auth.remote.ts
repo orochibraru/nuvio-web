@@ -16,10 +16,12 @@ import {
 	BACKEND_UNREACHABLE,
 	backendOrigin,
 	clientOptions,
+	discoverPublishableKey,
 	isAuthSession,
 	isPublishableKey,
 	type NuvioBackend,
 	parseBackendUrl,
+	untrustedBackendFetch,
 } from "#lib/nuvio/backend.js";
 import {
 	type AuthSession,
@@ -47,37 +49,44 @@ interface BackendIssues {
 
 /**
  * The backend to sign in through: the instance default (the official API, or
- * the one an admin set) when the form names none, else the user's own, which
- * the admin must allow and must not have banned. Null is the official API.
+ * the one an admin set) when the form names none, the official API when it
+ * names that, else the user's own, which the admin must allow and must not
+ * have banned. Null is the official API.
  */
-function backendOf(
+async function backendOf(
 	data: { backendUrl: string; backendKey: string },
 	issue: BackendIssues,
-): NuvioBackend | null {
+): Promise<NuvioBackend | null> {
 	const db = getRequestEvent().locals.services.get(DATABASE).tryConnect();
 	const policy = policyOrDefault(db);
 	if (!data.backendUrl.trim()) {
 		return policy.defaultBackend;
 	}
+	const url = parseBackendUrl(data.backendUrl);
+	// The official API is always on offer, custom backends allowed or not.
+	if (url === NUVIO_BASE_URL) {
+		return null;
+	}
 	if (!policy.customAllowed) {
 		invalid(m.auth_error_backend_disallowed());
 	}
-	const url = parseBackendUrl(data.backendUrl);
 	if (url === null) {
 		invalid(issue.backendUrl(m.auth_error_backend_url_invalid()));
-	}
-	const publishableKey = data.backendKey.trim();
-	if (!isPublishableKey(publishableKey)) {
-		invalid(issue.backendKey(m.auth_error_backend_key_invalid()));
 	}
 	if (url === policy.defaultBackend?.url) {
 		return policy.defaultBackend;
 	}
-	if (url === NUVIO_BASE_URL && policy.defaultBackend === null) {
-		return null;
-	}
 	if (db && isBannedBackend(db, url)) {
 		invalid(m.auth_error_backend_banned());
+	}
+	const publishableKey =
+		data.backendKey.trim() ||
+		(await discoverPublishableKey(url, untrustedBackendFetch));
+	if (publishableKey === null) {
+		invalid(issue.backendKey(m.auth_error_backend_key_not_found()));
+	}
+	if (!isPublishableKey(publishableKey)) {
+		invalid(issue.backendKey(m.auth_error_backend_key_invalid()));
 	}
 	return { url, publishableKey, trusted: false };
 }
@@ -231,7 +240,7 @@ function safeTarget(value: string): string {
 export const signIn = form(signInSchema, async (data, issue) => {
 	const { fetch, locals } = getRequestEvent();
 	assertNotThrottled(data.email, data.backendUrl);
-	const backend = backendOf(data, issue);
+	const backend = await backendOf(data, issue);
 	assertAllowed(data.email, backend);
 	let session: AuthSession;
 	try {
@@ -254,7 +263,7 @@ export const signIn = form(signInSchema, async (data, issue) => {
 export const signUp = form(signUpSchema, async (data, issue) => {
 	const { fetch, locals } = getRequestEvent();
 	assertNotThrottled(data.email, data.backendUrl);
-	const backend = backendOf(data, issue);
+	const backend = await backendOf(data, issue);
 	assertAllowed(data.email, backend);
 	let session: AuthSession;
 	try {

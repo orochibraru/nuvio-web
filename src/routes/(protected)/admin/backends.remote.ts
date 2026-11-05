@@ -7,6 +7,7 @@ import {
 	setCustomBackendsAllowed,
 	setDefaultBackend,
 	testBackend,
+	withPublishableKey,
 } from "#lib/admin/backends-data.js";
 import { BUILT_IN_BACKEND } from "#lib/backend/tokens.js";
 import { m } from "#lib/i18n/index.js";
@@ -64,7 +65,7 @@ export const saveDefaultBackend = form(
 		url: v.optional(v.pipe(v.string(), v.trim()), ""),
 		publishableKey: v.optional(v.pipe(v.string(), v.trim()), ""),
 	}),
-	(data, issue) => {
+	async (data, issue) => {
 		const context = admin();
 		let next: { url: string; publishableKey: string } | null = null;
 		if (data.url) {
@@ -78,7 +79,10 @@ export const saveDefaultBackend = form(
 						: []),
 				);
 			}
-			next = parsed.output;
+			next = await withPublishableKey(parsed.output);
+			if (next === null) {
+				invalid(issue.publishableKey(m.auth_error_backend_key_not_found()));
+			}
 		}
 		changeDefault(context, next);
 	},
@@ -129,7 +133,8 @@ export const testDefaultBackend = command(
 	backendFieldsSchema,
 	async (backend) => {
 		admin();
-		return { ok: await testBackend(backend) };
+		const complete = await withPublishableKey(backend);
+		return { ok: complete !== null && (await testBackend(complete)) };
 	},
 );
 

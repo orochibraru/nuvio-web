@@ -1,0 +1,82 @@
+# Builds the desktop app on every platform it ships for. Hutch only builds for
+# the machine it runs on, so each target gets its own native runner.
+name: Desktop
+
+on:
+  pull_request:
+    paths:
+      - "desktop/**"
+      - "package.json"
+      - "bun.lock"
+      - "static/icon-512.png"
+      - ".github/workflows/desktop.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "desktop/**"
+      - "package.json"
+      - "bun.lock"
+      - "static/icon-512.png"
+      - ".github/workflows/desktop.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: desktop-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  TZ: Europe/Paris
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  CI: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build (${{ matrix.target }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: macos-arm64
+            runner: macos-latest
+          - target: macos-x64
+            runner: macos-15-intel
+          - target: linux-x64
+            runner: ubuntu-latest
+          - target: linux-arm64
+            runner: ubuntu-24.04-arm
+          - target: win-x64
+            runner: windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: package.json
+
+      - run: bun install --frozen-lockfile --ignore-scripts
+
+      - run: bun run sync
+
+      - run: bun run install:desktop
+
+      - name: Type-check the desktop shell
+        working-directory: desktop
+        run: bunx tsc -p tsconfig.json
+
+      # Compiles the server first (desktop/scripts/pre-build.ts). Unsigned:
+      # signing and notarization are not set up yet.
+      - run: bun run build:desktop
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: nuvio-web-desktop-${{ matrix.target }}
+          path: desktop/artifacts/
+          if-no-files-found: error
+          retention-days: 14

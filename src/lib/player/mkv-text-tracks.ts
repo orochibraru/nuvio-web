@@ -4,6 +4,7 @@ import {
 	MkvTextExtractor,
 	type MkvTextTrack,
 } from "./mkv-text.ts";
+import { createRangeFetch } from "./range-fetch.ts";
 
 interface Cue {
 	start: number;
@@ -22,12 +23,13 @@ export class MkvTextTracks {
 	readonly #seen = new Set<string>();
 	readonly #textTracks = new Map<number, TextTrack>();
 	#element: HTMLVideoElement | null = null;
+	readonly #rangeFetch = createRangeFetch();
 
 	readonly fetch = async (
 		input: RequestInfo | URL,
 		init?: RequestInit,
 	): Promise<Response> => {
-		const response = await fetch(input, init);
+		const response = await this.#rangeFetch(input, init);
 		if (!(response.ok && response.body)) {
 			return response;
 		}

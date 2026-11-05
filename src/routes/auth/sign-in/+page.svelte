@@ -15,7 +15,7 @@
 	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
 	import { signIn } from "../auth.remote.ts";
-	import CustomBackend from "../custom-backend.svelte";
+	import BackendPicker from "../backend-picker.svelte";
 
 	let { data } = $props();
 
@@ -109,11 +109,12 @@
 
 				<input {...signIn.fields.redirectTo.as('hidden', redirectTo)}>
 
-				<CustomBackend
+				<BackendPicker
 					url={signIn.fields.backendUrl}
 					publishableKey={signIn.fields.backendKey}
-					allowed={data.customBackendsAllowed}
+					customAllowed={data.customBackendsAllowed}
 					defaultHost={data.defaultBackendHost}
+					officialUrl={data.officialBackendUrl}
 				/>
 
 				<Field.Field>

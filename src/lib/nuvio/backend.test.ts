@@ -6,6 +6,7 @@ import {
 	BACKEND_UNREACHABLE,
 	backendOrigin,
 	clientOptions,
+	discoverPublishableKey,
 	isAuthSession,
 	isPublishableKey,
 	type NuvioBackend,
@@ -245,5 +246,55 @@ describe("refreshSession", () => {
 			(error) =>
 				error instanceof NuvioApiError && error.code === BACKEND_INVALID,
 		);
+	});
+});
+
+describe("discoverPublishableKey", () => {
+	const answer = (body: unknown, status = 200) =>
+		vi.fn(async () => new Response(JSON.stringify(body), { status }));
+
+	it("reads the key from the backend's /.well-known/nuvio", async () => {
+		const fetch = answer({
+			version: 1,
+			service: "nuvio",
+			self_hosted: true,
+			backend_url: "http://localhost:8000",
+			publishable_key: "sb_publishable_abc",
+			capabilities: { email_password_auth: true, tv_login: true },
+		});
+		expect(
+			await discoverPublishableKey(
+				"https://backend.example/sub",
+				fetch as never,
+			),
+		).toBe("sb_publishable_abc");
+		expect(fetch).toHaveBeenCalledWith(
+			"https://backend.example/sub/.well-known/nuvio",
+			{ headers: { accept: "application/json" } },
+		);
+	});
+
+	it.each([
+		["another service", answer({ service: "other", publishable_key: "k" })],
+		[
+			"a key that could split a header",
+			answer({ service: "nuvio", publishable_key: "k\r\nx: 1" }),
+		],
+		["no key", answer({ service: "nuvio" })],
+		[
+			"an error status",
+			answer({ service: "nuvio", publishable_key: "k" }, 404),
+		],
+		["a body that is not JSON", vi.fn(async () => new Response("<html>"))],
+		[
+			"a transport failure",
+			vi.fn(async () => {
+				throw new Error("refused");
+			}),
+		],
+	])("is null for %s, never a throw", async (_name, fetch) => {
+		expect(
+			await discoverPublishableKey("https://backend.example", fetch as never),
+		).toBeNull();
 	});
 });

@@ -23,6 +23,14 @@ const { data, logger, store, guard, event, builtIn } = vi.hoisted(() => {
 		setDefaultBackend: vi.fn(),
 		setBackendBanned: vi.fn((): string | null => "https://b.example"),
 		testBackend: vi.fn(async () => true),
+		withPublishableKey: vi.fn(
+			async (backend: { url: string; publishableKey: string }) =>
+				backend.publishableKey
+					? backend
+					: backend.url === "https://self-hosted.example"
+						? { ...backend, publishableKey: "discovered" }
+						: null,
+		),
 	};
 	const logger = { warn: vi.fn(), info: vi.fn() };
 	const builtIn = {
@@ -101,6 +109,8 @@ vi.mock("#lib/admin/backends-data.js", async (original) => {
 		setBackendBanned: (...args: unknown[]) =>
 			data.setBackendBanned(...(args as [])),
 		testBackend: (...args: unknown[]) => data.testBackend(...(args as [])),
+		withPublishableKey: (backend: { url: string; publishableKey: string }) =>
+			data.withPublishableKey(backend),
 	};
 });
 
@@ -133,7 +143,7 @@ describe("every function is admin-only", () => {
 			throw new Error("404");
 		});
 		expect(() => setCustomBackends({ allowed: "on" })).toThrow("404");
-		expect(() => saveDefaultBackend({ url: "" }, issue)).toThrow("404");
+		await expect(saveDefaultBackend({ url: "" }, issue)).rejects.toThrow("404");
 		await expect(
 			testDefaultBackend({ url: "https://x.example", publishableKey: "k" }),
 		).rejects.toThrow("404");
@@ -162,8 +172,8 @@ describe("setCustomBackends", () => {
 });
 
 describe("saveDefaultBackend", () => {
-	it("accepts a LAN address from the admin, normalised", () => {
-		saveDefaultBackend(
+	it("accepts a LAN address from the admin, normalised", async () => {
+		await saveDefaultBackend(
 			{ url: "http://192.168.1.10:8000/", publishableKey: "anon" },
 			issue,
 		);
@@ -173,28 +183,49 @@ describe("saveDefaultBackend", () => {
 		);
 	});
 
-	it("refuses a malformed URL or key, field by field", () => {
-		expect(() =>
+	it("refuses a malformed URL or key, field by field", async () => {
+		await expect(
 			saveDefaultBackend(
 				{ url: "https://u:p@x.example", publishableKey: "a\r\nb" },
 				issue,
 			),
-		).toThrow(Invalid);
+		).rejects.toThrow(Invalid);
 		expect(data.setDefaultBackend).not.toHaveBeenCalled();
 	});
 
-	it("ends the sessions of the default it replaces", () => {
+	it("reads the key a self-hosted backend publishes when none is typed", async () => {
+		await saveDefaultBackend(
+			{ url: "https://self-hosted.example", publishableKey: "" },
+			issue,
+		);
+		expect(data.setDefaultBackend).toHaveBeenCalledWith(
+			{ marker: "db" },
+			{ url: "https://self-hosted.example", publishableKey: "discovered" },
+		);
+	});
+
+	it("refuses an empty key when the backend publishes none", async () => {
+		await expect(
+			saveDefaultBackend(
+				{ url: "https://plain.example", publishableKey: "" },
+				issue,
+			),
+		).rejects.toThrow(Invalid);
+		expect(data.setDefaultBackend).not.toHaveBeenCalled();
+	});
+
+	it("ends the sessions of the default it replaces", async () => {
 		data.policy.defaultBackend = { url: "http://192.168.1.10" };
-		saveDefaultBackend({ url: "", publishableKey: "" }, issue);
+		await saveDefaultBackend({ url: "", publishableKey: "" }, issue);
 		expect(data.setDefaultBackend).toHaveBeenCalledWith({ marker: "db" }, null);
 		expect(store.deleteAllForBackend).toHaveBeenCalledWith(
 			"http://192.168.1.10",
 		);
 	});
 
-	it("ends the official API's sessions when it replaces it", () => {
+	it("ends the official API's sessions when it replaces it", async () => {
 		data.policy.defaultBackend = null;
-		saveDefaultBackend(
+		await saveDefaultBackend(
 			{ url: "https://own.example", publishableKey: "sb_publishable_x" },
 			issue,
 		);

@@ -27,7 +27,10 @@
 		"test:e2e": "playwright test --project=chromium",
 		"test:e2e:ui": "playwright test --ui",
 		"screenshots": "playwright test --project=showcase && bun run graphics",
-		"graphics": "bun run scripts/feature-graphic.ts"
+		"graphics": "bun run scripts/feature-graphic.ts",
+		"install:desktop": "cd desktop && electrobun prepare",
+		"dev:desktop": "cd desktop && electrobun dev",
+		"build:desktop": "cd desktop && electrobun build --env=stable"
 	},
 	"devDependencies": {
 		"@axe-core/playwright": "4.13.0",
@@ -52,6 +55,7 @@
 		"axe-core": "4.13.0",
 		"bits-ui": "2.20.0",
 		"clsx": "2.1.1",
+		"electrobun": "2.0.5",
 		"fake-indexeddb": "6.2.5",
 		"markdownlint-cli2": "0.23.3",
 		"mode-watcher": "1.1.0",

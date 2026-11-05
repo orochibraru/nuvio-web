@@ -1,0 +1,9 @@
+.hutch/
+node_modules/
+build/
+artifacts/
+icon.iconset/
+.cottontail-tmp/
+server/
+mpv/
+.cache/

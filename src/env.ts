@@ -61,6 +61,11 @@ export const variables = defineEnvVars({
 			return (value || defaults.logFormat) as LogFormat;
 		},
 	},
+	NUVIO_ALLOW_CUSTOM_BACKENDS: {
+		description:
+			"'true' lets anyone signing in use a backend of their own until an admin decides otherwise on /admin (the desktop app sets it). Unset means custom backends start off.",
+		schema: (value: string | undefined) => value === "true",
+	},
 	NUVIO_SENTRY_DSN: {
 		description:
 			"Sentry DSN the browser reports uncaught client errors to (any Sentry-compatible ingest, e.g. Homerun's). Unset means client errors are only logged to the console.",

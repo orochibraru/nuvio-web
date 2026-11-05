@@ -2,9 +2,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("$app/env", () => ({ dev: false }));
 vi.mock("$app/server", () => ({ getRequestEvent: () => ({ locals: {} }) }));
+const env = vi.hoisted(() => ({ allowCustom: false }));
 vi.mock("$app/env/private", () => ({
 	NUVIO_ADMIN_EMAILS: "",
 	NUVIO_DATA_DIR: "data",
+	get NUVIO_ALLOW_CUSTOM_BACKENDS() {
+		return env.allowCustom;
+	},
 }));
 
 // Declared inside `vi.hoisted` : a plain class would not exist yet when the
@@ -19,6 +23,7 @@ const { FakeApiError, admin, backends, session, store } = vi.hoisted(() => ({
 			defaultBackend: null as null | { url: string; trusted: boolean },
 		},
 		banned: new Set<string>(),
+		allowCustomUnlessSet: vi.fn(),
 	},
 	session: {
 		stored: null as unknown,
@@ -50,13 +55,15 @@ vi.mock("#lib/admin/backends-data.js", () => ({
 			? backend === null
 			: backend?.trusted === true && backend.url === policy.defaultBackend.url,
 	isBannedBackend: (_db: unknown, url: string) => backends.banned.has(url),
+	allowCustomBackendsUnlessSet: (db: unknown) =>
+		backends.allowCustomUnlessSet(db),
 }));
 
 import { BUILT_IN_BACKEND } from "#lib/backend/tokens.js";
 import { DATABASE, LOGGER, SESSION } from "#lib/services/index.js";
 import { serverServices } from "#lib/services/server.js";
 import { SESSION_STORE } from "#lib/services/session-store.service.js";
-import { appHandle as handle, handleError } from "./hooks.server.js";
+import { appHandle as handle, handleError, init } from "./hooks.server.js";
 
 // Swapping implementations is a `register` call now : no module mock, and the
 // scope the hook builds per request inherits these.
@@ -129,6 +136,7 @@ beforeEach(() => {
 	backends.policy = { customAllowed: false, defaultBackend: null };
 	backends.banned.clear();
 	database.tryConnect.mockReturnValue(null);
+	env.allowCustom = false;
 });
 
 describe("handle", () => {
@@ -302,6 +310,27 @@ describe("handle", () => {
 		expect(store.deleteAllForUser).toHaveBeenCalledWith("custom-lan");
 	});
 
+	it("keeps an official API session next to an admin default, untrusted, until the instance locks", async () => {
+		backends.policy.defaultBackend = {
+			url: "http://192.168.1.10",
+			trusted: true,
+		};
+		database.tryConnect.mockReturnValue({ marker: "db" });
+		session.read.mockReturnValue(storedSession());
+		const kept = fakeEvent();
+		await handle({ event: kept, resolve: ok } as never);
+		expect(kept.locals.session).toMatchObject({
+			backend: null,
+			trusted: false,
+		});
+		expect(admin.canSignIn).not.toHaveBeenCalled();
+
+		admin.isLocked.mockReturnValue(true);
+		const dropped = fakeEvent();
+		await handle({ event: dropped, resolve: ok } as never);
+		expect(dropped.locals.session).toBeNull();
+	});
+
 	it("logs the access line at the level the status deserves", async () => {
 		await handle({
 			event: fakeEvent(),
@@ -395,6 +424,19 @@ describe("handle", () => {
 			} as never),
 		).rejects.toThrow("route blew up");
 		expect(event.locals.services).toBeDefined();
+	});
+});
+
+describe("init", () => {
+	it("allows custom backends at boot only when NUVIO_ALLOW_CUSTOM_BACKENDS says so", () => {
+		database.tryConnect.mockReturnValue({ marker: "db" });
+		init();
+		expect(backends.allowCustomUnlessSet).not.toHaveBeenCalled();
+		env.allowCustom = true;
+		init();
+		expect(backends.allowCustomUnlessSet).toHaveBeenCalledWith({
+			marker: "db",
+		});
 	});
 });
 

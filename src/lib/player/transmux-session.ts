@@ -158,6 +158,13 @@ export async function prepareTransmux(
 	return new TransmuxSession(input, opened, subtitles);
 }
 
+async function opensNatively(input: Input): Promise<boolean> {
+	return (
+		(await input.getFormat()) !== MATROSKA ||
+		document.createElement("video").canPlayType("video/x-matroska") !== ""
+	);
+}
+
 async function encodableCodec(): Promise<EncodedCodec | null> {
 	const first = await getFirstEncodableAudioCodec(["aac", "opus"], {
 		numberOfChannels: 2,
@@ -263,8 +270,10 @@ async function open(
 	}
 	const primary = await input.getPrimaryAudioTrack();
 	const { active, native } = startingTrack(audio, primary?.id, preference);
-	// Direct files need MSE for track selection when the native API is absent.
-	if (reason === "probe" && native) {
+	// Direct files need MSE for track selection when the native API is absent,
+	// and always when the element can't open the container (Matroska in WebKit,
+	// which stalls on it rather than failing).
+	if (reason === "probe" && native && (await opensNatively(input))) {
 		if (audio.length < 2) {
 			return null;
 		}

@@ -24,6 +24,7 @@
 		externalPlayerHandoff,
 		prefersExternal,
 	} from "#lib/player/external-player.js";
+	import { createMpvFallback } from "#lib/player/state/mpv-fallback.svelte.js";
 	import { saveUiSettings } from "#lib/settings/settings.remote.js";
 	import { theme } from "#lib/settings/theme.svelte.js";
 	import type { UiSettings } from "#lib/settings/ui-settings.js";
@@ -608,6 +609,19 @@
 		);
 	}
 
+	const mpv = createMpvFallback({
+		url: () => active?.url ?? null,
+		title: () =>
+			subheading ? `${context.heading} · ${subheading}` : context.heading,
+		blocked: () =>
+			Boolean(
+				active && (active.notWebReady || codecBlocked) && !preferExternal,
+			),
+		start: () => startTime,
+		reporter: progressReporter,
+	});
+	const mpvShown = $derived(mpv.shown);
+
 	// A stream that can't play here (P2P-only, or a codec this browser lacks) but
 	// has a direct URL : hand it to an external player, or let the viewer copy
 	// it. `playerLink` is null on desktop, where no player registers a URL
@@ -672,6 +686,7 @@
      AMOLED attributes repeat the root's because `.dark` redeclares them. -->
 <div
   class="dark fixed inset-0 z-40 flex items-center justify-center bg-black text-white"
+  data-player
   data-accent={theme.current.accent}
   data-amoled={theme.current.darkStyle === "amoled" ? "true" : undefined}
 >
@@ -687,7 +702,7 @@
     </button>
   {/if}
 
-  {#if !playableSrc && (context.background ?? context.poster)}
+  {#if (!playableSrc || mpvShown) && (context.background ?? context.poster)}
     <img
       src={context.background ?? context.poster}
       alt=""
@@ -695,7 +710,37 @@
     />
   {/if}
 
-  {#if playableSrc}
+  {#if mpvShown}
+    <div
+      class="relative z-10 flex max-w-md flex-col items-center gap-4 px-6 text-center"
+      data-testid="mpv-screen"
+    >
+      <p class="text-lg font-semibold">
+        {#if mpvShown.status === "playing"}
+          {m.player_mpv_playing()}
+        {:else if mpvShown.status === "failed"}
+          {m.player_mpv_failed()}
+        {:else}
+          {m.player_mpv_closed()}
+        {/if}
+      </p>
+      <p class="text-sm text-white/60">{m.player_mpv_body()}</p>
+      <div class="flex flex-wrap items-center justify-center gap-2">
+        {#if mpvShown.status !== "playing"}
+          <Button onclick={() => mpv.play(mpvShown.position)}>
+            <PlayIcon data-icon="inline-start" class="fill-current" />
+            {m.player_mpv_reopen()}
+          </Button>
+        {/if}
+        <Button variant="secondary" onclick={openSources}>
+          {m.watch_choose_source()}
+        </Button>
+        <Button variant="ghost" onclick={goBack}>
+          <ArrowLeftIcon data-icon="inline-start" /> {m.common_back()}
+        </Button>
+      </div>
+    </div>
+  {:else if playableSrc}
     {#if endOfShow}
       <PlayerEndPanel
         heading={context.heading}
@@ -754,6 +799,7 @@
         minimized={endOfShow}
         onProgress={progressReporter()}
         onEnded={() => reachedEnd(true)}
+        onUnplayable={mpv.available ? mpv.play : undefined}
         onOutro={() => reachedEnd(false)}
         onBack={goBack}
         onSources={openSources}
@@ -907,3 +953,11 @@
     />
   {/if}
 </div>
+
+<style>
+  /* The player covers the page: the page underneath must not scroll or show a
+     scrollbar beside it. */
+  :global(html:has([data-player])) {
+    overflow: hidden;
+  }
+</style>

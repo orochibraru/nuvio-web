@@ -69,6 +69,7 @@
 		drawerOpen = false,
 		onProgress,
 		onEnded,
+		onUnplayable,
 		onOutro,
 		onBack,
 		onSources,
@@ -98,6 +99,7 @@
 		tryRemux: () => fixSource("container"),
 		onFatal: (message) => {
 			fatalError = message;
+			onUnplayable?.(transport.currentTime);
 		},
 		onEnded: () => onEnded?.(),
 	});
@@ -172,6 +174,7 @@
 			onLoad: resetForNewSource,
 			onFatal: (message) => {
 				fatalError = message;
+				onUnplayable?.(transport.currentTime);
 			},
 			audioPreference: () => ({
 				languages: audioLanguages,

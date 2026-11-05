@@ -26,6 +26,8 @@ fre = "fre"
 wel = "wel"
 # A real variant spelling, used deliberately in the spec parser's warning.
 unparseable = "unparseable"
+# The DOM's media event, `seeked`, logged by the desktop app's page logger.
+seeked = "seeked"
 # French for "Appearance": `e2e/i18n.spec.ts` asserts the French settings nav.
 Apparence = "Apparence"
 # Stremio's addon host, `strem.io`.

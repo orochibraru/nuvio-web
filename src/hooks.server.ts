@@ -4,10 +4,12 @@ import type { RequestEvent } from "@sveltejs/kit";
 import {
 	type Handle,
 	type HandleServerError,
+	type ServerInit,
 	sequence,
 } from "@sveltejs/kit/hooks";
 import { canSignIn, isLocked } from "#lib/admin/admin-data.js";
 import {
+	allowCustomBackendsUnlessSet,
 	type BackendPolicy,
 	isBannedBackend,
 	isDefaultBackend,
@@ -18,7 +20,7 @@ import { makeErrorId } from "#lib/core/error-id.js";
 import { m } from "#lib/i18n/index.js";
 import { i18nHandle } from "#lib/i18n/server.js";
 import { backendOrigin } from "#lib/nuvio/backend.js";
-import { NUVIO_BASE_URL, NuvioApiError } from "#lib/nuvio/index.js";
+import { NuvioApiError } from "#lib/nuvio/index.js";
 import { ACTIVITY } from "#lib/services/activity.service.js";
 import {
 	ADMIN,
@@ -32,6 +34,7 @@ import { createRequestScope, serverServices } from "#lib/services/server.js";
 import type { StoredSession } from "#lib/services/session.service.js";
 import { SESSION_STORE } from "#lib/services/session-store.service.js";
 import { dev } from "$app/env";
+import { NUVIO_ALLOW_CUSTOM_BACKENDS } from "$app/env/private";
 
 /**
  * Resolved per call rather than at module load: `handleError` can fire before
@@ -227,11 +230,14 @@ function isAllowed(
 	if (backend?.trusted) {
 		return false;
 	}
+	// The official API next to an admin default: always on offer, but its email
+	// is not this instance's to trust.
+	if (backend === null) {
+		return !isLocked(db);
+	}
 	// A user's own backend: its email can't be trusted for the allowlist.
 	return (
-		policy.customAllowed &&
-		!isLocked(db) &&
-		!isBannedBackend(db, backend?.url ?? NUVIO_BASE_URL)
+		policy.customAllowed && !isLocked(db) && !isBannedBackend(db, backend.url)
 	);
 }
 
@@ -323,6 +329,17 @@ export const appHandle: Handle = async ({ event, resolve }) => {
 
 // Locale first, so everything below (and the render) runs in the visitor's
 // language.
+/** `NUVIO_ALLOW_CUSTOM_BACKENDS` is a starting point: an admin's own choice on /admin wins. */
+export const init: ServerInit = () => {
+	if (!NUVIO_ALLOW_CUSTOM_BACKENDS) {
+		return;
+	}
+	const db = serverServices.get(DATABASE).tryConnect();
+	if (db) {
+		allowCustomBackendsUnlessSet(db);
+	}
+};
+
 export const handle = sequence(i18nHandle, appHandle);
 
 // The adapter emits it on SIGTERM / SIGINT once in-flight requests are done

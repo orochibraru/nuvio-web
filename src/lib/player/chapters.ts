@@ -19,6 +19,7 @@ import {
 	type SampleTables,
 	timescaleOf,
 } from "./mp4-sample-table.ts";
+import { createRangeFetch } from "./range-fetch.ts";
 
 /** One chapter : `start` in seconds, `title` null for an unnamed stretch. */
 export interface Chapter {
@@ -575,12 +576,13 @@ export async function readChapters(read: ReadRange): Promise<Chapter[]> {
  * sending the whole file, so that response is aborted unread.
  */
 export function rangeReader(url: string, signal: AbortSignal): ReadRange {
+	const rangeFetch = createRangeFetch();
 	return async (offset, length) => {
 		const controller = new AbortController();
 		const abort = () => controller.abort();
 		signal.addEventListener("abort", abort, { once: true });
 		try {
-			const response = await fetch(url, {
+			const response = await rangeFetch(url, {
 				headers: { range: `bytes=${offset}-${offset + length - 1}` },
 				credentials: "omit",
 				signal: controller.signal,
