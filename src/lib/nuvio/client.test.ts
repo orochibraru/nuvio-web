@@ -66,6 +66,32 @@ describe("NuvioClient.signOut", () => {
 	});
 });
 
+describe("NuvioApiError.fromResponse", () => {
+	it("keeps GoTrue's reason instead of a bare status", async () => {
+		const error = await NuvioApiError.fromResponse(
+			Response.json(
+				{
+					code: 400,
+					error_code: "invalid_credentials",
+					msg: "Invalid login credentials",
+				},
+				{ status: 400 },
+			),
+		);
+		expect(error.status).toBe(400);
+		expect(error.code).toBe("invalid_credentials");
+		expect(error.message).toBe("Invalid login credentials");
+	});
+
+	it("reads PostgREST's code and message", async () => {
+		const error = await NuvioApiError.fromResponse(
+			Response.json({ code: "PGRST116", message: "No rows" }, { status: 406 }),
+		);
+		expect(error.code).toBe("PGRST116");
+		expect(error.message).toBe("No rows");
+	});
+});
+
 describe("NuvioClient rate limiting", () => {
 	it("retries a 429 once, then gives up with the 429", async () => {
 		const statuses = [429, 200];

@@ -15,6 +15,7 @@
 	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
 	import { signIn } from "../auth.remote.ts";
+	import { targetOf } from "../backend-target.ts";
 	import CustomBackend from "../custom-backend.svelte";
 
 	let { data } = $props();
@@ -26,6 +27,12 @@
 	const redirectTo = $derived(page.url.searchParams.get("redirectTo") ?? "/");
 	const justRegistered = $derived(
 		page.url.searchParams.get("registered") === "1",
+	);
+	const target = $derived(
+		targetOf(
+			data.customBackendsAllowed ? signIn.fields.backendUrl.value() : "",
+			data.defaultTarget,
+		),
 	);
 	const formIssue = $derived(signIn.fields.issues()?.[0]?.message);
 	const emailIssue = $derived(signIn.fields.email.issues()?.[0]?.message);
@@ -47,6 +54,12 @@
 	<Card.Content>
 		<form {...signIn}>
 			<Field.FieldGroup>
+				<CustomBackend
+					url={signIn.fields.backendUrl}
+					publishableKey={signIn.fields.backendKey}
+					allowed={data.customBackendsAllowed}
+					defaultTarget={data.defaultTarget}
+				/>
 				{#if justRegistered}
 					<Alert.Root>
 						<Alert.Description
@@ -77,6 +90,7 @@
 				<Field.Field data-invalid={passwordIssue ? true : undefined}>
 					<div class="flex items-center justify-between">
 						<Field.FieldLabel for="password">{m.auth_password()}</Field.FieldLabel>
+						{#if target.kind === "nuvio"}
 						<a
 							href={`${NUVIO_WEBSITE_URL}/account/reset-password?next=%2Faccount`}
 							target="_blank"
@@ -85,6 +99,7 @@
 						>
 							{m.auth_forgot_password()}
 						</a>
+						{/if}
 					</div>
 					<div class="relative">
 						<Input
@@ -109,12 +124,6 @@
 
 				<input {...signIn.fields.redirectTo.as('hidden', redirectTo)}>
 
-				<CustomBackend
-					url={signIn.fields.backendUrl}
-					publishableKey={signIn.fields.backendKey}
-					allowed={data.customBackendsAllowed}
-					defaultHost={data.defaultBackendHost}
-				/>
 
 				<Field.Field>
 					<Button type="submit" disabled={signIn.pending > 0}>
@@ -130,7 +139,13 @@
 	<Card.Footer class="flex-col gap-3 text-center">
 		<p class="flex items-start gap-2 text-left text-xs text-muted-foreground">
 			<ShieldCheckIcon class="mt-px size-3.5 shrink-0" />
-			{m.auth_credentials_note()}
+			{#if target.kind === "nuvio"}
+				{m.auth_credentials_note()}
+			{:else if target.kind === "server"}
+				{m.auth_credentials_note_server()}
+			{:else}
+				{m.auth_credentials_note_backend({ host: target.host })}
+			{/if}
 		</p>
 		<p class="text-sm text-muted-foreground">
 			{m.auth_new_to_nuvio()}

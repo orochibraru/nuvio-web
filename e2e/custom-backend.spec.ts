@@ -45,17 +45,17 @@ test.afterEach(() => {
 	allowCustomBackends(false);
 });
 
-test("sign-in: no custom backend section unless the admin allows it", async ({
+test("sign-in: names the target, and offers no change unless the admin allows it", async ({
 	page,
 }) => {
 	const errors = collectRuntimeErrors(page);
 	await page.goto("/auth/sign-in");
-	await expect(page.getByRole("button", { name: "Sign in" })).toBeVisible();
-	await expect(page.getByText("Custom backend")).toHaveCount(0);
+	await expect(page.getByTestId("backend-target")).toContainText("Nuvio");
+	await expect(page.getByRole("button", { name: "Change" })).toHaveCount(0);
 	expect(errors).toEqual([]);
 });
 
-test("sign-in: a typed-in backend is remembered, named, and a private address refused", async ({
+test("sign-in: a chosen backend is remembered, named, and a private address refused", async ({
 	page,
 }) => {
 	const errors = collectRuntimeErrors(page);
@@ -64,30 +64,31 @@ test("sign-in: a typed-in backend is remembered, named, and a private address re
 	allowCustomBackends(true);
 	await page.reload();
 
-	const section = page.locator("details", { hasText: "Custom backend" });
-	await expect(section).not.toHaveAttribute("open", "");
-	await section.getByText("Custom backend").click();
-	await section.getByLabel("Backend URL").fill("http://127.0.0.1:9");
-	await section.getByLabel("Publishable key").fill("sb_publishable_test");
-	await expect(page.getByTestId("backend-target")).toContainText("127.0.0.1:9");
+	const target = page.getByTestId("backend-target");
+	await page.getByRole("button", { name: "Change" }).click();
+	const sheet = page.getByRole("dialog", { name: "Where to sign in" });
+	await sheet.getByLabel("Custom backend").check();
+	await sheet.getByLabel("Backend URL").fill("http://127.0.0.1:9");
+	await sheet.getByLabel("Publishable key").fill("sb_publishable_test");
+	await sheet.getByRole("button", { name: "Done" }).click();
+	await expect(sheet).toHaveCount(0);
+	await expect(target).toContainText("127.0.0.1:9");
 
 	// Remembered in this browser across a reload.
 	await page.reload();
-	await page.getByText("Custom backend").click();
-	await expect(page.getByLabel("Backend URL")).toHaveValue(
-		"http://127.0.0.1:9",
-	);
+	await expect(target).toContainText("127.0.0.1:9");
 
 	await page.getByLabel("Email").fill("nobody@example.com");
 	await page.getByLabel("Password", { exact: true }).fill("not-a-password");
 	await page.getByRole("button", { name: "Sign in" }).click();
 	await expect(page.getByText("private or local address")).toBeVisible();
 
-	await page.getByRole("button", { name: "Reset to default" }).click();
-	await expect(page.getByLabel("Backend URL")).toHaveValue("");
+	await page.getByRole("button", { name: "Change" }).click();
+	await sheet.getByLabel("Default").check();
+	await sheet.getByRole("button", { name: "Done" }).click();
+	await expect(target).toContainText("Nuvio");
 	await page.reload();
-	await page.getByText("Custom backend").click();
-	await expect(page.getByLabel("Backend URL")).toHaveValue("");
+	await expect(target).toContainText("Nuvio");
 
 	expect(errors).toEqual([]);
 });

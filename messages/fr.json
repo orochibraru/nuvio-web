@@ -338,13 +338,11 @@
 	"admin_stats_empty_accounts": "Aucun nouveau compte sur cette période.",
 	"admin_stats_empty_watch": "Rien de lu sur cette période.",
 	"admin_unlock": "Déverrouiller le serveur",
-	"auth_backend": "Backend personnalisé",
-	"auth_backend_description": "Connectez-vous via votre propre backend Nuvio de type Supabase au lieu de celui de ce serveur. Vos données sur ce serveur sont isolées de celles de tout autre backend.",
+	"auth_backend": "Où se connecter",
+	"auth_backend_description": "Votre compte et vos données ici sont séparés pour chaque backend.",
 	"auth_backend_key": "Clé publique",
 	"auth_backend_key_hint": "La clé anon ou publique du backend.",
-	"auth_backend_reset": "Revenir au backend par défaut",
 	"auth_backend_url": "URL du backend",
-	"auth_backend_using": "Connexion via {host}.",
 	"auth_create_account": "Créer le compte",
 	"auth_create_an_account": "Créer un compte",
 	"auth_credentials_note": "Votre mot de passe est transmis une seule fois à Nuvio pour vous connecter, et n’est jamais conservé. Ce serveur ne garde que la session renvoyée par Nuvio.",
@@ -1119,5 +1117,13 @@
 				"countPlural=other": " · {count} vus"
 			}
 		}
-	]
+	],
+	"auth_backend_default": "Par défaut",
+	"auth_backend_custom": "Backend personnalisé",
+	"auth_backend_custom_hint": "Votre propre serveur compatible Nuvio.",
+	"auth_target_label": "Connexion à",
+	"auth_target_server": "Ce serveur",
+	"auth_target_change": "Changer",
+	"auth_credentials_note_backend": "Votre mot de passe est transmis une seule fois à {host} pour vous connecter, et n’est jamais conservé ici.",
+	"auth_credentials_note_server": "Votre compte est hébergé sur ce serveur ; son mot de passe n’y est conservé que sous forme de hash."
 }

@@ -36,6 +36,12 @@
 	<Card.Content>
 		<form {...signUp}>
 			<Field.FieldGroup>
+				<CustomBackend
+					url={signUp.fields.backendUrl}
+					publishableKey={signUp.fields.backendKey}
+					allowed={data.customBackendsAllowed}
+					defaultTarget={data.defaultTarget}
+				/>
 				{#if formIssue}
 					<Alert.Root variant="destructive">
 						<AlertCircleIcon />
@@ -74,12 +80,6 @@
 
 				<input {...signUp.fields.redirectTo.as('hidden', redirectTo)}>
 
-				<CustomBackend
-					url={signUp.fields.backendUrl}
-					publishableKey={signUp.fields.backendKey}
-					allowed={data.customBackendsAllowed}
-					defaultHost={data.defaultBackendHost}
-				/>
 
 				<Field.Field>
 					<Button type="submit" disabled={signUp.pending > 0}>

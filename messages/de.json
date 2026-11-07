@@ -338,13 +338,11 @@
 	"admin_stats_empty_accounts": "Keine neuen Konten in diesem Zeitraum.",
 	"admin_stats_empty_watch": "In diesem Zeitraum wurde nichts abgespielt.",
 	"admin_unlock": "Server entsperren",
-	"auth_backend": "Eigenes Backend",
-	"auth_backend_description": "Melde dich über dein eigenes Nuvio-Backend im Supabase-Stil an statt über das Standard-Backend dieses Servers. Deine Daten auf diesem Server bleiben von denen jedes anderen Backends getrennt.",
+	"auth_backend": "Wo anmelden",
+	"auth_backend_description": "Dein Konto und deine Daten hier werden für jedes Backend getrennt gehalten.",
 	"auth_backend_key": "Öffentlicher Schlüssel",
 	"auth_backend_key_hint": "Der anon- oder öffentliche Schlüssel des Backends.",
-	"auth_backend_reset": "Auf Standard zurücksetzen",
 	"auth_backend_url": "Backend-URL",
-	"auth_backend_using": "Anmeldung über {host}.",
 	"auth_create_account": "Konto erstellen",
 	"auth_create_an_account": "Konto erstellen",
 	"auth_credentials_note": "Dein Passwort wird nur einmal zur Anmeldung an Nuvio übermittelt und nie gespeichert. Dieser Server behält nur die Sitzung, die Nuvio zurückgibt.",
@@ -1119,5 +1117,13 @@
 				"countPlural=other": " · {count} gesehen"
 			}
 		}
-	]
+	],
+	"auth_backend_default": "Standard",
+	"auth_backend_custom": "Eigenes Backend",
+	"auth_backend_custom_hint": "Dein eigener Nuvio-kompatibler Server.",
+	"auth_target_label": "Anmeldung bei",
+	"auth_target_server": "Dieser Server",
+	"auth_target_change": "Ändern",
+	"auth_credentials_note_backend": "Dein Passwort wird nur einmal zur Anmeldung an {host} übermittelt und hier nie gespeichert.",
+	"auth_credentials_note_server": "Dein Konto liegt auf diesem Server; sein Passwort wird nur als Hash gespeichert."
 }
