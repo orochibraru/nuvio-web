@@ -24,13 +24,13 @@
 				"hooks": [
 					{
 						"type": "command",
-						"command": "bun run check:app",
+						"command": "bun run type-check",
 						"timeout": 90,
 						"statusMessage": "Typechecking before handing back..."
 					},
 					{
 						"type": "command",
-						"command": "prek run",
+						"command": "prek run --all-files",
 						"timeout": 90,
 						"statusMessage": "Running status checks..."
 					}

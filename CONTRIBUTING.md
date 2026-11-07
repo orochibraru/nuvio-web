@@ -45,7 +45,7 @@ than failing the install : you just do not get the hooks.
 bun run dev              # vite dev on :5173
 bun run build            # production build
 bun run start            # run the compiled binary from ./build
-bun run check            # svelte-kit sync + svelte-check
+bun run type-check            # svelte-kit sync + svelte-check
 bun run lint             # every prek pre-commit hook, on all files (fixes)
 bun run test:unit        # vitest
 bun run test:unit:coverage
@@ -77,8 +77,9 @@ prek run --all-files
 
 ## Before you open a PR
 
-- `bun run check` and `bun run lint` are necessary but not sufficient : they do
-  not catch a bad reactive access, a hydration mismatch or a broken remote call.
+- `bun run type-check` and `bun run lint` are necessary but not sufficient :
+  they do not catch a bad reactive access, a hydration mismatch or a broken
+  remote call.
 - **After any UI or route change, run `bun run test:e2e`** and make it pass. Add
   a spec when you add a screen or a flow, and add new screens to
   `e2e/a11y.spec.ts`'s `pages` list.

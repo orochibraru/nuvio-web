@@ -41,6 +41,14 @@ checks each against its pinned checksum. Set `NUVIO_MPV_ENGINE=always` before
 starting the app to play every source this way, not only those the web view
 refuses.
 
+## Updates
+
+The app updates itself from the latest stable release on GitHub. Once the server
+is up it looks for a newer build and downloads it in the background; the next
+launch asks to install it, then restarts into it. "Later" asks again on the
+launch after. Dev builds never update. Every update is the full app archive
+(about 130 MB), not a patch.
+
 ## Logs
 
 Every launch logs into one SQLite file in the system's temporary folder,
@@ -76,7 +84,6 @@ which the `electrobun` command fetches on first use. Each build compiles the
 server first.
 
 ```bash
-bun run install:desktop   # the Electrobun SDK, under desktop/.hutch
 bun run dev:desktop       # build and open a dev build
 bun run build:desktop     # a stable release (app, DMG / installer) for this machine
 ```
@@ -84,6 +91,7 @@ bun run build:desktop     # a stable release (app, DMG / installer) for this mac
 A build targets the machine it runs on, so the **Desktop** workflow builds each
 target on its own runner (macOS Apple Silicon and Intel, Linux x64 and ARM64,
 Windows x64) whenever the desktop app, the dependencies or the icon change, and
-keeps the installers as run artifacts for 14 days. Release builds are unsigned
-until signing is configured (see Electrobun's code-signing guide), so macOS asks
-before opening one.
+keeps the installers as run artifacts for 14 days. A stable release runs the
+same builds and attaches the installers and the updater's files to the release.
+Release builds are unsigned until signing is configured (see Electrobun's
+code-signing guide), so macOS asks before opening one.

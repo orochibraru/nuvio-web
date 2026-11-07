@@ -12,6 +12,10 @@ import root from "../../../package.json" with { type: "json" };
 import { openLogDb, PAGE_LOGGER } from "./log-db.ts";
 import { findMpv, MpvPlayer, parseMpvRequest } from "./mpv.ts";
 import { MpvEngine, parseEngineCommand } from "./mpv-engine.ts";
+import {
+	downloadUpdateInBackground,
+	offerDownloadedUpdate,
+} from "./updater.ts";
 
 // Nuvio Web's own server, run on loopback with its data in the user's app-data
 // folder, and a window that waits for it. Signing in goes to the official Nuvio
@@ -80,6 +84,13 @@ logs.write("shell", "info", "Starting", {
 	os: release(),
 	bun: Bun.version,
 });
+
+const updateLog = (level: string, message: string, data?: unknown) =>
+	logs.write("shell", level, message, data);
+// An update gone wrong never keeps the app from starting.
+await offerDownloadedUpdate(updateLog).catch((error) =>
+	updateLog("error", "Installing the update failed", { error: String(error) }),
+);
 
 const mpvBinary = findMpv();
 logs.write(
@@ -364,6 +375,9 @@ while (!(await healthy()) && Date.now() < deadline && !quitting) {
 if (await healthy()) {
 	logs.write("shell", "info", "Server up");
 	window.webview.loadURL(`${origin}/`);
+	downloadUpdateInBackground(updateLog).catch((error) =>
+		updateLog("warn", "Update check failed", { error: String(error) }),
+	);
 } else if (!quitting) {
 	logs.write("shell", "error", "Server didn't start in time");
 	window.webview.loadHTML(page(`The server didn't start. Logs: ${logs.path}`));

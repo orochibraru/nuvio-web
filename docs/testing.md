@@ -52,7 +52,7 @@ Two things that bite:
 ## End-to-end
 
 Playwright, in `e2e/`. **After any UI or route change, run it** —
-`bun run check` and `bun run lint` do not catch a bad reactive access, a
+`bun run type-check` and `bun run lint` do not catch a bad reactive access, a
 hydration mismatch, or a broken remote call.
 
 It runs against **the production image on `:3000`**, built and started from

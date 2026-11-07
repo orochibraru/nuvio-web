@@ -225,7 +225,7 @@ See [contributing.md](CONTRIBUTING.md).
 ```bash
 bun install
 bun run dev          # dev server on :5173
-bun run check        # svelte-check + tsc
+bun run type-check        # svelte-check + tsc
 bun run lint         # biome + tailwind class lint
 bun run test:unit    # vitest
 bun run test:e2e     # playwright (needs Docker and a test account, see .env.example)

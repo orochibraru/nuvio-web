@@ -450,7 +450,7 @@ export type UnauthenticatedRpcName = "get_avatar_catalog" | "health_ping";
 // Spec contract
 //
 // Every override above is checked against the generated type in the direction
-// that matters. `bun run check` fails if the API changes under one of them.
+// that matters. `bun run type-check` fails if the API changes under one of them.
 
 type Fits<A, B> = [A] extends [B] ? true : false;
 

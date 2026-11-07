@@ -611,7 +611,7 @@
 	}
 
 	const mpv = createMpvFallback({
-		url: () => active?.url ?? null,
+		url: () => (offlineSrc ? null : (active?.url ?? null)),
 		title: () => [context.heading, subheading].filter(Boolean).join(" · "),
 		blocked: () =>
 			Boolean(

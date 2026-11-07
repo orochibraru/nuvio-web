@@ -245,6 +245,7 @@ describe("audioSupport", () => {
 		expect(dolby("Movie 1080p EAC3 5.1")).toBe("ok");
 		expect(dolby("Movie DDP5.1 Atmos")).toBe("ok");
 		expect(dolby("Movie REMUX TrueHD Atmos")).toBe("risky");
+		expect(dolby("Movie 2160p REMUX Atmos")).toBe("risky");
 		expect(dolby("Movie DTS-HD MA")).toBe("risky");
 	});
 

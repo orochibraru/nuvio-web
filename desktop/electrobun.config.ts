@@ -45,4 +45,13 @@ export default {
 	scripts: {
 		preBuild: "./scripts/pre-build.ts",
 	},
+	// The updater reads the latest stable release, which the Desktop workflow
+	// fills for every target. Updates are the full archive: a patch is diffed
+	// against the previous release's, and while the release builds `latest`
+	// already points at the new, still empty one.
+	release: {
+		baseUrl:
+			"https://github.com/orochibraru/nuvio-web/releases/latest/download",
+		generatePatch: false,
+	},
 } satisfies ElectrobunConfig;
