@@ -180,7 +180,7 @@ repos:
       # file that imports it), so the paths only decide whether it runs at all.
       - id: check
         name: Type check
-        entry: bun run check
+        entry: bun run type-check
         language: system
         pass_filenames: false
         stages: [pre-push]

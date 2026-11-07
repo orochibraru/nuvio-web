@@ -17,12 +17,31 @@ interface SilentAudioDeps {
 	hls: () => HlsLike | null;
 	/** The stream label hints at a codec the browser can't decode. */
 	audioRisky: () => boolean;
+	/** The transmux fix runs: it chose audio the browser plays, so the label proves nothing. */
+	audioPlanned: () => boolean;
 	/** True while a fatal error screen is up : pause sampling. */
 	blocked: () => boolean;
 	/** Called when the watch flips to an alternate HLS audio track. */
 	onTrackSwitch: (index: number) => void;
 	/** The in-browser fix : true when the source now has sound. */
 	tryFix: (reason: "probe" | "silent") => Promise<boolean>;
+}
+
+type CountedVideo = HTMLVideoElement & {
+	webkitAudioDecodedByteCount?: number;
+	webkitVideoDecodedByteCount?: number;
+	mozHasAudio?: boolean;
+};
+
+/** Chromium's decoder byte counters, as a rolling window of 14 readings. */
+function recordSample(samples: AudioByteSample[], el: CountedVideo) {
+	samples.push({
+		video: el.webkitVideoDecodedByteCount ?? 0,
+		audio: el.webkitAudioDecodedByteCount ?? 0,
+	});
+	if (samples.length > 14) {
+		samples.shift();
+	}
 }
 
 /**
@@ -49,11 +68,7 @@ export function createSilentAudioWatch(deps: SilentAudioDeps) {
 			return;
 		}
 		void deps.tryFix("probe");
-		const el = video as HTMLVideoElement & {
-			webkitAudioDecodedByteCount?: number;
-			webkitVideoDecodedByteCount?: number;
-			mozHasAudio?: boolean;
-		};
+		const el = video as CountedVideo;
 		const haveCounters = el.webkitVideoDecodedByteCount !== undefined;
 		const audioRisky = deps.audioRisky();
 		if (!(haveCounters || audioRisky) && typeof el.mozHasAudio !== "boolean") {
@@ -66,25 +81,14 @@ export function createSilentAudioWatch(deps: SilentAudioDeps) {
 		let trackTried = false;
 		let stale = false;
 
-		function recordSample() {
-			if (!haveCounters) {
-				return;
-			}
-			samples.push({
-				video: el.webkitVideoDecodedByteCount ?? 0,
-				audio: el.webkitAudioDecodedByteCount ?? 0,
-			});
-			if (samples.length > 14) {
-				samples.shift();
-			}
-		}
-
 		function tick() {
 			if (deps.blocked() || el.paused || el.currentTime < 3 || issue) {
 				return;
 			}
 			playedSeconds += 1;
-			recordSample();
+			if (haveCounters) {
+				recordSample(samples, el);
+			}
 
 			const hls = deps.hls();
 			const action = evaluateAudioTick({
@@ -97,6 +101,7 @@ export function createSilentAudioWatch(deps: SilentAudioDeps) {
 					hls && hls.audioTracks.length > 1 && !trackTried,
 				),
 				audioRisky,
+				audioPlanned: deps.audioPlanned(),
 				playedSeconds,
 			});
 

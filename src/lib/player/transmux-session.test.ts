@@ -11,6 +11,11 @@ const source = vi.hoisted(() => ({
 		getCodecParameterString: () => Promise<string>;
 	}[],
 	dispose: vi.fn(),
+	format: "mp4" as "mp4" | "matroska",
+}));
+const formats = vi.hoisted(() => ({
+	MATROSKA: { name: "Matroska" },
+	MP4: { name: "MP4" },
 }));
 
 vi.mock("@mediabunny/ac3", () => ({ registerAc3Decoder: vi.fn() }));
@@ -29,6 +34,8 @@ vi.mock("mediabunny", () => ({
 		getAudioTracks = async () => source.tracks;
 		getPrimaryAudioTrack = async () => source.tracks[0];
 		computeDuration = async () => 60;
+		getFormat = async () =>
+			source.format === "matroska" ? formats.MATROSKA : formats.MP4;
 		dispose = source.dispose;
 	},
 	UrlSource: class {},
@@ -40,14 +47,15 @@ vi.mock("mediabunny", () => ({
 	Conversion: class {},
 	Output: class {},
 	StreamTarget: class {},
-	MATROSKA: {},
-	MP4: {},
+	MATROSKA: formats.MATROSKA,
+	MP4: formats.MP4,
 }));
 
 describe("direct-file audio selection", () => {
 	beforeEach(() => {
 		vi.useFakeTimers();
 		source.dispose.mockClear();
+		source.format = "mp4";
 		source.tracks = ["eng", "hin"].map((languageCode, id) => ({
 			id,
 			languageCode,
@@ -92,6 +100,35 @@ describe("direct-file audio selection", () => {
 			}),
 		).toBeNull();
 		expect(source.dispose).toHaveBeenCalledOnce();
+	});
+
+	it("takes over a single-track Matroska file the browser can't open", async () => {
+		source.tracks = source.tracks.slice(0, 1);
+		source.format = "matroska";
+		vi.stubGlobal("document", {
+			createElement: () => ({
+				canPlayType: (type: string) =>
+					type.includes("matroska") ? "" : "probably",
+			}),
+		});
+		const session = await prepareTransmux(
+			"https://example.test/single.mkv",
+			"probe",
+			{ languages: [], track: null },
+		);
+		expect(session?.audioTracks).toHaveLength(1);
+		session?.dispose();
+	});
+
+	it("leaves a single-track Matroska file to a browser that opens it", async () => {
+		source.tracks = source.tracks.slice(0, 1);
+		source.format = "matroska";
+		expect(
+			await prepareTransmux("https://example.test/single.mkv", "probe", {
+				languages: [],
+				track: null,
+			}),
+		).toBeNull();
 	});
 
 	it("keeps native playback when the browser provides track selection", async () => {

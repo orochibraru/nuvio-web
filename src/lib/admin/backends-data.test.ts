@@ -2,6 +2,7 @@ import { Database } from "bun:sqlite";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DatabaseService } from "#lib/services/database.service.js";
 import {
+	allowCustomBackendsUnlessSet,
 	backendPolicy,
 	isBannedBackend,
 	isDefaultBackend,
@@ -13,6 +14,7 @@ import {
 	setCustomBackendsAllowed,
 	setDefaultBackend,
 	testBackend,
+	withPublishableKey,
 } from "./backends-data.ts";
 
 let db: Database;
@@ -44,6 +46,14 @@ describe("policy", () => {
 				trusted: true,
 			},
 		});
+	});
+
+	it("allows custom backends at boot only while no admin has chosen", () => {
+		allowCustomBackendsUnlessSet(db);
+		expect(backendPolicy(db).customAllowed).toBe(true);
+		setCustomBackendsAllowed(db, false);
+		allowCustomBackendsUnlessSet(db);
+		expect(backendPolicy(db).customAllowed).toBe(false);
 	});
 
 	it("goes back to the official API for null or the official URL", () => {
@@ -171,5 +181,39 @@ describe("testBackend", () => {
 		const backend = { url: "http://x.example", publishableKey: "k" };
 		expect(await testBackend(backend, status as never)).toBe(false);
 		expect(await testBackend(backend, failure as never)).toBe(false);
+	});
+});
+
+describe("withPublishableKey", () => {
+	it("keeps a typed key without asking the backend", async () => {
+		const fetch = vi.fn();
+		const backend = { url: "http://192.168.1.10", publishableKey: "anon" };
+		expect(await withPublishableKey(backend, fetch as never)).toBe(backend);
+		expect(fetch).not.toHaveBeenCalled();
+	});
+
+	it("fills an empty key from the backend's discovery document", async () => {
+		const fetch = vi.fn(
+			async () =>
+				new Response(
+					JSON.stringify({ service: "nuvio", publishable_key: "pub" }),
+				),
+		);
+		expect(
+			await withPublishableKey(
+				{ url: "http://192.168.1.10", publishableKey: "" },
+				fetch as never,
+			),
+		).toEqual({ url: "http://192.168.1.10", publishableKey: "pub" });
+	});
+
+	it("is null when the backend publishes none", async () => {
+		const fetch = vi.fn(async () => new Response("", { status: 404 }));
+		expect(
+			await withPublishableKey(
+				{ url: "http://x.example", publishableKey: "" },
+				fetch as never,
+			),
+		).toBeNull();
 	});
 });

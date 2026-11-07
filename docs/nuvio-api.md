@@ -79,15 +79,15 @@ three reasons, each said where it happens:
 A `SpecContract` tuple at the bottom of `types.ts` checks each override against
 the generated type in the direction that matters : what the app sends is a
 request the API accepts, what the API returns fits what the app reads. When the
-API changes under one of them, `bun run check` fails there.
+API changes under one of them, `bun run type-check` fails there.
 
 ## Workflow when the API changes
 
 1. The daily job fails, or `bun run nuvio:check` fails locally.
 2. `bun run nuvio:check:accept` updates the snapshot and regenerates the JSON.
 3. Diff the regenerated JSON — that is the real change.
-4. `bun run check`. The generated types moved with the spec, so any call site or
-   `SpecContract` entry the change breaks is now a type error; fix those, and
-   `client.ts` where a route itself changed.
+4. `bun run type-check`. The generated types moved with the spec, so any call
+   site or `SpecContract` entry the change breaks is now a type error; fix
+   those, and `client.ts` where a route itself changed.
 5. Commit all of it together, so the snapshot and the client never disagree in
    `main`.

@@ -251,3 +251,12 @@ jobs:
           branch: main
           rules: ${{ env.RELEASE_RULES }}
           release-pr: "true"
+
+  stable-desktop:
+    name: Desktop builds for ${{ needs.stable.outputs.tag }}
+    needs: [stable, stable-release]
+    permissions:
+      contents: write
+    uses: ./.github/workflows/desktop.yml
+    with:
+      release-tag: ${{ needs.stable.outputs.tag }}

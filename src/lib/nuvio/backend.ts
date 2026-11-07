@@ -67,6 +67,34 @@ export function isPublishableKey(value: string): boolean {
 	return KEY_PATTERN.test(value);
 }
 
+const discoverySchema = v.looseObject({
+	service: v.literal("nuvio"),
+	publishable_key: v.pipe(v.string(), v.check(isPublishableKey)),
+});
+
+/**
+ * The publishable key a self-hosted Nuvio backend publishes at
+ * `/.well-known/nuvio`, or null. Its `backend_url` is ignored: in local mode
+ * it says `localhost`, and the URL that reached it is the one to keep.
+ */
+export async function discoverPublishableKey(
+	url: string,
+	fetchImpl: typeof fetch,
+): Promise<string | null> {
+	try {
+		const response = await fetchImpl(`${url}/.well-known/nuvio`, {
+			headers: { accept: "application/json" },
+		});
+		if (!response.ok) {
+			return null;
+		}
+		const parsed = v.safeParse(discoverySchema, await response.json());
+		return parsed.success ? parsed.output.publishable_key : null;
+	} catch {
+		return null;
+	}
+}
+
 /** What a log line may say about a backend: its origin, never a path or a key. */
 export function backendOrigin(url: string): string {
 	return httpUrlOrNull(url) ? new URL(url).origin : "invalid";

@@ -15,18 +15,19 @@
   in `package.json` `imports`. `$app/*` / `$env` → `$app/env` still work as
   before. Extensions are explicit, and which one you write depends on the form:
   **a `#lib/…` TS module ends `.js`** (`#lib/core/pool.js`, `#lib/foo/index.js`)
-  : the alias isn't rewritten on emit, so a `.ts` there fails `bun run check`; a
-  component keeps `.svelte` (`#lib/components/layout/scroll-rail.svelte`). **A
-  relative import ends `.ts`** (`./stream-format.ts`), naming the real file.
-  Reach for a relative import only inside the same directory : anything crossing
-  a directory goes through `#lib/…`, so a future move is one find-and-replace.
-  One exception: a route may import a sibling or parent route's `.remote.ts`
-  relatively (`../auth.remote.ts`) : routes aren't under `#lib`.
+  : the alias isn't rewritten on emit, so a `.ts` there fails
+  `bun run type-check`; a component keeps `.svelte`
+  (`#lib/components/layout/scroll-rail.svelte`). **A relative import ends
+  `.ts`** (`./stream-format.ts`), naming the real file. Reach for a relative
+  import only inside the same directory : anything crossing a directory goes
+  through `#lib/…`, so a future move is one find-and-replace. One exception: a
+  route may import a sibling or parent route's `.remote.ts` relatively
+  (`../auth.remote.ts`) : routes aren't under `#lib`.
 - **Every internal link goes through `resolve` from `$app/paths`.** `href`,
   `goto(...)`, `redirect(...)`, `depends(...)` targets : all of them. SvelteKit
   3 type-checks both forms against the route table, so either fails
-  `bun run check` on a renamed/deleted route. Use the pathname form **without a
-  leading slash** (`resolve('detail/' + type + '/' + id)`,
+  `bun run type-check` on a renamed/deleted route. Use the pathname form
+  **without a leading slash** (`resolve('detail/' + type + '/' + id)`,
   `resolve('discover')`) or the route-id form with params
   (`resolve('/(protected)/(app)/(watch)/detail/[type]/[id]', { type, id })`).
   Prefer the pathname form : it's shorter and route groups don't leak into it.
@@ -184,26 +185,26 @@ calls that only existed to stub module-level state.
 ## Service worker
 
 `src/service-worker/` has its own `tsconfig.json` (the `WebWorker` lib, which
-clashes with the DOM lib) and is excluded from the root one; `bun run check`
-runs `svelte-check` over both. Its asset lists come from `$app/manifest` and
-`version` from `$app/env` (SvelteKit 3 has no `$service-worker`). It never
-caches signed-in pages : only the build, `static/` (minus `e2e/`), and the
-`/offline` shell, fetched without credentials.
+clashes with the DOM lib) and is excluded from the root one;
+`bun run type-check` runs `svelte-check` over both. Its asset lists come from
+`$app/manifest` and `version` from `$app/env` (SvelteKit 3 has no
+`$service-worker`). It never caches signed-in pages : only the build, `static/`
+(minus `e2e/`), and the `/offline` shell, fetched without credentials.
 
 ## Verifying UI changes
 
-`bun run check` and `bun run lint` are necessary but not sufficient : they don't
-catch runtime errors (bad reactive access, hydration mismatch, a broken remote
-call). **After any UI or route change, run `bun run test:e2e`** (Playwright, in
-`e2e/`) and make it pass before calling the work done. Add a spec when you add a
-screen or a flow. Needs `NUVIO_TEST_EMAIL` / `NUVIO_TEST_PASSWORD` in `.env`
-(see `.env.example`) and a running Docker. Playwright runs against **the
-production image on :3000**, built and started from `compose.e2e.yaml`, not
-`vite dev` : a cold dev-server compile made the run flaky, and the image is what
-ships. It reuses an existing server on :3000 and starts one otherwise, so your
-`bun run dev` on :5173 is untouched either way. Anything that touches the
-server's data dir goes through the `nuvio-e2e` container (see
-`admin-activity.spec.ts`), never a host path.
+`bun run type-check` and `bun run lint` are necessary but not sufficient : they
+don't catch runtime errors (bad reactive access, hydration mismatch, a broken
+remote call). **After any UI or route change, run `bun run test:e2e`**
+(Playwright, in `e2e/`) and make it pass before calling the work done. Add a
+spec when you add a screen or a flow. Needs `NUVIO_TEST_EMAIL` /
+`NUVIO_TEST_PASSWORD` in `.env` (see `.env.example`) and a running Docker.
+Playwright runs against **the production image on :3000**, built and started
+from `compose.e2e.yaml`, not `vite dev` : a cold dev-server compile made the run
+flaky, and the image is what ships. It reuses an existing server on :3000 and
+starts one otherwise, so your `bun run dev` on :5173 is untouched either way.
+Anything that touches the server's data dir goes through the `nuvio-e2e`
+container (see `admin-activity.spec.ts`), never a host path.
 
 **Screenshots are generated, not a test.** `e2e/showcase.spec.ts` is its own
 Playwright project, excluded from `test:e2e`; `bun run screenshots` rewrites

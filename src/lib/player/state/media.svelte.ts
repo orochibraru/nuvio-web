@@ -290,6 +290,10 @@ export function createPlayerMedia(deps: MediaDeps) {
 		},
 		/** From the audio menu : switch and close is the caller's job. */
 		selectAudioTrack,
+		/** The fix is running: its audio was planned (copied or converted). */
+		get fixing() {
+			return Boolean(sourceFix.active);
+		},
 		/** The fix is running and its audio is converted, not copied. */
 		get convertingAudio() {
 			return Boolean(sourceFix.active?.session.converting);

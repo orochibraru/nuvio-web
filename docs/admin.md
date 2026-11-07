@@ -55,22 +55,34 @@ The **Backends** tab decides which Supabase-style backend accounts come from.
 **Default backend.** Empty means the official Nuvio API. Set a URL and its
 publishable (anon) key to replace it for everyone who doesn't pick a backend of
 their own: this is for an instance whose users all live on a self-hosted
-backend. **Test connection** asks its `/auth/v1/settings` with that key before
-you save. The default is the one backend whose emails count for
-`NUVIO_ADMIN_EMAILS` and the allowlist, so sign in through it to keep reaching
-this page. Because an admin typed it, it may sit on your LAN (`http://192.168.…`
-is fine), but it is still HTTP or HTTPS only, without credentials in the URL,
-and every request to it has the same timeout and response cap as any other
-backend.
+backend. Leave the key empty for a
+[Nuvio self-hosted](https://github.com/NuvioMedia/self-host) server: it is read
+from the server's `/.well-known/nuvio` (only the key: its `backend_url` says
+`localhost` in local mode, so the URL you typed is kept). **Test connection**
+asks its `/auth/v1/settings` with that key before you save. The default is the
+one backend whose emails count for `NUVIO_ADMIN_EMAILS` and the allowlist, so
+sign in through it to keep reaching this page. Because an admin typed it, it may
+sit on your LAN (`http://192.168.…` is fine), but it is still HTTP or HTTPS
+only, without credentials in the URL, and every request to it has the same
+timeout and response cap as any other backend.
 
 Changing the default signs out everyone on the previous one, the official API
 included when it was the default (you too: sign back in through the new one to
 keep reaching this page). Their data stays where it was and comes back when that
 backend is the default again.
 
-**Allow custom backends** (off by default) shows a **Custom backend** section on
-the sign-in and sign-up forms, where a user types a backend URL and its key.
-Turning it off signs out every session on a custom backend on its next request.
+The sign-in and sign-up forms let each user pick where to sign in: this
+instance's default first when you set one, then the official Nuvio server, which
+is always on offer. Next to your default, accounts on the official server sign
+in like any other backend's: kept apart, never admins, and refused while the
+instance is locked.
+
+**Allow custom backends** (off by default, or on from the first boot with
+`NUVIO_ALLOW_CUSTOM_BACKENDS=true`) adds **Custom backend** to that choice,
+where a user types a backend URL and its key (or leaves the key empty for a
+Nuvio self-hosted server, as above; that lookup goes through the same address
+checks as everything else a user's backend gets). Turning it off signs out every
+session on a custom backend on its next request.
 
 **Seen backends** lists every custom backend someone signed in through, by URL:
 how many distinct accounts used it, and when it was first and last used. The

@@ -71,3 +71,6 @@ compose.test.yaml
 **/global-teardown.ts
 
 examples/
+
+# Desktop app (Electrobun)
+desktop/

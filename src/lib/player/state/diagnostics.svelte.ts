@@ -45,6 +45,7 @@ export function createPlaybackDiagnostics(deps: {
 		video: deps.video,
 		hls: () => media.hls,
 		audioRisky: deps.audioRisky,
+		audioPlanned: () => media.fixing,
 		blocked: () => Boolean(deps.fatalError()),
 		onTrackSwitch: (index) => {
 			media.activeAudioTrack = index;

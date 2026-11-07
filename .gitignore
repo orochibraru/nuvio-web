@@ -40,3 +40,4 @@ screens/
 /.vale/styles/*
 !/.vale/styles/config/
 .playwright-mcp/
+.hutch

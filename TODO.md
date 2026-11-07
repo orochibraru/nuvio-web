@@ -2,6 +2,27 @@
 
 ## Open
 
+- [ ] **Desktop app: other platforms, signing, releases.** Only macOS arm64 was
+      run: the bundled server starts, the window loads it, and sign-in offers
+      Nuvio and a custom backend. Untested: signing in from the app, Windows
+      (WebView2) and Linux (WebKitGTK) builds, a click on an external link
+      reaching the system browser (the blocked navigation was seen in the log
+      only), playback in WKWebView / WebKitGTK. Not built: code signing and
+      notarization, publishing the installers with a release, Electrobun's
+      updater. The `Desktop` workflow builds every platform but hasn't run yet:
+      the first run tells whether Windows and Linux build at all.
+- [ ] **Desktop in-window mpv (macOS spike): judge it, then finish or drop.**
+      libmpv draws under the page; the engine screen has play/pause, seek, ±10
+      s, mute and fullscreen. Missing before it can replace the separate window:
+      audio and subtitle tracks, subtitles from addons, speed, volume slider,
+      skip intro / chapters, the info overlay, up next, and any Windows / Linux
+      equivalent. OpenGL is deprecated on macOS.
+- [ ] **Desktop mpv fallback: play a real unplayable source.** Bundling (macOS
+      arm64) and discovery were run; the hand-off itself wasn't: open a source
+      the web view refuses and check mpv opens at the saved position, progress
+      lands, and reopening works. Not built: the addon's `proxyHeaders` (mpv
+      could send them), external subtitles, an Intel build for macOS 14.
+      Untested: Windows named-pipe IPC.
 - [ ] **Custom backends: confirm against a real self-hosted backend.** Only
       unit-tested against fakes. Check sign-in, sign-up (with and without email
       confirmation), token refresh and the background sync against a real
@@ -10,7 +31,9 @@
       and whether a backend behind a redirect still works (redirects are
       re-checked and re-sent with the same method and body). Also confirm a LAN
       default (`http://192.168.…`) from inside the container, and run
-      `e2e/custom-backend.spec.ts` (written, not run).
+      `e2e/custom-backend.spec.ts` (written, not run). Also an empty key against
+      a real `NuvioMedia/self-host` deployment: the key comes from its
+      `/.well-known/nuvio` (unit-tested against fakes only).
 - [ ] **Built-in backend: run the spec, try real clients, check the proxy.**
       `/api/nuvio` is contract-tested with the app's own `NuvioClient`
       in-process only; `e2e/built-in-backend.spec.ts` was written, not run.

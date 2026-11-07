@@ -29,7 +29,7 @@ than failing the install — you just do not get the hooks.
 bun run dev          # vite dev on :5173
 bun run build        # production build
 bun run start        # run the compiled binary
-bun run check        # svelte-kit sync + svelte-check
+bun run type-check        # svelte-kit sync + svelte-check
 bun run lint         # every prek pre-commit hook, on all files (fixes)
 bun run test:unit    # vitest
 bun run test:e2e     # playwright, chromium project
@@ -68,7 +68,7 @@ not add the braces for you.
 extension you write depends on the form:
 
 - A `#lib/…` TS module **ends `.js`**: the alias is not rewritten on emit, so a
-  `.ts` there fails `bun run check`. A component keeps `.svelte`.
+  `.ts` there fails `bun run type-check`. A component keeps `.svelte`.
 - A relative import **ends `.ts`**, naming the real file.
 
 Reach for a relative import only inside the same directory. Anything crossing a
@@ -78,8 +78,8 @@ relatively, since routes aren't under `#lib`.
 
 **Every internal link goes through `resolve`** from `$app/paths` — `href`,
 `goto`, `redirect`, `depends`. SvelteKit 3 type-checks it against the route
-table, so a renamed or deleted route fails `bun run check` instead of 404ing in
-production. Prefer the pathname form without a leading slash:
+table, so a renamed or deleted route fails `bun run type-check` instead of
+404ing in production. Prefer the pathname form without a leading slash:
 
 ```ts
 resolve("discover");

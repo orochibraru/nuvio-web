@@ -2,6 +2,7 @@ import { redirect } from "@sveltejs/kit";
 import { policyOrDefault } from "#lib/admin/backends-data.js";
 import { BUILT_IN_BACKEND } from "#lib/backend/tokens.js";
 import { safeRedirectPath } from "#lib/core/url.js";
+import { NUVIO_BASE_URL } from "#lib/nuvio/index.js";
 import { DATABASE } from "#lib/services/index.js";
 import { resolve } from "$app/paths";
 import type { LayoutServerLoad } from "./$types";
@@ -25,5 +26,10 @@ export const load: LayoutServerLoad = ({ locals, url }) => {
 	} else if (fallback) {
 		defaultTarget = { kind: "other", host: new URL(fallback.url).host };
 	}
-	return { customBackendsAllowed: policy.customAllowed, defaultTarget };
+	return {
+		customBackendsAllowed: policy.customAllowed,
+		defaultTarget,
+		// Offered as its own choice when the admin replaced it as the default.
+		officialBackendUrl: NUVIO_BASE_URL,
+	};
 };
