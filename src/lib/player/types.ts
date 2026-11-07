@@ -83,6 +83,11 @@ export interface VideoPlayerProps {
 	drawerOpen?: boolean;
 	onProgress?: (position: number, duration: number) => void;
 	onEnded?: () => void;
+	/**
+	 * The source can't play here (container or codec refused), with the
+	 * position reached: the page can hand it to something that can.
+	 */
+	onUnplayable?: (position: number) => void;
 	/** Fired once when playback first reaches `outroStart`. */
 	onOutro?: () => void;
 	onBack?: () => void;

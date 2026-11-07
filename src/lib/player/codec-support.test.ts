@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { browserCanPlayCodec, codecMimeProbe } from "./codec-support.ts";
+import {
+	browserCanPlayCodec,
+	browserDecodesDolby,
+	codecMimeProbe,
+} from "./codec-support.ts";
 
 describe("codecMimeProbe", () => {
 	it("maps the codecs we probe", () => {
@@ -40,5 +44,25 @@ describe("browserCanPlayCodec", () => {
 		vi.stubGlobal("MediaSource", undefined);
 		vi.stubGlobal("document", undefined);
 		expect(browserCanPlayCodec("HEVC")).toBe("unknown");
+	});
+});
+
+describe("browserDecodesDolby", () => {
+	afterEach(() => {
+		vi.unstubAllGlobals();
+	});
+
+	it("is false without a DOM (server rendering), not a throw", () => {
+		expect(browserDecodesDolby()).toBe(false);
+	});
+
+	it("asks the video element about AC-3 and E-AC-3", () => {
+		vi.stubGlobal("document", {
+			createElement: () => ({
+				canPlayType: (type: string) =>
+					type.includes("ec-3") ? "probably" : "",
+			}),
+		});
+		expect(browserDecodesDolby()).toBe(true);
 	});
 });

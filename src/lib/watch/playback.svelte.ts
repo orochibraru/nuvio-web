@@ -1,3 +1,4 @@
+import { browserDecodesDolby } from "#lib/player/codec-support.js";
 import { browser } from "$app/env";
 import {
 	audioSupport,
@@ -5,6 +6,11 @@ import {
 	riskyVideoCodec,
 	videoSupport,
 } from "./stream-format.ts";
+
+/** The label names an audio codec this browser won't decode (Dolby is fine in WebKit). */
+export function audioRiskyHere(stream: ResolvedStream): boolean {
+	return audioSupport(stream, browserDecodesDolby()) === "risky";
+}
 
 const STORAGE_KEY = "nuvio:selected-stream";
 
@@ -46,7 +52,7 @@ class PlaybackHandoff {
 			label,
 			addonName: stream.addonName,
 			infoHash: stream.infoHash,
-			audioRisky: audioSupport(stream) === "risky",
+			audioRisky: audioRiskyHere(stream),
 			videoRisky: videoSupport(stream) === "risky",
 			videoCodec: riskyVideoCodec(stream),
 			bingeGroup: stream.bingeGroup,

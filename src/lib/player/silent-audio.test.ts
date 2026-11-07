@@ -111,6 +111,7 @@ describe("evaluateAudioTick", () => {
 		reported: null,
 		canSwitchTrack: false,
 		audioRisky: false,
+		audioPlanned: false,
 		playedSeconds: 1,
 	};
 
@@ -187,6 +188,18 @@ describe("evaluateAudioTick", () => {
 				haveCounters: false,
 				audioRisky: true,
 				playedSeconds: 5,
+			}),
+		).toEqual({ kind: "continue" });
+	});
+
+	it("never flags on the label alone once the transmux fix planned the audio", () => {
+		expect(
+			evaluateAudioTick({
+				...base,
+				haveCounters: false,
+				audioRisky: true,
+				audioPlanned: true,
+				playedSeconds: 60,
 			}),
 		).toEqual({ kind: "continue" });
 	});

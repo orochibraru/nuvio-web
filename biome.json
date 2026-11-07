@@ -134,6 +134,17 @@
 	},
 	"overrides": [
 		{
+			"includes": ["desktop/**"],
+			"javascript": { "globals": ["Bun"] },
+			"linter": {
+				"rules": {
+					"correctness": {
+						"noUndeclaredDependencies": "off"
+					}
+				}
+			}
+		},
+		{
 			"includes": ["**/*.svelte", "**/*.astro", "**/*.vue"],
 			"linter": {
 				"rules": {

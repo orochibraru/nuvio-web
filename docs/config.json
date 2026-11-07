@@ -13,6 +13,7 @@
 				},
 				{ "slug": "showcase", "title": "Showcase", "icon": "images" },
 				{ "slug": "install", "title": "Install", "icon": "container" },
+				{ "slug": "desktop", "title": "Desktop app", "icon": "monitor" },
 				{
 					"slug": "configuration",
 					"title": "Configuration",

@@ -4,16 +4,24 @@ export interface BackendTarget {
 	url: string;
 }
 
-/** The custom backend URL when one is set, else the instance default. */
+/**
+ * Where the form's backend URL signs in to: official Nuvio when it names the
+ * official API, that backend when it names a custom backend the admin
+ * allows, else the instance default.
+ */
 export function targetOf(
-	customUrl: unknown,
+	backendUrl: unknown,
 	fallback: BackendTarget,
+	options: { officialUrl: string; customAllowed: boolean },
 ): BackendTarget {
-	const url = typeof customUrl === "string" ? customUrl.trim() : "";
-	if (url && URL.canParse(url)) {
-		return { kind: "other", url };
+	const url = typeof backendUrl === "string" ? backendUrl.trim() : "";
+	if (!(url && URL.canParse(url))) {
+		return fallback;
 	}
-	return fallback;
+	if (url.replace(/\/+$/, "") === options.officialUrl) {
+		return { kind: "nuvio", url: options.officialUrl };
+	}
+	return options.customAllowed ? { kind: "other", url } : fallback;
 }
 
 export function hostOf(target: BackendTarget): string {

@@ -68,3 +68,19 @@ export function browserCanPlayCodec(codecLabel: string | null): CodecVerdict {
 
 	return "unknown";
 }
+
+/** WebKit decodes Dolby Digital (Plus) itself; Chromium and Firefox don't. */
+export function browserDecodesDolby(): boolean {
+	// `typeof` first: optional chaining throws on an undeclared `document` (SSR),
+	// and the runes tests stub one without `createElement`.
+	if (
+		typeof document === "undefined" ||
+		typeof document.createElement !== "function"
+	) {
+		return false;
+	}
+	const probe = document.createElement("video");
+	return ["ac-3", "ec-3"].some(
+		(codec) => probe.canPlayType(`audio/mp4; codecs="${codec}"`) !== "",
+	);
+}

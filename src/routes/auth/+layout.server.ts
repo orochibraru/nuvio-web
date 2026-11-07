@@ -28,5 +28,10 @@ export const load: LayoutServerLoad = ({ locals, url }) => {
 	} else if (fallback) {
 		defaultTarget = { kind: "other", url: fallback.url };
 	}
-	return { customBackendsAllowed: policy.customAllowed, defaultTarget };
+	return {
+		customBackendsAllowed: policy.customAllowed,
+		defaultTarget,
+		// Offered as its own choice when the admin replaced it as the default.
+		officialBackendUrl: NUVIO_BASE_URL,
+	};
 };

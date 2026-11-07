@@ -240,6 +240,15 @@ describe("audioSupport", () => {
 		expect(audioSupport(stream({ name: "Movie DTS-HD MA" }))).toBe("risky");
 	});
 
+	it("lets a browser that decodes Dolby play Dolby tags, but not DTS / TrueHD", () => {
+		const dolby = (title: string) => audioSupport(stream({ title }), true);
+		expect(dolby("Movie 1080p EAC3 5.1")).toBe("ok");
+		expect(dolby("Movie DDP5.1 Atmos")).toBe("ok");
+		expect(dolby("Movie REMUX TrueHD Atmos")).toBe("risky");
+		expect(dolby("Movie 2160p REMUX Atmos")).toBe("risky");
+		expect(dolby("Movie DTS-HD MA")).toBe("risky");
+	});
+
 	it("treats an explicit AAC/Opus tag as safe even next to a Dolby tag", () => {
 		expect(audioSupport(stream({ title: "Movie WEB-DL AAC" }))).toBe("ok");
 		expect(

@@ -17,24 +17,37 @@
 		publishableKey,
 		allowed,
 		defaultTarget,
+		officialUrl,
 	}: {
 		url: RemoteFormField<string>;
 		publishableKey: RemoteFormField<string>;
 		allowed: boolean;
 		defaultTarget: BackendTarget;
+		officialUrl: string;
 	} = $props();
+
+	type Choice = "default" | "official" | "custom";
 
 	const STORAGE_KEY = "nuvio:custom-backend:v1";
 	const phone = new MediaQuery("max-width: 47.99rem");
 
 	let open = $state(false);
-	let choice = $state<"default" | "custom">("default");
+	let choice = $state<Choice>("default");
 	let draftUrl = $state("");
 	let draftKey = $state("");
 
 	const urlIssue = $derived(url.issues()?.[0]?.message);
 	const keyIssue = $derived(publishableKey.issues()?.[0]?.message);
-	const target = $derived(targetOf(allowed ? url.value() : "", defaultTarget));
+	const target = $derived(
+		targetOf(url.value(), defaultTarget, {
+			officialUrl,
+			customAllowed: allowed,
+		}),
+	);
+	// The official API is always on offer: as the default, or beside the
+	// backend an admin put in its place.
+	const offersOfficial = $derived(defaultTarget.kind !== "nuvio");
+	const changeable = $derived(allowed || offersOfficial);
 
 	function nameOf(value: BackendTarget): string {
 		if (value.kind === "nuvio") {
@@ -44,14 +57,23 @@
 	}
 
 	onMount(() => {
-		if (!allowed) {
+		if (!changeable) {
 			return;
 		}
 		try {
 			const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "null");
 			if (typeof saved?.url === "string" && typeof saved?.key === "string") {
-				url.set(saved.url);
-				publishableKey.set(saved.key);
+				const kind = targetOf(saved.url, defaultTarget, {
+					officialUrl,
+					customAllowed: allowed,
+				}).kind;
+				// A remembered choice the admin has since taken away is dropped.
+				const usable =
+					kind === "nuvio" ? offersOfficial : kind === "other" && allowed;
+				if (usable) {
+					url.set(saved.url);
+					publishableKey.set(saved.key);
+				}
 			}
 		} catch {
 			// storage unavailable or unreadable: the instance default it is
@@ -61,16 +83,26 @@
 	function edit() {
 		draftUrl = String(url.value() ?? "");
 		draftKey = String(publishableKey.value() ?? "");
-		choice = draftUrl ? "custom" : "default";
+		if (!draftUrl) {
+			choice = "default";
+		} else if (target.kind === "nuvio") {
+			choice = "official";
+			draftUrl = "";
+			draftKey = "";
+		} else {
+			choice = "custom";
+		}
 		open = true;
 	}
 
 	function apply() {
 		const custom = choice === "custom" && draftUrl.trim() !== "";
-		const value = {
-			url: custom ? draftUrl.trim() : "",
-			key: custom ? draftKey.trim() : "",
-		};
+		let value = { url: "", key: "" };
+		if (choice === "official") {
+			value = { url: officialUrl, key: "" };
+		} else if (custom) {
+			value = { url: draftUrl.trim(), key: draftKey.trim() };
+		}
 		url.set(value.url);
 		publishableKey.set(value.key);
 		try {
@@ -86,7 +118,7 @@
 	}
 </script>
 
-{#snippet option(value: "default" | "custom", title: string, hint: string, address: string | null)}
+{#snippet option(value: Choice, title: string, hint: string, address: string | null)}
 	<label
 		class={cn(
 			"flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition",
@@ -115,12 +147,17 @@
 {#snippet body()}
 	<div class="flex flex-col gap-3" role="radiogroup" aria-label={m.auth_backend()}>
 		{@render option("default", m.auth_backend_default(), nameOf(defaultTarget), defaultTarget.url)}
-		{@render option(
-			"custom",
-			m.auth_backend_custom(),
-			m.auth_backend_custom_hint(),
-			URL.canParse(draftUrl.trim()) ? draftUrl.trim() : null,
-		)}
+		{#if offersOfficial}
+			{@render option("official", "Nuvio", m.auth_backend_official(), officialUrl)}
+		{/if}
+		{#if allowed}
+			{@render option(
+				"custom",
+				m.auth_backend_custom(),
+				m.auth_backend_custom_hint(),
+				URL.canParse(draftUrl.trim()) ? draftUrl.trim() : null,
+			)}
+		{/if}
 	</div>
 	{#if choice === "custom"}
 		<div class="flex flex-col gap-4">
@@ -176,7 +213,7 @@
 				{/if}
 			</span>
 		</div>
-		{#if allowed}
+		{#if changeable}
 			<Button type="button" variant="ghost" size="sm" onclick={edit}>
 				{m.auth_target_change()}
 			</Button>
@@ -187,7 +224,7 @@
 	{/if}
 </div>
 
-{#if allowed}
+{#if changeable}
 	<!-- The auth screens pin `dark` on their wrapper; a portalled overlay needs it too. -->
 	{#if phone.current}
 		<Drawer.Root bind:open>

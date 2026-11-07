@@ -29,10 +29,10 @@
 		page.url.searchParams.get("registered") === "1",
 	);
 	const target = $derived(
-		targetOf(
-			data.customBackendsAllowed ? signIn.fields.backendUrl.value() : "",
-			data.defaultTarget,
-		),
+		targetOf(signIn.fields.backendUrl.value(), data.defaultTarget, {
+			officialUrl: data.officialBackendUrl,
+			customAllowed: data.customBackendsAllowed,
+		}),
 	);
 	const formIssue = $derived(signIn.fields.issues()?.[0]?.message);
 	const emailIssue = $derived(signIn.fields.email.issues()?.[0]?.message);
@@ -61,6 +61,7 @@
 					publishableKey={signIn.fields.backendKey}
 					allowed={data.customBackendsAllowed}
 					defaultTarget={data.defaultTarget}
+					officialUrl={data.officialBackendUrl}
 				/>
 				{#if justRegistered}
 					<Alert.Root>

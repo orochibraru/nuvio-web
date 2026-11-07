@@ -61,10 +61,11 @@ own.
 
 The admin page is opt-in and off unless you name at least one administrator.
 
-| Variable             | Default | What it does                                                       |
-| -------------------- | ------- | ------------------------------------------------------------------ |
-| `NUVIO_ADMIN_EMAILS` | _empty_ | Addresses allowed to reach `/admin`, comma or whitespace separated |
-| `NUVIO_DATA_DIR`     | `data`  | Where the SQLite database lives (`/app/data` in the image)         |
+| Variable                      | Default | What it does                                                                                              |
+| ----------------------------- | ------- | --------------------------------------------------------------------------------------------------------- |
+| `NUVIO_ADMIN_EMAILS`          | _empty_ | Addresses allowed to reach `/admin`, comma or whitespace separated                                        |
+| `NUVIO_DATA_DIR`              | `data`  | Where the SQLite database lives (`/app/data` in the image)                                                |
+| `NUVIO_ALLOW_CUSTOM_BACKENDS` | _unset_ | `true` turns **Allow custom backends** on from the first boot; the admin page's own choice wins once made |
 
 Unset `NUVIO_ADMIN_EMAILS` means the admin page 404s for everybody. Addresses on
 this list can always sign in, even while the instance is locked, so a bad

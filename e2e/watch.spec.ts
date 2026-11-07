@@ -117,6 +117,12 @@ test("player page with no resolvable stream renders cleanly", async ({
 	).toBeVisible({ timeout: 20_000 });
 	// A back button must always be reachable while no stream is loaded.
 	await expect(page.getByRole("button", { name: "Back" })).toBeVisible();
+	// The page under the player neither scrolls nor shows a scrollbar.
+	expect(
+		await page.evaluate(
+			() => getComputedStyle(document.documentElement).overflow,
+		),
+	).toBe("hidden");
 	await page.waitForTimeout(1000);
 	expect(errors).toEqual([]);
 });

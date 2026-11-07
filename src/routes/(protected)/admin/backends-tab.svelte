@@ -271,6 +271,8 @@
 							/>
 							{#if keyIssue}
 								<Field.FieldError>{keyIssue}</Field.FieldError>
+							{:else}
+								<Field.FieldDescription>{m.auth_backend_key_hint()}</Field.FieldDescription>
 							{/if}
 						</Field.Field>
 						<div class="flex flex-wrap items-center gap-2">

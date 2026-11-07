@@ -84,6 +84,14 @@ vi.mock("#lib/admin/backends-data.js", () => ({
 		backendsData.recordCustomSignIn(...(args as [])),
 }));
 
+const discover = vi.hoisted(() =>
+	vi.fn(async (): Promise<string | null> => null),
+);
+vi.mock("#lib/nuvio/backend.js", async (original) => ({
+	...(await original<typeof import("#lib/nuvio/backend.js")>()),
+	discoverPublishableKey: discover,
+}));
+
 vi.mock("@sveltejs/kit", () => ({
 	redirect: (status: number, location: string) => {
 		throw new Redirect(status, location);
@@ -210,6 +218,7 @@ beforeEach(() => {
 		.mockReturnValue({ id: "b1", firstSeen: true });
 	notifier.notify.mockClear();
 	nuvioSync.touch.mockClear();
+	discover.mockReset().mockResolvedValue(null);
 	clientOptions.length = 0;
 	limiter = new RateLimiter();
 	event.getClientAddress = () => "203.0.113.7";
@@ -556,6 +565,54 @@ describe("backends", () => {
 		await expect(signInWith({ backendUrl, backendKey })).rejects.toMatchObject({
 			payload: { field: "backendUrl" },
 		});
+	});
+
+	it("always offers the official API, next to an admin default and with custom backends off", async () => {
+		backendsData.policy.defaultBackend = {
+			url: "http://192.168.1.10",
+			publishableKey: "k",
+			trusted: true,
+		};
+		client.signInWithPassword.mockResolvedValue({
+			...apiSession,
+			refresh_token: "r",
+			expires_in: 3600,
+		});
+		await expect(
+			signInWith({ backendUrl: "https://api.nuvio.tv", backendKey: "" }),
+		).rejects.toBeInstanceOf(Redirect);
+		expect(clientOptions.at(-1)).not.toHaveProperty("baseUrl");
+		expect(discover).not.toHaveBeenCalled();
+	});
+
+	it("reads the key a self-hosted backend publishes when none is typed", async () => {
+		backendsData.policy.customAllowed = true;
+		discover.mockResolvedValueOnce("sb_publishable_discovered");
+		client.signInWithPassword.mockResolvedValue({
+			...apiSession,
+			refresh_token: "r",
+			expires_in: 3600,
+		});
+		await expect(
+			signInWith({ backendUrl: custom.backendUrl, backendKey: "" }),
+		).rejects.toBeInstanceOf(Redirect);
+		expect(discover).toHaveBeenCalledWith(
+			"https://backend.example",
+			expect.any(Function),
+		);
+		expect(clientOptions.at(-1)).toMatchObject({
+			baseUrl: "https://backend.example",
+			publishableKey: "sb_publishable_discovered",
+		});
+	});
+
+	it("never asks a banned backend for its key", async () => {
+		backendsData.policy.customAllowed = true;
+		backendsData.banned.add("https://backend.example");
+		await expect(
+			signInWith({ backendUrl: custom.backendUrl, backendKey: "" }),
+		).rejects.toBeInstanceOf(Invalid);
+		expect(discover).not.toHaveBeenCalled();
 	});
 
 	it.each(["", "key\r\nx-injected: 1", "key with spaces", "k".repeat(1025)])(

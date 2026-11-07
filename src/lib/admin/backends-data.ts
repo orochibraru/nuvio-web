@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import * as v from "valibot";
 import { m } from "#lib/i18n/index.js";
 import {
+	discoverPublishableKey,
 	isPublishableKey,
 	type NuvioBackend,
 	parseBackendUrl,
@@ -99,6 +100,13 @@ export function policyOrDefault(db: Database | null): BackendPolicy {
 		: { customAllowed: false, defaultBackend: null };
 }
 
+/** Allows custom backends unless an admin already chose either way: the boot default of `NUVIO_ALLOW_CUSTOM_BACKENDS`. */
+export function allowCustomBackendsUnlessSet(db: Database): void {
+	db.query("INSERT OR IGNORE INTO settings (key, value) VALUES (?, '1')").run(
+		CUSTOM_ALLOWED_KEY,
+	);
+}
+
 export function setCustomBackendsAllowed(db: Database, allowed: boolean): void {
 	writeSetting(db, CUSTOM_ALLOWED_KEY, allowed ? "1" : "0");
 }
@@ -123,12 +131,28 @@ export const backendFieldsSchema = v.object({
 		),
 		v.transform((value) => parseBackendUrl(value) as string),
 	),
+	// Empty: read from the backend's `/.well-known/nuvio` by `withPublishableKey`.
 	publishableKey: v.pipe(
 		v.string(),
 		v.trim(),
-		v.check(isPublishableKey, () => m.auth_error_backend_key_invalid()),
+		v.check(
+			(value) => value === "" || isPublishableKey(value),
+			() => m.auth_error_backend_key_invalid(),
+		),
 	),
 });
+
+/** The backend with its typed key, or the one it publishes when none was typed; null when it publishes none. */
+export async function withPublishableKey(
+	backend: { url: string; publishableKey: string },
+	fetchImpl: typeof fetch = trustedBackendFetch,
+): Promise<{ url: string; publishableKey: string } | null> {
+	if (backend.publishableKey) {
+		return backend;
+	}
+	const publishableKey = await discoverPublishableKey(backend.url, fetchImpl);
+	return publishableKey === null ? null : { url: backend.url, publishableKey };
+}
 
 interface SeenRow {
 	id: string;

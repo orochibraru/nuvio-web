@@ -27,8 +27,8 @@ the report.
 **Setup and the dev loop**
 
 - `README.md`, `CONTRIBUTING.md`, `docs/development.md`, `.env.example`: can a
-  newcomer go from clone to a running app and a green `bun run check` with only
-  what's written? Every required env var in `src/env.ts` documented?
+  newcomer go from clone to a running app and a green `bun run type-check` with
+  only what's written? Every required env var in `src/env.ts` documented?
 - `package.json` scripts: dead, duplicated, or misleading ones; anything that
   needs npm/npx instead of bun.
 - Pre-commit / pre-push (`.pre-commit-config.yaml`, prek): too slow for the
@@ -68,7 +68,7 @@ the report.
 ## Method
 
 1. Read `CLAUDE.md`, `CONTRIBUTING.md`, `docs/development.md`, `package.json`.
-2. Run the cheap checks and time them: `bun run lint`, `bun run check`,
+2. Run the cheap checks and time them: `bun run lint`, `bun run type-check`,
    `bun run test:unit`. Report failures and wall time. Do not run the e2e suite
    (it hits the rate-limited live API); read it instead.
 3. Grep for each `CLAUDE.md` rule's violation pattern.

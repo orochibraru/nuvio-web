@@ -43,6 +43,7 @@
 					publishableKey={signUp.fields.backendKey}
 					allowed={data.customBackendsAllowed}
 					defaultTarget={data.defaultTarget}
+					officialUrl={data.officialBackendUrl}
 				/>
 				{#if formIssue}
 					<Alert.Root variant="destructive">
