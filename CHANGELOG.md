@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.31](https://github.com/orochibraru/nuvio-web/compare/v1.0.30...v1.0.31) (2026-11-07)
+
+### Bug Fixes
+
+* **desktop:** retry the server build once on Windows when Bun can't resolve adapter-bun.js ([2f81e59](https://github.com/orochibraru/nuvio-web/commit/2f81e5972f06eadc53418baf175e9327c4c50d7b))
+
 ## [1.0.30](https://github.com/orochibraru/nuvio-web/compare/v1.0.29...v1.0.30) (2026-11-07)
 
 ### Features
