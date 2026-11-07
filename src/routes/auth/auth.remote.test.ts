@@ -59,6 +59,7 @@ const {
 			cookies: {},
 			fetch: vi.fn(),
 			getClientAddress: (): string => "203.0.113.7",
+			url: new URL("https://nuvio.example.com/auth/sign-in"),
 			locals: {} as Record<string, unknown>,
 		},
 	};
@@ -499,11 +500,14 @@ describe("backends", () => {
 		];
 		expect(key).toMatch(/^custom-/);
 		expect(nuvioSync.touch).toHaveBeenCalledWith(key);
-		expect(notifier.notify).toHaveBeenCalledWith({
-			kind: "custom_backend_seen",
-			backendId: "b1",
-			url: "https://backend.example",
-		});
+		expect(notifier.notify).toHaveBeenCalledWith(
+			{
+				kind: "custom_backend_seen",
+				backendId: "b1",
+				url: "https://backend.example",
+			},
+			expect.stringContaining("admin?tab=backends"),
+		);
 	});
 
 	it("does not notify for a backend already seen", async () => {

@@ -30,6 +30,7 @@ export type SmtpTransportFactory = (options: SMTPTransport.Options) => {
 		to: string;
 		subject: string;
 		text: string;
+		html: string;
 	}) => Promise<unknown>;
 };
 
@@ -134,6 +135,7 @@ export class MailerService implements MailSender {
 				to: message.to,
 				subject: message.subject,
 				text: message.text,
+				html: message.html,
 			});
 			return { ok: true };
 		} catch (error) {

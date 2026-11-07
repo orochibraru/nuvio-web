@@ -11,7 +11,12 @@ const SETTINGS = {
 	username: "mailer",
 	from: "nuvio@example.com",
 };
-const MESSAGE = { to: "admin@example.com", subject: "Hi", text: "Body" };
+const MESSAGE = {
+	to: "admin@example.com",
+	subject: "Hi",
+	text: "Body",
+	html: "<p>Body</p>",
+};
 
 let db: Database;
 let sendMail: ReturnType<typeof vi.fn<() => Promise<unknown>>>;

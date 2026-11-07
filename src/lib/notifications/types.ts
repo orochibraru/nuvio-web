@@ -5,13 +5,15 @@ export interface AdminNotification {
 }
 
 export interface AdminNotifier {
-	notify: (notification: AdminNotification) => Promise<void>;
+	/** `adminUrl` is the admin page's address, for the email's button. */
+	notify: (notification: AdminNotification, adminUrl: string) => Promise<void>;
 }
 
 export interface MailMessage {
 	to: string;
 	subject: string;
 	text: string;
+	html: string;
 }
 
 export interface MailSender {

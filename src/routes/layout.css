@@ -4,6 +4,12 @@
 @plugin "@tailwindcss/typography";
 
 @custom-variant dark (&:is(.dark *));
+/* The vega components ask for `data-open:` / `data-closed:` / `data-checked:`, but
+   bits-ui marks state with `data-state`: without these no overlay animates and
+   no checkbox fills. */
+@custom-variant data-open (&:where([data-state="open"]));
+@custom-variant data-closed (&:where([data-state="closed"]));
+@custom-variant data-checked (&:where([data-state="checked"]));
 
 :root {
 	--radius: 0.625rem;
@@ -382,6 +388,10 @@
 }
 
 @layer base {
+	/* The auth split screen is full-bleed and never scrolls on desktop: no empty gutter. */
+	html:has([data-auth-screen]) {
+		scrollbar-gutter: auto;
+	}
 	* {
 		@apply border-border outline-ring/50;
 	}

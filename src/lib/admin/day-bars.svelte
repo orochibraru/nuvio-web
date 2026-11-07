@@ -51,7 +51,7 @@
 
 <figure class="flex min-w-0 flex-col gap-3">
 	<figcaption class="flex flex-wrap items-baseline gap-x-2">
-		<span class="text-2xl font-semibold">{numberFormat.format(summary)}</span>
+		<span class="text-2xl font-semibold tabular-nums">{numberFormat.format(summary)}</span>
 		<span class="text-sm text-muted-foreground">
 			{m.admin_chart_caption({ label, count: days.length })}
 		</span>

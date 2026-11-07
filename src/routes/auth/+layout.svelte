@@ -2,6 +2,7 @@
 	import AuroraBackground from "#lib/components/layout/aurora-background.svelte";
 	import { m } from "#lib/i18n/index.js";
 	import { forgetLocalData } from "#lib/sync/local-data.js";
+	import PosterWall from "./poster-wall.svelte";
 
 	let { children } = $props();
 
@@ -22,20 +23,25 @@
 	and aurora carry the brand colour.
 -->
 <div
-  class="dark relative flex min-h-svh w-full items-center justify-center overflow-hidden bg-background p-6 text-foreground"
+  class="dark relative grid min-h-svh w-full overflow-hidden bg-background text-foreground md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]"
   data-accent="blue"
+  data-auth-screen
 >
-  <AuroraBackground />
-  <div
-    class="pointer-events-none absolute inset-0"
-    style="background: radial-gradient(38% 34% at 50% 50%, color-mix(in oklch, var(--background) 78%, transparent), transparent 72%)"
-  ></div>
+  <AuroraBackground class="opacity-60" />
 
-  <div class="relative flex w-full max-w-sm flex-col gap-6">
-    <div class="flex flex-col items-center gap-2 text-center">
-      <img src="/logo-text.webp" alt="Nuvio" width={132} class="drop-shadow" />
-      <p class="text-sm text-muted-foreground">{m.auth_tagline()}</p>
+  <section class="relative flex min-h-64 flex-col justify-end overflow-hidden p-6 md:min-h-svh md:p-12 lg:p-16">
+    <PosterWall />
+    <div class="pointer-events-none absolute inset-x-0 bottom-0 h-2/3 bg-linear-to-t from-background/90 via-background/50 to-transparent"></div>
+    <div class="relative flex flex-col gap-4">
+      <img src="/logo-text.webp" alt="Nuvio" width={132} class="drop-shadow md:w-40" />
+      <p class="text-3xl font-semibold tracking-tight text-balance md:text-5xl lg:text-6xl">
+        {m.auth_tagline()}
+      </p>
+      <p class="text-sm text-foreground/70 md:text-base">{m.notice_unofficial()}</p>
     </div>
+  </section>
+
+  <main class="relative flex flex-col justify-center px-4 pb-10 sm:px-10 md:py-12 lg:px-16 xl:px-24">
     {@render children()}
-  </div>
+  </main>
 </div>

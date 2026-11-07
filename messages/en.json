@@ -294,7 +294,7 @@
 	"admin_smtp_test_timeout": "The SMTP server took too long to answer.",
 	"admin_smtp_test_rejected": "The SMTP server refused the message. Check the from address.",
 	"admin_smtp_test_unknown": "Sending failed. The server log has the details.",
-	"admin_stat_delta": "{change} vs {period}",
+	"admin_stat_vs": "vs {period}",
 	"admin_stat_unchanged": "No change vs {period}",
 	"admin_stats_period_day": "the day before",
 	"admin_stats_period_week": "the previous 7 days",

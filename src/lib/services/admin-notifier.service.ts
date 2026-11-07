@@ -1,4 +1,9 @@
 import type { Database } from "bun:sqlite";
+import {
+	type EmailContent,
+	emailHtml,
+	emailText,
+} from "#lib/notifications/email.js";
 import type {
 	AdminNotification,
 	AdminNotifier,
@@ -45,13 +50,25 @@ function fold(email: string): string {
 	return email.trim().toLowerCase();
 }
 
-export function notificationEmail(notification: AdminNotification): {
-	subject: string;
-	text: string;
-} {
+export function notificationEmail(
+	notification: AdminNotification,
+	adminUrl: string,
+): { subject: string; text: string; html: string } {
+	const content: EmailContent = {
+		preview: `Someone signed in through ${notification.url}`,
+		heading: "A new custom backend is in use",
+		paragraphs: [
+			"Someone signed in to your Nuvio server through a backend it hadn't seen before.",
+		],
+		detail: notification.url,
+		action: { label: "Review it in Backends", url: adminUrl },
+		footnote:
+			"You get this because your address is in NUVIO_ADMIN_EMAILS and email notifications are on in the admin page.",
+	};
 	return {
 		subject: "Nuvio: a new custom backend is in use",
-		text: `A new custom backend is in use: ${notification.url}\n\nReview it on the admin page, in the Backends tab.`,
+		text: emailText(content),
+		html: emailHtml(content),
 	};
 }
 
@@ -66,7 +83,10 @@ export class AdminNotifierService implements AdminNotifier {
 		private readonly logger: Pick<Logger, "error">,
 	) {}
 
-	async notify(notification: AdminNotification): Promise<void> {
+	async notify(
+		notification: AdminNotification,
+		adminUrl: string,
+	): Promise<void> {
 		let recipients: string[];
 		try {
 			const db = this.#db();
@@ -87,9 +107,9 @@ export class AdminNotifierService implements AdminNotifier {
 			});
 			return;
 		}
-		const { subject, text } = notificationEmail(notification);
+		const email = notificationEmail(notification, adminUrl);
 		await Promise.all(
-			recipients.map((to) => this.mailer.send({ to, subject, text })),
+			recipients.map((to) => this.mailer.send({ to, ...email })),
 		);
 	}
 

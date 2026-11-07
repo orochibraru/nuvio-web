@@ -15,7 +15,7 @@
 	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
 	import { signIn } from "../auth.remote.ts";
-	import { targetOf } from "../backend-target.ts";
+	import { hostOf, targetOf } from "../backend-target.ts";
 	import CustomBackend from "../custom-backend.svelte";
 
 	let { data } = $props();
@@ -44,9 +44,11 @@
 	);
 </script>
 
-<Card.Root>
+<Card.Root
+	class="md:gap-8 md:bg-transparent md:py-0 md:shadow-none md:ring-0 md:inset-shadow-none md:backdrop-blur-none md:*:px-0"
+>
 	<Card.Header>
-		<Card.Title>{m.auth_sign_in()}</Card.Title>
+		<Card.Title class="md:text-3xl md:font-semibold md:tracking-tight">{m.auth_sign_in()}</Card.Title>
 		<Card.Description
 			>{m.auth_sign_in_description()}</Card.Description
 		>
@@ -126,7 +128,7 @@
 
 
 				<Field.Field>
-					<Button type="submit" disabled={signIn.pending > 0}>
+					<Button type="submit" class="h-11 rounded-full" disabled={signIn.pending > 0}>
 						{#if signIn.pending > 0}
 							<Spinner data-icon="inline-start" />
 						{/if}
@@ -136,7 +138,7 @@
 			</Field.FieldGroup>
 		</form>
 	</Card.Content>
-	<Card.Footer class="flex-col gap-3 text-center">
+	<Card.Footer class="flex-col gap-3 text-center md:items-start md:text-left">
 		<p class="flex items-start gap-2 text-left text-xs text-muted-foreground">
 			<ShieldCheckIcon class="mt-px size-3.5 shrink-0" />
 			{#if target.kind === "nuvio"}
@@ -144,7 +146,7 @@
 			{:else if target.kind === "server"}
 				{m.auth_credentials_note_server()}
 			{:else}
-				{m.auth_credentials_note_backend({ host: target.host })}
+				{m.auth_credentials_note_backend({ host: hostOf(target) })}
 			{/if}
 		</p>
 		<p class="text-sm text-muted-foreground">

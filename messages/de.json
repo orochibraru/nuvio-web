@@ -294,7 +294,7 @@
 	"admin_smtp_test_timeout": "Der SMTP-Server hat zu lange nicht geantwortet.",
 	"admin_smtp_test_rejected": "Der SMTP-Server hat die Nachricht abgelehnt. Prüfe die Absenderadresse.",
 	"admin_smtp_test_unknown": "Senden fehlgeschlagen. Details stehen im Server-Log.",
-	"admin_stat_delta": "{change} gegenüber {period}",
+	"admin_stat_vs": "gegenüber {period}",
 	"admin_stat_unchanged": "Unverändert gegenüber {period}",
 	"admin_stats_period_day": "dem Vortag",
 	"admin_stats_period_week": "den 7 Tagen davor",

@@ -6,6 +6,7 @@ import {
 	policyOrDefault,
 	recordCustomSignIn,
 } from "#lib/admin/backends-data.js";
+import { adminTabSearch } from "#lib/admin/tabs.js";
 import { BUILT_IN_BACKEND } from "#lib/backend/tokens.js";
 import { safeRedirectPath } from "#lib/core/url.js";
 import { signInSchema, signUpSchema } from "#lib/forms/schemas.js";
@@ -183,7 +184,8 @@ function failed(
 
 /** Notes a user's own backend for the admin tab, and tells the admins the first time. */
 async function noteCustomBackend(url: string, key: string): Promise<void> {
-	const services = getRequestEvent().locals.services;
+	const event = getRequestEvent();
+	const services = event.locals.services;
 	const db = services.get(DATABASE).tryConnect();
 	if (!db) {
 		return;
@@ -193,7 +195,10 @@ async function noteCustomBackend(url: string, key: string): Promise<void> {
 		if (seen.firstSeen) {
 			await services
 				.get(ADMIN_NOTIFIER)
-				.notify({ kind: "custom_backend_seen", backendId: seen.id, url });
+				.notify(
+					{ kind: "custom_backend_seen", backendId: seen.id, url },
+					`${event.url.origin}${resolve("admin")}${adminTabSearch("backends")}`,
+				);
 		}
 	} catch (error) {
 		services.get(LOGGER).error("Could not record a custom backend", {

@@ -10,7 +10,7 @@
 	import { m } from "#lib/i18n/index.js";
 	import { cn } from "#lib/utils.js";
 	import type { RemoteFormField } from "$app/server";
-	import { type BackendTarget, targetOf } from "./backend-target.ts";
+	import { type BackendTarget, hostOf, targetOf } from "./backend-target.ts";
 
 	let {
 		url,
@@ -40,7 +40,7 @@
 		if (value.kind === "nuvio") {
 			return "Nuvio";
 		}
-		return value.kind === "server" ? m.auth_target_server() : value.host;
+		return value.kind === "server" ? m.auth_target_server() : hostOf(value);
 	}
 
 	onMount(() => {
@@ -86,7 +86,7 @@
 	}
 </script>
 
-{#snippet option(value: "default" | "custom", title: string, hint: string)}
+{#snippet option(value: "default" | "custom", title: string, hint: string, address: string | null)}
 	<label
 		class={cn(
 			"flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition",
@@ -105,14 +105,22 @@
 		<span class="flex min-w-0 flex-col">
 			<span class="text-sm font-medium">{title}</span>
 			<span class="truncate text-xs text-muted-foreground">{hint}</span>
+			{#if address}
+				<span class="mt-1 truncate font-mono text-xs text-foreground/80">{address}</span>
+			{/if}
 		</span>
 	</label>
 {/snippet}
 
 {#snippet body()}
 	<div class="flex flex-col gap-3" role="radiogroup" aria-label={m.auth_backend()}>
-		{@render option("default", m.auth_backend_default(), nameOf(defaultTarget))}
-		{@render option("custom", m.auth_backend_custom(), m.auth_backend_custom_hint())}
+		{@render option("default", m.auth_backend_default(), nameOf(defaultTarget), defaultTarget.url)}
+		{@render option(
+			"custom",
+			m.auth_backend_custom(),
+			m.auth_backend_custom_hint(),
+			URL.canParse(draftUrl.trim()) ? draftUrl.trim() : null,
+		)}
 	</div>
 	{#if choice === "custom"}
 		<div class="flex flex-col gap-4">
@@ -161,7 +169,12 @@
 		<ServerIcon class="size-4 shrink-0 text-muted-foreground" />
 		<div class="flex min-w-0 flex-1 flex-col">
 			<span class="text-xs text-muted-foreground">{m.auth_target_label()}</span>
-			<span class="truncate text-sm font-medium">{nameOf(target)}</span>
+			<span class="flex min-w-0 items-baseline gap-2">
+				<span class="shrink-0 text-sm font-medium">{nameOf(target)}</span>
+				{#if target.kind !== "other"}
+					<span class="truncate font-mono text-xs text-muted-foreground">{hostOf(target)}</span>
+				{/if}
+			</span>
 		</div>
 		{#if allowed}
 			<Button type="button" variant="ghost" size="sm" onclick={edit}>
@@ -189,7 +202,10 @@
 		</Drawer.Root>
 	{:else}
 		<Dialog.Root bind:open>
-			<Dialog.Content class="dark text-foreground" data-accent="blue">
+			<Dialog.Content
+				class="dark text-foreground duration-200 ease-out data-open:slide-in-from-bottom-4"
+				data-accent="blue"
+			>
 				<Dialog.Header>
 					<Dialog.Title>{m.auth_backend()}</Dialog.Title>
 				</Dialog.Header>

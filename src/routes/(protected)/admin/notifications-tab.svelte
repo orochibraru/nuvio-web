@@ -1,5 +1,6 @@
 <script lang="ts">
 	import BellIcon from "@lucide/svelte/icons/bell";
+	import IconChip from "#lib/admin/icon-chip.svelte";
 	import EmptyState from "#lib/components/feedback/empty-state.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import * as Card from "#lib/components/ui/card/index.js";
@@ -66,7 +67,7 @@
   <Card.Root class="border border-foreground/10">
     <Card.Header class="flex flex-wrap items-start justify-between gap-2">
       <div class="flex flex-col gap-1.5">
-        <Card.Title>{m.admin_notifications()}</Card.Title>
+        <Card.Title class="flex items-center gap-3"><IconChip icon={BellIcon} />{m.admin_notifications()}</Card.Title>
         <Card.Description>{m.admin_notifications_description()}</Card.Description>
       </div>
       {#if unread > 0}

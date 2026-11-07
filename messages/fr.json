@@ -294,7 +294,7 @@
 	"admin_smtp_test_timeout": "Le serveur SMTP a mis trop de temps à répondre.",
 	"admin_smtp_test_rejected": "Le serveur SMTP a refusé le message. Vérifiez l'adresse d'expédition.",
 	"admin_smtp_test_unknown": "L'envoi a échoué. Le journal du serveur donne les détails.",
-	"admin_stat_delta": "{change} par rapport à {period}",
+	"admin_stat_vs": "par rapport à {period}",
 	"admin_stat_unchanged": "Stable par rapport à {period}",
 	"admin_stats_period_day": "la veille",
 	"admin_stats_period_week": "les 7 jours précédents",

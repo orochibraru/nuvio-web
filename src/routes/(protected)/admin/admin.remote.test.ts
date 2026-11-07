@@ -36,6 +36,7 @@ const { data, logger, admin, mailer, notifier, guard } = vi.hoisted(() => {
 		ADMIN_NOTIFICATIONS: notifier,
 	};
 	const event = {
+		url: new URL("https://nuvio.example.com/admin"),
 		locals: {
 			services: {
 				get: (token: { name?: string }) =>
@@ -50,6 +51,7 @@ const { data, logger, admin, mailer, notifier, guard } = vi.hoisted(() => {
 vi.mock("$app/server", () => ({
 	form: (_schema: unknown, fn: unknown) => fn,
 }));
+vi.mock("$app/paths", () => ({ resolve: (path: string) => `/${path}` }));
 
 vi.mock("#lib/server/guards.js", () => ({
 	requireAdmin: () => guard(),
@@ -184,7 +186,12 @@ describe("SMTP settings", () => {
 	it("sends the test email to the acting admin and returns the result", async () => {
 		expect(await sendTestEmail({})).toEqual({ ok: true });
 		expect(mailer.deliver).toHaveBeenCalledWith(
-			expect.objectContaining({ to: "boss@example.com" }),
+			expect.objectContaining({
+				to: "boss@example.com",
+				html: expect.stringContaining(
+					'href="https://nuvio.example.com/admin?tab=notifications"',
+				),
+			}),
 		);
 	});
 });

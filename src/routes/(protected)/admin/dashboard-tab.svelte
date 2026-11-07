@@ -1,5 +1,14 @@
 <script lang="ts">
+	import CircleUserIcon from "@lucide/svelte/icons/circle-user";
+	import ClockIcon from "@lucide/svelte/icons/clock";
+	import FlameIcon from "@lucide/svelte/icons/flame";
+	import LogInIcon from "@lucide/svelte/icons/log-in";
+	import PlayIcon from "@lucide/svelte/icons/play";
+	import RepeatIcon from "@lucide/svelte/icons/repeat";
+	import UserPlusIcon from "@lucide/svelte/icons/user-plus";
+	import UsersIcon from "@lucide/svelte/icons/users";
 	import DayBars from "#lib/admin/day-bars.svelte";
+	import IconChip from "#lib/admin/icon-chip.svelte";
 	import StatTile from "#lib/admin/stat-tile.svelte";
 	import type {
 		DayValue,
@@ -54,6 +63,9 @@
 	const signInsShown = $derived(lastDays(signInStream.current));
 	const newAccounts = $derived(lastDays(newAccountStream.current));
 	const plays = $derived(lastDays(playStream.current));
+	const topPeak = $derived(
+		Math.max(1, ...topStream.current.map((title) => title.accounts)),
+	);
 </script>
 
 <div class="flex flex-col gap-6">
@@ -64,41 +76,48 @@
       class="grid grid-cols-2 gap-3 md:grid-cols-4 2xl:grid-cols-8"
     >
       <StatTile
+        icon={UsersIcon}
         label={m.admin_stats_daily_active()}
         value={stats.dailyActive.current}
         comparison={stats.dailyActive}
         period={m.admin_stats_period_day()}
       />
       <StatTile
+        icon={UsersIcon}
         label={m.admin_stats_weekly_active()}
         value={stats.weeklyActive.current}
         comparison={stats.weeklyActive}
         period={m.admin_stats_period_week()}
       />
       <StatTile
+        icon={UsersIcon}
         label={m.admin_stats_monthly_active()}
         value={stats.monthlyActive.current}
         comparison={stats.monthlyActive}
         period={m.admin_stats_period_month()}
       />
       <StatTile
+        icon={UserPlusIcon}
         label={m.admin_stats_new_accounts()}
         value={stats.newAccounts.current}
         comparison={stats.newAccounts}
         period={m.admin_stats_period_month()}
       />
       <StatTile
+        icon={CircleUserIcon}
         label={m.admin_stats_total_accounts()}
         value={stats.totalAccounts}
         detail={m.admin_stats_live_sessions({ count: stats.liveSessions })}
       />
       <StatTile
+        icon={PlayIcon}
         label={m.admin_stats_plays()}
         value={stats.plays.current}
         comparison={stats.plays}
         period={m.admin_stats_period_week()}
       />
       <StatTile
+        icon={ClockIcon}
         label={m.admin_stats_hours()}
         value={stats.hoursWatched.current}
         comparison={stats.hoursWatched}
@@ -118,7 +137,7 @@
   <div class="grid grid-cols-1 gap-6 xl:grid-cols-2">
     <Card.Root class="border border-foreground/10">
       <Card.Header>
-        <Card.Title>{m.admin_stats_top_titles()}</Card.Title>
+        <Card.Title class="flex items-center gap-3"><IconChip icon={FlameIcon} />{m.admin_stats_top_titles()}</Card.Title>
         <Card.Description>{m.admin_stats_top_titles_description()}</Card.Description>
       </Card.Header>
       <Card.Content>
@@ -127,17 +146,22 @@
             {m.admin_stats_top_titles_empty()}
           </p>
         {:else}
-          <ol class="flex flex-col divide-y divide-foreground/10">
+          <ol class="flex flex-col gap-1">
             {#each topStream.current as title, index (title.contentId)}
-              <li class="flex items-center gap-3 py-2 text-sm">
-                <span class="w-5 text-right text-muted-foreground tabular-nums">{index + 1}</span>
+              <li class="relative flex items-center gap-3 px-2 py-2 text-sm">
+                <span
+                  aria-hidden="true"
+                  class="absolute inset-y-1 left-0 rounded-md bg-primary/12"
+                  style:width={`${(title.accounts / topPeak) * 100}%`}
+                ></span>
+                <span class="relative w-5 text-right font-semibold text-primary tabular-nums">{index + 1}</span>
                 <a
                   href={resolve(`detail/${encodeURIComponent(title.contentType)}/${encodeURIComponent(title.contentId)}`)}
-                  class="min-w-0 flex-1 truncate hover:underline"
+                  class="relative min-w-0 flex-1 truncate hover:underline"
                 >
                   {title.name}
                 </a>
-                <span class="shrink-0 text-xs text-muted-foreground">
+                <span class="relative shrink-0 text-xs text-muted-foreground">
                   {m.admin_stats_top_accounts({ count: title.accounts })}
                 </span>
               </li>
@@ -149,7 +173,7 @@
 
     <Card.Root class="border border-foreground/10">
       <Card.Header>
-        <Card.Title>{m.admin_stats_weeks()}</Card.Title>
+        <Card.Title class="flex items-center gap-3"><IconChip icon={RepeatIcon} />{m.admin_stats_weeks()}</Card.Title>
         <Card.Description>{m.admin_stats_weeks_description()}</Card.Description>
       </Card.Header>
       <Card.Content>
@@ -176,7 +200,7 @@
   <div class="grid grid-cols-1 gap-6 lg:grid-cols-2 2xl:grid-cols-4">
     <Card.Root class="border border-foreground/10">
       <Card.Header>
-        <Card.Title>{m.admin_stats_active_title()}</Card.Title>
+        <Card.Title class="flex items-center gap-3"><IconChip icon={UsersIcon} />{m.admin_stats_active_title()}</Card.Title>
         <Card.Description>{m.admin_stats_active_description()}</Card.Description>
       </Card.Header>
       <Card.Content>
@@ -193,7 +217,7 @@
 
     <Card.Root class="border border-foreground/10">
       <Card.Header>
-        <Card.Title>{m.admin_activity()}</Card.Title>
+        <Card.Title class="flex items-center gap-3"><IconChip icon={LogInIcon} />{m.admin_activity()}</Card.Title>
         <Card.Description>{m.admin_activity_description()}</Card.Description>
       </Card.Header>
       <Card.Content>
@@ -214,7 +238,7 @@
 
     <Card.Root class="border border-foreground/10">
       <Card.Header>
-        <Card.Title>{m.admin_stats_new_accounts()}</Card.Title>
+        <Card.Title class="flex items-center gap-3"><IconChip icon={UserPlusIcon} />{m.admin_stats_new_accounts()}</Card.Title>
         <Card.Description>{m.admin_stats_new_accounts_description()}</Card.Description>
       </Card.Header>
       <Card.Content>
@@ -231,7 +255,7 @@
 
     <Card.Root class="border border-foreground/10">
       <Card.Header>
-        <Card.Title>{m.admin_stats_watch_title()}</Card.Title>
+        <Card.Title class="flex items-center gap-3"><IconChip icon={PlayIcon} />{m.admin_stats_watch_title()}</Card.Title>
         <Card.Description>{m.admin_stats_watch_description()}</Card.Description>
       </Card.Header>
       <Card.Content>

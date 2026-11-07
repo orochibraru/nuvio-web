@@ -294,7 +294,7 @@
 	"admin_smtp_test_timeout": "El servidor SMTP tardó demasiado en responder.",
 	"admin_smtp_test_rejected": "El servidor SMTP rechazó el mensaje. Revisa la dirección de envío.",
 	"admin_smtp_test_unknown": "El envío falló. El registro del servidor tiene los detalles.",
-	"admin_stat_delta": "{change} frente a {period}",
+	"admin_stat_vs": "frente a {period}",
 	"admin_stat_unchanged": "Sin cambios frente a {period}",
 	"admin_stats_period_day": "el día anterior",
 	"admin_stats_period_week": "los 7 días anteriores",

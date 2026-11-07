@@ -28,9 +28,11 @@
 	);
 </script>
 
-<Card.Root>
+<Card.Root
+	class="md:gap-8 md:bg-transparent md:py-0 md:shadow-none md:ring-0 md:inset-shadow-none md:backdrop-blur-none md:*:px-0"
+>
 	<Card.Header>
-		<Card.Title>{m.auth_create_an_account()}</Card.Title>
+		<Card.Title class="md:text-3xl md:font-semibold md:tracking-tight">{m.auth_create_an_account()}</Card.Title>
 		<Card.Description>{m.auth_sign_up_description()}</Card.Description>
 	</Card.Header>
 	<Card.Content>
@@ -82,7 +84,7 @@
 
 
 				<Field.Field>
-					<Button type="submit" disabled={signUp.pending > 0}>
+					<Button type="submit" class="h-11 rounded-full" disabled={signUp.pending > 0}>
 						{#if signUp.pending > 0}
 							<Spinner data-icon="inline-start" />
 						{/if}
@@ -92,7 +94,7 @@
 			</Field.FieldGroup>
 		</form>
 	</Card.Content>
-	<Card.Footer class="justify-center">
+	<Card.Footer class="justify-center md:justify-start">
 		<p class="text-sm text-muted-foreground">
 			{m.auth_have_account()}
 			<a class="underline underline-offset-4" href={signInHref}>{m.auth_sign_in()}</a>

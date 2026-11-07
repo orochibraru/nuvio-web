@@ -1,8 +1,12 @@
 <script lang="ts">
 	import CopyIcon from "@lucide/svelte/icons/copy";
+	import PlugIcon from "@lucide/svelte/icons/plug";
+	import RadarIcon from "@lucide/svelte/icons/radar";
 	import ServerIcon from "@lucide/svelte/icons/server";
+	import StarIcon from "@lucide/svelte/icons/star";
 	import { toast } from "svelte-sonner";
 	import type { BackendsTabData } from "#lib/admin/backends-data.js";
+	import IconChip from "#lib/admin/icon-chip.svelte";
 	import type { BuiltInSummary } from "#lib/backend/handler.js";
 	import { Badge } from "#lib/components/ui/badge/index.js";
 	import { Button } from "#lib/components/ui/button/index.js";
@@ -141,7 +145,7 @@
 			{@const builtInUrl = page.url.origin + new URL(summary.url).pathname}
 			<Card.Root class="border border-foreground/10 xl:col-span-2">
 				<Card.Header>
-					<Card.Title>{m.admin_builtin_title()}</Card.Title>
+					<Card.Title class="flex items-center gap-3"><IconChip icon={ServerIcon} />{m.admin_builtin_title()}</Card.Title>
 					<Card.Description>{m.admin_builtin_description()}</Card.Description>
 				</Card.Header>
 				<Card.Content class="grid w-full gap-6 lg:grid-cols-2">
@@ -196,15 +200,17 @@
 		{/if}
 		<Card.Root class="border border-foreground/10">
 			<Card.Header>
-				<Card.Title>{m.admin_backends_allow()}</Card.Title>
+				<Card.Title class="flex items-center gap-3"><IconChip icon={PlugIcon} />{m.admin_backends_allow()}</Card.Title>
 				<Card.Description>{m.admin_backends_allow_description()}</Card.Description>
 			</Card.Header>
 			<Card.Content>
 				<div
-					class="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-foreground/10 p-4"
+					class="flex flex-wrap items-center justify-between gap-4 rounded-lg border p-4 {data.customAllowed
+						? 'border-primary/30 bg-primary/8'
+						: 'border-foreground/10'}"
 				>
 					<span class="flex items-center gap-2 text-sm font-medium">
-						<ServerIcon class="size-4" />
+						<PlugIcon class="size-4 {data.customAllowed ? 'text-primary' : ''}" />
 						{data.customAllowed
 							? m.admin_backends_allowed()
 							: m.admin_backends_disallowed()}
@@ -231,7 +237,7 @@
 
 		<Card.Root class="border border-foreground/10">
 			<Card.Header>
-				<Card.Title>{m.admin_backends_default()}</Card.Title>
+				<Card.Title class="flex items-center gap-3"><IconChip icon={StarIcon} />{m.admin_backends_default()}</Card.Title>
 				<Card.Description>{m.admin_backends_default_description()}</Card.Description>
 			</Card.Header>
 			<Card.Content>
@@ -297,7 +303,7 @@
 
 		<Card.Root class="border border-foreground/10 xl:col-span-2">
 			<Card.Header>
-				<Card.Title>{m.admin_backends_seen()}</Card.Title>
+				<Card.Title class="flex items-center gap-3"><IconChip icon={RadarIcon} />{m.admin_backends_seen()}</Card.Title>
 				<Card.Description>{m.admin_backends_seen_description()}</Card.Description>
 			</Card.Header>
 			<Card.Content>

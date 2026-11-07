@@ -5,12 +5,19 @@ import {
 	removeFromAllowlist,
 	setLocked,
 } from "#lib/admin/admin-data.js";
+import { adminTabSearch } from "#lib/admin/tabs.js";
 import { m } from "#lib/i18n/index.js";
+import {
+	type EmailContent,
+	emailHtml,
+	emailText,
+} from "#lib/notifications/email.js";
 import { passwordChange, smtpSettingsSchema } from "#lib/notifications/smtp.js";
 import { requireAdmin } from "#lib/server/guards.js";
 import { ADMIN_NOTIFICATIONS } from "#lib/services/admin-notifier.service.js";
 import { DATABASE, LOGGER } from "#lib/services/index.js";
 import { MAILER_SERVICE } from "#lib/services/mailer.service.js";
+import { resolve } from "$app/paths";
 import { form } from "$app/server";
 
 // Every one of these re-checks `requireAdmin()`. The page guard only protects
@@ -80,10 +87,23 @@ export const saveSmtpSettings = form(smtpSettingsSchema, (data) => {
 
 export const sendTestEmail = form(v.object({}), async () => {
 	const { email, event } = requireAdmin();
+	const content: EmailContent = {
+		preview: "Your Nuvio server can send email.",
+		heading: "SMTP works",
+		paragraphs: [
+			"This is a test email from your Nuvio server. Admin notifications will reach you the same way.",
+		],
+		action: {
+			label: "Open the admin page",
+			url: `${event.url.origin}${resolve("admin")}${adminTabSearch("notifications")}`,
+		},
+		footnote: "Sent from the Settings tab of your Nuvio server's admin page.",
+	};
 	return await event.locals.services.get(MAILER_SERVICE).deliver({
 		to: email,
 		subject: "Nuvio: test email",
-		text: "This is a test email from your Nuvio server. SMTP works.",
+		text: emailText(content),
+		html: emailHtml(content),
 	});
 });
 

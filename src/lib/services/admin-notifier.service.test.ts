@@ -9,6 +9,7 @@ import { DatabaseService } from "./database.service.ts";
 
 const DAY = 86_400_000;
 const NOW = Date.parse("2026-11-02T12:00:00Z");
+const ADMIN_URL = "https://nuvio.example.com/admin?tab=backends";
 const NOTIFICATION = {
 	kind: "custom_backend_seen" as const,
 	backendId: "b1",
@@ -37,7 +38,7 @@ afterEach(() => {
 
 describe("AdminNotifierService", () => {
 	it("stores the notification as its code and data", async () => {
-		await service.notify(NOTIFICATION);
+		await service.notify(NOTIFICATION, ADMIN_URL);
 		expect(service.list("boss@example.com")).toEqual([
 			{ id: 1, notification: NOTIFICATION, createdAt: NOW, read: false },
 		]);
@@ -46,25 +47,24 @@ describe("AdminNotifierService", () => {
 
 	it("emails only the admins who opted in", async () => {
 		service.setEmailEnabled("Boss@Example.com", true);
-		await service.notify(NOTIFICATION);
+		await service.notify(NOTIFICATION, ADMIN_URL);
 		expect(send).toHaveBeenCalledTimes(1);
 		expect(send).toHaveBeenCalledWith({
 			to: "boss@example.com",
 			subject: expect.any(String),
-			text: expect.stringContaining(
-				"A new custom backend is in use: https://backend.example.com",
-			),
+			text: expect.stringContaining("https://backend.example.com"),
+			html: expect.stringContaining(`href="${ADMIN_URL}"`),
 		});
 
 		service.setEmailEnabled("boss@example.com", false);
-		await service.notify(NOTIFICATION);
+		await service.notify(NOTIFICATION, ADMIN_URL);
 		expect(send).toHaveBeenCalledTimes(1);
 	});
 
 	it("keeps read state per admin and lists unread first", async () => {
-		await service.notify(NOTIFICATION);
+		await service.notify(NOTIFICATION, ADMIN_URL);
 		vi.setSystemTime(NOW + 1000);
-		await service.notify({ ...NOTIFICATION, backendId: "b2" });
+		await service.notify({ ...NOTIFICATION, backendId: "b2" }, ADMIN_URL);
 
 		service.markRead("boss@example.com", 2);
 		service.markRead("boss@example.com", 2);
@@ -82,9 +82,9 @@ describe("AdminNotifierService", () => {
 	});
 
 	it("prunes notifications past the retention window on write", async () => {
-		await service.notify(NOTIFICATION);
+		await service.notify(NOTIFICATION, ADMIN_URL);
 		vi.setSystemTime(NOW + (NOTIFICATION_RETENTION_DAYS + 1) * DAY);
-		await service.notify({ ...NOTIFICATION, backendId: "b2" });
+		await service.notify({ ...NOTIFICATION, backendId: "b2" }, ADMIN_URL);
 		expect(
 			service
 				.list("boss@example.com")
@@ -103,7 +103,9 @@ describe("AdminNotifierService", () => {
 			{ send },
 			{ error: vi.fn() },
 		);
-		await expect(broken.notify(NOTIFICATION)).resolves.toBeUndefined();
+		await expect(
+			broken.notify(NOTIFICATION, ADMIN_URL),
+		).resolves.toBeUndefined();
 		expect(send).not.toHaveBeenCalled();
 	});
 });

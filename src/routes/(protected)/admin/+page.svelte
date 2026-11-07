@@ -1,4 +1,9 @@
 <script lang="ts">
+	import BellIcon from "@lucide/svelte/icons/bell";
+	import LayoutDashboardIcon from "@lucide/svelte/icons/layout-dashboard";
+	import ServerIcon from "@lucide/svelte/icons/server";
+	import SettingsIcon from "@lucide/svelte/icons/settings";
+	import type { Component } from "svelte";
 	import {
 		ADMIN_TABS,
 		type AdminTab,
@@ -38,6 +43,13 @@
 		settings: m.admin_tab_settings,
 	};
 
+	const icons: Record<AdminTab, Component> = {
+		dashboard: LayoutDashboardIcon,
+		backends: ServerIcon,
+		notifications: BellIcon,
+		settings: SettingsIcon,
+	};
+
 	function select(value: string) {
 		void goto(`${resolve("admin")}${adminTabSearch(parseAdminTab(value))}`, {
 			replace: true,
@@ -63,7 +75,9 @@
     <div class="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
       <Tabs.List class="w-max">
         {#each ADMIN_TABS as value (value)}
-          <Tabs.Trigger {value} class="px-3">
+          {@const Icon = icons[value]}
+          <Tabs.Trigger {value} class="gap-2 px-3">
+            <Icon class="size-4" aria-hidden="true" />
             {labels[value]()}
             {#if value === "notifications" && unread > 0}
               <span

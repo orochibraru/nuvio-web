@@ -2,13 +2,18 @@
 	import AlertCircleIcon from "@lucide/svelte/icons/alert-circle";
 	import CheckCircleIcon from "@lucide/svelte/icons/check-circle-2";
 	import LockIcon from "@lucide/svelte/icons/lock";
+	import MailIcon from "@lucide/svelte/icons/mail";
+	import ShieldCheckIcon from "@lucide/svelte/icons/shield-check";
 	import TrashIcon from "@lucide/svelte/icons/trash-2";
 	import type { AllowlistEntry } from "#lib/admin/admin-data.js";
+	import IconChip from "#lib/admin/icon-chip.svelte";
 	import * as Alert from "#lib/components/ui/alert/index.js";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import * as Card from "#lib/components/ui/card/index.js";
+	import { Checkbox } from "#lib/components/ui/checkbox/index.js";
 	import * as Field from "#lib/components/ui/field/index.js";
 	import { Input } from "#lib/components/ui/input/index.js";
+	import { Label } from "#lib/components/ui/label/index.js";
 	import { getLocale, m } from "#lib/i18n/index.js";
 	import {
 		type MailFailure,
@@ -73,18 +78,20 @@
 <div class="grid grid-cols-1 gap-6 xl:grid-cols-2">
   <Card.Root class="border border-foreground/10">
     <Card.Header>
-      <Card.Title>{m.admin_access()}</Card.Title>
+      <Card.Title class="flex items-center gap-3"><IconChip icon={ShieldCheckIcon} />{m.admin_access()}</Card.Title>
       <Card.Description>
         {m.admin_access_description()}
       </Card.Description>
     </Card.Header>
     <Card.Content class="flex flex-col gap-6">
       <div
-        class="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-foreground/10 p-4"
+        class="flex flex-wrap items-center justify-between gap-4 rounded-lg border p-4 {locked
+          ? 'border-primary/30 bg-primary/8'
+          : 'border-foreground/10'}"
       >
         <span class="flex flex-col gap-0.5">
           <span class="flex items-center gap-2 text-sm font-medium">
-            <LockIcon class="size-4" />
+            <LockIcon class="size-4 {locked ? 'text-primary' : ''}" />
             {locked ? m.admin_locked() : m.admin_open()}
           </span>
           <span class="text-xs text-muted-foreground">
@@ -177,7 +184,7 @@
 
   <Card.Root class="border border-foreground/10">
     <Card.Header>
-      <Card.Title>{m.admin_smtp()}</Card.Title>
+      <Card.Title class="flex items-center gap-3"><IconChip icon={MailIcon} />{m.admin_smtp()}</Card.Title>
       <Card.Description>{m.admin_smtp_description()}</Card.Description>
     </Card.Header>
     <Card.Content class="flex flex-col gap-6">
@@ -254,10 +261,15 @@
                   : m.admin_smtp_password_none()}
               </Field.FieldDescription>
               {#if smtp?.passwordSet}
-                <label class="flex items-center gap-2 text-sm">
-                  <input {...fields.clearPassword.as("checkbox")} class="accent-primary" />
-                  {m.admin_smtp_password_clear()}
-                </label>
+                <div class="flex items-center gap-2">
+                  <Checkbox
+                    id="smtp-clear-password"
+                    name={fields.clearPassword.as("checkbox").name}
+                    checked={fields.clearPassword.value() === true}
+                    onCheckedChange={(value) => fields.clearPassword.set(value === true)}
+                  />
+                  <Label for="smtp-clear-password">{m.admin_smtp_password_clear()}</Label>
+                </div>
               {/if}
             </Field.Field>
           </Field.FieldGroup>
