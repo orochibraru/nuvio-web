@@ -31,6 +31,8 @@ export default {
 		mac: {
 			bundleCEF: false,
 			icons: "icon.iconset",
+			// scripts/post-package.ts makes the DMG.
+			createDmg: false,
 		},
 		linux: {
 			bundleCEF: false,
@@ -44,6 +46,7 @@ export default {
 	},
 	scripts: {
 		preBuild: "./scripts/pre-build.ts",
+		postPackage: "./scripts/post-package.ts",
 	},
 	// The updater reads the latest stable release, which the Desktop workflow
 	// fills for every target. Updates are the full archive: a patch is diffed

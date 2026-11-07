@@ -115,10 +115,10 @@ sequenceDiagram
 ```
 
 Addons are plain HTTP services the user chose to install, so every request to
-them goes through an SSRF guard: private, loopback and link-local addresses are
-refused, every redirect is re-checked, and the connection is pinned to the
-address that was checked. Requests fan out with a concurrency cap, and one slow
-or broken addon degrades its own row rather than the page.
+them goes through an SSRF guard: loopback and link-local addresses are refused
+(the LAN is allowed), every redirect is re-checked, and the connection is pinned
+to the address that was checked. Requests fan out with a concurrency cap, and
+one slow or broken addon degrades its own row rather than the page.
 [Addon pipeline](addon-pipeline) covers how their answers are merged.
 
 ## The database

@@ -78,17 +78,28 @@ describe("safeFetch", () => {
 		).resolves.toBeInstanceOf(Response);
 	});
 
-	it("blocks loopback / private / link-local literal addresses", async () => {
-		for (const host of [
-			"127.0.0.1",
-			"10.0.0.5",
-			"192.168.1.1",
-			"169.254.1.1",
-			"[::1]",
-		]) {
+	it("blocks loopback and link-local literal addresses", async () => {
+		for (const host of ["127.0.0.1", "169.254.169.254", "[::1]"]) {
 			await expect(safeFetch(`https://${host}/x`, okFetch())).rejects.toThrow(
-				/disallowed|https/,
+				/disallowed/,
 			);
+		}
+	});
+
+	it("allows the LAN: private, CGNAT and unique-local literals", async () => {
+		for (const host of [
+			"10.0.0.5",
+			"172.16.0.1",
+			"192.168.1.1",
+			"100.64.0.1",
+			"[fc00::1]",
+			"[fd12::1]",
+			"[::ffff:192.168.0.1]",
+			"[64:ff9b::10.0.0.1]",
+		]) {
+			await expect(
+				safeFetch(`https://${host}/x`, okFetch()),
+			).resolves.toBeInstanceOf(Response);
 		}
 	});
 
@@ -143,28 +154,18 @@ describe("safeFetch", () => {
 		);
 	});
 
-	it("blocks IPv6 loopback, link-local and unique-local literals", async () => {
-		for (const host of [
-			"[::]",
-			"[::1]",
-			"[fe80::1]",
-			"[fc00::1]",
-			"[fd12::1]",
-		]) {
+	it("blocks IPv6 unspecified, loopback and link-local literals", async () => {
+		for (const host of ["[::]", "[::1]", "[fe80::1]"]) {
 			await expect(safeFetch(`https://${host}/x`, okFetch())).rejects.toThrow(
 				/disallowed/,
 			);
 		}
 	});
 
-	it("blocks an IPv4-mapped IPv6 address pointing at a private range", async () => {
+	it("blocks an IPv4-mapped IPv6 address pointing at loopback or link-local", async () => {
 		// `new URL()` rewrites the literal to `[::ffff:a00:1]`, so the guard has
 		// to recognize the hex spelling as well as the dotted one.
-		for (const host of [
-			"[::ffff:10.0.0.1]",
-			"[::ffff:127.0.0.1]",
-			"[::ffff:192.168.0.1]",
-		]) {
+		for (const host of ["[::ffff:127.0.0.1]", "[::ffff:169.254.169.254]"]) {
 			await expect(safeFetch(`https://${host}/x`, okFetch())).rejects.toThrow(
 				/disallowed/,
 			);
@@ -185,7 +186,6 @@ describe("safeFetch", () => {
 
 	it("blocks NAT64, site-local, multicast and IPv4-compatible literals", async () => {
 		for (const host of [
-			"[64:ff9b::10.0.0.1]",
 			"[64:ff9b::7f00:1]",
 			"[64:ff9b:1::93.184.216.34]",
 			"[fec0::1]",
@@ -207,7 +207,7 @@ describe("safeFetch", () => {
 	});
 
 	it("blocks the whole of a multicast / reserved range", async () => {
-		for (const host of ["224.0.0.1", "240.0.0.1", "0.0.0.0", "100.64.0.1"]) {
+		for (const host of ["224.0.0.1", "240.0.0.1", "0.0.0.0", "198.18.0.1"]) {
 			await expect(safeFetch(`https://${host}/x`, okFetch())).rejects.toThrow(
 				/disallowed/,
 			);
@@ -228,7 +228,7 @@ describe("safeFetch host resolution", () => {
 		expect(dns.lookup).toHaveBeenCalledWith("addon.example", { all: true });
 	});
 
-	it("blocks a hostname that resolves into a private range", async () => {
+	it("blocks a hostname that resolves to loopback", async () => {
 		dns.lookup.mockResolvedValue([
 			{ address: "93.184.216.34", family: 4 },
 			{ address: "127.0.0.1", family: 4 },
@@ -240,7 +240,7 @@ describe("safeFetch host resolution", () => {
 
 	it("blocks a dotted NAT64 answer from the resolver", async () => {
 		dns.lookup.mockResolvedValue([
-			{ address: "64:ff9b::192.168.1.1", family: 6 },
+			{ address: "64:ff9b::169.254.169.254", family: 6 },
 		]);
 		await expect(
 			safeFetch("https://nat64.example/x", okFetch()),
@@ -248,7 +248,7 @@ describe("safeFetch host resolution", () => {
 	});
 
 	it("blocks a dotted IPv4-mapped answer from the resolver", async () => {
-		dns.lookup.mockResolvedValue([{ address: "::ffff:10.0.0.1", family: 6 }]);
+		dns.lookup.mockResolvedValue([{ address: "::ffff:127.0.0.1", family: 6 }]);
 		await expect(
 			safeFetch("https://mapped.example/x", okFetch()),
 		).rejects.toThrow(/disallowed/);
@@ -358,11 +358,11 @@ describe("pinnedFetch", () => {
 			async () => new Response("ok"),
 		) as unknown as typeof fetch;
 		await expect(
-			safeFetch("http://192.168.1.10/x", fetchImpl, {}, { allowHttp: true }),
+			safeFetch("http://127.0.0.1/x", fetchImpl, {}, { allowHttp: true }),
 		).rejects.toThrow(/disallowed/);
 		await expect(
 			safeFetch(
-				"http://192.168.1.10/x",
+				"http://127.0.0.1/x",
 				fetchImpl,
 				{},
 				{ allowHttp: true, allowPrivate: true },
@@ -382,6 +382,19 @@ describe("pinnedFetch", () => {
 		});
 		expect(head.body).toBeNull();
 		expect(head.headers.get("content-length")).toBe("5");
+	});
+
+	it("connects a name that resolves to a LAN address", async () => {
+		dns.lookup.mockResolvedValue([{ address: "192.168.0.2", family: 4 }]);
+		const socket = serve(200, {}, "ok");
+		const response = await safeFetch(
+			"https://192-168-0-2.local-ip.medicmobile.org:7070/manifest.json",
+			pinnedFetch,
+		);
+		expect(response.status).toBe(200);
+		expect(socket.connectedTo()).toEqual([
+			{ address: "192.168.0.2", family: 4 },
+		]);
 	});
 
 	it("refuses a non-http scheme and a private literal before any socket", async () => {

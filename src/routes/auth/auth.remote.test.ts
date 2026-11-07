@@ -645,7 +645,7 @@ describe("backends", () => {
 			Object.assign(new NuvioApiError(502), { code: "backend_blocked" }),
 		);
 		await expect(signInWith(custom)).rejects.toMatchObject({
-			payload: expect.stringContaining("private or local address"),
+			payload: expect.stringContaining("reserved address"),
 		});
 	});
 

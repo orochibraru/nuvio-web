@@ -151,10 +151,10 @@ describe("isAuthSession", () => {
 });
 
 describe("backend fetch", () => {
-	it("refuses a user's backend on a private or loopback address", async () => {
+	it("refuses a user's backend on a loopback or link-local address", async () => {
 		for (const url of [
 			"http://127.0.0.1/auth/v1/settings",
-			"http://192.168.1.10/auth/v1/settings",
+			"http://169.254.169.254/auth/v1/settings",
 			"http://[::1]/auth/v1/settings",
 		]) {
 			await expect(untrustedBackendFetch(url)).rejects.toSatisfy(

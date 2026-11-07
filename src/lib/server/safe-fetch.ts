@@ -21,17 +21,15 @@ function inRange(value: number, base: string, bits: number): boolean {
 	return (value & mask) >>> 0 === (ipv4ToInt(base) & mask) >>> 0;
 }
 
+// LAN ranges (RFC 1918, CGNAT, IPv6 unique-local) pass: self-hosted addons live
+// there. Loopback (the server itself) and link-local (cloud metadata) never do.
 function isBlockedIpv4(ip: string): boolean {
 	const value = ipv4ToInt(ip);
 	return (
 		inRange(value, "0.0.0.0", 8) ||
-		inRange(value, "10.0.0.0", 8) ||
-		inRange(value, "100.64.0.0", 10) ||
 		inRange(value, "127.0.0.0", 8) ||
 		inRange(value, "169.254.0.0", 16) ||
-		inRange(value, "172.16.0.0", 12) ||
 		inRange(value, "192.0.0.0", 24) ||
-		inRange(value, "192.168.0.0", 16) ||
 		inRange(value, "198.18.0.0", 15) ||
 		inRange(value, "224.0.0.0", 4) ||
 		inRange(value, "240.0.0.0", 4)
@@ -84,7 +82,6 @@ function isBlockedIpv6(ip: string): boolean {
 	}
 	const first = groups[0];
 	return (
-		(first & 0xfe_00) === 0xfc_00 ||
 		(first & 0xff_c0) === 0xfe_80 ||
 		(first & 0xff_c0) === 0xfe_c0 ||
 		(first & 0xff_00) === 0xff_00
@@ -122,7 +119,7 @@ interface Resolved {
 	family: number;
 }
 
-/** Resolves `host` (a name or a literal) and throws unless *every* answer is public. */
+/** Resolves `host` (a name or a literal) and throws unless *every* answer is allowed. */
 async function resolvePublic(
 	host: string,
 	signal?: AbortSignal | null,
@@ -189,7 +186,7 @@ function toResponse(response: IncomingMessage, method: string): Response {
 }
 
 /**
- * A `fetch` that can only connect to a public address. The check runs inside
+ * A `fetch` that can only connect to an allowed address. The check runs inside
  * the socket's `lookup`, i.e. on the very answer the connection then uses, so
  * a TTL-0 name that answers public for a pre-check and `169.254.169.254` for
  * the connect (DNS rebinding) gets nowhere. The URL keeps its hostname, so
@@ -258,7 +255,7 @@ export interface SafeFetchOptions {
 
 /**
  * Fetches an untrusted (addon-supplied) URL with SSRF guards: a scheme allowlist,
- * a block on loopback / private / link-local ranges, and manual redirect
+ * a block on loopback / link-local / reserved ranges, and manual redirect
  * following so every hop is re-checked. Pass `pinnedFetch` as `fetchImpl` in
  * production: only it closes DNS rebinding (the check here resolves the name,
  * the transport resolves it again to connect) and it carries no cookies,

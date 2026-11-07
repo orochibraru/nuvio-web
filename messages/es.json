@@ -348,7 +348,7 @@
 	"auth_create_an_account": "Crear una cuenta",
 	"auth_credentials_note": "Tu contraseña se envía una sola vez a Nuvio para iniciar sesión y nunca se guarda. Este servidor solo conserva la sesión que devuelve Nuvio.",
 	"auth_error_backend_banned": "El administrador de este servidor ha bloqueado ese backend.",
-	"auth_error_backend_blocked": "Ese backend apunta a una dirección privada o local, a la que este servidor no se conecta.",
+	"auth_error_backend_blocked": "Ese backend apunta a este mismo servidor o a una dirección reservada, a la que no se conecta.",
 	"auth_error_backend_disallowed": "Este servidor no permite backends personalizados.",
 	"auth_error_backend_invalid": "Ese backend no ha respondido como un backend de Nuvio.",
 	"auth_error_backend_key_invalid": "Introduce la clave pública del backend: solo letras, números y . _ - + / = ~.",

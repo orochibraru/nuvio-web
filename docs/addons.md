@@ -77,13 +77,13 @@ profile is cached for a minute — or five seconds while any of them is failing.
 
 Addon URLs are user-supplied, and the server fetches them, so every outbound
 addon request goes through an SSRF guard: a scheme allowlist, a block on
-loopback, private, link-local and other reserved ranges, and manual redirect
-following so **every hop** is re-checked rather than only the first.
+loopback, link-local and other reserved ranges, and manual redirect following so
+**every hop** is re-checked rather than only the first.
 
-This means an addon running on `localhost` or on a private LAN address is
-refused. That is deliberate — it is the same check that stops a hostile addon
-URL from making your server probe its own network. If you need a LAN addon, put
-it behind a public name that resolves to a public address.
+An addon on a private LAN address (`192.168.x.x`, `10.x.x.x`, a Tailscale
+`100.x` address, an IPv6 unique-local one) loads like any other: it is your
+network. An addon on `localhost` is refused, since inside the container that is
+the server itself; point at the host's LAN address instead.
 
 DNS rebinding between the check and the connection is still theoretically
 possible; put an egress filter in front if that matters to you.

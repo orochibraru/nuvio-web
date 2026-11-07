@@ -70,13 +70,6 @@ jobs:
         with:
           bun-version-file: package.json
 
-      # hdiutil sizes the DMG from the app's size, and Spotlight indexing the
-      # image while it fills eats that margin: "No space left on device" with
-      # the runner's disk mostly free.
-      - name: Turn off Spotlight indexing (macOS)
-        if: runner.os == 'macOS'
-        run: sudo mdutil -a -i off
-
       - run: bun install --frozen-lockfile --ignore-scripts
 
       - run: bun run sync

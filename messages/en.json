@@ -348,7 +348,7 @@
 	"auth_create_an_account": "Create an account",
 	"auth_credentials_note": "Your password goes to Nuvio once, to sign you in, and is never stored. This server keeps only the session Nuvio hands back.",
 	"auth_error_backend_banned": "This server's admin has blocked that backend.",
-	"auth_error_backend_blocked": "That backend points to a private or local address, which this server won't reach.",
+	"auth_error_backend_blocked": "That backend points to this server itself or a reserved address, which it won't reach.",
 	"auth_error_backend_disallowed": "This server doesn't allow custom backends.",
 	"auth_error_backend_invalid": "That backend did not answer like a Nuvio backend.",
 	"auth_error_backend_key_invalid": "Enter the backend's publishable key: letters, digits and . _ - + / = ~ only.",

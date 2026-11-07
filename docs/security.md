@@ -29,15 +29,20 @@ goes through an SSRF guard:
 
 - **Scheme allowlist** — `https`, plus `http` only where an addon manifest needs
   it.
-- **Address blocks** — loopback, private, link-local, carrier-grade NAT,
-  benchmark, multicast and reserved ranges, for both IPv4 and IPv6
-  (unique-local, link-local, deprecated site-local `fec0::/10`, multicast
+- **Address blocks** — loopback, link-local (the cloud metadata endpoint
+  `169.254.169.254` included), benchmark, multicast and reserved ranges, for
+  both IPv4 and IPv6 (link-local, deprecated site-local `fec0::/10`, multicast
   `ff00::/8`, and the whole of `::/96`, which covers IPv4-compatible
   `::a.b.c.d`). An address that embeds an IPv4 host, IPv4-mapped `::ffff:0:0/96`
   in either spelling or NAT64 `64:ff9b::/96`, gets the IPv4 rules; local-use
   NAT64 `64:ff9b:1::/48` is refused outright.
 - **Manual redirect following**, so every hop is re-checked rather than only the
   first.
+- **The LAN is allowed** — private ranges (`10/8`, `172.16/12`, `192.168/16`),
+  carrier-grade NAT `100.64/10` and IPv6 unique-local `fc00::/7` are reachable,
+  so an addon or backend self-hosted on the network works. On a server shared
+  with people you don't trust, any of them can reach what that network exposes;
+  firewall the container's egress if that matters.
 
 DNS rebinding between check and connect is still possible in principle. Put an
 egress filter in front if that is in your threat model.
@@ -57,8 +62,8 @@ can't fetch the source itself (no CORS headers, or `http:` under an `https:`
 app). It isn't an open proxy:
 
 - it answers signed-in users only;
-- the target goes through the same SSRF guard as addon URLs, with private,
-  loopback and link-local addresses refused and every redirect hop re-checked;
+- the target goes through the same SSRF guard as addon URLs, with loopback and
+  link-local addresses refused and every redirect hop re-checked;
 - only `Range` goes upstream, and only content headers come back (no cookies
   either way);
 - the body streams through and is never stored.

@@ -55,7 +55,7 @@ test("sign-in: names the target, and offers no change unless the admin allows it
 	expect(errors).toEqual([]);
 });
 
-test("sign-in: a chosen backend is remembered, named, and a private address refused", async ({
+test("sign-in: a chosen backend is remembered, named, and a loopback address refused", async ({
 	page,
 }) => {
 	const errors = collectRuntimeErrors(page);
@@ -81,7 +81,7 @@ test("sign-in: a chosen backend is remembered, named, and a private address refu
 	await page.getByLabel("Email").fill("nobody@example.com");
 	await page.getByLabel("Password", { exact: true }).fill("not-a-password");
 	await page.getByRole("button", { name: "Sign in" }).click();
-	await expect(page.getByText("private or local address")).toBeVisible();
+	await expect(page.getByText("reserved address")).toBeVisible();
 
 	await page.getByRole("button", { name: "Change" }).click();
 	await sheet.getByLabel("Default").check();
