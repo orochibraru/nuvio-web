@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.0.30](https://github.com/orochibraru/nuvio-web/compare/v1.0.29...v1.0.30) (2026-11-07)
+
+### Features
+
+* **ui:** poster-wall sign-in, one-accent admin, HTML admin emails, working dialog animations and checkbox states ([c7a52fd](https://github.com/orochibraru/nuvio-web/commit/c7a52fd2c3e60319150aacd8c0ae8b93aa276eda))
+* **desktop:** play sources the web view can't decode in a bundled, hardware-decoded mpv (#58) ([3f58401](https://github.com/orochibraru/nuvio-web/commit/3f5840177f9fb4b180b8674d0cb412cef131b157))
+
+### Bug Fixes
+
+* build the macOS DMG with an explicit size and let addons and backends reach the LAN (#65) ([787af1c](https://github.com/orochibraru/nuvio-web/commit/787af1ca3309ef762164077fb25368805096a70b))
+* **auth:** sign-in works over plain-HTTP LAN, shows where it signs in, and logs why it fails ([70a6488](https://github.com/orochibraru/nuvio-web/commit/70a648837124aab08717277b1a9ddb7821e4bdb1))
+
 ## [1.0.29](https://github.com/orochibraru/nuvio-web/compare/v1.0.28...v1.0.29) (2026-11-05)
 
 ### Features
