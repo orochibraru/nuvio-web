@@ -15,11 +15,18 @@ import process from "node:process";
 const desktop = join(import.meta.dir, "..");
 const root = join(desktop, "..");
 
-const build = Bun.spawnSync(["bun", "run", "build"], {
-	cwd: root,
-	stdout: "inherit",
-	stderr: "inherit",
-});
+const buildServer = () =>
+	Bun.spawnSync(["bun", "run", "build"], {
+		cwd: root,
+		stdout: "inherit",
+		stderr: "inherit",
+	});
+let build = buildServer();
+// On Windows runners adapter-bun's Bun.build now and then can't resolve the
+// `adapter-bun.js` it has just written; the same build passes on a second run.
+if (build.exitCode !== 0 && process.env.ELECTROBUN_OS === "win") {
+	build = buildServer();
+}
 if (build.exitCode !== 0) {
 	throw new Error(`bun run build exited with ${build.exitCode}`);
 }
