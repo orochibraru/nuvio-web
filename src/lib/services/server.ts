@@ -118,7 +118,7 @@ serverServices
 		(c) =>
 			new SessionService(
 				c.get(COOKIES),
-				!dev,
+				c.get(REQUEST_EVENT).url.protocol === "https:",
 				c.get(SESSION_SECRET),
 				c.get(SESSION_STORE),
 			),

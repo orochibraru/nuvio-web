@@ -80,7 +80,19 @@ export class NuvioApiError extends Error {
 		const raw = await response.text().catch(() => "");
 		if (raw) {
 			try {
-				body = JSON.parse(raw) as NuvioApiErrorBody;
+				// GoTrue (`/auth/v1`) answers `{ code: <status>, error_code, msg }`, PostgREST `{ code, message }`.
+				const parsed = JSON.parse(raw) as NuvioApiErrorBody & {
+					code?: unknown;
+					error_code?: string;
+					msg?: string;
+				};
+				body = {
+					...parsed,
+					code:
+						parsed.error_code ??
+						(typeof parsed.code === "string" ? parsed.code : undefined),
+					message: parsed.message ?? parsed.msg,
+				};
 			} catch {
 				body = { message: raw };
 			}

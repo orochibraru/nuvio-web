@@ -338,11 +338,9 @@
 	"admin_stats_empty_accounts": "Keine neuen Konten in diesem Zeitraum.",
 	"admin_stats_empty_watch": "In diesem Zeitraum wurde nichts abgespielt.",
 	"admin_unlock": "Server entsperren",
-	"auth_backend": "Eigenes Backend",
-	"auth_backend_choice": "Anmelden über",
-	"auth_backend_instance": "Das Backend dieses Servers",
+	"auth_backend": "Wo anmelden",
 	"auth_backend_official": "Der offizielle Nuvio-Server",
-	"auth_backend_description": "Dein eigenes Nuvio-Backend, etwa ein selbst gehosteter Server. Seine Konten bleiben hier von allen anderen getrennt.",
+	"auth_backend_description": "Dein Konto und deine Daten hier werden für jedes Backend getrennt gehalten.",
 	"auth_backend_key": "Öffentlicher Schlüssel",
 	"auth_backend_key_hint": "Der anon- oder öffentliche Schlüssel des Backends. Leer lassen bei einem selbst gehosteten Nuvio-Server: er wird vom Server gelesen.",
 	"auth_backend_url": "Backend-URL",
@@ -1126,5 +1124,13 @@
 				"countPlural=other": " · {count} gesehen"
 			}
 		}
-	]
+	],
+	"auth_backend_default": "Standard",
+	"auth_backend_custom": "Eigenes Backend",
+	"auth_backend_custom_hint": "Dein eigener Nuvio-kompatibler Server.",
+	"auth_target_label": "Anmeldung bei",
+	"auth_target_server": "Dieser Server",
+	"auth_target_change": "Ändern",
+	"auth_credentials_note_backend": "Dein Passwort wird nur einmal zur Anmeldung an {host} übermittelt und hier nie gespeichert.",
+	"auth_credentials_note_server": "Dein Konto liegt auf diesem Server; sein Passwort wird nur als Hash gespeichert."
 }

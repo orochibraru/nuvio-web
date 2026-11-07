@@ -11,7 +11,7 @@
 	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
 	import { signUp } from "../auth.remote.ts";
-	import BackendPicker from "../backend-picker.svelte";
+	import CustomBackend from "../custom-backend.svelte";
 
 	let { data } = $props();
 
@@ -36,6 +36,13 @@
 	<Card.Content>
 		<form {...signUp}>
 			<Field.FieldGroup>
+				<CustomBackend
+					url={signUp.fields.backendUrl}
+					publishableKey={signUp.fields.backendKey}
+					allowed={data.customBackendsAllowed}
+					defaultTarget={data.defaultTarget}
+					officialUrl={data.officialBackendUrl}
+				/>
 				{#if formIssue}
 					<Alert.Root variant="destructive">
 						<AlertCircleIcon />
@@ -74,13 +81,6 @@
 
 				<input {...signUp.fields.redirectTo.as('hidden', redirectTo)}>
 
-				<BackendPicker
-					url={signUp.fields.backendUrl}
-					publishableKey={signUp.fields.backendKey}
-					customAllowed={data.customBackendsAllowed}
-					defaultHost={data.defaultBackendHost}
-					officialUrl={data.officialBackendUrl}
-				/>
 
 				<Field.Field>
 					<Button type="submit" disabled={signUp.pending > 0}>

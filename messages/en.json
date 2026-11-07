@@ -338,11 +338,9 @@
 	"admin_stats_empty_accounts": "No new accounts in this range.",
 	"admin_stats_empty_watch": "Nothing played in this range.",
 	"admin_unlock": "Unlock server",
-	"auth_backend": "Custom backend",
-	"auth_backend_choice": "Sign in through",
-	"auth_backend_instance": "This server's backend",
+	"auth_backend": "Where to sign in",
 	"auth_backend_official": "The official Nuvio server",
-	"auth_backend_description": "Your own Nuvio backend, such as a self-hosted server. Its accounts are kept apart from everyone else's here.",
+	"auth_backend_description": "Your account and data here are kept separately for each backend.",
 	"auth_backend_key": "Publishable key",
 	"auth_backend_key_hint": "The backend's anon or publishable key. Leave it empty for a Nuvio self-hosted server: it's read from the server.",
 	"auth_backend_url": "Backend URL",
@@ -1126,5 +1124,13 @@
 				"countPlural=other": " · {count} watched"
 			}
 		}
-	]
+	],
+	"auth_backend_default": "Default",
+	"auth_backend_custom": "Custom backend",
+	"auth_backend_custom_hint": "Your own Nuvio-compatible server.",
+	"auth_target_label": "Signing in to",
+	"auth_target_server": "This server",
+	"auth_target_change": "Change",
+	"auth_credentials_note_backend": "Your password goes to {host} once, to sign you in, and is never stored here.",
+	"auth_credentials_note_server": "Your account lives on this server; its password is only stored as a hash."
 }

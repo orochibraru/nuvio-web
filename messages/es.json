@@ -338,11 +338,9 @@
 	"admin_stats_empty_accounts": "No hay cuentas nuevas en este periodo.",
 	"admin_stats_empty_watch": "Nada reproducido en este periodo.",
 	"admin_unlock": "Desbloquear servidor",
-	"auth_backend": "Backend personalizado",
-	"auth_backend_choice": "Iniciar sesión con",
-	"auth_backend_instance": "El backend de este servidor",
+	"auth_backend": "Dónde iniciar sesión",
 	"auth_backend_official": "El servidor oficial de Nuvio",
-	"auth_backend_description": "Tu propio backend de Nuvio, como un servidor autoalojado. Sus cuentas se mantienen aparte de las de los demás aquí.",
+	"auth_backend_description": "Tu cuenta y tus datos aquí se guardan por separado para cada backend.",
 	"auth_backend_key": "Clave pública",
 	"auth_backend_key_hint": "La clave anon o pública del backend. Déjala vacía para un servidor Nuvio autoalojado: se lee del servidor.",
 	"auth_backend_url": "URL del backend",
@@ -1126,5 +1124,13 @@
 				"countPlural=other": " · {count} vistos"
 			}
 		}
-	]
+	],
+	"auth_backend_default": "Predeterminado",
+	"auth_backend_custom": "Backend personalizado",
+	"auth_backend_custom_hint": "Tu propio servidor compatible con Nuvio.",
+	"auth_target_label": "Iniciando sesión en",
+	"auth_target_server": "Este servidor",
+	"auth_target_change": "Cambiar",
+	"auth_credentials_note_backend": "Tu contraseña se envía una sola vez a {host} para iniciar sesión y nunca se guarda aquí.",
+	"auth_credentials_note_server": "Tu cuenta está en este servidor; su contraseña solo se guarda como hash."
 }

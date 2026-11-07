@@ -248,6 +248,13 @@ export const signIn = form(signInSchema, async (data, issue) => {
 			clientOptions(backend, fetch, locals.services.get(BUILT_IN_BACKEND)),
 		).signInWithPassword({ email: data.email, password: data.password });
 	} catch (error) {
+		locals.services.get(LOGGER).warn("Sign-in failed", {
+			email: data.email,
+			backend: backend ? backendOrigin(backend.url) : "official",
+			status: error instanceof NuvioApiError ? error.status : "none",
+			code: error instanceof NuvioApiError ? (error.code ?? "none") : "none",
+			error: error instanceof Error ? error.message : "Unknown error",
+		});
 		if (
 			error instanceof NuvioApiError &&
 			(error.status === 400 || error.status === 401 || error.status === 403)
