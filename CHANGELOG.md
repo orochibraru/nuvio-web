@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.32](https://github.com/orochibraru/nuvio-web/compare/v1.0.31...v1.0.32) (2026-11-08)
+
+### Features
+
+* **shell:** offer the web app or the desktop app from Install app, with this computer's installer ([5d2a0b3](https://github.com/orochibraru/nuvio-web/commit/5d2a0b359e3d6d9924682299bbebf3d98251ecc1))
+
 ## [1.0.31](https://github.com/orochibraru/nuvio-web/compare/v1.0.30...v1.0.31) (2026-11-07)
 
 ### Bug Fixes
