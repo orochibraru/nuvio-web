@@ -73,6 +73,8 @@
 			toast.success(m.downloads_started(), {
 				description: m.downloads_started_description(),
 			});
+		} catch {
+			toast.error(m.downloads_start_failed());
 		} finally {
 			busy = false;
 		}

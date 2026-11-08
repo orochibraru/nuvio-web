@@ -5,6 +5,7 @@ import {
 	describeStream,
 	formatFileSize,
 	isPlayable,
+	matchStream,
 	pickBingeStream,
 	pickPreferredStream,
 	type ResolvedStream,
@@ -334,5 +335,56 @@ describe("pickBingeStream", () => {
 		expect(
 			pickBingeStream(streams, { addonName: "Torrentio", bingeGroup: null }),
 		).toBeNull();
+	});
+});
+
+describe("matchStream", () => {
+	const hash = "f972d1900fe67ceadf5fe6b79f52b06d8df42cac";
+	const played = {
+		url: `https://debrid.example/api/debrid/${hash}/0?token=old`,
+		infoHash: null,
+		addonName: "Torrentio",
+		label: streamMeta(stream({ filename: "Movie.2024.1080p.WEB.mkv" })).title,
+	};
+
+	it("takes the same link first", () => {
+		const same = stream({ index: 1, url: played.url });
+		expect(matchStream([stream({ index: 0 }), same], played)).toBe(same);
+	});
+
+	it("finds a re-signed debrid link by the torrent hash in its path", () => {
+		const fresh = stream({
+			index: 1,
+			url: `https://debrid.example/api/debrid/${hash.toUpperCase()}/0?token=new`,
+		});
+		expect(matchStream([stream({ index: 0 }), fresh], played)).toBe(fresh);
+	});
+
+	it("matches a P2P stream's info hash against a debrid link's", () => {
+		const p2p = stream({ url: null, infoHash: hash });
+		expect(matchStream([p2p], played)).toBe(p2p);
+	});
+
+	it("falls back to the same addon's release name", () => {
+		const named = stream({
+			url: "https://elsewhere.example/v",
+			filename: "Movie.2024.1080p.WEB.mkv",
+		});
+		expect(
+			matchStream([named], { ...played, url: "https://gone.example/x" }),
+		).toBe(named);
+	});
+
+	it("never takes the same torrent or name from another addon", () => {
+		const other = stream({
+			addonName: "Comet",
+			url: `https://debrid.example/api/debrid/${hash}/0?token=new`,
+			filename: "Movie.2024.1080p.WEB.mkv",
+		});
+		expect(matchStream([other], played)).toBeNull();
+	});
+
+	it("is null with nothing played before", () => {
+		expect(matchStream([stream({})], null)).toBeNull();
 	});
 });

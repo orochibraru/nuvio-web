@@ -1,12 +1,15 @@
 import type { RequestEvent } from "@sveltejs/kit";
 import { BuiltInBackend } from "#lib/backend/handler.js";
 import { BUILT_IN_BACKEND } from "#lib/backend/tokens.js";
+import { LocalDownloads } from "#lib/downloads/local-downloads.js";
+import { LOCAL_DOWNLOADS } from "#lib/downloads/tokens.js";
 import { refreshSession } from "#lib/nuvio/backend.js";
 import { registerUserDataServices } from "#lib/userdata/server.js";
 import { dev } from "$app/env";
 import {
 	NUVIO_ADMIN_EMAILS,
 	NUVIO_DATA_DIR,
+	NUVIO_DOWNLOADS_DIR,
 	NUVIO_LOG_FORMAT,
 	NUVIO_LOG_LEVEL,
 	NUVIO_SESSION_SECRET,
@@ -108,6 +111,15 @@ serverServices
 			),
 	)
 	.register(ADMIN_NOTIFIER, (c) => c.get(ADMIN_NOTIFICATIONS))
+	// The desktop app's downloads, in a folder on the user's computer.
+	.register(LOCAL_DOWNLOADS, (c) =>
+		NUVIO_DOWNLOADS_DIR
+			? new LocalDownloads(
+					NUVIO_DOWNLOADS_DIR,
+					c.get(LOGGER).scoped("LocalDownloads"),
+				)
+			: null,
+	)
 	.register(
 		ACTIVITY,
 		(c) =>

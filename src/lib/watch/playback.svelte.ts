@@ -176,16 +176,9 @@ export function recallLink(
 	return stream;
 }
 
-/** Drop a remembered link : call when it turns out to be dead. */
-export function forgetLink(videoId: string): void {
-	if (!browser) {
-		return;
-	}
-	const map = readCache();
-	if (map[videoId]) {
-		delete map[videoId];
-		writeCache(map);
-	}
+/** The stream that last played for `videoId`, however old : to find it again among fresh sources. */
+export function lastPlayed(videoId: string): SelectedStream | null {
+	return recallLink(videoId, Number.POSITIVE_INFINITY);
 }
 
 // ---------------------------------------------------------------------------

@@ -16,7 +16,7 @@
 	// A phone gets it as a bottom sheet, like the library's filters. The sheet
 	// stays mounted and keeps showing the last target while it slides away.
 	const phone = new MediaQuery("max-width: 47.99rem");
-	let sheetTarget = $state<{ type: string; videoId: string } | null>(null);
+	let sheetTarget = $state<typeof sourcesPanel.target>(null);
 	$effect(() => {
 		if (target) {
 			sheetTarget = target;
@@ -56,6 +56,7 @@
         <StreamPanel
           type={sheetTarget.type}
           videoId={sheetTarget.videoId}
+          playing={sheetTarget.playing}
           onClose={() => sourcesPanel.close()}
           sheet
         />
@@ -67,6 +68,7 @@
   <StreamPanel
     type={active.type}
     videoId={active.videoId}
+    playing={active.playing}
     onClose={() => sourcesPanel.close()}
   />
 {/if}

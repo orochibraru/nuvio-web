@@ -33,10 +33,19 @@ export interface DownloadedSubtitle {
 	sdh: boolean;
 	/** Local file name under the download's `subs/` directory. */
 	file: string;
+	/** Where it ended up instead, beside the video (a download kept on disk). */
+	path?: string;
 }
 
 export interface DownloadRecord {
 	id: string;
+	/**
+	 * In a folder on this computer, downloaded by the desktop app's own server
+	 * (`local-downloads.ts`), rather than in the browser's private storage.
+	 */
+	onDisk?: boolean;
+	/** On disk: the download's folder, named after the title. */
+	folder?: string;
 	/** `syncOwner(userId, profileId)` : downloads are listed per profile. */
 	owner: string;
 

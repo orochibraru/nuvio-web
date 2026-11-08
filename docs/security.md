@@ -71,6 +71,24 @@ app). It isn't an open proxy:
 The download worker tries every source directly first, so the proxy only carries
 traffic that has no other way.
 
+## Downloads kept on disk
+
+With `NUVIO_DOWNLOADS_DIR` set (the desktop app sets it), the server fetches
+downloads itself, through the same SSRF guard, and writes them under that
+folder. Only that instance does: unset, which is the default, the server never
+writes a download anywhere, so a hosted instance can't be made to fill its disk.
+
+- Every command and `/api/downloads/local/…` answer the signed-in profile only,
+  and only for its own downloads.
+- A file is served only once its download is finished, by the download's id (a
+  UUID) and a file its record names (the video, a subtitle), or for an HLS copy
+  one of its playlists and segments; a hidden file never is. It goes out as
+  media (the service worker's type rules), `nosniff`, with a sandboxing CSP.
+- The page names a download to the app's mpv by id only (`nuvio-download:<id>`).
+  The app finds the folder whose record has that id and plays the file the
+  record names, a plain name inside that folder, so the page can't point mpv at
+  any other file on the computer.
+
 ## Response headers
 
 Every response carries:

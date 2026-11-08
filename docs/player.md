@@ -11,14 +11,22 @@ parser is a best effort — it will not invent a field it could not find.
 `auto` means "take the addons' own order", which is the order you arranged your
 addons in.
 
+A video you have played before plays from the same source again: the player
+finds it among the freshly resolved streams and takes it before the auto-pick. A
+debrid link often changes between resolutions (a new token, a re-signed URL), so
+a match is the same URL, else the same addon serving the same torrent (the info
+hash in the link's path), else the same addon's release of the same name. The
+source drawer marks that stream: **Playing** in the player, **Last played** on
+the title's page. The browser remembers the last 60 videos.
+
 Moving on to the next episode stays on the same release: the stream from the
 same addon that the addon marks as the same release (its `bingeGroup`), when the
 next episode has one. Otherwise the usual auto-pick applies.
 
-**Reuse last link** (Settings → Playback) re-opens a title with the stream URL
-it used last time instead of resolving it again. Handy for debrid addons where
-re-resolution is slow. Remembered links expire after `linkCacheDays` (3 by
-default, matching most debrid providers).
+**Reuse last link** (Settings → Playback) goes further and re-opens a title with
+the stream URL it used last time instead of resolving it again. Handy for debrid
+addons where re-resolution is slow. Remembered links are reused this way for
+`linkCacheDays` (3 by default, matching most debrid providers).
 
 ## Playback
 

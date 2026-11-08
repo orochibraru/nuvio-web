@@ -1,10 +1,11 @@
-import { cpSync, mkdtempSync, rmSync, symlinkSync } from "node:fs";
+import { cpSync, mkdtempSync, readdirSync, rmSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import process from "node:process";
 
 // The macOS DMG, made here instead of by Electrobun: its `hdiutil create` has
-// no `-size`, and hdiutil's own guess runs out of room on CI runners.
+// no `-size`, and hdiutil's own guess runs out of room on CI runners. A dev
+// build (`build/dev-<os>-<arch>`) is only run, never shipped: no DMG.
 
 const {
 	ELECTROBUN_OS,
@@ -14,7 +15,9 @@ const {
 	ELECTROBUN_ARTIFACT_DIR,
 } = process.env;
 
-if (ELECTROBUN_OS === "macos") {
+const devBuild = basename(ELECTROBUN_BUILD_DIR ?? "").startsWith("dev-");
+
+if (ELECTROBUN_OS === "macos" && !devBuild) {
 	if (
 		!(ELECTROBUN_APP_NAME && ELECTROBUN_BUILD_DIR && ELECTROBUN_ARTIFACT_DIR)
 	) {
@@ -22,8 +25,15 @@ if (ELECTROBUN_OS === "macos") {
 			"ELECTROBUN_APP_NAME, ELECTROBUN_BUILD_DIR and ELECTROBUN_ARTIFACT_DIR must be set",
 		);
 	}
-	// The self-extracting wrapper Electrobun would have put in its DMG.
-	const app = join(ELECTROBUN_BUILD_DIR, `${ELECTROBUN_APP_NAME}.app`);
+	// The self-extracting wrapper Electrobun would have put in its DMG. Its
+	// name carries the channel (`Nuvio Web-canary.app`), so take the one there.
+	const bundle = readdirSync(ELECTROBUN_BUILD_DIR).find((name) =>
+		name.endsWith(".app"),
+	);
+	if (!bundle) {
+		throw new Error(`No .app in ${ELECTROBUN_BUILD_DIR}`);
+	}
+	const app = join(ELECTROBUN_BUILD_DIR, bundle);
 	const staging = mkdtempSync(join(tmpdir(), "nuvio-dmg-"));
 	try {
 		cpSync(app, join(staging, basename(app)), {

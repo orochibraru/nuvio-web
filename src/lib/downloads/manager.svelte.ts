@@ -1,5 +1,13 @@
 import { browser } from "$app/env";
-import { DOWNLOADS_DIR, localMediaUrl } from "./files.ts";
+import { resolve } from "$app/paths";
+import { DOWNLOADS_DIR, downloadFileUrl } from "./files.ts";
+import {
+	addLocalDownload,
+	pauseLocalDownload,
+	removeLocalDownload,
+	resumeLocalDownload,
+} from "./local-downloads.remote.ts";
+import type { LocalListing } from "./local-downloads-data.ts";
 import { deleteDownload, listDownloads, putDownload } from "./store.ts";
 import type {
 	DownloadRecord,
@@ -17,7 +25,14 @@ import type {
  * tunnel. A download interrupted by closing the tab is `downloading` in
  * IndexedDB with nobody working on it; `attach` puts it back in the queue and
  * the worker resumes it from what is already on disk.
+ *
+ * In the desktop app the server downloads into a folder on the computer
+ * instead (`local-downloads.ts`): the list comes from there, polled while
+ * something is queued or running, and every change goes through it.
  */
+
+/** How often the list is re-read while the desktop app's server downloads. */
+const POLL_MS = 1000;
 
 /** The profile whose downloads the offline page lists (no session there). */
 const LAST_OWNER_KEY = "nuvio:downloads-owner";
@@ -43,13 +58,17 @@ async function removeFiles(id: string): Promise<void> {
 /** Where a finished download plays from : the service worker serves it. */
 export function playbackUrl(record: DownloadRecord): string | null {
 	return record.status === "done" && record.entry
-		? localMediaUrl(record.id, record.entry)
+		? downloadFileUrl(record, record.entry)
 		: null;
 }
 
 class DownloadManager {
 	items = $state<DownloadRecord[]>([]);
 	ready = $state(false);
+	/** In the desktop app: the folder downloads go to, and its free space. */
+	folder = $state<{ path: string; free: number | null } | null>(null);
+	#onDisk = $state(false);
+	#poll: ReturnType<typeof setTimeout> | null = null;
 
 	#owner: string | null = null;
 	#worker: Worker | null = null;
@@ -59,17 +78,32 @@ class DownloadManager {
 	/** Resolved when the worker lets go of a download (see `remove`). */
 	readonly #released = new Map<string, () => void>();
 
+	/** Downloads go to a folder on this computer, through the desktop app's server. */
+	get onDisk(): boolean {
+		return this.#onDisk;
+	}
+
 	get supported(): boolean {
 		return (
-			browser &&
-			"storage" in navigator &&
-			typeof navigator.storage.getDirectory === "function" &&
-			typeof Worker !== "undefined"
+			this.#onDisk ||
+			(browser &&
+				"storage" in navigator &&
+				typeof navigator.storage.getDirectory === "function" &&
+				typeof Worker !== "undefined")
 		);
 	}
 
-	async attach(owner: string): Promise<void> {
-		if (!this.supported || owner === this.#owner) {
+	async attach(owner: string, onDisk = false): Promise<void> {
+		if (owner === this.#owner && onDisk === this.#onDisk) {
+			return;
+		}
+		if (onDisk) {
+			this.#owner = owner;
+			this.#onDisk = true;
+			await this.#refresh();
+			return;
+		}
+		if (!this.supported) {
 			return;
 		}
 		this.#owner = owner;
@@ -94,6 +128,9 @@ class DownloadManager {
 
 	/** Sign-out: stop working and forget whose downloads the offline page shows. */
 	forget(): void {
+		this.#stopPolling();
+		this.#onDisk = false;
+		this.folder = null;
 		this.#worker?.terminate();
 		this.#worker = null;
 		this.#active = null;
@@ -115,6 +152,10 @@ class DownloadManager {
 	async add(input: NewDownload): Promise<void> {
 		const owner = this.#owner;
 		if (!owner || this.find(input.videoId)) {
+			return;
+		}
+		if (this.#onDisk) {
+			this.#show(await addLocalDownload(input));
 			return;
 		}
 		// Ask once for storage the browser won't evict under pressure; a no
@@ -145,6 +186,13 @@ class DownloadManager {
 	}
 
 	pause(id: string): void {
+		if (this.#onDisk) {
+			void pauseLocalDownload(id).then(
+				(listing) => this.#show(listing),
+				() => this.#refresh(),
+			);
+			return;
+		}
 		if (this.#active === id) {
 			this.#send({ type: "abort", id });
 			return;
@@ -153,11 +201,25 @@ class DownloadManager {
 	}
 
 	resume(id: string): void {
+		if (this.#onDisk) {
+			void resumeLocalDownload(id).then(
+				(listing) => this.#show(listing),
+				() => this.#refresh(),
+			);
+			return;
+		}
 		this.#patch(id, { status: "queued", error: null });
 		this.#pump();
 	}
 
 	async remove(id: string): Promise<void> {
+		if (this.#onDisk) {
+			await removeLocalDownload(id).then(
+				(listing) => this.#show(listing),
+				() => this.#refresh(),
+			);
+			return;
+		}
 		if (this.#active === id) {
 			// The worker holds open handles on the files until it stops.
 			const released = new Promise<void>((resolve) => {
@@ -170,6 +232,51 @@ class DownloadManager {
 		this.#subtitles.delete(id);
 		await removeFiles(id);
 		await deleteDownload(id);
+	}
+
+	/** Re-reads the folder's list; a failed read keeps what is shown. */
+	async #refresh(): Promise<void> {
+		const owner = this.#owner;
+		try {
+			const response = await fetch(resolve("api/downloads/local"));
+			if (response.ok) {
+				if (owner === this.#owner && this.#onDisk) {
+					this.#show((await response.json()) as LocalListing);
+				}
+				return;
+			}
+		} catch {
+			// The server is on this computer: try again shortly.
+		}
+		if (owner === this.#owner && this.#onDisk) {
+			this.#stopPolling();
+			this.#poll = setTimeout(() => void this.#refresh(), POLL_MS);
+		}
+	}
+
+	#show(listing: LocalListing): void {
+		this.items = listing.items;
+		this.folder = { path: listing.folder, free: listing.free };
+		this.ready = true;
+		this.#schedule();
+	}
+
+	/** Polls only while something is waiting or downloading. */
+	#schedule(): void {
+		this.#stopPolling();
+		const busy = this.items.some(
+			(item) => item.status === "queued" || item.status === "downloading",
+		);
+		if (this.#onDisk && busy) {
+			this.#poll = setTimeout(() => void this.#refresh(), POLL_MS);
+		}
+	}
+
+	#stopPolling(): void {
+		if (this.#poll) {
+			clearTimeout(this.#poll);
+			this.#poll = null;
+		}
 	}
 
 	#patch(id: string, patch: Partial<DownloadRecord>): void {

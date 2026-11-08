@@ -53,6 +53,33 @@ resume, delete, or play.
 - **Played from the device.** Once a download finishes, the player uses the
   saved copy for that title, even online, and whichever source you picked.
 
+## In the desktop app
+
+The desktop app downloads to a folder on the computer instead of the browser's
+storage: **Nuvio Web** in the system's videos folder (`~/Movies` on macOS,
+`%USERPROFILE%\Videos` on Windows, `XDG_VIDEOS_DIR`, else `~/Videos`, on Linux).
+Its built-in server does the fetching, so:
+
+- **any source with a link** can be downloaded, including those only mpv plays
+  (see [Desktop](desktop)); a finished one the window can't decode opens in mpv,
+  from the file;
+- there's no browser quota: the Downloads page shows the folder and its free
+  space, and **Open folder** shows it in Finder, Explorer or the file manager;
+- the files are ordinary files, named like a media library's: a folder per
+  title, the video named after it (`Breaking Bad S01E02.mkv`, the extension its
+  bytes say), and the subtitles beside it (`Breaking Bad S01E02.en.srt`), which
+  mpv, VLC and IINA pick up on their own. An HLS copy is a playlist (`… .m3u8`)
+  and its segments, which mpv, VLC and IINA open;
+- downloads keep going as long as the app runs, whichever page is open, and one
+  cut off by quitting resumes on the next launch.
+
+While it downloads, the video is `media`; it takes its name once it is complete,
+so nothing half-downloaded looks playable. Two hidden files hold what the app
+needs: `.nuvio.json` (what the Downloads page lists) and, until it is done,
+`.nuvio-plan.json`. A second download with the same name gets a numbered folder
+(`Heat (2)`). Deleting one from the Downloads page deletes its folder. They are
+listed per profile, as in the browser.
+
 ## Offline
 
 With no network, any page opens the offline page. It lists the finished

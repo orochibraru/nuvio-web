@@ -20,6 +20,7 @@
 	import { Switch } from "#lib/components/ui/switch/index.js";
 	import { reduced } from "#lib/core/motion.js";
 	import DownloadButton from "#lib/downloads/download-button.svelte";
+	import { downloads } from "#lib/downloads/manager.svelte.js";
 	import { m } from "#lib/i18n/index.js";
 	import {
 		externalPlayerHandoff,
@@ -29,9 +30,14 @@
 	import { cn } from "#lib/utils.js";
 	import { goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
-	import { playbackHandoff } from "./playback.svelte.ts";
+	import {
+		lastPlayed,
+		playbackHandoff,
+		type SelectedStream,
+	} from "./playback.svelte.ts";
 	import {
 		isPlayable,
+		matchStream,
 		type ResolvedStream,
 		type StreamKind,
 		streamKind,
@@ -46,11 +52,14 @@
 	let {
 		type,
 		videoId,
+		playing = null,
 		onClose,
 		sheet = false,
 	}: {
 		type: string;
 		videoId: string;
+		/** The stream the player has on, marked as playing. */
+		playing?: SelectedStream | null;
 		onClose: () => void;
 		/** Inside a bottom sheet (phones), which owns the overlay and closing. */
 		sheet?: boolean;
@@ -134,6 +143,12 @@
 		})),
 	);
 
+	// Marked in the list: what the player is on, else what this video played from last.
+	const current = $derived.by(() => {
+		const row = matchStream(rows, playing ?? lastPlayed(videoId));
+		return row ? { index: row.index, playing: playing !== null } : null;
+	});
+
 	const addons = $derived(
 		[...new Set(rows.map((row) => row.addonName))].sort(),
 	);
@@ -207,6 +222,14 @@
 		return (
 			isPlayable(row) ||
 			externalPlayerHandoff(row, navigator.userAgent) !== null
+		);
+	}
+
+	/** The desktop app's server fetches any http(s) source, mpv-only ones too. */
+	function downloadable(row: Row): boolean {
+		return (
+			isPlayable(row) ||
+			(downloads.onDisk && /^https?:\/\//i.test(row.url ?? ""))
 		);
 	}
 
@@ -500,10 +523,15 @@
           <div class="flex items-stretch gap-1.5">
             <StreamRow
               {row}
+              current={current?.index === row.index
+                ? current.playing
+                  ? "playing"
+                  : "last"
+                : null}
               disabled={!actionable(row)}
               onclick={() => pick(row)}
             />
-            {#if isPlayable(row) && contextQuery.current}
+            {#if downloadable(row) && contextQuery.current}
               <DownloadButton
                 context={contextQuery.current}
                 url={row.url ?? ""}

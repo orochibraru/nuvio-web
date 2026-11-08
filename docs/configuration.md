@@ -57,6 +57,16 @@ database. An open tab keeps its live-update stream open until the
 `docker stop` waits before killing the container); the tab reconnects on its
 own.
 
+## Downloads
+
+| Variable              | Default | What it does                                                                                  |
+| --------------------- | ------- | --------------------------------------------------------------------------------------------- |
+| `NUVIO_DOWNLOADS_DIR` | _unset_ | A folder the server downloads into and plays back from; unset keeps downloads in each browser |
+
+The desktop app sets it to the system's videos folder. Leave it unset on a
+shared instance: set, every signed-in user can make the server download to its
+disk. See [Downloads and offline](downloads).
+
 ## Admin surface
 
 The admin page is opt-in and off unless you name at least one administrator.

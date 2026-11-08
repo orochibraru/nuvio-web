@@ -2,6 +2,23 @@
 
 ## Open
 
+- [ ] **Desktop downloads: run them for real, on every OS.** The server-side
+      queue is unit-tested against a temp folder and a fake host (direct file,
+      pause / resume from disk, a quit mid-download, HLS, owner isolation); none
+      of it ran inside the app. Check on macOS, Windows and Linux: a download
+      lands in the videos folder (`Utils.paths.videos`, `%USERPROFILE%\Videos`
+      ignores a OneDrive-redirected Videos), plays in the window with seeking
+      and its subtitles, an mpv-only one opens in mpv from the file
+      (`nuvio-download:`, both the separate window and the in-window engine),
+      **Open folder** opens it, quitting mid-download resumes on relaunch. Not
+      built: the addon's `proxyHeaders` (the server could send them), a choice
+      of folder, an e2e spec running the image with `NUVIO_DOWNLOADS_DIR`.
+- [ ] **Volume boost in the desktop app.** Reported broken; not diagnosed.
+      Suspects: WebKit's `MediaElementAudioSourceNode` on an MSE (`blob:`)
+      source, and a boost restored on reload building the `AudioContext` outside
+      a user gesture (WebKit then leaves it suspended, so routed audio goes
+      silent).
+
 - [ ] **Desktop app: other platforms, signing, releases.** Only macOS arm64 was
       run: the bundled server starts, the window loads it, and sign-in offers
       Nuvio and a custom backend. Untested: signing in from the app, Windows

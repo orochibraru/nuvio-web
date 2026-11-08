@@ -175,7 +175,10 @@
 		if (profileIndex != null && accountKey) {
 			void sync.attach(profileIndex, accountKey);
 			searchHistory.attach(syncOwner(accountKey, profileIndex));
-			void downloads.attach(syncOwner(accountKey, profileIndex));
+			void downloads.attach(
+				syncOwner(accountKey, profileIndex),
+				data.downloadsOnDisk,
+			);
 		}
 	});
 	$effect(() => () => sync.detach());

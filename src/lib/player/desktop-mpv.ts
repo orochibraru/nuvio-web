@@ -59,6 +59,8 @@ declare global {
 			mpv?: (request: MpvRequest) => void;
 			stopMpv?: () => void;
 			engine?: DesktopEngine;
+			/** Shows the downloads folder in Finder / Explorer / the file manager. */
+			openDownloads?: () => void;
 		};
 	}
 }
@@ -89,7 +91,11 @@ export function desktopMpv(): DesktopMpv | null {
 	return { play, stop: () => bridge.stopMpv?.() };
 }
 
-/** Whether mpv can open `url` at all: the desktop app only hands it http(s). */
+/**
+ * Whether mpv can open `url` at all: the desktop app hands it http(s), and
+ * `nuvio-download:<id>/<path>`, a download in its folder that it resolves to
+ * the file itself (see `mpvDownloadUrl`).
+ */
 export function mpvCanOpen(url: string | null): url is string {
-	return url !== null && /^https?:\/\//i.test(url);
+	return url !== null && /^(?:https?:\/\/|nuvio-download:)/i.test(url);
 }

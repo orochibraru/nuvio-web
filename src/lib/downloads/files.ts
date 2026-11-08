@@ -19,6 +19,8 @@
 export const DOWNLOADS_DIR = "downloads";
 export const PLAN_FILE = "plan.json";
 export const LOCAL_MEDIA_PREFIX = "/offline-media/";
+/** Where the desktop app's server answers a download kept on disk. */
+export const DISK_MEDIA_PREFIX = "/api/downloads/local/";
 
 /** Download ids are UUIDs; anything else never reaches the file system. */
 const ID = /^[0-9a-f-]{36}$/;
@@ -27,6 +29,33 @@ const PATH = /^[\w.-]+(\/[\w.-]+)?$/;
 
 export function localMediaUrl(id: string, path: string): string {
 	return `${LOCAL_MEDIA_PREFIX}${id}/${path}`;
+}
+
+/** The URL a download's file plays from, wherever the download is kept. */
+export function downloadFileUrl(
+	record: { id: string; onDisk?: boolean },
+	path: string,
+): string {
+	return record.onDisk
+		? `${DISK_MEDIA_PREFIX}${record.id}/${path.split("/").map(encodeURIComponent).join("/")}`
+		: localMediaUrl(record.id, path);
+}
+
+/**
+ * What mpv is handed for a download in the desktop app's folder: its id, which
+ * the app resolves to the video through the download's own record (mpv has no
+ * session to fetch it over HTTP with). Null for a browser download: mpv can't
+ * reach the Origin Private File System.
+ */
+export function mpvDownloadUrl(
+	record: { id: string; onDisk?: boolean; entry: string | null } | undefined,
+): string | null {
+	return record?.onDisk && record.entry ? `nuvio-download:${record.id}` : null;
+}
+
+/** A download id and a path inside it that may reach a file system. */
+export function isLocalFile(id: string, path: string): boolean {
+	return ID.test(id) && PATH.test(path) && !path.split("/").includes("..");
 }
 
 /** `/offline-media/<id>/<path>` → its parts, or `null` for anything else. */
@@ -43,7 +72,7 @@ export function parseLocalMediaPath(
 	}
 	const id = rest.slice(0, slash);
 	const path = decodeURIComponent(rest.slice(slash + 1));
-	if (!(ID.test(id) && PATH.test(path)) || path.split("/").includes("..")) {
+	if (!isLocalFile(id, path)) {
 		return null;
 	}
 	return { id, path };

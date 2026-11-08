@@ -1,6 +1,8 @@
 <script lang="ts">
+	import AudioLinesIcon from "@lucide/svelte/icons/audio-lines";
 	import ExternalLinkIcon from "@lucide/svelte/icons/external-link";
 	import FilmIcon from "@lucide/svelte/icons/film";
+	import HistoryIcon from "@lucide/svelte/icons/history";
 	import PlayIcon from "@lucide/svelte/icons/play";
 	import PuzzleIcon from "@lucide/svelte/icons/puzzle";
 	import UsersIcon from "@lucide/svelte/icons/users";
@@ -16,10 +18,13 @@
 	/** One source in the drawer : its label, parsed into chips. */
 	let {
 		row,
+		current = null,
 		disabled,
 		onclick,
 	}: {
 		row: ResolvedStream & { info: StreamMeta; kind: StreamKind };
+		/** This is the source the player is on, or the one this video last played from. */
+		current?: "playing" | "last" | null;
 		disabled: boolean;
 		onclick: () => void;
 	} = $props();
@@ -46,6 +51,7 @@
   type="button"
   {disabled}
   {onclick}
+  aria-current={current === "playing" ? "true" : undefined}
   class="group/row flex min-w-0 flex-1 items-start gap-3 rounded-2xl border border-foreground/10 bg-foreground/5 p-2.5 text-left transition-all enabled:hover:border-primary/40 enabled:hover:bg-foreground/10 enabled:active:scale-[0.99] disabled:opacity-50"
 >
   <span
@@ -65,6 +71,17 @@
     <div
       class="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px] text-muted-foreground"
     >
+      {#if current}
+        <span
+          class="flex items-center gap-0.5 rounded-md bg-primary px-1.5 py-px font-semibold text-primary-foreground"
+        >
+          {#if current === "playing"}
+            <AudioLinesIcon class="size-2.5" />{m.watch_row_playing()}
+          {:else}
+            <HistoryIcon class="size-2.5" />{m.watch_row_last_played()}
+          {/if}
+        </span>
+      {/if}
       <span class="flex items-center gap-0.5 font-semibold text-accent-label"
         ><PuzzleIcon class="size-2.5" />{row.addonName}</span
       >

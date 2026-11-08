@@ -66,6 +66,11 @@ export const variables = defineEnvVars({
 			"'true' lets anyone signing in use a backend of their own until an admin decides otherwise on /admin (the desktop app sets it). Unset means custom backends start off.",
 		schema: (value: string | undefined) => value === "true",
 	},
+	NUVIO_DOWNLOADS_DIR: {
+		description:
+			"A folder this server downloads titles into for offline viewing, played back from there (the desktop app sets it to the system's videos folder). Unset means downloads stay in each browser's own storage.",
+		schema: (value: string | undefined) => value?.trim() ?? "",
+	},
 	NUVIO_SENTRY_DSN: {
 		description:
 			"Sentry DSN the browser reports uncaught client errors to (any Sentry-compatible ingest, e.g. Homerun's). Unset means client errors are only logged to the console.",

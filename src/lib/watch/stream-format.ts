@@ -421,6 +421,54 @@ export function pickPreferredStream(
 	return scored[0]?.stream ?? playable[0];
 }
 
+/** The torrent behind a stream: its own info hash, else a 40-hex segment of a debrid link's path. */
+function torrentHash(stream: {
+	url: string | null;
+	infoHash: string | null;
+}): string | null {
+	if (stream.infoHash) {
+		return stream.infoHash.toLowerCase();
+	}
+	let path: string;
+	try {
+		path = new URL(stream.url ?? "").pathname;
+	} catch {
+		return null;
+	}
+	return /\/([0-9a-f]{40})(?=\/|$)/i.exec(path)?.[1].toLowerCase() ?? null;
+}
+
+/**
+ * The stream in a fresh list that is the one played before: the same link,
+ * else the same addon serving the same torrent (a debrid link re-signed since),
+ * else the same addon's release of the same name.
+ */
+export function matchStream<T extends ResolvedStream>(
+	streams: readonly T[],
+	known: {
+		url: string | null;
+		infoHash: string | null;
+		addonName: string;
+		label: string;
+	} | null,
+): T | null {
+	if (!known) {
+		return null;
+	}
+	const sameAddon = streams.filter(
+		(stream) => stream.addonName === known.addonName,
+	);
+	const hash = torrentHash(known);
+	return (
+		(known.url ? streams.find((stream) => stream.url === known.url) : null) ??
+		(hash ? sameAddon.find((stream) => torrentHash(stream) === hash) : null) ??
+		(known.label === known.addonName
+			? null
+			: sameAddon.find((stream) => streamMeta(stream).title === known.label)) ??
+		null
+	);
+}
+
 /**
  * The next episode's stream from the same release as the one just watched:
  * same addon, same `bingeGroup`. Null when there is none to match.

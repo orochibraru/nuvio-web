@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
 	contentTypeFor,
+	downloadFileUrl,
 	localMediaUrl,
+	mpvDownloadUrl,
 	parseLocalMediaPath,
 	parseRange,
 	proxiedUrl,
@@ -91,5 +93,26 @@ describe("proxiedUrl", () => {
 		expect(proxiedUrl("https://cdn.example/a b.mp4?x=1&y=2")).toBe(
 			"/api/downloads/proxy?url=https%3A%2F%2Fcdn.example%2Fa%20b.mp4%3Fx%3D1%26y%3D2",
 		);
+	});
+});
+
+describe("downloadFileUrl", () => {
+	it("plays a browser download through the service worker, a desktop one from the server", () => {
+		expect(downloadFileUrl({ id: ID }, "media")).toBe(
+			localMediaUrl(ID, "media"),
+		);
+		expect(downloadFileUrl({ id: ID, onDisk: true }, "subs/1.srt")).toBe(
+			`/api/downloads/local/${ID}/subs/1.srt`,
+		);
+		expect(downloadFileUrl({ id: ID, onDisk: true }, "Léon #2.en.srt")).toBe(
+			`/api/downloads/local/${ID}/L%C3%A9on%20%232.en.srt`,
+		);
+	});
+
+	it("names a desktop download to mpv by id, never by path", () => {
+		expect(mpvDownloadUrl({ id: ID, onDisk: true, entry: "index.m3u8" })).toBe(
+			`nuvio-download:${ID}`,
+		);
+		expect(mpvDownloadUrl({ id: ID, entry: "media" })).toBeNull();
 	});
 });

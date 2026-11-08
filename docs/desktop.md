@@ -52,6 +52,13 @@ checks each against its pinned checksum. Set `NUVIO_MPV_ENGINE=always` before
 starting the app to play every source this way, not only those the web view
 refuses.
 
+## Downloads
+
+Downloads go to **Nuvio Web** in the system's videos folder, fetched by the
+built-in server rather than the window, so any source with a link can be saved
+(mpv-only ones included) and mpv can play the files. See
+[Downloads and offline](downloads).
+
 ## Updates
 
 The app updates itself from the latest stable release on GitHub. Once the server

@@ -11,6 +11,7 @@
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { streamed } from "#lib/core/stream.svelte.js";
 	import { pageTitle } from "#lib/core/title.svelte.js";
+	import { mpvDownloadUrl } from "#lib/downloads/files.js";
 	import { downloads, playbackUrl } from "#lib/downloads/manager.svelte.js";
 	import { playbackSubtitles } from "#lib/downloads/subtitles.js";
 	import { m } from "#lib/i18n/index.js";
@@ -32,7 +33,7 @@
 	import { sync } from "#lib/sync/store.svelte.js";
 	import {
 		audioRiskyHere,
-		forgetLink,
+		lastPlayed,
 		playbackHandoff,
 		recallLink,
 		recallPick,
@@ -50,6 +51,7 @@
 	import { sourcesPanel } from "#lib/watch/sources-panel.svelte.js";
 	import {
 		describeStream,
+		matchStream,
 		pickBingeStream,
 		pickPreferredStream,
 		type ResolvedStream,
@@ -117,10 +119,7 @@
 
 	// The source drawer, shared with /detail through the (watch) layout.
 	function openSources() {
-		// Reaching for another source means the current link is no good : drop it
-		// so "reuse last link" doesn't hand it back next time.
-		forgetLink(id);
-		sourcesPanel.open(type, id);
+		sourcesPanel.open(type, id, selection);
 	}
 
 	// In-player episode drawer (series only).
@@ -235,7 +234,8 @@
 	// The release the previous episode played, for the next one to stay on.
 	let bingeFrom = $state.raw<SelectedStream | null>(null);
 	const autoStream = $derived(
-		pickBingeStream(streams ?? [], bingeFrom) ??
+		matchStream(streams ?? [], lastPlayed(id)) ??
+			pickBingeStream(streams ?? [], bingeFrom) ??
 			pickPreferredStream(streams ?? [], theme.current.preferredQuality),
 	);
 
@@ -611,7 +611,7 @@
 	}
 
 	const mpv = createMpvFallback({
-		url: () => (offlineSrc ? null : (active?.url ?? null)),
+		url: () => (offlineSrc ? mpvDownloadUrl(download) : (active?.url ?? null)),
 		title: () => [context.heading, subheading].filter(Boolean).join(" · "),
 		blocked: () =>
 			Boolean(

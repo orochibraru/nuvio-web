@@ -1,4 +1,5 @@
 import { redirect } from "@sveltejs/kit";
+import { LOCAL_DOWNLOADS } from "#lib/downloads/tokens.js";
 import {
 	pullAppAudioLanguage,
 	pullUiSettings,
@@ -33,5 +34,7 @@ export const load: LayoutServerLoad = async ({
 		pullUiSettings(nuvio, locals.profileId),
 		pullAppAudioLanguage(nuvio, locals.profileId),
 	]);
-	return { profile, ui, appAudio };
+	// Downloads go to a folder on this computer (the desktop app), not the browser.
+	const downloadsOnDisk = locals.services.get(LOCAL_DOWNLOADS) !== null;
+	return { profile, ui, appAudio, downloadsOnDisk };
 };

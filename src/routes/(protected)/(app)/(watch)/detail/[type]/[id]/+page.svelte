@@ -39,7 +39,7 @@
 		episodeLabel,
 		randomEpisode,
 	} from "#lib/watch/episodes.js";
-	import { playbackHandoff } from "#lib/watch/playback.svelte.js";
+	import { lastPlayed, playbackHandoff } from "#lib/watch/playback.svelte.js";
 	import {
 		parseVideoId,
 		playOrder,
@@ -50,6 +50,7 @@
 	import { sourcesPanel } from "#lib/watch/sources-panel.svelte.js";
 	import {
 		describeStream,
+		matchStream,
 		pickPreferredStream,
 	} from "#lib/watch/stream-format.js";
 	import { resolveStreams } from "#lib/watch/watch.remote.js";
@@ -186,7 +187,8 @@
 		const warmedStreams =
 			videoId === ctaVideoId ? ctaStreamsResult?.current?.streams : undefined;
 		const pick = warmedStreams
-			? pickPreferredStream(warmedStreams, theme.current.preferredQuality)
+			? (matchStream(warmedStreams, lastPlayed(videoId)) ??
+				pickPreferredStream(warmedStreams, theme.current.preferredQuality))
 			: null;
 		if (!pick) {
 			void goto(playerHref(videoId));

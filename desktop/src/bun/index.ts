@@ -28,6 +28,9 @@ const STARTUP_TIMEOUT_MS = 30_000;
 
 const dataDir = join(Utils.paths.userData, "data");
 mkdirSync(dataDir, { recursive: true });
+// Downloads are files the user sees: ~/Movies on macOS, Videos on Windows,
+// XDG_VIDEOS_DIR (else ~/Videos) on Linux.
+const downloadsDir = join(Utils.paths.videos, "Nuvio Web");
 const logs = openLogDb();
 
 function readText(file: string): string {
@@ -78,6 +81,7 @@ function page(message: string): string {
 logs.write("shell", "info", "Starting", {
 	origin,
 	dataDir,
+	downloadsDir,
 	version: root.version,
 	platform: process.platform,
 	arch: process.arch,
@@ -103,7 +107,9 @@ logs.write(
 );
 
 // Always there, so the page knows it runs in the app (no "Install app").
-const DESKTOP_BRIDGE = "window.nuvioDesktop = {};";
+const DESKTOP_BRIDGE = `window.nuvioDesktop = {
+	openDownloads: () => window.__electrobunSendToHost({ nuvioOpenDownloads: true }),
+};`;
 // The page asks for mpv through this; it only exists when there is one.
 const MPV_BRIDGE = `Object.assign(window.nuvioDesktop, {
 	mpv: (request) => window.__electrobunSendToHost({ nuvioMpv: request }),
@@ -166,13 +172,20 @@ Electrobun.events.on("host-message", (event) => {
 		handleEngine(engineMessage);
 		return;
 	}
+	if (
+		(detail as { nuvioOpenDownloads?: unknown } | undefined)?.nuvioOpenDownloads
+	) {
+		mkdirSync(downloadsDir, { recursive: true });
+		Utils.openPath(downloadsDir);
+		return;
+	}
 	if ((detail as { nuvioMpvStop?: unknown } | undefined)?.nuvioMpvStop) {
 		mpv?.stop();
 		return;
 	}
 	const mpvRequest = (detail as { nuvioMpv?: unknown } | undefined)?.nuvioMpv;
 	if (mpvRequest !== undefined) {
-		const request = parseMpvRequest(mpvRequest);
+		const request = parseMpvRequest(mpvRequest, downloadsDir);
 		if (request && mpv) {
 			mpv.play(request);
 		} else {
@@ -212,7 +225,7 @@ function handleEngine(message: {
 		return;
 	}
 	if (message.op === "open") {
-		const request = parseMpvRequest(message.request);
+		const request = parseMpvRequest(message.request, downloadsDir);
 		if (request) {
 			engine.open(request);
 		} else {
@@ -331,6 +344,8 @@ const server = Bun.spawn(
 			HOST,
 			PORT: new URL(origin).port,
 			NUVIO_DATA_DIR: dataDir,
+			// The server downloads there, and plays the files back from there.
+			NUVIO_DOWNLOADS_DIR: downloadsDir,
 			// A personal app: users pick their own backend at sign-in.
 			NUVIO_ALLOW_CUSTOM_BACKENDS: "true",
 			NUVIO_LOG_FORMAT: "json",
