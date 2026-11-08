@@ -25,6 +25,12 @@
 					/* storage unavailable */
 				}
 			})();
+			// Chromium's install offer can come before the app hydrates; hold it
+			// for install-prompt.svelte.ts.
+			addEventListener("beforeinstallprompt", (event) => {
+				event.preventDefault();
+				window.__nuvioInstallPrompt = event;
+			});
 		</script>
 		%sveltekit.head%
 	</head>

@@ -63,6 +63,10 @@ declare global {
 	}
 }
 
+export function insideDesktopApp(): boolean {
+	return typeof window !== "undefined" && window.nuvioDesktop !== undefined;
+}
+
 /** The in-window engine, when the desktop app has one (macOS). */
 export function desktopEngine(): DesktopEngine | null {
 	return typeof window === "undefined"

@@ -68,6 +68,9 @@
       and are only checked as `href`s. Outplayer's form drops `http` vs `https`.
       An iPad in desktop mode reports as a Mac, so it only gets the Mac apps
       (Infuse, VidHub).
+- [ ] **Install app dialog: run its spec.** `e2e/install-app.spec.ts` was
+      written but not run (:3000 was taken). Also try the download links on a
+      real Mac in Safari (no architecture hint: it gets Apple Silicon).
 - [ ] **Browser meta cache: confirm on Discover.** `hooks.server.ts` marks a
       title page's and Discover's navigation data, plus the addon-meta remote
       queries, `private, max-age=900`. Seen on a title page's `__data.json`

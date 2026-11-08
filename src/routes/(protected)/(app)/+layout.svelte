@@ -15,6 +15,7 @@
 	import { ACCOUNT_SECTIONS } from "#lib/account/sections.js";
 	import FirstRunNotice from "#lib/components/chrome/first-run-notice.svelte";
 	import HealthBanner from "#lib/components/chrome/health-banner.svelte";
+	import InstallDialog from "#lib/components/chrome/install-dialog.svelte";
 	import { installPrompt } from "#lib/components/chrome/install-prompt.svelte.js";
 	import MobileTabBar from "#lib/components/chrome/mobile-tab-bar.svelte";
 	import ProfileAvatar from "#lib/components/chrome/profile-avatar.svelte";
@@ -24,6 +25,7 @@
 	import { getVersion } from "#lib/core/version.js";
 	import { downloads } from "#lib/downloads/manager.svelte.js";
 	import { m } from "#lib/i18n/index.js";
+	import { insideDesktopApp } from "#lib/player/desktop-mpv.js";
 	import { SEARCH_FOCUS_EVENT } from "#lib/search/focus.js";
 	import { searchHistory } from "#lib/search/search-history.svelte.js";
 	import { SETTINGS_SECTIONS } from "#lib/settings/sections.js";
@@ -86,6 +88,8 @@
 	]);
 
 	$effect(() => installPrompt.listen());
+
+	let installOpen = $state(false);
 
 	function isActive(href: string, exact?: boolean) {
 		return exact
@@ -417,8 +421,8 @@
                                     >
                                 {/snippet}
                             </DropdownMenu.Item>
-                            {#if installPrompt.available}
-                                <DropdownMenu.Item onSelect={() => installPrompt.show()}>
+                            {#if !insideDesktopApp()}
+                                <DropdownMenu.Item onSelect={() => (installOpen = true)}>
                                     <MonitorDownIcon />{m.shell_install_app()}
                                 </DropdownMenu.Item>
                             {/if}
@@ -447,6 +451,7 @@
                         </form>
                     </DropdownMenu.Content>
                 </DropdownMenu.Root>
+                <InstallDialog bind:open={installOpen} />
             </div>
         </div>
     </header>

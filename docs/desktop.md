@@ -7,6 +7,17 @@ native window. It needs no Nuvio Web server anywhere else. It is built with
 web view (WebKit on macOS and Linux, WebView2 on Windows), so video plays with
 the codecs the system has.
 
+## Getting it
+
+**Profile menu → Install app**, in a desktop browser, offers the web app or the
+desktop app. The web app installs through the browser's own offer where it makes
+one (Chromium), and says how otherwise (Safari's Add to Dock); a window already
+running as the web app goes straight to the desktop app. The desktop app links
+the latest stable release's installer for this computer: its OS from the
+browser, its architecture where the browser says (Chromium); a Mac that doesn't
+say gets the Apple Silicon build. Every other platform's installer is listed
+under it. The menu doesn't offer it inside the desktop app.
+
 ## Signing in
 
 The sign-in page offers the official Nuvio server, selected by default, or

@@ -102,13 +102,15 @@ logs.write(
 	{ mpvBinary },
 );
 
+// Always there, so the page knows it runs in the app (no "Install app").
+const DESKTOP_BRIDGE = "window.nuvioDesktop = {};";
 // The page asks for mpv through this; it only exists when there is one.
-const MPV_BRIDGE = `window.nuvioDesktop = {
+const MPV_BRIDGE = `Object.assign(window.nuvioDesktop, {
 	mpv: (request) => window.__electrobunSendToHost({ nuvioMpv: request }),
 	stopMpv: () => window.__electrobunSendToHost({ nuvioMpvStop: true }),
-};`;
+});`;
 // mpv drawing in this window, under the page: macOS only for now.
-const ENGINE_BRIDGE = `window.nuvioDesktop = Object.assign(window.nuvioDesktop || {}, { engine: {
+const ENGINE_BRIDGE = `Object.assign(window.nuvioDesktop, { engine: {
 	open: (request) => window.__electrobunSendToHost({ nuvioEngine: { op: "open", request } }),
 	command: (command) => window.__electrobunSendToHost({ nuvioEngine: { op: "command", command } }),
 	close: () => window.__electrobunSendToHost({ nuvioEngine: { op: "close" } }),
@@ -136,6 +138,7 @@ const window = new BrowserWindow({
 	frame: { width: 1280, height: 800 },
 	preload: [
 		PAGE_LOGGER,
+		DESKTOP_BRIDGE,
 		mpvBinary ? MPV_BRIDGE : "",
 		engine ? ENGINE_BRIDGE : "",
 	].join("\n"),
