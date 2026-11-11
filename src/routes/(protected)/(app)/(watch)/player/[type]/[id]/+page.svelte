@@ -691,7 +691,7 @@
 >
   <h1 class="sr-only">{context.heading}</h1>
 
-  {#if !playableSrc && !mpv.shown?.embedded}
+  {#if (!playableSrc || mpv.pending) && !mpv.shown?.embedded}
     <button
       type="button"
       onclick={goBack}
@@ -730,6 +730,15 @@
       onOutro={() => reachedEnd(false)}
       onEpisodes={hasEpisodes ? () => (episodesOpen = true) : undefined}
       onNext={nextVideoId ? goToNext : undefined}
+    />
+  {:else if mpv.pending}
+    <PlaybackLoading
+      backdrop={context.background ?? context.poster}
+      logo={context.logo}
+      title={context.heading}
+      certification={context.certification}
+      genres={context.genres}
+      label={m.player_loading_stream()}
     />
   {:else if playableSrc}
     {#if endOfShow}

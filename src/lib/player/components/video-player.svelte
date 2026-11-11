@@ -1,4 +1,5 @@
 <script lang="ts">
+	import ArrowLeftIcon from "@lucide/svelte/icons/arrow-left";
 	import { untrack } from "svelte";
 	import { toast } from "svelte-sonner";
 	import { m } from "#lib/i18n/index.js";
@@ -314,7 +315,12 @@
 			: "none",
 	);
 
+	// No controls until the first frame: until then the source may still turn
+	// out not to play here, and go to mpv or the error screen instead.
+	let started = $state(false);
+
 	function onReady() {
+		started = true;
 		transport.loading = false;
 		transport.ended = false;
 		captions.trySelectPreferred();
@@ -548,6 +554,17 @@
     />
   {/snippet}
 
+  {#if !started && !fatalError && !minimized && onBack}
+    <button
+      type="button"
+      onclick={onBack}
+      class="absolute top-4 left-4 z-30 flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-sm font-medium text-white ring-1 ring-white/15 backdrop-blur-md transition hover:bg-white/20"
+    >
+      <ArrowLeftIcon class="size-4" /> {m.common_back()}
+    </button>
+  {/if}
+
+  {#if started}
   <TransportControls
     {transport}
     {player}
@@ -576,6 +593,7 @@
     onBoostSelect={selectBoost}
     onMenuOpenChange={panels.setMenuOpen}
   />
+  {/if}
 
   <ShortcutsDialog bind:open={shortcutsOpen} />
 

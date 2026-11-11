@@ -65,15 +65,16 @@ export function createMpvFallback(deps: MpvFallbackDeps) {
 		}
 	}
 
+	// Bound for mpv, not handed to it yet: the page shows its loader meanwhile.
+	const pending = $derived(
+		Boolean(engine || desktop) &&
+			mpvCanOpen(deps.url()) &&
+			(deps.blocked() || Boolean(engine?.always)) &&
+			session?.url !== deps.url(),
+	);
+
 	$effect(() => {
-		const url = deps.url();
-		if (
-			(engine || desktop) &&
-			mpvCanOpen(url) &&
-			(deps.blocked() || engine?.always) &&
-			deps.ready() &&
-			session?.url !== url
-		) {
+		if (pending && deps.ready()) {
 			untrack(() => play(deps.start()));
 		}
 	});
@@ -121,6 +122,10 @@ export function createMpvFallback(deps: MpvFallbackDeps) {
 		/** The mpv session for the current source, while there is one. */
 		get shown() {
 			return shown;
+		},
+		/** The current source goes to mpv, which doesn't have it yet. */
+		get pending() {
+			return pending;
 		},
 		play,
 		/** Ends an in-window session: back to the page. */
