@@ -102,6 +102,24 @@ describe("nextAiring", () => {
 		expect(await nextAiring("tt0000005", fetchImpl)).toBeNull();
 		expect(fetchImpl).toHaveBeenCalledTimes(2);
 	});
+
+	it("stays within TVmaze's 20 calls per 10 seconds, and retries later", async () => {
+		vi.useFakeTimers({ toFake: ["Date"] });
+		try {
+			vi.setSystemTime(Date.now() + 60_000);
+			const fetchImpl = tvmaze(SHOW, EPISODE);
+			const ids = Array.from({ length: 11 }, (_, i) => `tt10000${10 + i}`);
+			for (const id of ids.slice(0, 10)) {
+				expect(await nextAiring(id, fetchImpl)).not.toBeNull();
+			}
+			expect(await nextAiring(ids[10], fetchImpl)).toBeNull();
+			expect(fetchImpl).toHaveBeenCalledTimes(20);
+			vi.setSystemTime(Date.now() + 10_000);
+			expect(await nextAiring(ids[10], fetchImpl)).not.toBeNull();
+		} finally {
+			vi.useRealTimers();
+		}
+	});
 });
 
 describe("upcomingAfter", () => {

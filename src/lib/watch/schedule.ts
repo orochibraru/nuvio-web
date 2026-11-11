@@ -19,6 +19,25 @@ const TIMEOUT_MS = 5000;
 // calls per 10 seconds per IP. Public data, safe to share across visitors.
 const cache = new TtlCache<UpcomingEpisode | null>(6 * 60 * 60_000);
 
+// That limit is the whole server's, so the window is too. A call past it isn't
+// made (nor cached): a big library fills in over a few visits instead of
+// stalling one on a queue or burning the window on 429s.
+const WINDOW_MS = 10_000;
+const WINDOW_CALLS = 20;
+const recentCalls: number[] = [];
+
+function takeCall(): boolean {
+	const now = Date.now();
+	while (recentCalls.length > 0 && recentCalls[0] <= now - WINDOW_MS) {
+		recentCalls.shift();
+	}
+	if (recentCalls.length >= WINDOW_CALLS) {
+		return false;
+	}
+	recentCalls.push(now);
+	return true;
+}
+
 interface TvmazeShow {
 	_links?: { nextepisode?: { href?: string } };
 }
@@ -56,6 +75,9 @@ async function getJson<T>(
 	url: string,
 	fetchImpl: typeof fetch,
 ): Promise<T | null> {
+	if (!takeCall()) {
+		throw new Error("TVmaze window is full");
+	}
 	const response = await fetchImpl(url, {
 		headers: { accept: "application/json" },
 		signal: AbortSignal.timeout(TIMEOUT_MS),
