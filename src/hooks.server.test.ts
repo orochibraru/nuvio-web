@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("$app/env", () => ({ dev: false }));
+vi.mock("$app/paths", () => ({ resolve: (path: string) => path }));
 vi.mock("$app/server", () => ({ getRequestEvent: () => ({ locals: {} }) }));
 const env = vi.hoisted(() => ({ allowCustom: false }));
 vi.mock("$app/env/private", () => ({

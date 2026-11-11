@@ -1,9 +1,11 @@
+import { createHash } from "node:crypto";
 import { beforeEach, describe, expect, it } from "vitest";
 import {
 	addToAllowlist,
 	removeFromAllowlist,
 	setLocked,
 } from "#lib/admin/admin-data.js";
+import { setEmailConfirmationRequired } from "#lib/admin/backends-data.js";
 import { clientOptions } from "#lib/nuvio/backend.js";
 import type { NuvioClient } from "#lib/nuvio/client.js";
 import { deriveSigningKey, signAccessToken } from "./jwt.ts";
@@ -561,6 +563,252 @@ describe("sign-up and sign-in policy", () => {
 			).status,
 		).toBe(400);
 		expect((await setup.request("auth/v1/user", { headers })).status).toBe(401);
+	});
+});
+
+describe("emailed links", () => {
+	function auth(
+		path: string,
+		body: unknown,
+		{
+			address = null,
+			method = "POST",
+			token,
+			host,
+		}: {
+			address?: string | null;
+			method?: string;
+			token?: string;
+			host?: string;
+		} = {},
+	) {
+		const headers: Record<string, string> = {
+			apikey: setup.backend.publishableKey(),
+			"content-type": "application/json",
+		};
+		if (token) {
+			headers.authorization = `Bearer ${token}`;
+		}
+		const url = host
+			? `https://${host}/api/nuvio/auth/v1/${path}`
+			: `${BASE_URL}/auth/v1/${path}`;
+		return setup.backend.handle(
+			new Request(url, { method, headers, body: JSON.stringify(body) }),
+			address,
+		);
+	}
+
+	beforeEach(() => {
+		setup.makeDefault();
+	});
+
+	it("answers /recover the same whether or not the address has an account", async () => {
+		await signedIn("user@example.com");
+		const known = await auth("recover", { email: "user@example.com" });
+		const unknown = await auth("recover", { email: "nobody@example.com" });
+		expect([known.status, await known.text()]).toEqual([200, "{}"]);
+		expect([unknown.status, await unknown.text()]).toEqual([200, "{}"]);
+		expect(setup.mail.sent.map((message) => message.to)).toEqual([
+			"user@example.com",
+		]);
+		expect((await auth("recover", { email: "not-an-email" })).status).toBe(400);
+	});
+
+	it("says so, for every address, when it can't send", async () => {
+		await signedIn("user@example.com");
+		setup.mail.configured = false;
+		for (const email of ["user@example.com", "nobody@example.com"]) {
+			const response = await auth("recover", { email });
+			expect(response.status).toBe(422);
+			expect(await response.json()).toMatchObject({
+				error_code: "email_provider_disabled",
+			});
+		}
+		setup.mail.configured = true;
+		setEmailConfirmationRequired(setup.db, true);
+		setup.mail.configured = false;
+		await expect(signedIn("new@example.com")).rejects.toMatchObject({
+			status: 422,
+		});
+		expect(setup.backend.summary(BASE_URL, ADMIN_EMAIL).accounts).toBe(1);
+	});
+
+	it("never builds a link from the request's host", async () => {
+		await signedIn("user@example.com");
+		await auth(
+			"recover",
+			{ email: "user@example.com" },
+			{ host: "evil.example" },
+		);
+		expect(setup.mail.sent[0]?.text).toContain("https://nuvio.example/");
+		expect(setup.mail.sent[0]?.text).not.toContain("evil.example");
+	});
+
+	it("stores only a hash, and a link works once, for an hour, until a newer one", async () => {
+		await signedIn("user@example.com");
+		await auth("recover", { email: "user@example.com" });
+		const first = setup.linkToken("user@example.com") as string;
+		const stored = setup.db
+			.query<{ token_hash: string }, []>(
+				"SELECT token_hash FROM backend_email_tokens",
+			)
+			.all();
+		expect(stored).toEqual([
+			{ token_hash: createHash("sha256").update(first).digest("hex") },
+		]);
+
+		await auth("recover", { email: "user@example.com" });
+		const second = setup.linkToken("user@example.com") as string;
+		const verify = (token_hash: string, type = "recovery") =>
+			auth("verify", { type, token_hash });
+		expect((await verify(first)).status).toBe(403);
+		expect((await verify(second, "signup")).status).toBe(403);
+		expect((await verify(second)).status).toBe(200);
+		expect((await verify(second)).status).toBe(403);
+
+		await auth("recover", { email: "user@example.com" });
+		const third = setup.linkToken("user@example.com") as string;
+		setup.clock.at += 61 * 60 * 1000;
+		const expired = await verify(third);
+		expect(expired.status).toBe(403);
+		expect(await expired.json()).toMatchObject({ error_code: "otp_expired" });
+	});
+
+	it("rate-limits /recover per email and per address", async () => {
+		for (let attempt = 0; attempt < 5; attempt++) {
+			expect(
+				(await auth("recover", { email: "user@example.com" })).status,
+			).toBe(200);
+		}
+		expect((await auth("recover", { email: "user@example.com" })).status).toBe(
+			429,
+		);
+		for (let attempt = 0; attempt < 10; attempt++) {
+			await auth(
+				"recover",
+				{ email: `spray${attempt}@example.com` },
+				{ address: "198.51.100.1" },
+			);
+		}
+		expect(
+			(
+				await auth(
+					"recover",
+					{ email: "fresh@example.com" },
+					{ address: "198.51.100.1" },
+				)
+			).status,
+		).toBe(429);
+	});
+
+	it("sends no link to an account the instance lock keeps out, and refuses its link", async () => {
+		await signedIn("user@example.com");
+		await auth("recover", { email: "user@example.com" });
+		const token = setup.linkToken("user@example.com") as string;
+		setLocked(setup.db, true);
+		await auth("recover", { email: "user@example.com" });
+		expect(setup.mail.sent).toHaveLength(1);
+		const refused = await auth("verify", {
+			type: "recovery",
+			token_hash: token,
+		});
+		expect(refused.status).toBe(403);
+		expect(await refused.json()).toMatchObject({ error_code: "access_denied" });
+	});
+});
+
+describe("account changes", () => {
+	it("change only the bearer's own password, and nothing but the password", async () => {
+		const user = await signedIn("user@example.com");
+		const token = user.session?.access_token as string;
+		const put = (body: unknown, bearer?: string) =>
+			setup.request("auth/v1/user", {
+				method: "PUT",
+				headers: {
+					apikey: setup.backend.publishableKey(),
+					...(bearer ? { authorization: `Bearer ${bearer}` } : {}),
+				},
+				body: JSON.stringify(body),
+			});
+		expect((await put({ password: "a new password" })).status).toBe(401);
+		expect(
+			(await put({ password: "a new password", email: "x@example.com" }, token))
+				.status,
+		).toBe(400);
+		expect(
+			(
+				await put(
+					{ password: "a new password", data: { role: "admin" } },
+					token,
+				)
+			).status,
+		).toBe(400);
+		expect((await put({ password: "a new password" }, token)).status).toBe(200);
+		// supabase-js in PKCE mode sends these with every update.
+		expect(
+			(
+				await put(
+					{
+						password: "another new password",
+						code_challenge: "x",
+						code_challenge_method: "s256",
+					},
+					token,
+				)
+			).status,
+		).toBe(200);
+	});
+
+	it("delete only the bearer's own account, rate-limited like sign-in", async () => {
+		const alice = await signedIn("alice@example.com");
+		const bob = await signedIn("bob@example.com");
+		const remove = (password: string, bearer?: string) =>
+			setup.request("auth/v1/user", {
+				method: "DELETE",
+				headers: {
+					apikey: setup.backend.publishableKey(),
+					...(bearer ? { authorization: `Bearer ${bearer}` } : {}),
+				},
+				body: JSON.stringify({ password }),
+			});
+		expect((await remove("correct horse")).status).toBe(401);
+		// Bob's password with Alice's token deletes nobody.
+		await alice.profiles.replace({
+			p_profiles: [{ profile_index: 1, name: "Alice" }],
+		});
+		const aliceToken = alice.session?.access_token as string;
+		for (let attempt = 0; attempt < 4; attempt++) {
+			expect((await remove("bob's horse", aliceToken)).status).toBe(400);
+		}
+		expect((await remove("correct horse", aliceToken)).status).toBe(429);
+		expect(await bob.getUser()).toMatchObject({ email: "bob@example.com" });
+		expect(await alice.profiles.list()).toHaveLength(1);
+	});
+});
+
+describe("refresh-token reuse", () => {
+	it("revokes the session for a spent token past the grace interval, or once its successor moved on", async () => {
+		const user = await signedIn("user@example.com");
+		const first = user.session?.refresh_token as string;
+		const second = (await user.refreshSession()).refresh_token;
+		await user.refreshSession();
+		await expect(setup.client().refreshSession(first)).rejects.toMatchObject({
+			status: 400,
+			code: "refresh_token_already_used",
+		});
+		await expect(user.getUser()).rejects.toMatchObject({ status: 403 });
+
+		const other = await signedIn("other@example.com");
+		const spent = other.session?.refresh_token as string;
+		await other.refreshSession();
+		setup.clock.at += 10_001;
+		await expect(setup.client().refreshSession(spent)).rejects.toMatchObject({
+			status: 400,
+		});
+		await expect(setup.client().refreshSession(second)).rejects.toMatchObject({
+			status: 400,
+		});
+		await expect(other.getUser()).rejects.toMatchObject({ status: 403 });
 	});
 });
 

@@ -113,8 +113,13 @@ that lets you set a Supabase URL and key) can point at it like any custom
 backend; those requests do come in over HTTP.
 
 Sign-up and sign-in on it obey the lock and the allowlist, and are rate-limited
-like the app's own forms. Everything it holds lives in the `backend_*` tables of
-the same SQLite file, so the data volume backup covers it.
+like the app's own forms. While it is the default and SMTP is set up
+(Notifications), its users get **Forgot password?** on the sign-in page, and the
+card's **Email confirmation** switch can make new accounts confirm their address
+before they sign in (off by default; accounts that already exist stay
+confirmed). Its users can delete their own account, and everything in it, from
+Account → Overview. Everything it holds lives in the `backend_*` tables of the
+same SQLite file, so the data volume backup covers it.
 
 ## Dashboard
 
@@ -208,9 +213,10 @@ SQLite (`bun:sqlite`) under `NUVIO_DATA_DIR`, defaulting to `data` — which is
 - `custom_backends` and `custom_backend_accounts`: the backends users signed in
   through, the distinct accounts each one had, and which are banned.
 - `backend_*`: the built-in backend's accounts, sessions (refresh tokens
-  hashed), and its users' profiles, addons, library, progress, history, settings
-  blobs and collections, plus one event table per synced collection for the
-  delta cursors. Its publishable key is in `settings`.
+  hashed), emailed-link tokens (hashed), and its users' profiles, addons,
+  library, progress, history, settings blobs and collections, plus one event
+  table per synced collection for the delta cursors. Its publishable key is in
+  `settings`.
 
 Emails are stored folded to lowercase, because that is the only way an allowlist
 typed by a human matches what the auth provider hands back.

@@ -38,6 +38,22 @@ export const signUpSchema = v.object({
 	backendKey,
 });
 
+export const forgotPasswordSchema = v.object({ email });
+
+// The token of an emailed link, from the page's query string.
+const linkToken = v.pipe(v.string(), v.nonEmpty(), v.maxLength(512));
+
+export const emailLinkSchema = v.object({ token: linkToken });
+
+export const passwordResetSchema = v.object({
+	token: linkToken,
+	password: v.pipe(
+		v.string(),
+		v.minLength(8, () => m.auth_error_password_short()),
+		v.maxLength(1024),
+	),
+});
+
 /** A profile name, as both the create and the edit form take it. */
 export const profileName = v.pipe(
 	v.string(),

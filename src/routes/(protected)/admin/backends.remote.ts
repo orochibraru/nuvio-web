@@ -6,6 +6,7 @@ import {
 	setBackendBanned,
 	setCustomBackendsAllowed,
 	setDefaultBackend,
+	setEmailConfirmationRequired,
 	testBackend,
 	withPublishableKey,
 } from "#lib/admin/backends-data.js";
@@ -125,6 +126,25 @@ export const createBuiltInAccount = form(
 		services
 			.get(LOGGER)
 			.info("Built-in backend account created", { by: email });
+	},
+);
+
+/** Only once the links can go out: SMTP set up and this backend the default. */
+export const setBuiltInEmailConfirmation = form(
+	v.object({ required: v.picklist(["on", "off"]) }),
+	(data) => {
+		const { email, services, db } = admin();
+		const required = data.required === "on";
+		if (required && !services.get(BUILT_IN_BACKEND).canSendMail()) {
+			invalid(m.admin_builtin_confirm_needs_mail());
+		}
+		setEmailConfirmationRequired(db, required);
+		services
+			.get(LOGGER)
+			.warn(
+				`Built-in backend email confirmation ${required ? "required" : "not required"}`,
+				{ by: email },
+			);
 	},
 );
 

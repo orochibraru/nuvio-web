@@ -313,6 +313,20 @@ export class UserDataStore {
 		return this.#emit(userId, profileId, changes, since);
 	}
 
+	/** The account is gone: every profile's rows, cursors and outbox, no tombstones. */
+	deleteUser(userId: string): void {
+		const db = this.#db();
+		db.transaction(() => {
+			for (const table of [
+				"userdata_records",
+				"userdata_profiles",
+				"userdata_outbox",
+			]) {
+				db.run(`DELETE FROM ${table} WHERE user_id = ?`, [userId]);
+			}
+		})();
+	}
+
 	/** One remote change against the local row. Returns the row if it changed. */
 	#merge(
 		userId: string,

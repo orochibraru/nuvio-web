@@ -102,6 +102,13 @@
 						>
 							{m.auth_forgot_password()}
 						</a>
+						{:else if target.kind === "server"}
+						<a
+							href={resolve("auth/forgot-password")}
+							class="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground"
+						>
+							{m.auth_forgot_password()}
+						</a>
 						{/if}
 					</div>
 					<div class="relative">

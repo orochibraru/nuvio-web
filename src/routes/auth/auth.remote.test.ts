@@ -34,6 +34,9 @@ const {
 			signInWithPassword: vi.fn(),
 			signUp: vi.fn(),
 			signOut: vi.fn(),
+			requestPasswordRecovery: vi.fn(),
+			verifyEmailLink: vi.fn(),
+			updatePassword: vi.fn(),
 		},
 		clientOptions: [] as Array<Record<string, unknown>>,
 		backendsData: {
@@ -116,6 +119,9 @@ vi.mock("#lib/nuvio/index.js", () => ({
 	NuvioClient: class {
 		signInWithPassword = client.signInWithPassword;
 		signUp = client.signUp;
+		requestPasswordRecovery = client.requestPasswordRecovery;
+		verifyEmailLink = client.verifyEmailLink;
+		updatePassword = client.updatePassword;
 		constructor(options: Record<string, unknown>) {
 			clientOptions.push(options);
 		}
@@ -191,6 +197,10 @@ const withDefaults =
 const signIn = withDefaults(authForms.signIn as unknown as FormHandler);
 const signUp = withDefaults(authForms.signUp as unknown as FormHandler);
 const signOut = authForms.signOut as unknown as FormHandler;
+const requestPasswordReset =
+	authForms.requestPasswordReset as unknown as FormHandler;
+const resetPassword = authForms.resetPassword as unknown as FormHandler;
+const confirmEmail = authForms.confirmEmail as unknown as FormHandler;
 
 const issue = new Proxy(
 	{},
@@ -250,6 +260,17 @@ describe("signIn", () => {
 				issue,
 			),
 		).rejects.toMatchObject({ location: "/(protected)/(app)" });
+	});
+
+	it("words an unconfirmed email apart from bad credentials", async () => {
+		client.signInWithPassword.mockRejectedValue(
+			Object.assign(new NuvioApiError(400), { code: "email_not_confirmed" }),
+		);
+		await expect(
+			signIn({ email: "a@b.com", password: "pw", redirectTo: "/" }, issue),
+		).rejects.toMatchObject({
+			payload: expect.stringContaining("Confirm your email first"),
+		});
 	});
 
 	it("maps a 401 to a field error", async () => {
@@ -672,5 +693,103 @@ describe("backends", () => {
 		// The allowlist applies to it like to the official API, and it is not "seen".
 		expect(adminData.canSignIn).toHaveBeenCalled();
 		expect(backendsData.recordCustomSignIn).not.toHaveBeenCalled();
+	});
+});
+
+describe("emailed links", () => {
+	const builtIn = {
+		url: "https://nuvio.example.com/api/nuvio",
+		publishableKey: "sb_publishable_test",
+		trusted: true,
+	};
+	const fullSession = { ...apiSession, refresh_token: "r", expires_in: 3600 };
+	const withBuiltIn = new Container("test-built-in")
+		.provide(SESSION, session as never)
+		.provide(DATABASE, { tryConnect: () => null } as never)
+		.provide(ADMIN, new AdminService(""))
+		.provide(LOGGER, new Logger("error", { out: () => {}, err: () => {} }))
+		.provide(NUVIO_SYNC, nuvioSync as never)
+		.provide(RATE_LIMITER, rateLimiter as never)
+		.provide(ADMIN_NOTIFIER, notifier)
+		.provide(BUILT_IN_BACKEND, { owns: () => true } as never);
+
+	beforeEach(() => {
+		backendsData.policy.defaultBackend = builtIn;
+		event.locals.services = withBuiltIn;
+	});
+
+	it("offers no reset when the default isn't this server's own backend", async () => {
+		event.locals.services = testServices;
+		await expect(
+			requestPasswordReset({ email: "a@b.com" }, issue),
+		).rejects.toMatchObject({
+			payload: expect.stringContaining("can't send emails"),
+		});
+		expect(client.requestPasswordRecovery).not.toHaveBeenCalled();
+	});
+
+	it("asks the built-in backend for a reset link, and words a missing mailer", async () => {
+		client.requestPasswordRecovery.mockResolvedValue(undefined);
+		expect(await requestPasswordReset({ email: "a@b.com" }, issue)).toEqual({
+			sent: true,
+		});
+		expect(client.requestPasswordRecovery).toHaveBeenCalledWith("a@b.com");
+		client.requestPasswordRecovery.mockRejectedValue(
+			Object.assign(new NuvioApiError(422), {
+				code: "email_provider_disabled",
+			}),
+		);
+		await expect(
+			requestPasswordReset({ email: "a@b.com" }, issue),
+		).rejects.toMatchObject({
+			payload: expect.stringContaining("can't send emails"),
+		});
+	});
+
+	it("follows a reset link, sets the password and signs in", async () => {
+		client.verifyEmailLink.mockResolvedValue(fullSession);
+		client.updatePassword.mockResolvedValue({});
+		await expect(
+			resetPassword({ token: "t0k3n", password: "a new password" }, issue),
+		).rejects.toMatchObject({ status: 303, location: "/(protected)/(app)" });
+		expect(client.verifyEmailLink).toHaveBeenCalledWith("recovery", "t0k3n");
+		expect(client.updatePassword).toHaveBeenCalledWith("a new password");
+		expect(session.write).toHaveBeenCalledWith(fullSession, builtIn);
+	});
+
+	it("still signs in when the new password is the old one", async () => {
+		client.verifyEmailLink.mockResolvedValue(fullSession);
+		client.updatePassword.mockRejectedValue(
+			Object.assign(new NuvioApiError(422), { code: "same_password" }),
+		);
+		await expect(
+			resetPassword({ token: "t0k3n", password: "a new password" }, issue),
+		).rejects.toBeInstanceOf(Redirect);
+		expect(session.write).toHaveBeenCalled();
+	});
+
+	it("words a spent or expired link", async () => {
+		client.verifyEmailLink.mockRejectedValue(
+			Object.assign(new NuvioApiError(403), { code: "otp_expired" }),
+		);
+		await expect(
+			resetPassword({ token: "t0k3n", password: "a new password" }, issue),
+		).rejects.toMatchObject({
+			payload: expect.stringContaining("invalid, expired or already used"),
+		});
+		await expect(confirmEmail({ token: "t0k3n" }, issue)).rejects.toMatchObject(
+			{ payload: expect.stringContaining("invalid, expired or already used") },
+		);
+		expect(client.updatePassword).not.toHaveBeenCalled();
+		expect(session.write).not.toHaveBeenCalled();
+	});
+
+	it("confirms an email and signs in", async () => {
+		client.verifyEmailLink.mockResolvedValue(fullSession);
+		await expect(confirmEmail({ token: "t0k3n" }, issue)).rejects.toMatchObject(
+			{ status: 303 },
+		);
+		expect(client.verifyEmailLink).toHaveBeenCalledWith("signup", "t0k3n");
+		expect(session.write).toHaveBeenCalledWith(fullSession, builtIn);
 	});
 });

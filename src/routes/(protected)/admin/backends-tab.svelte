@@ -1,5 +1,6 @@
 <script lang="ts">
 	import CopyIcon from "@lucide/svelte/icons/copy";
+	import MailCheckIcon from "@lucide/svelte/icons/mail-check";
 	import PlugIcon from "@lucide/svelte/icons/plug";
 	import RadarIcon from "@lucide/svelte/icons/radar";
 	import ServerIcon from "@lucide/svelte/icons/server";
@@ -22,6 +23,7 @@
 		createBuiltInAccount,
 		saveDefaultBackend,
 		setBackendBan,
+		setBuiltInEmailConfirmation,
 		setCustomBackends,
 		testDefaultBackend,
 		useBuiltInBackend,
@@ -42,6 +44,9 @@
 		createBuiltInAccount.fields._password.issues()?.[0]?.message,
 	);
 	const switchIssue = $derived(useBuiltInBackend.fields.issues()?.[0]?.message);
+	const confirmIssue = $derived(
+		setBuiltInEmailConfirmation.fields.issues()?.[0]?.message,
+	);
 
 	async function copy(value: string) {
 		try {
@@ -194,6 +199,36 @@
 								{/if}
 							</form>
 						{/if}
+						<form {...setBuiltInEmailConfirmation} class="flex flex-col gap-2">
+							<p class="text-sm font-medium">{m.admin_builtin_confirm_title()}</p>
+							<p class="text-sm text-muted-foreground">{m.admin_builtin_confirm_description()}</p>
+							<div
+								class="flex flex-wrap items-center justify-between gap-4 rounded-lg border p-4 {summary.confirmEmail
+									? 'border-primary/30 bg-primary/8'
+									: 'border-foreground/10'}"
+							>
+								<span class="flex items-center gap-2 text-sm font-medium">
+									<MailCheckIcon class="size-4 {summary.confirmEmail ? 'text-primary' : ''}" />
+									{summary.confirmEmail
+										? m.admin_builtin_confirm_on()
+										: m.admin_builtin_confirm_off()}
+								</span>
+								<input
+									{...setBuiltInEmailConfirmation.fields.required.as(
+										"hidden",
+										summary.confirmEmail ? "off" : "on",
+									)}
+								/>
+								<Button type="submit" variant={summary.confirmEmail ? "outline" : "default"}>
+									{summary.confirmEmail
+										? m.admin_builtin_confirm_disable()
+										: m.admin_builtin_confirm_enable()}
+								</Button>
+							</div>
+							{#if confirmIssue}
+								<p class="text-sm text-destructive" role="alert">{confirmIssue}</p>
+							{/if}
+						</form>
 					</div>
 				</Card.Content>
 			</Card.Root>

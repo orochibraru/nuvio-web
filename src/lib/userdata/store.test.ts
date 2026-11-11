@@ -357,3 +357,19 @@ describe("clearProfile", () => {
 		expect(listener).not.toHaveBeenCalled();
 	});
 });
+
+describe("deleteUser", () => {
+	it("drops every profile's rows, cursors and outbox, and only that user's", () => {
+		store.applyWrites(U, 1, [write("a")]);
+		store.applyRemote(U, 2, [remote("b", 100)], { imported: true });
+		store.applyWrites("user-2", 1, [write("kept")]);
+
+		store.deleteUser(U);
+
+		expect(store.list(U, 1, "library")).toEqual([]);
+		expect(store.list(U, 2, "library")).toEqual([]);
+		expect(store.profile(U, 2)).toBeNull();
+		expect(store.dueOutbox(U, 1)).toEqual([]);
+		expect(store.list("user-2", 1, "library")).toHaveLength(1);
+	});
+});

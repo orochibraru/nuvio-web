@@ -9,7 +9,13 @@ import {
 import { adminTabSearch } from "#lib/admin/tabs.js";
 import { BUILT_IN_BACKEND } from "#lib/backend/tokens.js";
 import { safeRedirectPath } from "#lib/core/url.js";
-import { signInSchema, signUpSchema } from "#lib/forms/schemas.js";
+import {
+	emailLinkSchema,
+	forgotPasswordSchema,
+	passwordResetSchema,
+	signInSchema,
+	signUpSchema,
+} from "#lib/forms/schemas.js";
 import { m } from "#lib/i18n/index.js";
 import {
 	accountKey,
@@ -127,13 +133,13 @@ const ATTEMPTS_PER_ADDRESS = 10;
 const ATTEMPTS_PER_EMAIL = 5;
 
 // Before the backend is resolved, so a bad URL or key costs an attempt too.
-function assertNotThrottled(email: string, backendUrl: string): void {
+// A null email counts against the address only.
+function assertNotThrottled(email: string | null, backendUrl: string): void {
 	const { getClientAddress, locals } = getRequestEvent();
 	const limiter = locals.services.get(RATE_LIMITER);
 	const custom = backendUrl.trim() ? parseBackendUrl(backendUrl) : null;
-	const account = custom
-		? `${custom} ${email.toLowerCase()}`
-		: email.toLowerCase();
+	const folded = email?.toLowerCase() ?? null;
+	const account = custom && folded ? `${custom} ${folded}` : folded;
 	if (
 		!(
 			limiter.attempt(
@@ -141,7 +147,12 @@ function assertNotThrottled(email: string, backendUrl: string): void {
 				ATTEMPTS_PER_ADDRESS,
 				ATTEMPT_WINDOW_MS,
 			) &&
-			limiter.attempt(`email:${account}`, ATTEMPTS_PER_EMAIL, ATTEMPT_WINDOW_MS)
+			(account === null ||
+				limiter.attempt(
+					`email:${account}`,
+					ATTEMPTS_PER_EMAIL,
+					ATTEMPT_WINDOW_MS,
+				))
 		)
 	) {
 		invalid(m.auth_error_rate_limited());
@@ -242,6 +253,21 @@ function safeTarget(value: string): string {
 	return safeRedirectPath(value, resolve("/(protected)/(app)"));
 }
 
+/** Why the backend turned the credentials down, or null when it didn't. */
+function refusal(
+	error: unknown,
+	password: FieldIssue,
+): Parameters<typeof invalid>[0] | null {
+	if (
+		!(error instanceof NuvioApiError && [400, 401, 403].includes(error.status))
+	) {
+		return null;
+	}
+	return error.code === "email_not_confirmed"
+		? m.auth_error_email_not_confirmed()
+		: password(m.auth_error_invalid_credentials());
+}
+
 export const signIn = form(signInSchema, async (data, issue) => {
 	const { fetch, locals } = getRequestEvent();
 	assertNotThrottled(data.email, data.backendUrl);
@@ -260,11 +286,9 @@ export const signIn = form(signInSchema, async (data, issue) => {
 			code: error instanceof NuvioApiError ? (error.code ?? "none") : "none",
 			error: error instanceof Error ? error.message : "Unknown error",
 		});
-		if (
-			error instanceof NuvioApiError &&
-			(error.status === 400 || error.status === 401 || error.status === 403)
-		) {
-			invalid(issue.password(m.auth_error_invalid_credentials()));
+		const refused = refusal(error, issue.password);
+		if (refused !== null) {
+			invalid(refused);
 		}
 		failed(error, backend, m.auth_error_sign_in_failed());
 	}
@@ -309,6 +333,103 @@ export const signUp = form(signUpSchema, async (data, issue) => {
 			? safeTarget(data.redirectTo)
 			: `${resolve("auth/sign-in")}?${params}`,
 	);
+});
+
+/** The instance default when it is this server's own backend: the only one the emailed links serve. */
+function builtInDefault(): NuvioBackend | null {
+	const { locals } = getRequestEvent();
+	const fallback = policyOrDefault(
+		locals.services.get(DATABASE).tryConnect(),
+	).defaultBackend;
+	return fallback && locals.services.get(BUILT_IN_BACKEND).owns(fallback)
+		? fallback
+		: null;
+}
+
+function builtInClient(backend: NuvioBackend): NuvioClient {
+	const { fetch, locals } = getRequestEvent();
+	return new NuvioClient(
+		clientOptions(backend, fetch, locals.services.get(BUILT_IN_BACKEND)),
+	);
+}
+
+/** Signs in with an emailed link's token; the link is spent either way. */
+async function followLink(
+	client: NuvioClient,
+	type: "signup" | "recovery",
+	token: string,
+	backend: NuvioBackend,
+): Promise<AuthSession> {
+	try {
+		return await client.verifyEmailLink(type, token);
+	} catch (error) {
+		if (error instanceof NuvioApiError && error.code === "otp_expired") {
+			invalid(m.auth_error_link_invalid());
+		}
+		if (error instanceof NuvioApiError && error.code === "access_denied") {
+			invalid(m.auth_error_invite_only());
+		}
+		failed(error, backend, m.error_default());
+	}
+}
+
+export const requestPasswordReset = form(forgotPasswordSchema, async (data) => {
+	assertNotThrottled(data.email, "");
+	const backend = builtInDefault();
+	if (!backend) {
+		invalid(m.auth_error_mail_unavailable());
+	}
+	try {
+		await builtInClient(backend).requestPasswordRecovery(data.email);
+	} catch (error) {
+		if (
+			error instanceof NuvioApiError &&
+			error.code === "email_provider_disabled"
+		) {
+			invalid(m.auth_error_mail_unavailable());
+		}
+		if (error instanceof NuvioApiError && error.status === 429) {
+			invalid(m.auth_error_rate_limited());
+		}
+		failed(error, backend, m.error_default());
+	}
+	return { sent: true };
+});
+
+export const resetPassword = form(passwordResetSchema, async (data) => {
+	assertNotThrottled(null, "");
+	const backend = builtInDefault();
+	if (!backend) {
+		invalid(m.auth_error_link_invalid());
+	}
+	const client = builtInClient(backend);
+	const session = await followLink(client, "recovery", data.token, backend);
+	try {
+		await client.updatePassword(data.password);
+	} catch (error) {
+		// Already the password: the link still signed them in.
+		if (!(error instanceof NuvioApiError && error.code === "same_password")) {
+			failed(error, backend, m.error_default());
+		}
+	}
+	await start(session, backend, session.user.email ?? "");
+	redirect(303, resolve("/(protected)/(app)"));
+});
+
+export const confirmEmail = form(emailLinkSchema, async (data) => {
+	assertNotThrottled(null, "");
+	const backend = builtInDefault();
+	if (!backend) {
+		invalid(m.auth_error_link_invalid());
+	}
+	const session = await followLink(
+		builtInClient(backend),
+		"signup",
+		data.token,
+		backend,
+	);
+	await start(session, backend, session.user.email ?? "");
+	redirect(303, resolve("/(protected)/(app)"));
 });
 
 export const signOut = form(async () => {

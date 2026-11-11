@@ -337,6 +337,22 @@ export class BackendStore {
 		})();
 	}
 
+	/** Everything the user stored, every profile. */
+	deleteUserData(userId: string): void {
+		const db = this.db();
+		const tables = [
+			"backend_profiles",
+			"backend_addons",
+			"backend_blobs",
+			...Object.values(TABLES).flatMap(({ items, events }) => [items, events]),
+		];
+		db.transaction(() => {
+			for (const table of tables) {
+				db.query(`DELETE FROM ${table} WHERE user_id = ?`).run(userId);
+			}
+		})();
+	}
+
 	// Addons
 
 	addons(userId: string, profileId: number | null) {

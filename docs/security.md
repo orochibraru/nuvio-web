@@ -194,22 +194,42 @@ token.
   signature in constant time, checks expiry, and checks that the token's session
   still exists, so signing out or a revoked session kills its access tokens
   before they expire.
-- **Refresh tokens** are 256 random bits, stored as their SHA-256, valid 30
-  days, and single use: each refresh hands out a new one and spends the old.
-  Presenting a spent one revokes the whole session (the family), on the
-  assumption that it was stolen. A client that loses a refresh answer has to
-  sign in again; the app itself never races, since it refreshes in one place.
-- **No email confirmation.** Nothing proves an address belongs to whoever signs
-  up with it. So an email in `NUVIO_ADMIN_EMAILS` can't sign up through the API
-  at all: an admin creates their account from the admin page, where their
-  current session proves who they are. Add an email to `NUVIO_ADMIN_EMAILS` only
-  once its built-in account (if any) is known to be theirs. The allowlist has
-  the same weakness, without the escalation: whoever signs up first with an
-  allowlisted address gets in.
-- **Policy.** Sign-up, the password grant and the refresh grant obey the lock
-  and the allowlist (refused before the password is checked), and sign-up and
-  sign-in are rate-limited per address and per email through the same limiter as
-  the app's forms.
+- **Refresh tokens** are 256 bits, stored as their SHA-256, valid 30 days, and
+  single use: each refresh hands out a new one and spends the old. Presenting a
+  spent one revokes the whole session (the family), on the assumption that it
+  was stolen, with GoTrue's one exception: within 10 seconds of being spent, and
+  while its successor is still the live token, it gets that same successor
+  again, so a client that lost the answer to its refresh stays signed in. The
+  successor is an HMAC of the spent token (key derived from the session secret),
+  which is how it can be handed out again without being stored.
+- **Emailed links** (password reset, email confirmation) carry 256 random bits,
+  stored as their SHA-256, single use, valid an hour (reset) or a day
+  (confirmation); a new link of the same kind voids the previous one. The link
+  is built on the origin the admin saved the built-in backend as the default
+  from, never on the request's `Host`, so a forged host can't put its own
+  address in the email: without SMTP or with another default, there are no links
+  and `/recover` says so (`email_provider_disabled`) for every address.
+  Otherwise `/recover` answers 200 whether or not the address has an account,
+  and sends in the background, so its timing doesn't tell either. The link opens
+  a page with a button: a mail scanner fetching it doesn't spend it. Following
+  either kind confirms the address; a reset ends every other session.
+- **Email confirmation** is off by default (an admin setting). Without it,
+  nothing proves an address belongs to whoever signs up with it. So an email in
+  `NUVIO_ADMIN_EMAILS` can't sign up through the API at all: an admin creates
+  their account from the admin page, where their current session proves who they
+  are. Add an email to `NUVIO_ADMIN_EMAILS` only once its built-in account (if
+  any) is known to be theirs. The allowlist has the same weakness, without the
+  escalation: whoever signs up first with an allowlisted address gets in, unless
+  confirmation is on. Accounts that existed before it was turned on count as
+  confirmed.
+- **Account deletion** (`DELETE /auth/v1/user`, not a GoTrue route) takes the
+  bearer's own account only, behind its password, rate-limited like sign-in, and
+  erases every row it owns in one transaction.
+- **Policy.** Sign-up, the password grant, the refresh grant and following an
+  emailed link obey the lock and the allowlist (refused before the password is
+  checked), and sign-up, sign-in, `/recover` and `/verify` are rate-limited per
+  address (and per email where there is one) through the same limiter as the
+  app's forms.
 - **Input.** Request bodies are capped at 1 MB and every array at 2000 entries,
   every field is validated (valibot) before it reaches SQL, every value is a
   bound parameter, and RPC names are looked up in a fixed map. The one table

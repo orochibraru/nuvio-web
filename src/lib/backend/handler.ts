@@ -1,13 +1,17 @@
 import * as v from "valibot";
 import { normalizeEmail } from "#lib/admin/admin-data.js";
-import { backendPolicy } from "#lib/admin/backends-data.js";
+import {
+	backendPolicy,
+	emailConfirmationRequired,
+} from "#lib/admin/backends-data.js";
 import type { LocalBackend, NuvioBackend } from "#lib/nuvio/backend.js";
 import type { AdminService } from "#lib/services/admin.service.js";
 import type { DatabaseService } from "#lib/services/database.service.js";
 import type { Logger } from "#lib/services/logger.service.js";
+import type { MailerService } from "#lib/services/mailer.service.js";
 import type { RateLimiter } from "#lib/services/rate-limit.service.js";
 import { BackendAccounts } from "./accounts.ts";
-import { BackendAuth, type Caller } from "./auth.ts";
+import { BackendAuth, type Caller, type MailLinks } from "./auth.ts";
 import { avatarSvg } from "./avatars.ts";
 import {
 	issueMessage,
@@ -34,12 +38,16 @@ export interface BuiltInSummary {
 	accounts: number;
 	isDefault: boolean;
 	hasAccount: boolean;
+	confirmEmail: boolean;
 }
 
 interface Collaborators {
 	limiter: RateLimiter;
 	admin: AdminService;
 	logger: Logger;
+	mailer: Pick<MailerService, "settings" | "send">;
+	/** The app's pathnames an emailed link opens. */
+	pages: MailLinks;
 }
 
 const addonsQuery = v.object({
@@ -52,7 +60,7 @@ function preflight(): Response {
 	return new Response(null, {
 		status: 204,
 		headers: {
-			"access-control-allow-methods": "GET, POST, HEAD, OPTIONS",
+			"access-control-allow-methods": "GET, POST, PUT, DELETE, HEAD, OPTIONS",
 			"access-control-allow-headers": ALLOWED_HEADERS,
 			"access-control-max-age": "86400",
 		},
@@ -78,7 +86,7 @@ export class BuiltInBackend implements LocalBackend {
 		private readonly collaborators: Collaborators,
 		private readonly now: () => number = Date.now,
 	) {
-		this.#accounts = new BackendAccounts(database, now);
+		this.#accounts = new BackendAccounts(database, secret, now);
 		this.#store = new BackendStore(database, now);
 		this.#auth = new BackendAuth(
 			this.#accounts,
@@ -87,9 +95,36 @@ export class BuiltInBackend implements LocalBackend {
 				limiter: collaborators.limiter,
 				admin: collaborators.admin,
 				db: () => this.#store.db(),
+				mailer: collaborators.mailer,
+				mailLinks: () => this.#mailLinks(),
+				eraseData: (userId) => this.#store.deleteUserData(userId),
 			},
 			now,
 		);
+	}
+
+	/**
+	 * On the origin the admin saved this backend as the default from, never
+	 * the request's: a forged `Host` must not put its own address in the email.
+	 */
+	#mailLinks(): MailLinks | null {
+		const fallback = backendPolicy(this.#store.db()).defaultBackend;
+		if (
+			!(fallback && this.owns(fallback)) ||
+			this.collaborators.mailer.settings() === null
+		) {
+			return null;
+		}
+		const origin = new URL(fallback.url).origin;
+		return {
+			resetPassword: `${origin}${this.collaborators.pages.resetPassword}`,
+			confirmEmail: `${origin}${this.collaborators.pages.confirmEmail}`,
+		};
+	}
+
+	/** Whether this backend can email a link: SMTP set up and it is the instance default. */
+	canSendMail(): boolean {
+		return this.#mailLinks() !== null;
 	}
 
 	/** Calls the handler in-process: what a client for this instance's own default uses. */
@@ -116,6 +151,18 @@ export class BuiltInBackend implements LocalBackend {
 		}
 	}
 
+	/** Whether the request's session signed in through this backend. */
+	ownsSession(locals: Pick<App.Locals, "session" | "nuvio">): boolean {
+		return (
+			locals.session !== null &&
+			this.owns({
+				url: locals.nuvio.baseUrl,
+				publishableKey: locals.nuvio.publishableKey,
+				trusted: locals.session.trusted,
+			})
+		);
+	}
+
 	summary(origin: string, adminEmail: string): BuiltInSummary {
 		const policy = backendPolicy(this.#store.db());
 		return {
@@ -126,6 +173,7 @@ export class BuiltInBackend implements LocalBackend {
 				policy.defaultBackend !== null && this.owns(policy.defaultBackend),
 			hasAccount:
 				this.#accounts.userByEmail(normalizeEmail(adminEmail)) !== null,
+			confirmEmail: emailConfirmationRequired(this.#store.db()),
 		};
 	}
 

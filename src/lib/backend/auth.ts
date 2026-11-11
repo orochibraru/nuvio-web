@@ -1,11 +1,20 @@
 import type { Database } from "bun:sqlite";
 import * as v from "valibot";
 import { canSignIn, normalizeEmail } from "#lib/admin/admin-data.js";
+import { emailConfirmationRequired } from "#lib/admin/backends-data.js";
+import { m } from "#lib/i18n/index.js";
+import {
+	type EmailContent,
+	emailHtml,
+	emailText,
+} from "#lib/notifications/email.js";
+import type { MailSender } from "#lib/notifications/types.js";
 import type { AdminService } from "#lib/services/admin.service.js";
 import type { RateLimiter } from "#lib/services/rate-limit.service.js";
 import type {
 	BackendAccounts,
 	BackendUser,
+	EmailTokenKind,
 	IssuedSession,
 } from "./accounts.ts";
 import {
@@ -35,11 +44,22 @@ export type Caller =
 	| { kind: "user"; claims: AccessClaims }
 	| { kind: "invalid"; reason: "invalid" | "expired" };
 
+/** Where an emailed link lands: absolute URLs of the app's pages. */
+export interface MailLinks {
+	resetPassword: string;
+	confirmEmail: string;
+}
+
 export interface AuthPolicy {
 	limiter: RateLimiter;
 	admin: AdminService;
 	/** The instance database, for the lock and the allowlist. */
 	db: () => Database;
+	mailer: MailSender;
+	/** Null when this instance can't email a link (no SMTP, or no trusted origin). */
+	mailLinks: () => MailLinks | null;
+	/** Everything the user stored, erased before the account goes. */
+	eraseData: (userId: string) => void;
 }
 
 const credentialsSchema = v.object({
@@ -50,26 +70,96 @@ const emailSchema = v.pipe(v.string(), v.email());
 const refreshSchema = v.object({
 	refresh_token: v.pipe(v.string(), v.nonEmpty(), v.maxLength(512)),
 });
+const recoverSchema = v.object({
+	email: v.pipe(v.string(), v.maxLength(254)),
+});
+const verifySchema = v.object({
+	type: v.picklist(["signup", "email", "recovery"]),
+	token_hash: v.pipe(v.string(), v.nonEmpty(), v.maxLength(512)),
+});
+// An email, phone or metadata change is refused, not dropped without a word.
+// Anything else (supabase-js's PKCE `code_challenge`) is ignored.
+const updateSchema = v.object({
+	password: v.pipe(v.string(), v.maxLength(1024)),
+	email: v.optional(v.never()),
+	phone: v.optional(v.never()),
+	data: v.optional(v.never()),
+});
+const passwordSchema = v.object({
+	password: v.pipe(v.string(), v.maxLength(1024)),
+});
 
 const SETTINGS = {
 	external: { email: true, phone: false, anonymous_users: false },
 	disable_signup: false,
-	mailer_autoconfirm: true,
 	phone_autoconfirm: false,
 	sms_provider: "",
 	saml_enabled: false,
 };
 
+function rateLimited(): Response {
+	return authError(
+		429,
+		"over_request_rate_limit",
+		"Request rate limit reached",
+	);
+}
+
+function invalidEmail(): Response {
+	return authError(
+		400,
+		"validation_failed",
+		"Unable to validate email address: invalid format",
+	);
+}
+
+function mailUnavailable(): Response {
+	return authError(
+		422,
+		"email_provider_disabled",
+		"Email sending is not set up on this instance",
+	);
+}
+
+function emailContent(kind: EmailTokenKind, url: string) {
+	const content: EmailContent =
+		kind === "recovery"
+			? {
+					preview: m.backend_email_recovery_body(),
+					heading: m.backend_email_recovery_heading(),
+					paragraphs: [m.backend_email_recovery_body()],
+					action: { label: m.backend_email_recovery_action(), url },
+					footnote: m.backend_email_recovery_footnote(),
+				}
+			: {
+					preview: m.backend_email_confirm_body(),
+					heading: m.backend_email_confirm_heading(),
+					paragraphs: [m.backend_email_confirm_body()],
+					action: { label: m.backend_email_confirm_action(), url },
+					footnote: m.backend_email_confirm_footnote(),
+				};
+	return {
+		subject:
+			kind === "recovery"
+				? m.backend_email_recovery_subject()
+				: m.backend_email_confirm_subject(),
+		text: emailText(content),
+		html: emailHtml(content),
+	};
+}
+
 function userView(user: BackendUser) {
 	const created = isoTime(user.created_at);
+	const confirmed =
+		user.email_confirmed_at === null ? null : isoTime(user.email_confirmed_at);
 	return {
 		id: user.id,
 		aud: "authenticated",
 		role: "authenticated",
 		email: user.email,
-		email_confirmed_at: created,
+		email_confirmed_at: confirmed,
 		phone: "",
-		confirmed_at: created,
+		confirmed_at: confirmed,
 		last_sign_in_at:
 			user.last_sign_in_at === null ? null : isoTime(user.last_sign_in_at),
 		app_metadata: { provider: "email", providers: ["email"] },
@@ -146,15 +236,66 @@ export class BackendAuth {
 				authError(400, "unsupported_grant_type", "Unsupported grant type"),
 			);
 		}
+		if (route === "POST recover") {
+			return this.#recover(request, context.address);
+		}
+		if (route === "POST verify") {
+			return this.#verify(request, context.address);
+		}
 		if (route === "POST logout") {
 			return Promise.resolve(this.#logout(request, context.publishableKey));
 		}
 		if (route === "GET user") {
 			return Promise.resolve(this.#user(request, context.publishableKey));
 		}
+		if (route === "PUT user") {
+			return this.#updateUser(request, context.publishableKey);
+		}
+		if (route === "DELETE user") {
+			return this.#deleteUser(request, context);
+		}
 		return Promise.resolve(
-			route === "GET settings" ? json(200, SETTINGS) : notFound(),
+			route === "GET settings" ? json(200, this.#settings()) : notFound(),
 		);
+	}
+
+	#settings() {
+		return {
+			...SETTINGS,
+			mailer_autoconfirm: !emailConfirmationRequired(this.policy.db()),
+		};
+	}
+
+	/** Per address and per email, in its own budget for each `scope`. */
+	#allowed(
+		scope: string,
+		email: string | null,
+		address: string | null,
+	): boolean {
+		const { limiter } = this.policy;
+		return (
+			(address === null ||
+				limiter.attempt(
+					`${scope}-address:${address}`,
+					ATTEMPTS_PER_ADDRESS,
+					ATTEMPT_WINDOW_MS,
+				)) &&
+			(email === null ||
+				limiter.attempt(
+					`${scope}-email:${email}`,
+					ATTEMPTS_PER_EMAIL,
+					ATTEMPT_WINDOW_MS,
+				))
+		);
+	}
+
+	/** Not awaited: a send takes seconds, and the answer must not tell who has an account. */
+	#mail(user: BackendUser, kind: EmailTokenKind, page: string): void {
+		const token = this.accounts.issueEmailToken(user.id, kind);
+		void this.policy.mailer.send({
+			to: user.email,
+			...emailContent(kind, `${page}?token=${token}`),
+		});
 	}
 
 	async #credentials(
@@ -170,25 +311,8 @@ export class BackendAuth {
 			return authError(400, "validation_failed", "Email and password required");
 		}
 		const email = normalizeEmail(parsed.output.email);
-		const { limiter } = this.policy;
-		const allowed =
-			(address === null ||
-				limiter.attempt(
-					`backend-address:${address}`,
-					ATTEMPTS_PER_ADDRESS,
-					ATTEMPT_WINDOW_MS,
-				)) &&
-			limiter.attempt(
-				`backend-email:${email}`,
-				ATTEMPTS_PER_EMAIL,
-				ATTEMPT_WINDOW_MS,
-			);
-		if (!allowed) {
-			return authError(
-				429,
-				"over_request_rate_limit",
-				"Request rate limit reached",
-			);
+		if (!this.#allowed("backend", email, address)) {
+			return rateLimited();
 		}
 		return { email, password: parsed.output.password };
 	}
@@ -200,11 +324,7 @@ export class BackendAuth {
 		}
 		const { email, password } = credentials;
 		if (!v.is(emailSchema, email)) {
-			return authError(
-				400,
-				"validation_failed",
-				"Unable to validate email address: invalid format",
-			);
+			return invalidEmail();
 		}
 		if (password.length < MIN_PASSWORD_LENGTH) {
 			return authError(
@@ -225,9 +345,23 @@ export class BackendAuth {
 				"Signups not allowed for this instance",
 			);
 		}
-		const user = this.accounts.createUser(email, await hashPassword(password));
+		const confirm = emailConfirmationRequired(this.policy.db());
+		const links = confirm ? this.policy.mailLinks() : null;
+		if (confirm && links === null) {
+			return mailUnavailable();
+		}
+		const user = this.accounts.createUser(
+			email,
+			await hashPassword(password),
+			!confirm,
+		);
 		if (!user) {
 			return authError(422, "user_already_exists", "User already registered");
+		}
+		// GoTrue's answer when the address must be confirmed: the user, no session.
+		if (links) {
+			this.#mail(user, "signup", links.confirmEmail);
+			return json(200, userView(user));
 		}
 		return this.#signedIn(user, this.accounts.createSession(user.id));
 	}
@@ -250,6 +384,70 @@ export class BackendAuth {
 		);
 		if (!(user && valid)) {
 			return authError(400, "invalid_credentials", "Invalid login credentials");
+		}
+		if (
+			user.email_confirmed_at === null &&
+			emailConfirmationRequired(this.policy.db())
+		) {
+			return authError(400, "email_not_confirmed", "Email not confirmed");
+		}
+		return this.#signedIn(user, this.accounts.createSession(user.id));
+	}
+
+	/** Always 200 for a well-formed address: whether it has an account stays unsaid. */
+	async #recover(request: Request, address: string | null) {
+		const body = await readBody(request);
+		if (!body.ok) {
+			return body.response;
+		}
+		const parsed = v.safeParse(recoverSchema, body.value);
+		const email = parsed.success ? normalizeEmail(parsed.output.email) : "";
+		if (!v.is(emailSchema, email)) {
+			return invalidEmail();
+		}
+		if (!this.#allowed("backend-mail", email, address)) {
+			return rateLimited();
+		}
+		const links = this.policy.mailLinks();
+		if (links === null) {
+			return mailUnavailable();
+		}
+		const user = this.accounts.userByEmail(email);
+		if (user && this.#mayUse(email)) {
+			this.#mail(user, "recovery", links.resetPassword);
+		}
+		return json(200, {});
+	}
+
+	async #verify(request: Request, address: string | null) {
+		const body = await readBody(request);
+		if (!body.ok) {
+			return body.response;
+		}
+		const parsed = v.safeParse(verifySchema, body.value);
+		if (!parsed.success) {
+			return authError(
+				400,
+				"validation_failed",
+				"Verify requires a type and a token_hash",
+			);
+		}
+		if (!this.#allowed("backend-verify", null, address)) {
+			return rateLimited();
+		}
+		const user = this.accounts.consumeEmailToken(
+			parsed.output.token_hash,
+			parsed.output.type === "recovery" ? "recovery" : "signup",
+		);
+		if (!user) {
+			return authError(
+				403,
+				"otp_expired",
+				"Email link is invalid or has expired",
+			);
+		}
+		if (!this.#mayUse(user.email)) {
+			return authError(403, "access_denied", "Not allowed on this instance");
 		}
 		return this.#signedIn(user, this.accounts.createSession(user.id));
 	}
@@ -355,18 +553,104 @@ export class BackendAuth {
 		return new Response(null, { status: 204 });
 	}
 
+	/** A new password only. Every other session ends, as in GoTrue. */
+	async #updateUser(request: Request, publishableKey: string) {
+		const claims = this.#claims(request, publishableKey);
+		if (claims instanceof Response) {
+			return claims;
+		}
+		const body = await readBody(request);
+		if (!body.ok) {
+			return body.response;
+		}
+		const parsed = v.safeParse(updateSchema, body.value);
+		if (!parsed.success) {
+			return authError(
+				400,
+				"validation_failed",
+				"Only the password can be changed",
+			);
+		}
+		const user = this.accounts.userById(claims.sub);
+		if (!user) {
+			return userNotFound();
+		}
+		const { password } = parsed.output;
+		if (password.length < MIN_PASSWORD_LENGTH) {
+			return authError(
+				422,
+				"weak_password",
+				`Password should be at least ${MIN_PASSWORD_LENGTH} characters.`,
+			);
+		}
+		if (await globalThis.Bun.password.verify(password, user.password_hash)) {
+			return authError(
+				422,
+				"same_password",
+				"New password should be different from the old password.",
+			);
+		}
+		this.accounts.setPassword(
+			user.id,
+			await hashPassword(password),
+			claims.session_id,
+		);
+		return json(200, userView(this.accounts.userById(user.id) ?? user));
+	}
+
+	/** The caller's own account and all its data, behind its password. */
+	async #deleteUser(
+		request: Request,
+		context: { publishableKey: string; address: string | null },
+	) {
+		const claims = this.#claims(request, context.publishableKey);
+		if (claims instanceof Response) {
+			return claims;
+		}
+		const body = await readBody(request);
+		if (!body.ok) {
+			return body.response;
+		}
+		const parsed = v.safeParse(passwordSchema, body.value);
+		if (!parsed.success) {
+			return authError(400, "validation_failed", "Password required");
+		}
+		if (!this.#allowed("backend", claims.email, context.address)) {
+			return rateLimited();
+		}
+		const user = this.accounts.userById(claims.sub);
+		if (!user) {
+			return userNotFound();
+		}
+		if (
+			!(await globalThis.Bun.password.verify(
+				parsed.output.password,
+				user.password_hash,
+			))
+		) {
+			return authError(400, "invalid_credentials", "Invalid login credentials");
+		}
+		this.policy.db().transaction(() => {
+			this.policy.eraseData(user.id);
+			this.accounts.deleteUser(user.id);
+		})();
+		return new Response(null, { status: 204 });
+	}
+
 	#user(request: Request, publishableKey: string): Response {
 		const claims = this.#claims(request, publishableKey);
 		if (claims instanceof Response) {
 			return claims;
 		}
 		const user = this.accounts.userById(claims.sub);
-		return user
-			? json(200, userView(user))
-			: authError(
-					403,
-					"user_not_found",
-					"User from sub claim in JWT does not exist",
-				);
+		return user ? json(200, userView(user)) : userNotFound();
 	}
+}
+
+function userNotFound(): Response {
+	return authError(
+		403,
+		"user_not_found",
+		"User from sub claim in JWT does not exist",
+	);
 }

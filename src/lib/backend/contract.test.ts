@@ -1,8 +1,13 @@
+import { Database } from "bun:sqlite";
 import { beforeEach, describe, expect, it } from "vitest";
-import { testBackend as probeBackend } from "#lib/admin/backends-data.js";
+import {
+	testBackend as probeBackend,
+	setEmailConfirmationRequired,
+} from "#lib/admin/backends-data.js";
 import { isAuthSession } from "#lib/nuvio/backend.js";
 import type { NuvioClient } from "#lib/nuvio/client.js";
 import type { AuthSession } from "#lib/nuvio/types.js";
+import { DatabaseService } from "#lib/services/database.service.js";
 import { BASE_URL, testBackend } from "./test-backend.ts";
 
 // This app's own `NuvioClient`, pointed at the built-in backend in-process:
@@ -78,6 +83,7 @@ describe("auth", () => {
 		expect(rotated.refresh_token).not.toBe(first);
 		expect(await client.getUser()).toMatchObject({ email: "user@example.com" });
 
+		setup.clock.at += 11_000;
 		await expect(setup.client().refreshSession(first)).rejects.toMatchObject({
 			status: 400,
 		});
@@ -85,6 +91,17 @@ describe("auth", () => {
 			setup.client().refreshSession(rotated.refresh_token),
 		).rejects.toMatchObject({ status: 400 });
 		await expect(client.getUser()).rejects.toMatchObject({ status: 403 });
+	});
+
+	it("answers a refresh retried within 10 s with the same new token", async () => {
+		const first = client.session?.refresh_token as string;
+		const rotated = await client.refreshSession();
+		setup.clock.at += 9000;
+		const retried = await setup.client().refreshSession(first);
+		expect(retried.refresh_token).toBe(rotated.refresh_token);
+		expect(retried.access_token).not.toBe(first);
+		const next = await setup.client().refreshSession(rotated.refresh_token);
+		expect(next.refresh_token).not.toBe(rotated.refresh_token);
 	});
 
 	it("signs out this session only", async () => {
@@ -114,6 +131,215 @@ describe("auth", () => {
 				setup.backend.fetch,
 			),
 		).toBe(true);
+	});
+});
+
+describe("password reset", () => {
+	beforeEach(() => {
+		setup.makeDefault();
+	});
+
+	it("emails a single-use link whose session sets a new password", async () => {
+		await setup.client().requestPasswordRecovery("USER@example.com");
+		const token = setup.linkToken("user@example.com") as string;
+		expect(setup.mail.sent[0]?.text).toContain(
+			`https://nuvio.example/auth/reset-password?token=${token}`,
+		);
+
+		const recovering = setup.client();
+		const session = await recovering.verifyEmailLink("recovery", token);
+		expect(isAuthSession(session)).toBe(true);
+		expect(await recovering.updatePassword("a brand new one")).toMatchObject({
+			email: "user@example.com",
+		});
+
+		await expect(
+			setup.client().verifyEmailLink("recovery", token),
+		).rejects.toMatchObject({ status: 403, code: "otp_expired" });
+		await expect(
+			setup.client().signInWithPassword({
+				email: "user@example.com",
+				password: "correct horse",
+			}),
+		).rejects.toMatchObject({ status: 400 });
+		await setup.client().signInWithPassword({
+			email: "user@example.com",
+			password: "a brand new one",
+		});
+		// Every other session ends with the old password.
+		await expect(client.getUser()).rejects.toMatchObject({ status: 403 });
+		expect(await recovering.getUser()).toMatchObject({
+			email: "user@example.com",
+		});
+	});
+
+	it("refuses the same password and a short one", async () => {
+		await expect(client.updatePassword("correct horse")).rejects.toMatchObject({
+			status: 422,
+			code: "same_password",
+		});
+		await expect(client.updatePassword("short")).rejects.toMatchObject({
+			status: 422,
+			code: "weak_password",
+		});
+	});
+});
+
+describe("email confirmation", () => {
+	beforeEach(() => {
+		setup.makeDefault();
+		setEmailConfirmationRequired(setup.db, true);
+	});
+
+	it("is reported by the auth settings", async () => {
+		const settings = await setup.request("auth/v1/settings", {
+			headers: { apikey: setup.backend.publishableKey() },
+		});
+		expect(await settings.json()).toMatchObject({ mailer_autoconfirm: false });
+		setEmailConfirmationRequired(setup.db, false);
+		const off = await setup.request("auth/v1/settings", {
+			headers: { apikey: setup.backend.publishableKey() },
+		});
+		expect(await off.json()).toMatchObject({ mailer_autoconfirm: true });
+	});
+
+	it("signs up without a session, refuses sign-in until the link is followed", async () => {
+		const pending: unknown = await setup
+			.client()
+			.signUp({ email: "new@example.com", password: "correct horse" });
+		expect(pending).not.toHaveProperty("access_token");
+		expect(pending).toMatchObject({
+			email: "new@example.com",
+			email_confirmed_at: null,
+		});
+		const credentials = { email: "new@example.com", password: "correct horse" };
+		await expect(
+			setup.client().signInWithPassword(credentials),
+		).rejects.toMatchObject({ status: 400, code: "email_not_confirmed" });
+
+		const token = setup.linkToken("new@example.com") as string;
+		expect(setup.mail.sent[0]?.text).toContain(
+			`https://nuvio.example/auth/confirm-email?token=${token}`,
+		);
+		const session = await setup.client().verifyEmailLink("signup", token);
+		expect(session.user).toMatchObject({
+			email: "new@example.com",
+			email_confirmed_at: expect.stringMatching(ISO),
+		});
+		await setup.client().signInWithPassword(credentials);
+	});
+
+	it("keeps accounts that existed before it was turned on confirmed", async () => {
+		await setup.client().signInWithPassword({
+			email: "user@example.com",
+			password: "correct horse",
+		});
+	});
+
+	it("counts the accounts of a database from before it as confirmed", async () => {
+		const db = DatabaseService.migrate(new Database(":memory:"));
+		db.run(`CREATE TABLE backend_users (
+			id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE, password_hash TEXT NOT NULL,
+			created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, last_sign_in_at INTEGER
+		)`);
+		db.run(`CREATE TABLE backend_refresh_tokens (
+			token_hash TEXT PRIMARY KEY, session_id TEXT NOT NULL,
+			revoked INTEGER NOT NULL DEFAULT 0, expires_at INTEGER NOT NULL
+		)`);
+		db.query(
+			"INSERT INTO backend_users VALUES ('00000000-0000-4000-8000-000000000001', 'old@example.com', ?, 1, 1, NULL)",
+		).run(await globalThis.Bun.password.hash("correct horse"));
+		const upgraded = testBackend(db);
+		upgraded.makeDefault();
+		setEmailConfirmationRequired(db, true);
+		const old = upgraded.client();
+		await old.signInWithPassword({
+			email: "old@example.com",
+			password: "correct horse",
+		});
+		expect((await old.refreshSession()).refresh_token).toBeTruthy();
+	});
+
+	it("is confirmed by a password reset too", async () => {
+		await setup
+			.client()
+			.signUp({ email: "lost@example.com", password: "correct horse" });
+		await setup.client().requestPasswordRecovery("lost@example.com");
+		const session = await setup
+			.client()
+			.verifyEmailLink(
+				"recovery",
+				setup.linkToken("lost@example.com") as string,
+			);
+		expect(session.user.email).toBe("lost@example.com");
+		await setup.client().signInWithPassword({
+			email: "lost@example.com",
+			password: "correct horse",
+		});
+	});
+});
+
+describe("account deletion", () => {
+	it("deletes the caller's account and everything it stored, behind its password", async () => {
+		const other = await signedIn("other@example.com");
+		for (const owner of [client, other]) {
+			await owner.profiles.replace({
+				p_profiles: [{ profile_index: 1, name: "Main" }],
+			});
+			await owner.library.upsertItems({
+				p_profile_id: 1,
+				p_items: [fightClub],
+			});
+			await owner.addons.replace({
+				p_profile_id: 1,
+				p_addons: [{ url: "https://a.example/manifest.json" }],
+			});
+			await owner.settings.replace({
+				p_profile_id: 1,
+				p_settings_json: { theme: "dark" },
+			});
+		}
+		const userId = client.session?.user.id as string;
+
+		await expect(client.deleteAccount("wrong horse")).rejects.toMatchObject({
+			status: 400,
+			code: "invalid_credentials",
+		});
+		await client.deleteAccount("correct horse");
+
+		const tables = setup.db
+			.query<{ name: string }, []>(
+				"SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'backend_%'",
+			)
+			.all()
+			.map((table) => table.name)
+			.filter((table) => table !== "backend_refresh_tokens");
+		for (const table of tables) {
+			const column = table === "backend_users" ? "id" : "user_id";
+			expect(
+				setup.db
+					.query<{ total: number }, [string]>(
+						`SELECT COUNT(*) AS total FROM ${table} WHERE ${column} = ?`,
+					)
+					.get(userId)?.total,
+				table,
+			).toBe(0);
+		}
+		expect(
+			setup.db
+				.query<{ total: number }, []>(
+					"SELECT COUNT(*) AS total FROM backend_refresh_tokens",
+				)
+				.get()?.total,
+		).toBe(1);
+		await expect(
+			setup.client().signInWithPassword({
+				email: "user@example.com",
+				password: "correct horse",
+			}),
+		).rejects.toMatchObject({ status: 400 });
+		expect(await other.library.pull({ p_profile_id: 1 })).toHaveLength(1);
+		expect(await other.addons.list(1)).toHaveLength(1);
 	});
 });
 

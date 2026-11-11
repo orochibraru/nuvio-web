@@ -17,6 +17,7 @@ import { NUVIO_BASE_URL } from "#lib/nuvio/index.js";
 const CUSTOM_ALLOWED_KEY = "backends.custom_allowed";
 const DEFAULT_URL_KEY = "backends.default_url";
 const DEFAULT_KEY_KEY = "backends.default_key";
+const CONFIRM_EMAIL_KEY = "builtin_backend.confirm_email";
 
 export interface BackendPolicy {
 	/** Whether a user may type in a backend of their own at sign-in. */
@@ -119,6 +120,18 @@ export function setDefaultBackend(
 	const official = backend === null || backend.url === NUVIO_BASE_URL;
 	writeSetting(db, DEFAULT_URL_KEY, official ? null : backend.url);
 	writeSetting(db, DEFAULT_KEY_KEY, official ? null : backend.publishableKey);
+}
+
+/** Whether the built-in backend makes new accounts confirm their email first. Off by default. */
+export function emailConfirmationRequired(db: Database): boolean {
+	return setting(db, CONFIRM_EMAIL_KEY) === "1";
+}
+
+export function setEmailConfirmationRequired(
+	db: Database,
+	required: boolean,
+): void {
+	writeSetting(db, CONFIRM_EMAIL_KEY, required ? "1" : null);
 }
 
 /** A backend URL and key as an admin or the sign-in form typed them. */

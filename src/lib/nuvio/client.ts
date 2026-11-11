@@ -262,6 +262,42 @@ export class NuvioClient {
 		});
 	}
 
+	/** Emails a reset link when the address has an account; answers the same either way. */
+	async requestPasswordRecovery(email: string): Promise<void> {
+		await this.http<unknown>(`${this.baseUrl}/auth/v1/recover`, {
+			method: "POST",
+			body: JSON.stringify({ email }),
+			skipAuth: true,
+		});
+	}
+
+	/** Trades the token of an emailed link for a session. */
+	async verifyEmailLink(
+		type: "signup" | "recovery",
+		tokenHash: string,
+	): Promise<AuthSession> {
+		return await this.authenticate(`${this.baseUrl}/auth/v1/verify`, {
+			type,
+			token_hash: tokenHash,
+		});
+	}
+
+	async updatePassword(password: string): Promise<NuvioUser> {
+		return await this.http<NuvioUser>(`${this.baseUrl}/auth/v1/user`, {
+			method: "PUT",
+			body: JSON.stringify({ password }),
+		});
+	}
+
+	/** The built-in backend's own: the official API has no self-service deletion. */
+	async deleteAccount(password: string): Promise<void> {
+		await this.http<void>(`${this.baseUrl}/auth/v1/user`, {
+			method: "DELETE",
+			body: JSON.stringify({ password }),
+		});
+		this.setSession(null);
+	}
+
 	// Profiles
 
 	readonly profiles = {

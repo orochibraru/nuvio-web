@@ -14,6 +14,7 @@ import {
 	NUVIO_LOG_LEVEL,
 	NUVIO_SESSION_SECRET,
 } from "$app/env/private";
+import { resolve } from "$app/paths";
 import { ACTIVITY, ActivityTracker } from "./activity.service.ts";
 import { AdminService } from "./admin.service.ts";
 import {
@@ -88,6 +89,11 @@ serverServices
 				limiter: c.get(RATE_LIMITER),
 				admin: c.get(ADMIN),
 				logger: c.get(LOGGER).scoped("BuiltInBackend"),
+				mailer: c.get(MAILER_SERVICE),
+				pages: {
+					resetPassword: resolve("auth/reset-password"),
+					confirmEmail: resolve("auth/confirm-email"),
+				},
 			}),
 	)
 	.register(

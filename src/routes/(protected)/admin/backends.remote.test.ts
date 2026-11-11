@@ -21,6 +21,7 @@ const { data, logger, store, guard, event, builtIn } = vi.hoisted(() => {
 		},
 		setCustomBackendsAllowed: vi.fn(),
 		setDefaultBackend: vi.fn(),
+		setEmailConfirmationRequired: vi.fn(),
 		setBackendBanned: vi.fn((): string | null => "https://b.example"),
 		testBackend: vi.fn(async () => true),
 		withPublishableKey: vi.fn(
@@ -40,6 +41,7 @@ const { data, logger, store, guard, event, builtIn } = vi.hoisted(() => {
 			hasAccount: true,
 		})),
 		createAccount: vi.fn(async () => true),
+		canSendMail: vi.fn(() => true),
 	};
 	const store = { deleteAllForBackend: vi.fn() };
 	const guard = { requireAdmin: vi.fn() };
@@ -106,6 +108,8 @@ vi.mock("#lib/admin/backends-data.js", async (original) => {
 		setCustomBackendsAllowed: (...args: unknown[]) =>
 			data.setCustomBackendsAllowed(...args),
 		setDefaultBackend: (...args: unknown[]) => data.setDefaultBackend(...args),
+		setEmailConfirmationRequired: (...args: unknown[]) =>
+			data.setEmailConfirmationRequired(...args),
 		setBackendBanned: (...args: unknown[]) =>
 			data.setBackendBanned(...(args as [])),
 		testBackend: (...args: unknown[]) => data.testBackend(...(args as [])),
@@ -126,6 +130,8 @@ const testDefaultBackend = remote.testDefaultBackend as unknown as Handler;
 const setBackendBan = remote.setBackendBan as unknown as Handler;
 const useBuiltInBackend = remote.useBuiltInBackend as unknown as () => void;
 const createBuiltInAccount = remote.createBuiltInAccount as unknown as Handler;
+const setBuiltInEmailConfirmation =
+	remote.setBuiltInEmailConfirmation as unknown as Handler;
 
 const issue = new Proxy(
 	{},
@@ -305,5 +311,34 @@ describe("createBuiltInAccount", () => {
 		await expect(
 			createBuiltInAccount({ _password: "long enough" }, issue),
 		).rejects.toBeInstanceOf(Invalid);
+	});
+});
+
+describe("setBuiltInEmailConfirmation", () => {
+	it("stores the toggle", () => {
+		setBuiltInEmailConfirmation({ required: "on" });
+		expect(data.setEmailConfirmationRequired).toHaveBeenCalledWith(
+			{ marker: "db" },
+			true,
+		);
+		setBuiltInEmailConfirmation({ required: "off" });
+		expect(data.setEmailConfirmationRequired).toHaveBeenLastCalledWith(
+			{ marker: "db" },
+			false,
+		);
+	});
+
+	it("refuses to require it while no link can go out, but always lets it go", () => {
+		builtIn.canSendMail.mockReturnValue(false);
+		expect(() => setBuiltInEmailConfirmation({ required: "on" })).toThrow(
+			Invalid,
+		);
+		expect(data.setEmailConfirmationRequired).not.toHaveBeenCalled();
+		setBuiltInEmailConfirmation({ required: "off" });
+		expect(data.setEmailConfirmationRequired).toHaveBeenCalledWith(
+			{ marker: "db" },
+			false,
+		);
+		builtIn.canSendMail.mockReturnValue(true);
 	});
 });

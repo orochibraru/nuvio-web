@@ -15,7 +15,13 @@ const RUN_STATEMENTS = `
 const { Database } = require("bun:sqlite");
 const db = new Database("/app/data/nuvio.sqlite");
 for (const [sql, params] of JSON.parse(require("node:fs").readFileSync(0, "utf8"))) {
-	db.prepare(sql).run(...params);
+	try {
+		db.prepare(sql).run(...params);
+	} catch (error) {
+		if (!String(error).includes("no such table")) {
+			throw error;
+		}
+	}
 }`;
 
 function runSql(statements: [string, (string | number)[]][]): void {
@@ -153,6 +159,35 @@ test("built-in backend: the admin switches to it and a new user signs up and sav
 			{ timeout: 90_000, intervals: [5000] },
 		)
 		.toContain("blender-sintel");
+
+	// The account deletes itself from its overview, behind its password.
+	await page.goto("/account/overview");
+	await page.getByRole("button", { name: "Delete my account" }).click();
+	const confirm = page.getByRole("dialog");
+	await confirm.getByLabel("Password").fill("not the password");
+	await confirm.getByRole("button", { name: "Delete my account" }).click();
+	await expect(confirm.getByText("That's not your password.")).toBeVisible();
+	await confirm.getByLabel("Password").fill(password);
+	await confirm.getByRole("button", { name: "Delete my account" }).click();
+	await expect(page).toHaveURL(/\/auth\/sign-in/, { timeout: 15_000 });
+	const gone = await request.post(`${url}/auth/v1/token?grant_type=password`, {
+		headers,
+		data: { email, password },
+	});
+	expect(gone.status()).toBe(400);
+
+	// Sign-in offers the built-in backend's own reset, whether or not SMTP is set up.
+	await page.getByRole("link", { name: "Forgot password?" }).click();
+	await expect(page).toHaveURL(/\/auth\/forgot-password/);
+	await expect(page.getByText("Reset your password").first()).toBeVisible();
+	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
+	await page.getByLabel("Email").fill(email);
+	await page.getByRole("button", { name: "Send the link" }).click();
+	await expect(
+		page.getByText(
+			/a link to reset its password is on its way|can't send emails yet/,
+		),
+	).toBeVisible({ timeout: 10_000 });
 
 	await page.waitForTimeout(500);
 	expect(errors, "runtime errors").toEqual([]);
