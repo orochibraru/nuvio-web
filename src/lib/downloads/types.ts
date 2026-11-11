@@ -60,6 +60,8 @@ export interface DownloadRecord {
 	background: string | null;
 
 	sourceUrl: string;
+	/** What the addon asks the source to be fetched with (`proxyHeaders`). */
+	requestHeaders?: Record<string, string>;
 	sourceLabel: string;
 	addonName: string;
 	/** The preferred quality at the time, for choosing an HLS variant. */
@@ -98,6 +100,7 @@ export type NewDownload = Pick<
 	| "poster"
 	| "background"
 	| "sourceUrl"
+	| "requestHeaders"
 	| "sourceLabel"
 	| "addonName"
 	| "quality"

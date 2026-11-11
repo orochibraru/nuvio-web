@@ -1,6 +1,12 @@
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import {
+	mkdirSync,
+	readFileSync,
+	rmSync,
+	statSync,
+	writeFileSync,
+} from "node:fs";
 import { release } from "node:os";
-import { join } from "node:path";
+import { isAbsolute, join } from "node:path";
 import process from "node:process";
 import Electrobun, {
 	ApplicationMenu,
@@ -29,8 +35,9 @@ const STARTUP_TIMEOUT_MS = 30_000;
 const dataDir = join(Utils.paths.userData, "data");
 mkdirSync(dataDir, { recursive: true });
 // Downloads are files the user sees: ~/Movies on macOS, Videos on Windows,
-// XDG_VIDEOS_DIR (else ~/Videos) on Linux.
-const downloadsDir = join(Utils.paths.videos, "Nuvio Web");
+// XDG_VIDEOS_DIR (else ~/Videos) on Linux, unless the user picked a folder.
+const defaultDownloadsDir = join(Utils.paths.videos, "Nuvio Web");
+const downloadsFolderFile = join(Utils.paths.userData, "downloads-folder");
 const logs = openLogDb();
 
 function readText(file: string): string {
@@ -40,6 +47,20 @@ function readText(file: string): string {
 		return "";
 	}
 }
+
+function isFolder(path: string): boolean {
+	try {
+		return isAbsolute(path) && statSync(path).isDirectory();
+	} catch {
+		return false;
+	}
+}
+
+// A picked folder that is gone (a drive not plugged in) is never recreated.
+const savedDownloadsDir = readText(downloadsFolderFile).trim();
+let downloadsDir = isFolder(savedDownloadsDir)
+	? savedDownloadsDir
+	: defaultDownloadsDir;
 
 /** True when nothing else holds `port` on loopback. */
 function isFree(port: number): boolean {
@@ -109,6 +130,9 @@ logs.write(
 // Always there, so the page knows it runs in the app (no "Install app").
 const DESKTOP_BRIDGE = `window.nuvioDesktop = {
 	openDownloads: () => window.__electrobunSendToHost({ nuvioOpenDownloads: true }),
+	chooseDownloadsFolder: () => window.__electrobunSendToHost({ nuvioDownloadsFolder: "choose" }),
+	resetDownloadsFolder: () => window.__electrobunSendToHost({ nuvioDownloadsFolder: "default" }),
+	defaultDownloadsFolder: ${JSON.stringify(defaultDownloadsDir)},
 };`;
 // The page asks for mpv through this; it only exists when there is one.
 const MPV_BRIDGE = `Object.assign(window.nuvioDesktop, {
@@ -170,6 +194,17 @@ Electrobun.events.on("host-message", (event) => {
 	)?.nuvioEngine;
 	if (engineMessage) {
 		handleEngine(engineMessage);
+		return;
+	}
+	const folderChoice = (
+		detail as { nuvioDownloadsFolder?: unknown } | undefined
+	)?.nuvioDownloadsFolder;
+	if (folderChoice === "choose" || folderChoice === "default") {
+		void changeDownloadsFolder(folderChoice).catch((error) =>
+			logs.write("shell", "error", "Changing the downloads folder failed", {
+				error: String(error),
+			}),
+		);
 		return;
 	}
 	if (
@@ -329,53 +364,99 @@ ApplicationMenu.on("application-menu-clicked", (event) => {
 	}
 });
 
-const server = Bun.spawn(
-	[
-		join(
-			PATHS.RESOURCES_FOLDER,
-			"app",
-			"server",
-			process.platform === "win32" ? "server.exe" : "server",
-		),
-	],
-	{
-		env: {
-			...process.env,
-			HOST,
-			PORT: new URL(origin).port,
-			NUVIO_DATA_DIR: dataDir,
-			// The server downloads there, and plays the files back from there.
-			NUVIO_DOWNLOADS_DIR: downloadsDir,
-			// A personal app: users pick their own backend at sign-in.
-			NUVIO_ALLOW_CUSTOM_BACKENDS: "true",
-			NUVIO_LOG_FORMAT: "json",
-			// Everything into the log database unless the user says otherwise.
-			NUVIO_LOG_LEVEL: process.env.NUVIO_LOG_LEVEL ?? "debug",
-			SHUTDOWN_TIMEOUT: "8",
+let server: ReturnType<typeof startServer> | null = startServer();
+
+function startServer() {
+	const child = Bun.spawn(
+		[
+			join(
+				PATHS.RESOURCES_FOLDER,
+				"app",
+				"server",
+				process.platform === "win32" ? "server.exe" : "server",
+			),
+		],
+		{
+			env: {
+				...process.env,
+				HOST,
+				PORT: new URL(origin).port,
+				NUVIO_DATA_DIR: dataDir,
+				// The server downloads there, and plays the files back from there.
+				NUVIO_DOWNLOADS_DIR: downloadsDir,
+				// A personal app: users pick their own backend at sign-in.
+				NUVIO_ALLOW_CUSTOM_BACKENDS: "true",
+				NUVIO_LOG_FORMAT: "json",
+				// Everything into the log database unless the user says otherwise.
+				NUVIO_LOG_LEVEL: process.env.NUVIO_LOG_LEVEL ?? "debug",
+				SHUTDOWN_TIMEOUT: "8",
+			},
+			stdout: "pipe",
+			stderr: "pipe",
 		},
-		stdout: "pipe",
-		stderr: "pipe",
-	},
-);
-void logs.pipe(server.stdout, "info");
-void logs.pipe(server.stderr, "error");
+	);
+	void logs.pipe(child.stdout, "info");
+	void logs.pipe(child.stderr, "error");
+	void child.exited.then((code) => {
+		// One stopped on purpose, for a new downloads folder, isn't a failure.
+		const failed = !quitting && child === server;
+		logs.write("shell", failed ? "error" : "info", "Server exited", { code });
+		if (failed) {
+			window.webview.loadHTML(
+				page(`The server stopped (exit ${code}). Logs: ${logs.path}`),
+			);
+		}
+	});
+	return child;
+}
 
 let quitting = false;
 Electrobun.events.on("before-quit", () => {
 	quitting = true;
 	logs.write("shell", "info", "Quitting");
 	mpv?.stop();
-	server.kill("SIGTERM");
+	server?.kill("SIGTERM");
 });
 
-server.exited.then((code) => {
-	logs.write("shell", quitting ? "info" : "error", "Server exited", { code });
-	if (!quitting) {
-		window.webview.loadHTML(
-			page(`The server stopped (exit ${code}). Logs: ${logs.path}`),
-		);
+/**
+ * Downloads go to `choice` from now on: a folder the user picks, or the
+ * default. The server reads its folder once, so it restarts on the new one;
+ * what is in the old folder stays there.
+ */
+async function changeDownloadsFolder(choice: "choose" | "default") {
+	let folder = defaultDownloadsDir;
+	if (choice === "choose") {
+		const [picked] = await Utils.openFileDialog({
+			startingFolder: downloadsDir,
+			canChooseFiles: false,
+			canChooseDirectory: true,
+			allowsMultipleSelection: false,
+		});
+		if (!(picked && isFolder(picked))) {
+			return;
+		}
+		folder = picked;
 	}
-});
+	if (folder === downloadsDir) {
+		return;
+	}
+	if (folder === defaultDownloadsDir) {
+		rmSync(downloadsFolderFile, { force: true });
+	} else {
+		writeFileSync(downloadsFolderFile, folder);
+	}
+	logs.write("shell", "info", "Downloads folder changed", { folder });
+	downloadsDir = folder;
+	mpv?.stop();
+	engine?.close();
+	window.webview.loadHTML(page("Restarting…"));
+	const previous = server;
+	server = null;
+	previous?.kill("SIGTERM");
+	await previous?.exited;
+	server = startServer();
+	await openWhenUp();
+}
 
 async function healthy(): Promise<boolean> {
 	try {
@@ -385,18 +466,29 @@ async function healthy(): Promise<boolean> {
 	}
 }
 
-const deadline = Date.now() + STARTUP_TIMEOUT_MS;
-// biome-ignore lint/performance/noAwaitInLoops: polling, one request at a time
-while (!(await healthy()) && Date.now() < deadline && !quitting) {
-	await Bun.sleep(150);
+/** Shows the app once its server answers; false when it never did. */
+async function openWhenUp(): Promise<boolean> {
+	const deadline = Date.now() + STARTUP_TIMEOUT_MS;
+	// biome-ignore lint/performance/noAwaitInLoops: polling, one request at a time
+	while (!(await healthy()) && Date.now() < deadline && !quitting) {
+		await Bun.sleep(150);
+	}
+	if (await healthy()) {
+		logs.write("shell", "info", "Server up");
+		window.webview.loadURL(`${origin}/`);
+		return true;
+	}
+	if (!quitting) {
+		logs.write("shell", "error", "Server didn't start in time");
+		window.webview.loadHTML(
+			page(`The server didn't start. Logs: ${logs.path}`),
+		);
+	}
+	return false;
 }
-if (await healthy()) {
-	logs.write("shell", "info", "Server up");
-	window.webview.loadURL(`${origin}/`);
+
+if (await openWhenUp()) {
 	downloadUpdateInBackground(updateLog).catch((error) =>
 		updateLog("warn", "Update check failed", { error: String(error) }),
 	);
-} else if (!quitting) {
-	logs.write("shell", "error", "Server didn't start in time");
-	window.webview.loadHTML(page(`The server didn't start. Logs: ${logs.path}`));
 }

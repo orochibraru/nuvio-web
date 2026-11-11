@@ -15,6 +15,8 @@ export interface ResolvedStream {
 	filename: string | null;
 	/** `behaviorHints.bingeGroup` : the addon's name for this release, shared across episodes. */
 	bingeGroup: string | null;
+	/** `behaviorHints.proxyHeaders.request`, checked : what the host wants sent with it. */
+	requestHeaders?: Record<string, string>;
 }
 
 export type StreamKind = "direct" | "p2p";

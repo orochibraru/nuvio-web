@@ -321,6 +321,75 @@ describe("LocalDownloads", () => {
 		).not.toBeNull();
 	});
 
+	it("sends the addon's headers for the stream, never for a subtitle", async () => {
+		const seen: Array<[string, Record<string, string> | undefined]> = [];
+		const recording: SourceFetch = async (url, plan, _signal, range) => {
+			seen.push([url, plan.requestHeaders]);
+			return rangeResponse(FILE, range);
+		};
+		const requestHeaders = { referer: "https://host.example/" };
+		const downloads = new LocalDownloads(folder, logger, recording);
+		await downloads.add(
+			OWNER,
+			input({
+				requestHeaders,
+				subtitleSources: [
+					{ lang: "en", sdh: false, url: "https://subs.example/1.srt" },
+				],
+			}),
+		);
+		expect(await settled(downloads)).toMatchObject({
+			status: "done",
+			requestHeaders,
+		});
+		for (const [url, headers] of seen) {
+			expect(headers).toEqual(
+				url.startsWith("https://subs.example/") ? undefined : requestHeaders,
+			);
+		}
+		expect(seen.filter(([url]) => url === input().sourceUrl)).toHaveLength(2);
+	});
+
+	it("sends them for every playlist and segment, and again after a relaunch", async () => {
+		const playlist = [
+			"#EXTM3U",
+			"#EXT-X-TARGETDURATION:4",
+			"#EXTINF:4,",
+			"seg0.ts",
+			"#EXT-X-ENDLIST",
+		].join("\n");
+		const seen: Array<Record<string, string> | undefined> = [];
+		const hls: SourceFetch = async (url, plan) => {
+			seen.push(plan.requestHeaders);
+			return url.endsWith(".m3u8")
+				? new Response(playlist)
+				: new Response(new Uint8Array([1]));
+		};
+		const requestHeaders = { "user-agent": "Addon/1" };
+		const first = new LocalDownloads(folder, logger, hls);
+		await first.add(
+			OWNER,
+			input({
+				sourceUrl: "https://cdn.example/index.m3u8",
+				requestHeaders,
+			}),
+		);
+		const record = await settled(first);
+		await writeFile(
+			join(folder, "A film", ".nuvio.json"),
+			JSON.stringify({ ...record, status: "downloading", entry: null }),
+		);
+
+		expect(seen).toEqual([requestHeaders, requestHeaders, requestHeaders]);
+
+		seen.length = 0;
+		const second = new LocalDownloads(folder, logger, hls);
+		await second.list(OWNER);
+		expect(await settled(second)).toMatchObject({ status: "done" });
+		expect(seen.length).toBeGreaterThan(0);
+		expect(seen).toEqual(seen.map(() => requestHeaders));
+	});
+
 	it("records why a download failed", async () => {
 		const gone: SourceFetch = async () => new Response(null, { status: 404 });
 		const downloads = new LocalDownloads(folder, logger, gone);

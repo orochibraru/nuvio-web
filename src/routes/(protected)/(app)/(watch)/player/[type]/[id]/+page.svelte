@@ -40,6 +40,7 @@
 		rememberLink,
 		rememberPick,
 		type SelectedStream,
+		selectedStream,
 	} from "#lib/watch/playback.svelte.js";
 	import {
 		assemblePlaybackContext,
@@ -239,23 +240,12 @@
 			pickPreferredStream(streams ?? [], theme.current.preferredQuality),
 	);
 
-	const active = $derived.by(() => {
-		if (handed) {
-			return handed;
-		}
-		if (autoStream) {
-			return {
-				url: autoStream.url,
-				externalUrl: autoStream.externalUrl,
-				notWebReady: autoStream.notWebReady,
-				label: describeStream(autoStream).title,
-				addonName: autoStream.addonName,
-				infoHash: autoStream.infoHash,
-				bingeGroup: autoStream.bingeGroup,
-			};
-		}
-		return null;
-	});
+	const active = $derived(
+		handed ??
+			(autoStream
+				? selectedStream(id, autoStream, describeStream(autoStream).title)
+				: null),
+	);
 
 	// The chosen stream's label names a video codec (HEVC / AV1 / Xvid); ask the
 	// browser whether it can actually decode it before we bother mounting <video>.
@@ -413,6 +403,7 @@
 					videoRisky: videoCodec !== null,
 					videoCodec,
 					bingeGroup: active.bingeGroup ?? null,
+					requestHeaders: active.requestHeaders,
 				}
 			: null,
 	);

@@ -61,6 +61,11 @@ declare global {
 			engine?: DesktopEngine;
 			/** Shows the downloads folder in Finder / Explorer / the file manager. */
 			openDownloads?: () => void;
+			/** Asks for another downloads folder; the app restarts its server on it. */
+			chooseDownloadsFolder?: () => void;
+			/** Goes back to `defaultDownloadsFolder`. */
+			resetDownloadsFolder?: () => void;
+			defaultDownloadsFolder?: string;
 		};
 	}
 }

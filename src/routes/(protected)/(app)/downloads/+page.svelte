@@ -1,6 +1,8 @@
 <script lang="ts">
 	import DownloadIcon from "@lucide/svelte/icons/download";
 	import FolderOpenIcon from "@lucide/svelte/icons/folder-open";
+	import FolderPenIcon from "@lucide/svelte/icons/folder-pen";
+	import RotateCcwIcon from "@lucide/svelte/icons/rotate-ccw";
 	import EmptyState from "#lib/components/feedback/empty-state.svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { pageTitle } from "#lib/core/title.svelte.js";
@@ -33,8 +35,13 @@
 			});
 	});
 
-	const openFolder = $derived(
-		downloads.onDisk ? window.nuvioDesktop?.openDownloads : undefined,
+	const desktop = $derived(downloads.onDisk ? window.nuvioDesktop : undefined);
+	const custom = $derived(
+		Boolean(
+			desktop?.defaultDownloadsFolder &&
+				downloads.folder &&
+				downloads.folder.path !== desktop.defaultDownloadsFolder,
+		),
 	);
 
 	function play(record: DownloadRecord) {
@@ -61,16 +68,37 @@
 				})}
 			{/if}
 		</p>
-		{#if openFolder}
-			<Button
-				variant="outline"
-				size="sm"
-				class="self-start"
-				onclick={() => openFolder()}
-			>
-				<FolderOpenIcon />
-				{m.downloads_open_folder()}
-			</Button>
+		{#if desktop?.openDownloads}
+			<div class="flex flex-wrap gap-2">
+				<Button
+					variant="outline"
+					size="sm"
+					onclick={() => desktop.openDownloads?.()}
+				>
+					<FolderOpenIcon />
+					{m.downloads_open_folder()}
+				</Button>
+				{#if desktop.chooseDownloadsFolder}
+					<Button
+						variant="outline"
+						size="sm"
+						onclick={() => desktop.chooseDownloadsFolder?.()}
+					>
+						<FolderPenIcon />
+						{m.downloads_change_folder()}
+					</Button>
+				{/if}
+				{#if custom && desktop.resetDownloadsFolder}
+					<Button
+						variant="ghost"
+						size="sm"
+						onclick={() => desktop.resetDownloadsFolder?.()}
+					>
+						<RotateCcwIcon />
+						{m.downloads_default_folder()}
+					</Button>
+				{/if}
+			</div>
 		{/if}
 	</div>
 

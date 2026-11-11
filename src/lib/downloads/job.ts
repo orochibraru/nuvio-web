@@ -48,12 +48,12 @@ export interface Writer {
 }
 
 /**
- * Fetches `url`, rejecting with `Aborted` once `signal` is. `plan` is the
- * browser's: it records that the source needed the same-origin pass-through.
+ * Fetches `url`, rejecting with `Aborted` once `signal` is. `plan` says how:
+ * through the browser's same-origin pass-through, with the addon's headers.
  */
 export type SourceFetch = (
 	url: string,
-	plan: Pick<Plan, "viaProxy">,
+	plan: Pick<Plan, "viaProxy" | "requestHeaders">,
 	signal: AbortSignal,
 	range?: { start: number; end: number | null } | null,
 ) => Promise<Response>;
@@ -71,6 +71,8 @@ export interface Plan {
 	done: string[];
 	/** The source needed the same-origin pass-through; keep using it. */
 	viaProxy: boolean;
+	/** The addon's headers for the stream's own requests, never a subtitle's. */
+	requestHeaders?: Record<string, string>;
 	subtitles: DownloadedSubtitle[];
 	totalBytes: number | null;
 }
@@ -436,6 +438,8 @@ async function run(
 		subtitles: [],
 		totalBytes: null,
 	};
+	// From the record, which outlives the plan: a resume sends them too.
+	plan.requestHeaders = record.requestHeaders;
 	const job: Job = { record, disk, fetchSource, plan, signal, progress };
 	if (!saved) {
 		await planDownload(job);

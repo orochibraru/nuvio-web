@@ -18,6 +18,7 @@
 	let {
 		context,
 		url,
+		requestHeaders,
 		label,
 		addonName,
 	}: {
@@ -33,6 +34,7 @@
 			background: string | null;
 		};
 		url: string;
+		requestHeaders?: Record<string, string>;
 		label: string;
 		addonName: string;
 	} = $props();
@@ -58,6 +60,7 @@
 				poster: context.poster,
 				background: context.background,
 				sourceUrl: url,
+				requestHeaders,
 				sourceLabel: label,
 				addonName,
 				quality: theme.current.preferredQuality,

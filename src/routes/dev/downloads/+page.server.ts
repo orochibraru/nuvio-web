@@ -1,5 +1,6 @@
 import process from "node:process";
 import { error } from "@sveltejs/kit";
+import { LOCAL_DOWNLOADS } from "#lib/downloads/tokens.js";
 import { dev } from "$app/env";
 import type { PageServerLoad } from "./$types";
 
@@ -13,9 +14,10 @@ import type { PageServerLoad } from "./$types";
  * only serves variables it knows about at build time from that module, so an
  * undeclared name comes back `undefined` and the guard folds to a bare 404.
  */
-export const load: PageServerLoad = () => {
+export const load: PageServerLoad = ({ locals }) => {
 	if (!(dev || process.env.NUVIO_E2E)) {
 		error(404, "Not found");
 	}
-	return {};
+	// A server run with `NUVIO_DOWNLOADS_DIR`, like the desktop app's.
+	return { onDisk: locals.services.get(LOCAL_DOWNLOADS) !== null };
 };

@@ -1,5 +1,6 @@
 import type { AddonClient, Meta, StreamWithSource } from "#lib/addons/index.js";
 import { pooledMap } from "#lib/core/pool.js";
+import { safeRequestHeaders } from "#lib/core/request-headers.js";
 import { httpUrlOrNull } from "#lib/core/url.js";
 import type { ProgressRecord } from "#lib/sync/types.js";
 import type { ProfileData } from "#lib/userdata/types.js";
@@ -299,6 +300,9 @@ export function shapeStream(
 		infoHash: stream.infoHash ?? null,
 		filename: stream.behaviorHints?.filename ?? null,
 		bingeGroup: stream.behaviorHints?.bingeGroup ?? null,
+		requestHeaders: safeRequestHeaders(
+			stream.behaviorHints?.proxyHeaders?.request,
+		),
 	};
 }
 

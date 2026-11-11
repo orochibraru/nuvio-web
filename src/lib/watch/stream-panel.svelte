@@ -535,6 +535,7 @@
               <DownloadButton
                 context={contextQuery.current}
                 url={row.url ?? ""}
+                requestHeaders={row.requestHeaders}
                 label={row.info.title}
                 addonName={row.addonName}
               />

@@ -48,8 +48,8 @@ const HIDDEN_PLAN = ".nuvio-plan.json";
 const LEGACY_RECORD = "record.json";
 
 /** An addon URL through the SSRF guard, like the browser's download proxy. */
-const guardedFetch: SourceFetch = async (url, _plan, signal, range = null) => {
-	const headers: Record<string, string> = {};
+const guardedFetch: SourceFetch = async (url, plan, signal, range = null) => {
+	const headers: Record<string, string> = { ...plan.requestHeaders };
 	if (range) {
 		headers.range = `bytes=${range.start}-${range.end ?? ""}`;
 	}

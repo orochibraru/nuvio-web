@@ -1,5 +1,6 @@
 import { error } from "@sveltejs/kit";
 import * as v from "valibot";
+import { safeRequestHeaders } from "#lib/core/request-headers.js";
 import { httpUrlOrNull } from "#lib/core/url.js";
 import { m } from "#lib/i18n/index.js";
 import { syncOwner } from "#lib/sync/types.js";
@@ -26,6 +27,9 @@ export const newDownloadSchema = v.object({
 	poster: v.nullable(text(2048)),
 	background: v.nullable(text(2048)),
 	sourceUrl: httpUrl,
+	requestHeaders: v.optional(
+		v.pipe(v.unknown(), v.transform(safeRequestHeaders)),
+	),
 	sourceLabel: text(500),
 	addonName: text(200),
 	quality: text(20),

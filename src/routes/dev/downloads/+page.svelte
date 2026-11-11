@@ -4,14 +4,20 @@
 	import { downloads, playbackUrl } from "#lib/downloads/manager.svelte.js";
 	import { page } from "$app/state";
 
+	let { data } = $props();
+
 	// Drives the real button, manager, worker and service worker against the
 	// fixtures in `static/e2e/`, under a throwaway owner : the e2e account has
 	// no stream addon to download from.
 	const src = $derived(page.url.searchParams.get("src") ?? "/e2e/sample.webm");
 	const videoId = $derived(page.url.searchParams.get("id") ?? "tt0000001");
+	// `?headers=<json>` stands in for an addon's `proxyHeaders.request`.
+	const requestHeaders = $derived(
+		JSON.parse(page.url.searchParams.get("headers") ?? "null") ?? undefined,
+	);
 
 	$effect(() => {
-		void downloads.attach("e2e:harness");
+		void downloads.attach("e2e:harness", data.onDisk);
 	});
 </script>
 
@@ -31,6 +37,7 @@
 				background: null,
 			}}
 			url={new URL(src, page.url.origin).href}
+			{requestHeaders}
 			label="Sample"
 			addonName="e2e"
 		/>

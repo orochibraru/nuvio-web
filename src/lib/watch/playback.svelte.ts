@@ -32,6 +32,30 @@ export interface SelectedStream {
 	videoCodec: string | null;
 	/** The addon's release name across episodes; absent on links saved before it. */
 	bingeGroup?: string | null;
+	/** The addon's request headers for the stream; absent on links saved before them. */
+	requestHeaders?: Record<string, string>;
+}
+
+/** `stream`, labelled `label`, as the player takes it for `videoId`. */
+export function selectedStream(
+	videoId: string,
+	stream: ResolvedStream,
+	label: string,
+): SelectedStream {
+	return {
+		videoId,
+		url: stream.url,
+		externalUrl: stream.externalUrl,
+		notWebReady: stream.notWebReady,
+		label,
+		addonName: stream.addonName,
+		infoHash: stream.infoHash,
+		audioRisky: audioRiskyHere(stream),
+		videoRisky: videoSupport(stream) === "risky",
+		videoCodec: riskyVideoCodec(stream),
+		bingeGroup: stream.bingeGroup,
+		requestHeaders: stream.requestHeaders,
+	};
 }
 
 /**
@@ -44,19 +68,7 @@ class PlaybackHandoff {
 
 	/** Returns the key the player URL names the pick by (see `rememberPick`). */
 	select(videoId: string, stream: ResolvedStream, label: string): string {
-		const value: SelectedStream = {
-			videoId,
-			url: stream.url,
-			externalUrl: stream.externalUrl,
-			notWebReady: stream.notWebReady,
-			label,
-			addonName: stream.addonName,
-			infoHash: stream.infoHash,
-			audioRisky: audioRiskyHere(stream),
-			videoRisky: videoSupport(stream) === "risky",
-			videoCodec: riskyVideoCodec(stream),
-			bingeGroup: stream.bingeGroup,
-		};
+		const value = selectedStream(videoId, stream, label);
 		this.#current = value;
 		if (browser) {
 			try {

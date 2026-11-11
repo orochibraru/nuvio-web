@@ -543,6 +543,8 @@
 	"downloads_usage": "{used} von verfügbaren {quota} belegt.",
 	"downloads_folder": "In {folder}, {free} frei.",
 	"downloads_open_folder": "Ordner öffnen",
+	"downloads_change_folder": "Ordner ändern",
+	"downloads_default_folder": "Standardordner verwenden",
 	"downloads_waiting": "Wartet",
 	"error_catalog_not_found": "Katalog nicht gefunden",
 	"error_cloudflare": "Die Nuvio-Server haben den Zugriff für diesen Client über Cloudflare eingeschränkt. Bitte warte ein paar Minuten, bevor du es erneut versuchst.",

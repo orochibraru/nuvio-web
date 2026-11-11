@@ -57,12 +57,19 @@ resume, delete, or play.
 
 The desktop app downloads to a folder on the computer instead of the browser's
 storage: **Nuvio Web** in the system's videos folder (`~/Movies` on macOS,
-`%USERPROFILE%\Videos` on Windows, `XDG_VIDEOS_DIR`, else `~/Videos`, on Linux).
-Its built-in server does the fetching, so:
+`%USERPROFILE%\Videos` on Windows, `XDG_VIDEOS_DIR`, else `~/Videos`, on Linux),
+or the folder picked with **Change folder** on the Downloads page (**Use the
+default folder** goes back). Changing it restarts the app's server on the new
+folder; what is in the old one stays there and shows up again when it is picked
+back. Its built-in server does the fetching, so:
 
 - **any source with a link** can be downloaded, including those only mpv plays
   (see [Desktop](desktop)); a finished one the window can't decode opens in mpv,
   from the file;
+- the headers an addon asks a stream to be fetched with (its `proxyHeaders`) go
+  with every request for it, playlists and segments included, and again on a
+  resume. Only well-formed ones the client may set are kept: no `Host`,
+  `Content-Length`, `Range`, hop-by-hop or proxy headers;
 - there's no browser quota: the Downloads page shows the folder and its free
   space, and **Open folder** shows it in Finder, Explorer or the file manager;
 - the files are ordinary files, named like a media library's: a folder per
