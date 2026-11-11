@@ -28,7 +28,17 @@ the stream URL it used last time instead of resolving it again. Handy for debrid
 addons where re-resolution is slow. Remembered links are reused this way for
 `linkCacheDays` (3 by default, matching most debrid providers).
 
+The drawer's **Refresh** asks the addons again. From the fourth refresh of the
+same video on, it asks them to skip their caches: `Cache-Control: no-cache` and
+`Pragma: no-cache`, and a `nocache` query string that a CDN in front of an addon
+hasn't cached. Addons have no standard for it, so one that caches by its own
+rules still answers from its cache.
+
 ## Playback
+
+The player's controls appear with the first frame. Until then a source may still
+turn out not to play here and go to mpv in the desktop app or to the error
+screen, so the loader shows only a Back button.
 
 `.m3u8` plays through [`hls.js`](https://github.com/video-dev/hls.js); anything
 else goes to the `<video>` element's own `src`. Audio-track switching works on

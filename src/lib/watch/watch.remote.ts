@@ -24,12 +24,17 @@ export const playbackMeta = query(
 /**
  * Fan out to every stream provider for this title. Slow and best-effort : called
  * from the client with `.current` (skeleton) and re-run by a "Refresh" button.
+ * `fresh` asks the addons to skip their caches.
  */
 export const resolveStreams = query(
-	v.object({ type: v.string(), id: v.string() }),
-	async ({ type, id }) => {
+	v.object({
+		type: v.string(),
+		id: v.string(),
+		fresh: v.optional(v.boolean()),
+	}),
+	async ({ type, id, fresh }) => {
 		const { client } = await getAddonClient();
-		const { streams, errors } = await client.getStreams(type, id);
+		const { streams, errors } = await client.getStreams(type, id, fresh);
 		return {
 			streams: streams.map(shapeStream),
 			errors: errors.map((entry) => ({

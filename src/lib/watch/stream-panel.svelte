@@ -1,3 +1,10 @@
+<script lang="ts" module>
+	// A refresh past this many for one video asks the addons to skip their
+	// caches: by then the cached list is what the viewer keeps getting back.
+	const CACHED_REFRESHES = 3;
+	const refreshes = new Map<string, number>();
+</script>
+
 <script lang="ts">
 	import ExternalLinkIcon from "@lucide/svelte/icons/external-link";
 	import FilmIcon from "@lucide/svelte/icons/film";
@@ -203,8 +210,16 @@
 
 	async function refresh() {
 		refreshing = true;
+		const key = `${type}:${videoId}`;
+		const count = (refreshes.get(key) ?? 0) + 1;
+		refreshes.set(key, count);
+		const query = streamsQuery;
 		try {
-			await streamsQuery.refresh();
+			if (count > CACHED_REFRESHES) {
+				query.set(await resolveStreams({ type, id: videoId, fresh: true }));
+			} else {
+				await query.refresh();
+			}
 		} finally {
 			refreshing = false;
 		}

@@ -589,6 +589,25 @@ describe("getStreams", () => {
 	});
 });
 
+describe("getStreams fresh", () => {
+	it("asks past the addon's caches only when told to", async () => {
+		const stub = fetchStub([["/stream/", { streams: [] }]]);
+		await client([installed()], stub).getStreams("movie", "tt1");
+		await client([installed()], stub).getStreams("movie", "tt1", true);
+
+		expect(calls[0].url).toBe("https://one.example/stream/movie/tt1.json");
+		expect(calls[0].init.headers).toEqual({ accept: "application/json" });
+		expect(calls[1].url).toMatch(
+			/^https:\/\/one\.example\/stream\/movie\/tt1\.json\?nocache=\d+$/,
+		);
+		expect(calls[1].init.headers).toEqual({
+			accept: "application/json",
+			"cache-control": "no-cache",
+			pragma: "no-cache",
+		});
+	});
+});
+
 describe("getSubtitles", () => {
 	it("stamps the source and forwards the extra segment", async () => {
 		const { subtitles } = await client(

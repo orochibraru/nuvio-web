@@ -118,6 +118,8 @@ interface ResourceRef {
 	type: string;
 	id: string;
 	extra?: ResourceExtra;
+	/** Past whatever cache the addon or a CDN in front of it keeps. */
+	fresh?: boolean;
 }
 
 function buildResourceUrl(baseUrl: string, ref: ResourceRef): string {
@@ -369,9 +371,10 @@ export class AddonClient {
 	async getStreams(
 		type: string,
 		id: string,
+		fresh = false,
 	): Promise<{ streams: StreamWithSource[]; errors: AddonError[] }> {
 		const { items, errors } = await this.fanOut(
-			{ resource: "stream", type, id },
+			{ resource: "stream", type, id, fresh },
 			(addon, data) =>
 				asArray<Stream>((data as { streams?: unknown } | null)?.streams).map(
 					(stream) => ({
@@ -480,12 +483,20 @@ export class AddonClient {
 		addon: InstalledAddon,
 		ref: ResourceRef,
 	): Promise<unknown> {
-		const url = buildResourceUrl(addon.baseUrl, ref);
+		const url = new URL(buildResourceUrl(addon.baseUrl, ref));
+		const headers: Record<string, string> = { accept: "application/json" };
+		// No addon protocol for it: the no-cache headers reach an addon or proxy
+		// that honours them, the unique query string misses a CDN's cached copy.
+		if (ref.fresh) {
+			url.searchParams.set("nocache", String(Date.now()));
+			headers["cache-control"] = "no-cache";
+			headers.pragma = "no-cache";
+		}
 		const response = await safeFetch(
-			url,
+			url.href,
 			this.fetchImpl,
 			{
-				headers: { accept: "application/json" },
+				headers,
 				signal: AbortSignal.timeout(this.timeoutMs),
 			},
 			{ allowHttp: true },
