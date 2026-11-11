@@ -21,6 +21,7 @@ import { openLogDb, PAGE_LOGGER } from "./log-db.ts";
 import { findMpv, MpvPlayer } from "./mpv.ts";
 import { MpvEngine } from "./mpv-engine.ts";
 import { parseMpvRequest } from "./mpv-request.ts";
+import { INTRO_MS, LEAVE_MS, LEAVE_SCRIPT, splash } from "./splash.ts";
 import {
 	installUpdate,
 	offerDownloadedUpdate,
@@ -95,12 +96,23 @@ function stablePort(): number {
 
 const origin = `http://${HOST}:${stablePort()}`;
 
-function page(message: string): string {
-	const text = message.replace(
-		/[&<>"]/g,
-		(character) => `&#${character.charCodeAt(0)};`,
-	);
-	return `<!doctype html><meta charset="utf-8"><body style="margin:0;height:100vh;display:grid;place-items:center;background:#0a0a0a;color:#a3a3a3;font:14px system-ui">${text}</body>`;
+// Copied into the bundle by electrobun.config.ts; the splash goes without it.
+const logo = (() => {
+	try {
+		const bytes = readFileSync(
+			join(PATHS.RESOURCES_FOLDER, "app", "logo.webp"),
+		);
+		return `data:image/webp;base64,${bytes.toString("base64")}`;
+	} catch {
+		return "";
+	}
+})();
+
+let splashShownAt = Date.now();
+
+function showSplash(message: string, failed = false) {
+	window.webview.loadHTML(splash({ logo, message, failed }));
+	splashShownAt = Date.now();
 }
 
 logs.write("shell", "info", "Starting", {
@@ -168,7 +180,7 @@ const engine = MpvEngine.load({
 
 const window = new BrowserWindow({
 	title: "Nuvio Web",
-	html: page("Starting…"),
+	html: splash({ logo }),
 	frame: { width: 1280, height: 800 },
 	preload: [
 		PAGE_LOGGER,
@@ -424,9 +436,7 @@ function startServer() {
 		const failed = !quitting && child === server;
 		logs.write("shell", failed ? "error" : "info", "Server exited", { code });
 		if (failed) {
-			window.webview.loadHTML(
-				page(`The server stopped (exit ${code}). Logs: ${logs.path}`),
-			);
+			showSplash(`The server stopped (exit ${code}). Logs: ${logs.path}`, true);
 		}
 	});
 	return child;
@@ -471,7 +481,7 @@ async function changeDownloadsFolder(choice: "choose" | "default") {
 	downloadsDir = folder;
 	mpv?.stop();
 	engine?.close();
-	window.webview.loadHTML(page("Restarting…"));
+	showSplash("Restarting…");
 	const previous = server;
 	server = null;
 	previous?.kill("SIGTERM");
@@ -497,14 +507,15 @@ async function openWhenUp(): Promise<boolean> {
 	}
 	if (await healthy()) {
 		logs.write("shell", "info", "Server up");
+		await Bun.sleep(Math.max(0, splashShownAt + INTRO_MS - Date.now()));
+		window.webview.executeJavascript(LEAVE_SCRIPT);
+		await Bun.sleep(LEAVE_MS);
 		window.webview.loadURL(`${origin}/`);
 		return true;
 	}
 	if (!quitting) {
 		logs.write("shell", "error", "Server didn't start in time");
-		window.webview.loadHTML(
-			page(`The server didn't start. Logs: ${logs.path}`),
-		);
+		showSplash(`The server didn't start. Logs: ${logs.path}`, true);
 	}
 	return false;
 }

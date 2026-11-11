@@ -73,6 +73,11 @@ async function settled(downloads: LocalDownloads): Promise<DownloadRecord> {
 			if (!(record && ["done", "error", "paused"].includes(record.status))) {
 				throw new Error(`still ${record?.status ?? "missing"}`);
 			}
+			const saved = await readFile(
+				join(folder, record.folder ?? record.id, ".nuvio.json"),
+				"utf8",
+			);
+			expect(JSON.parse(saved)).toEqual(record);
 		},
 		{ timeout: 3000, interval: 10 },
 	);

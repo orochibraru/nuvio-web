@@ -21,6 +21,8 @@ export default {
 		// The SvelteKit server, compiled by `scripts/pre-build.ts`.
 		copy: {
 			[server]: server,
+			// The splash's logo (src/bun/splash.ts).
+			"../static/logo.webp": "logo.webp",
 			// Fetched by the pre-build on macOS and Windows; Linux uses the system's.
 			...(process.platform === "linux" ? {} : { mpv: "mpv" }),
 			// mpv in the app's own window (scripts/build-mpv-macos.ts).
@@ -54,6 +56,7 @@ export default {
 	},
 	scripts: {
 		preBuild: "./scripts/pre-build.ts",
+		postBuild: "./scripts/post-build.ts",
 		postPackage: "./scripts/post-package.ts",
 	},
 	// The updater reads the latest stable release, which the Desktop workflow

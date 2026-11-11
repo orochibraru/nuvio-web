@@ -93,8 +93,12 @@ sqlite3 "$TMPDIR/nuvio-web-desktop-$(id -u)/logs.sqlite" \
 Sessions, the library, watch progress and history live in the app's own SQLite
 database, in the user's app-data folder, and sync with Nuvio in the background
 as on any instance ([Sync](sync)). The server keeps the same loopback port from
-one launch to the next, so the window stays signed in. When the server fails to
-start, the window shows where the logs are.
+one launch to the next, so the window stays signed in. While the server starts,
+the window plays a splash: the logo pops in over the brand's aurora and the name
+rises under it. It stays up at least 0.9 s so the intro isn't cut off, then
+zooms out into the app. It follows the system's light or dark mode, and with
+reduced motion turned on it doesn't animate. When the server fails to start, the
+same screen shows where the logs are.
 
 Only the app's own pages open in the window. Any other link (a provider, an
 addon's page, `vlc://`) opens in the system's default browser or app.
@@ -113,7 +117,10 @@ mise run install          # macOS: build a stable release and put it in /Applica
 
 `mise run install` quits the app if it's running, replaces the copy in
 `/Applications`, and strips the quarantine flag from it, so Gatekeeper opens the
-unsigned build without asking.
+unsigned build without asking. It installs the app uncompressed: the post-build
+hook stops the build before Hutch packs it into the self-extracting wrapper a
+release ships, which the first launch would only unpack again. The build then
+reads as failed (`HookFailed`) on purpose.
 
 A build targets the machine it runs on, so the **Desktop** workflow builds each
 target on its own runner (macOS Apple Silicon and Intel, Linux x64 and ARM64,

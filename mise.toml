@@ -8,10 +8,14 @@ if [ "$(uname -s)" != "Darwin" ]; then
   exit 1
 fi
 bun install --frozen-lockfile
-bun run build:desktop
-app="$(find desktop/build -maxdepth 2 -path '*/stable-macos-*/*.app' -print -quit)"
+unpacked="$PWD/desktop/build/unpacked"
+rm -rf "$unpacked"
+# desktop/scripts/post-build.ts moves the app there and fails the build on
+# purpose, before Hutch compresses it.
+NUVIO_UNPACKED_DIR="$unpacked" bun run build:desktop || true
+app="$(find "$unpacked" -maxdepth 1 -name '*.app' -print -quit 2>/dev/null || true)"
 if [ -z "$app" ]; then
-  echo "No app in desktop/build: the build didn't produce one." >&2
+  echo "No app in $unpacked: the build failed before post-build.ts." >&2
   exit 1
 fi
 name="$(basename "$app")"
@@ -20,8 +24,9 @@ rm -rf "/Applications/$name"
 ditto "$app" "/Applications/$name"
 # ditto carries extended attributes over: a quarantine flag picked up anywhere
 # in the build (a downloaded mpv, a copied file) would make Gatekeeper refuse
-# the unsigned app.
-xattr -r -d com.apple.quarantine "/Applications/$name"
+# the unsigned app. A read-only file (mpv's libMoltenVK) makes xattr fail even
+# with no flag on it: the check below is what decides.
+xattr -r -d com.apple.quarantine "/Applications/$name" 2>/dev/null || true
 if xattr -lr "/Applications/$name" | grep -q com.apple.quarantine; then
   echo "/Applications/$name is still quarantined." >&2
   exit 1
