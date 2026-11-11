@@ -1,25 +1,36 @@
 <script lang="ts">
 	import ArrowLeftIcon from "@lucide/svelte/icons/arrow-left";
 	import LayersIcon from "@lucide/svelte/icons/layers";
-	import MaximizeIcon from "@lucide/svelte/icons/maximize";
-	import MinimizeIcon from "@lucide/svelte/icons/minimize";
-	import PauseIcon from "@lucide/svelte/icons/pause";
-	import PlayIcon from "@lucide/svelte/icons/play";
 	import RotateCcwIcon from "@lucide/svelte/icons/rotate-ccw";
-	import RotateCwIcon from "@lucide/svelte/icons/rotate-cw";
-	import Volume2Icon from "@lucide/svelte/icons/volume-2";
-	import VolumeXIcon from "@lucide/svelte/icons/volume-x";
 	import { onMount } from "svelte";
-	import { m } from "#lib/i18n/index.js";
+	import { Button } from "#lib/components/ui/button/index.js";
+	import { getLocale, m } from "#lib/i18n/index.js";
+	import { segmentChapters } from "#lib/player/chapters.js";
 	import {
 		type DesktopEngine,
 		ENGINE_EVENT,
 		type EngineState,
+		type EngineTrack,
 	} from "#lib/player/desktop-mpv.js";
+	import {
+		activeEngineCaption,
+		engineAudioTracks,
+		engineCaptionCommand,
+		engineSubtitleOptions,
+		preferredEngineAudio,
+		preferredEngineCaption,
+	} from "#lib/player/engine-tracks.js";
 	import { formatTime } from "#lib/player/format.js";
+	import { createPlaybackMilestones } from "#lib/player/state/milestones.svelte.js";
+	import type { PlayerMenu } from "#lib/player/state/panel-toggles.svelte.js";
 	import type { PlayerTransportState } from "#lib/player/state/transport-state.svelte.js";
+	import type { SubtitleAppearance, SubtitleTrack } from "#lib/player/types.js";
+	import { theme } from "#lib/settings/theme.svelte.js";
+	import type { SubtitleSize } from "#lib/settings/ui-settings.js";
+	import ControlRow from "./control-row.svelte";
 	import LoadingMark from "./loading-mark.svelte";
 	import ScrubBar from "./scrub-bar.svelte";
+	import SubtitlePanel from "./subtitle-panel.svelte";
 
 	// The player's controls over mpv drawing in this window: the page is
 	// transparent here, so the video shows through from underneath.
@@ -29,17 +40,49 @@
 		subheading,
 		onBack,
 		onSources,
+		subtitles = [],
+		preferredLanguage = "",
+		audioLanguages = [],
+		subtitleSize = "medium",
+		subtitleColor = "#ffffff",
+		subtitleBackground = true,
+		subtitleOutline = false,
+		onSubtitleAppearance,
+		introStart = null,
+		introEnd = null,
+		outroStart = null,
+		onOutro,
+		onNext,
+		onEpisodes,
 	}: {
 		engine: DesktopEngine;
 		title: string;
 		subheading?: string | null;
 		onBack: () => void;
 		onSources: () => void;
+		/** The addon's subtitles: mpv fetches one when it's picked. */
+		subtitles?: SubtitleTrack[];
+		preferredLanguage?: string;
+		/** Audio languages wanted, best first. */
+		audioLanguages?: string[];
+		subtitleSize?: SubtitleSize;
+		subtitleColor?: string;
+		subtitleBackground?: boolean;
+		subtitleOutline?: boolean;
+		onSubtitleAppearance?: (patch: SubtitleAppearance) => void;
+		introStart?: number | null;
+		introEnd?: number | null;
+		outroStart?: number | null;
+		onOutro?: () => void;
+		onNext?: () => void;
+		onEpisodes?: () => void;
 	} = $props();
 
 	const SEEK_STEP = 10;
+	const VOLUME_STEP = 0.05;
 	const HIDE_AFTER_MS = 3000;
 
+	// Volume, mute and speed are the page's: mpv's echo would fight a drag.
 	const transport = $state<PlayerTransportState>({
 		paused: false,
 		currentTime: 0,
@@ -53,13 +96,41 @@
 		ended: false,
 		controlsVisible: true,
 	});
+	let tracks = $state<EngineTrack[]>([]);
+	let boost = $state(1);
+	let subtitleOffset = $state(0);
+	let openMenu = $state<PlayerMenu | null>(null);
+	let subtitlesOpen = $state(false);
+	let pendingCaption = $state<string | null>(null);
+	let audioChosen = false;
+	let captionChosen = false;
 	let idleTimer: ReturnType<typeof setTimeout> | undefined;
+
+	const trackName = (number: number) =>
+		m.player_audio_track_fallback({ number });
+	const captionOptions = $derived(
+		engineSubtitleOptions(tracks, subtitles, getLocale(), (number) =>
+			m.player_subtitle_track({ number }),
+		),
+	);
+	const activeCaption = $derived(activeEngineCaption(tracks));
+	const audioTracks = $derived(engineAudioTracks(tracks, trackName));
+	const chapters = $derived(
+		segmentChapters(
+			{ introStart, introEnd, outroStart },
+			{ intro: m.player_chapter_intro(), credits: m.player_chapter_credits() },
+		),
+	);
+
+	function command(next: Parameters<DesktopEngine["command"]>[0]) {
+		engine.command(next);
+	}
 
 	function showControls() {
 		transport.controlsVisible = true;
 		clearTimeout(idleTimer);
 		idleTimer = setTimeout(() => {
-			if (!transport.paused) {
+			if (!(transport.paused || openMenu || subtitlesOpen)) {
 				transport.controlsVisible = false;
 			}
 		}, HIDE_AFTER_MS);
@@ -67,7 +138,7 @@
 
 	function togglePause() {
 		transport.paused = !transport.paused;
-		engine.command({ op: "pause", value: transport.paused });
+		command({ op: "pause", value: transport.paused });
 		showControls();
 	}
 
@@ -77,13 +148,8 @@
 			Math.min(position, transport.duration || position),
 		);
 		transport.currentTime = target;
-		engine.command({ op: "seek", position: target });
+		command({ op: "seek", position: target });
 		showControls();
-	}
-
-	function toggleMute() {
-		transport.muted = !transport.muted;
-		engine.command({ op: "mute", value: transport.muted });
 	}
 
 	async function toggleFullscreen() {
@@ -94,6 +160,87 @@
 		}
 	}
 
+	function setVolume(volume: number) {
+		transport.volume = Math.min(1, Math.max(0, volume));
+		transport.muted = false;
+		showControls();
+	}
+
+	function selectCaption(key: string | null) {
+		captionChosen = true;
+		const next = engineCaptionCommand(key, captionOptions);
+		if (next) {
+			pendingCaption = next.op === "subtitle-add" ? key : null;
+			command(next);
+		}
+	}
+
+	const milestones = createPlaybackMilestones({
+		transport,
+		skipTo: (time) => {
+			seek(time);
+			if (transport.paused) {
+				togglePause();
+			}
+		},
+		minimized: () => false,
+		fatalError: () => false,
+		introStart: () => introStart,
+		introEnd: () => introEnd,
+		outroStart: () => outroStart,
+		autoSkip: () => theme.current.autoSkipSegments,
+		onOutro: () => onOutro?.(),
+	});
+
+	$effect(() => {
+		command({ op: "volume", value: transport.volume * boost });
+	});
+	$effect(() => {
+		command({ op: "mute", value: transport.muted });
+	});
+	$effect(() => {
+		command({ op: "speed", value: transport.rate });
+	});
+	$effect(() => {
+		command({ op: "subtitle-delay", value: subtitleOffset });
+	});
+	$effect(() => {
+		command({
+			op: "subtitle-style",
+			size: subtitleSize,
+			color: subtitleColor,
+			background: subtitleBackground,
+			outline: subtitleOutline,
+		});
+	});
+	$effect(() => {
+		if (pendingCaption !== null && pendingCaption === activeCaption) {
+			pendingCaption = null;
+		}
+	});
+
+	// The viewer's languages, once the file's tracks are known: the audio
+	// once, the subtitle as soon as a track in that language turns up (an
+	// addon's list can land after the file opens), unless they picked one.
+	$effect(() => {
+		if (!audioChosen && audioTracks.length > 0) {
+			audioChosen = true;
+			const id = preferredEngineAudio(tracks, audioLanguages);
+			if (id !== null) {
+				command({ op: "audio", id });
+			}
+		}
+	});
+	$effect(() => {
+		if (captionChosen || tracks.length === 0) {
+			return;
+		}
+		const key = preferredEngineCaption(captionOptions, preferredLanguage);
+		if (key) {
+			selectCaption(key);
+		}
+	});
+
 	function onKey(event: KeyboardEvent) {
 		if (event.defaultPrevented || event.metaKey || event.ctrlKey) {
 			return;
@@ -103,7 +250,11 @@
 			k: togglePause,
 			ArrowLeft: () => seek(transport.currentTime - SEEK_STEP),
 			ArrowRight: () => seek(transport.currentTime + SEEK_STEP),
-			m: toggleMute,
+			ArrowUp: () => setVolume(transport.volume + VOLUME_STEP),
+			ArrowDown: () => setVolume(transport.volume - VOLUME_STEP),
+			m: () => {
+				transport.muted = !transport.muted;
+			},
 			f: () => void toggleFullscreen(),
 		};
 		const action = actions[event.key];
@@ -121,8 +272,7 @@
 			transport.paused = state.paused;
 			transport.loading = state.buffering || state.duration === 0;
 			transport.ended = state.ended;
-			transport.muted = state.muted;
-			transport.volume = state.volume;
+			tracks = state.tracks ?? [];
 		};
 		const onFullscreen = () => {
 			transport.fullscreen = Boolean(document.fullscreenElement);
@@ -141,6 +291,33 @@
 </script>
 
 <svelte:window onkeydown={onKey} />
+
+{#snippet subtitleMenu()}
+  <SubtitlePanel
+    open={subtitlesOpen}
+    options={captionOptions}
+    {activeCaption}
+    {pendingCaption}
+    failed={{}}
+    {preferredLanguage}
+    {subtitleSize}
+    {subtitleColor}
+    {subtitleBackground}
+    {subtitleOutline}
+    {subtitleOffset}
+    onOpenChange={(open) => {
+      subtitlesOpen = open;
+      if (open) {
+        openMenu = null;
+      }
+    }}
+    onSelect={selectCaption}
+    onAppearance={(patch) => onSubtitleAppearance?.(patch)}
+    onNudgeOffset={(delta) => {
+      subtitleOffset = Math.round((subtitleOffset + delta) * 10) / 10;
+    }}
+  />
+{/snippet}
 
 <div
   class="absolute inset-0 z-10 flex flex-col justify-between {transport.controlsVisible
@@ -184,6 +361,16 @@
     </div>
   {/if}
 
+  {#if milestones.showSkipIntro}
+    <div
+      class="pointer-events-none absolute inset-x-0 bottom-32 z-20 flex justify-end px-4 sm:bottom-40 sm:px-6"
+    >
+      <Button onclick={milestones.skipIntro} class="pointer-events-auto shadow-lg">
+        {m.player_skip_intro()}
+      </Button>
+    </div>
+  {/if}
+
   <div
     class="flex flex-col gap-2 bg-linear-to-t from-black/80 to-transparent px-4 pt-10 pb-4 transition-opacity duration-300 {transport.controlsVisible
       ? 'opacity-100'
@@ -195,22 +382,10 @@
       progressRatio={transport.duration > 0
         ? transport.currentTime / transport.duration
         : 0}
-      chapters={[]}
+      {chapters}
       onScrub={seek}
     />
     <div class="flex items-center gap-2">
-      <button
-        type="button"
-        class="grid size-10 place-items-center rounded-full transition hover:bg-white/15"
-        aria-label={transport.paused ? m.player_play_hint() : m.player_pause_hint()}
-        onclick={togglePause}
-      >
-        {#if transport.paused}
-          <PlayIcon class="size-6 fill-current" />
-        {:else}
-          <PauseIcon class="size-6 fill-current" />
-        {/if}
-      </button>
       <button
         type="button"
         class="grid size-10 place-items-center rounded-full transition hover:bg-white/15"
@@ -219,44 +394,44 @@
       >
         <RotateCcwIcon class="size-5" />
       </button>
-      <button
-        type="button"
-        class="grid size-10 place-items-center rounded-full transition hover:bg-white/15"
-        aria-label={`+${SEEK_STEP}s`}
-        onclick={() => seek(transport.currentTime + SEEK_STEP)}
-      >
-        <RotateCwIcon class="size-5" />
-      </button>
-      <button
-        type="button"
-        class="grid size-10 place-items-center rounded-full transition hover:bg-white/15"
-        aria-label={transport.muted ? m.player_unmute_hint() : m.player_mute_hint()}
-        onclick={toggleMute}
-      >
-        {#if transport.muted}
-          <VolumeXIcon class="size-5" />
-        {:else}
-          <Volume2Icon class="size-5" />
-        {/if}
-      </button>
       <span class="text-sm tabular-nums text-white/80">
         {formatTime(transport.currentTime)} / {formatTime(transport.duration)}
       </span>
-      <span class="flex-1"></span>
-      <button
-        type="button"
-        class="grid size-10 place-items-center rounded-full transition hover:bg-white/15"
-        aria-label={transport.fullscreen
-          ? m.player_exit_fullscreen_hint()
-          : m.player_fullscreen_hint()}
-        onclick={() => void toggleFullscreen()}
-      >
-        {#if transport.fullscreen}
-          <MinimizeIcon class="size-5" />
-        {:else}
-          <MaximizeIcon class="size-5" />
-        {/if}
-      </button>
+      <div class="min-w-0 flex-1">
+        <ControlRow
+          {transport}
+          player={{
+            togglePlay: togglePause,
+            toggleFullscreen,
+            togglePip: () => Promise.resolve(),
+          }}
+          media={{
+            audioTracks,
+            activeAudioTrack:
+              audioTracks.find((track) => track.selected)?.id ?? -1,
+            selectAudioTrack: (id) => command({ op: "audio", id }),
+          }}
+          {onNext}
+          {onEpisodes}
+          {subtitleMenu}
+          castAvailable={false}
+          casting={false}
+          onCast={() => undefined}
+          {openMenu}
+          onMenuOpenChange={(menu, open) => {
+            openMenu = open ? menu : null;
+            if (open) {
+              subtitlesOpen = false;
+            }
+          }}
+          {boost}
+          boostPending={false}
+          onBoostSelect={(level) => {
+            boost = level;
+          }}
+          pip={false}
+        />
+      </div>
     </div>
   </div>
 </div>

@@ -142,7 +142,12 @@
 
 	const milestones = createPlaybackMilestones({
 		transport,
-		video: () => video,
+		skipTo: (time) => {
+			if (video) {
+				video.currentTime = time;
+				void video.play();
+			}
+		},
 		minimized: () => minimized,
 		fatalError: () => Boolean(fatalError),
 		introStart: () => introStart,

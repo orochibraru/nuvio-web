@@ -1,19 +1,14 @@
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { createConnection, type Socket } from "node:net";
 import { tmpdir } from "node:os";
-import { basename, join } from "node:path";
+import { join } from "node:path";
 import process from "node:process";
 import type { Subprocess } from "bun";
 import { PATHS } from "electrobun/main";
+import { type MpvRequest, mpvArguments } from "./mpv-request.ts";
 
 // mpv for what the web view can't decode: hardware-decoded, in its own window,
 // its position read back over its JSON IPC and reported to the page.
-
-export interface MpvRequest {
-	url: string;
-	title: string;
-	start: number;
-}
 
 export interface MpvEvent {
 	type: "progress" | "closed";
@@ -56,84 +51,6 @@ export function findMpv(): string | null {
 	);
 }
 
-/** `nuvio-download:<id>`: a download in the app's folder, by id. */
-const DOWNLOAD = /^nuvio-download:([0-9a-f-]{36})$/;
-
-/**
- * The video of download `id`: the folder whose hidden record (written by the
- * server, see `local-downloads.ts`) has that id, and the file it names, which
- * must be a plain name inside that folder.
- */
-function downloadedVideo(downloads: string, id: string): string | null {
-	let folders: string[];
-	try {
-		folders = readdirSync(downloads);
-	} catch {
-		return null;
-	}
-	for (const folder of folders) {
-		try {
-			const record = JSON.parse(
-				readFileSync(join(downloads, folder, ".nuvio.json"), "utf8"),
-			) as { id?: unknown; entry?: unknown; status?: unknown };
-			const entry = record.entry;
-			if (
-				record.id === id &&
-				record.status === "done" &&
-				typeof entry === "string" &&
-				entry === basename(entry) &&
-				!entry.startsWith(".")
-			) {
-				return join(downloads, folder, entry);
-			}
-		} catch {
-			// Not a download's folder.
-		}
-	}
-	return null;
-}
-
-/**
- * What the page asked for, if it is sane: an http(s) URL, or a finished
- * download named by its id (resolved here, so the page never names a path on
- * this computer), a short title, a start in range.
- */
-export function parseMpvRequest(
-	value: unknown,
-	downloads: string,
-): MpvRequest | null {
-	const request = value as Partial<MpvRequest> | null;
-	if (!(request && typeof request.url === "string")) {
-		return null;
-	}
-	const download = DOWNLOAD.exec(request.url);
-	let target: string;
-	if (download) {
-		const video = downloadedVideo(downloads, download[1]);
-		if (!video) {
-			return null;
-		}
-		target = video;
-	} else {
-		let url: URL;
-		try {
-			url = new URL(request.url);
-		} catch {
-			return null;
-		}
-		if (url.protocol !== "http:" && url.protocol !== "https:") {
-			return null;
-		}
-		target = url.href;
-	}
-	const start = Number(request.start);
-	return {
-		url: target,
-		title: String(request.title ?? "").slice(0, 300),
-		start: Number.isFinite(start) && start > 0 ? start : 0,
-	};
-}
-
 type Log = (level: string, message: string, data?: unknown) => void;
 
 export class MpvPlayer {
@@ -155,29 +72,17 @@ export class MpvPlayer {
 			process.platform === "win32"
 				? `\\\\.\\pipe\\nuvio-mpv-${process.pid}-${Date.now()}`
 				: join(tmpdir(), `nuvio-mpv-${process.pid}-${Date.now()}.sock`);
-		const child = Bun.spawn(
-			[
-				this.#binary,
-				"--hwdec=auto-safe",
-				"--force-window=immediate",
-				"--keep-open=no",
-				"--idle=no",
-				"--ytdl=no",
-				"--save-position-on-quit=no",
-				"--msg-level=all=warn",
-				`--start=${request.start}`,
-				`--force-media-title=${request.title}`,
-				`--input-ipc-server=${ipc}`,
-				"--",
-				request.url,
-			],
-			{ stdout: "ignore", stderr: "pipe" },
-		);
+		const child = Bun.spawn(mpvArguments(this.#binary, request, ipc), {
+			stdout: "ignore",
+			stderr: "pipe",
+		});
 		this.#child = child;
 		this.#log("info", "mpv started", {
 			binary: this.#binary,
 			url: request.url,
 			start: request.start,
+			headers: request.headerFields.length,
+			subtitles: request.subtitles.length,
 		});
 		void this.#readErrors(child);
 

@@ -192,6 +192,23 @@ double nuvio_mpv_get_double(void *pointer, const char *name) {
   return value;
 }
 
+// A property as text (a node property, like track-list, as JSON) copied into
+// `out`: its full length, so a caller whose buffer was too small can retry, or
+// -1 when it has no value.
+int nuvio_mpv_get_string(void *pointer, const char *name, char *out, int size) {
+  NuvioMpvPlayer *player = (__bridge NuvioMpvPlayer *)pointer;
+  char *value = mpv_get_property_string(player.mpv, name);
+  if (!value) {
+    return -1;
+  }
+  int length = (int)strlen(value);
+  if (size > 0) {
+    snprintf(out, (size_t)size, "%s", value);
+  }
+  mpv_free(value);
+  return length;
+}
+
 // A flag property: 1, 0, or -1 while it has no value.
 int nuvio_mpv_get_flag(void *pointer, const char *name) {
   NuvioMpvPlayer *player = (__bridge NuvioMpvPlayer *)pointer;

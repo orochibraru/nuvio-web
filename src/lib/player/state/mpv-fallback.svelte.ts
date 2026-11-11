@@ -4,6 +4,7 @@ import {
 	desktopMpv,
 	MPV_EVENT,
 	type MpvEvent,
+	type MpvRequest,
 	mpvCanOpen,
 } from "#lib/player/desktop-mpv.js";
 
@@ -11,7 +12,8 @@ type Status = "playing" | "closed" | "failed";
 
 interface MpvFallbackDeps {
 	url: () => string | null;
-	title: () => string;
+	/** What mpv is told about the source besides where it is. */
+	request: () => Pick<MpvRequest, "title" | "headers" | "subtitles">;
 	/** The source is known not to play in the web view: hand it over at once. */
 	blocked: () => boolean;
 	/** `start` is the resume position, not a guess that would overwrite it. */
@@ -46,7 +48,7 @@ export function createMpvFallback(deps: MpvFallbackDeps) {
 		if (!((engine || desktop) && mpvCanOpen(url))) {
 			return;
 		}
-		const request = { url, title: deps.title(), start: position };
+		const request = { ...deps.request(), url, start: position };
 		session = { url, status: "playing", position, embedded: Boolean(engine) };
 		if (engine) {
 			engine.open(request);

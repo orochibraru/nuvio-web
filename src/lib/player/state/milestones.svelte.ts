@@ -7,7 +7,8 @@ import type { PlayerTransportState } from "./transport-state.svelte.ts";
  */
 export function createPlaybackMilestones(deps: {
 	transport: PlayerTransportState;
-	video: () => HTMLVideoElement | null;
+	/** Seeks to `time` and plays : the `<video>`, or mpv. */
+	skipTo: (time: number) => void;
 	minimized: () => boolean;
 	fatalError: () => boolean;
 	introStart: () => number | null;
@@ -28,11 +29,9 @@ export function createPlaybackMilestones(deps: {
 	);
 
 	function skipIntro() {
-		const video = deps.video();
 		const introEnd = deps.introEnd();
-		if (video && introEnd != null) {
-			video.currentTime = introEnd;
-			void video.play();
+		if (introEnd != null) {
+			deps.skipTo(introEnd);
 		}
 	}
 

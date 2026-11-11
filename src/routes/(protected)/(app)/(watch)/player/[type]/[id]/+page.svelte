@@ -22,6 +22,7 @@
 	import MpvScreen from "#lib/player/components/mpv-screen.svelte";
 	import PlaybackLoading from "#lib/player/components/playback-loading.svelte";
 	import VideoPlayer from "#lib/player/components/video-player.svelte";
+	import { mpvSubtitles } from "#lib/player/desktop-mpv.js";
 	import {
 		externalPlayerHandoff,
 		prefersExternal,
@@ -603,7 +604,14 @@
 
 	const mpv = createMpvFallback({
 		url: () => (offlineSrc ? mpvDownloadUrl(download) : (active?.url ?? null)),
-		title: () => [context.heading, subheading].filter(Boolean).join(" · "),
+		request: () => ({
+			title: [context.heading, subheading].filter(Boolean).join(" · "),
+			headers: offlineSrc ? undefined : active?.requestHeaders,
+			subtitles: mpvSubtitles(
+				subtitles.current,
+				theme.current.subtitleLanguage,
+			),
+		}),
 		blocked: () =>
 			Boolean(
 				active && (active.notWebReady || codecBlocked) && !preferExternal,
@@ -708,6 +716,20 @@
       {subheading}
       onBack={goBack}
       onSources={openSources}
+      subtitles={subtitles.current}
+      preferredLanguage={theme.current.subtitleLanguage}
+      {audioLanguages}
+      subtitleSize={theme.current.subtitleSize}
+      subtitleColor={theme.current.subtitleColor}
+      subtitleBackground={theme.current.subtitleBackground}
+      subtitleOutline={theme.current.subtitleOutline}
+      onSubtitleAppearance={saveSubtitleAppearance}
+      introStart={segments?.intro?.start ?? null}
+      introEnd={segments?.intro?.end ?? null}
+      outroStart={segments?.credits?.start ?? null}
+      onOutro={() => reachedEnd(false)}
+      onEpisodes={hasEpisodes ? () => (episodesOpen = true) : undefined}
+      onNext={nextVideoId ? goToNext : undefined}
     />
   {:else if playableSrc}
     {#if endOfShow}

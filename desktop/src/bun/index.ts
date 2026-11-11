@@ -15,9 +15,11 @@ import Electrobun, {
 	Utils,
 } from "electrobun/main";
 import root from "../../../package.json" with { type: "json" };
+import { parseEngineCommand } from "./engine-command.ts";
 import { openLogDb, PAGE_LOGGER } from "./log-db.ts";
-import { findMpv, MpvPlayer, parseMpvRequest } from "./mpv.ts";
-import { MpvEngine, parseEngineCommand } from "./mpv-engine.ts";
+import { findMpv, MpvPlayer } from "./mpv.ts";
+import { MpvEngine } from "./mpv-engine.ts";
+import { parseMpvRequest } from "./mpv-request.ts";
 import {
 	downloadUpdateInBackground,
 	offerDownloadedUpdate,

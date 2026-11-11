@@ -1,6 +1,7 @@
 <script lang="ts">
 	import ArrowLeftIcon from "@lucide/svelte/icons/arrow-left";
 	import PlayIcon from "@lucide/svelte/icons/play";
+	import type { ComponentProps } from "svelte";
 	import { Button } from "#lib/components/ui/button/index.js";
 	import { m } from "#lib/i18n/index.js";
 	import type { createMpvFallback } from "#lib/player/state/mpv-fallback.svelte.js";
@@ -14,12 +15,9 @@
 		subheading,
 		onBack,
 		onSources,
-	}: {
+		...playback
+	}: Omit<ComponentProps<typeof MpvEnginePlayer>, "engine"> & {
 		mpv: ReturnType<typeof createMpvFallback>;
-		title: string;
-		subheading?: string | null;
-		onBack: () => void;
-		onSources: () => void;
 	} = $props();
 </script>
 
@@ -30,6 +28,7 @@
     {subheading}
     {onBack}
     {onSources}
+    {...playback}
   />
 {:else if mpv.shown}
   {@const session = mpv.shown}

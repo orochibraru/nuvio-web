@@ -3,29 +3,17 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { PATHS } from "electrobun/main";
-import type { MpvEvent, MpvRequest } from "./mpv.ts";
+import {
+	type EngineCommand,
+	type EngineState,
+	type EngineTrack,
+	parseTracks,
+} from "./engine-command.ts";
+import type { MpvEvent } from "./mpv.ts";
+import type { MpvRequest } from "./mpv-request.ts";
 
 // libmpv drawing in the app's own window, under the page (native/macos): the
 // web player's controls drive it, and its state goes back to the page.
-
-/** What the page sees four times a second, as `nuvio:engine` on `window`. */
-export interface EngineState {
-	position: number;
-	duration: number;
-	paused: boolean;
-	buffering: boolean;
-	ended: boolean;
-	volume: number;
-	muted: boolean;
-}
-
-/** What the page may ask of the engine. Anything else is refused. */
-export type EngineCommand =
-	| { op: "pause"; value: boolean }
-	| { op: "seek"; position: number }
-	| { op: "volume"; value: number }
-	| { op: "mute"; value: boolean }
-	| { op: "speed"; value: number };
 
 interface EngineOptions {
 	/** The native window to draw in, once it exists. */
@@ -35,33 +23,9 @@ interface EngineOptions {
 	log: (level: string, message: string, data?: unknown) => void;
 }
 
-/** A command from the page, if every field is there with the right type. */
-export function parseEngineCommand(value: unknown): EngineCommand | null {
-	if (typeof value !== "object" || value === null) {
-		return null;
-	}
-	const command = value as Record<string, unknown>;
-	const finite = (field: unknown): field is number =>
-		typeof field === "number" && Number.isFinite(field);
-	switch (command.op) {
-		case "pause":
-		case "mute":
-			return typeof command.value === "boolean"
-				? { op: command.op, value: command.value }
-				: null;
-		case "volume":
-		case "speed":
-			return finite(command.value)
-				? { op: command.op, value: command.value }
-				: null;
-		case "seek":
-			return finite(command.position)
-				? { op: "seek", position: command.position }
-				: null;
-		default:
-			return null;
-	}
-}
+const SUBTITLE_SCALE = { small: 0.8, medium: 1, large: 1.3 } as const;
+const MAX_VOLUME = 300;
+const TRACK_LIST_BYTES = 256 * 1024;
 
 const POLL_MS = 250;
 const REPORT_EVERY_MS = 5000;
@@ -98,6 +62,10 @@ function library() {
 			args: [FFIType.ptr, FFIType.ptr],
 			returns: FFIType.i32,
 		},
+		nuvio_mpv_get_string: {
+			args: [FFIType.ptr, FFIType.ptr, FFIType.ptr, FFIType.i32],
+			returns: FFIType.i32,
+		},
 		nuvio_mpv_set_visible: {
 			args: [FFIType.ptr, FFIType.i32],
 			returns: FFIType.void,
@@ -117,6 +85,9 @@ export class MpvEngine {
 	readonly #log: (level: string, message: string, data?: unknown) => void;
 	#player: Pointer | null = null;
 	#timer: ReturnType<typeof setInterval> | null = null;
+	readonly #trackBuffer = Buffer.alloc(TRACK_LIST_BYTES);
+	#trackJson = "";
+	#tracks: EngineTrack[] = [];
 
 	/** The engine, or null where its library isn't bundled (not macOS). */
 	static load(options: EngineOptions): MpvEngine | null {
@@ -161,20 +132,43 @@ export class MpvEngine {
 				return;
 			}
 		}
-		this.#native.nuvio_mpv_set_visible(this.#player, 1);
-		this.#native.nuvio_mpv_set(this.#player, text("pause"), text("no"));
+		const player = this.#player;
+		this.#native.nuvio_mpv_set_visible(player, 1);
+		this.#native.nuvio_mpv_set(player, text("pause"), text("no"));
+		this.#native.nuvio_mpv_set(
+			player,
+			text("volume-max"),
+			text(String(MAX_VOLUME)),
+		);
+		this.#trackJson = "";
+		this.#tracks = [];
+		// One item per `append`, never split on commas; read at the next load.
+		const list = (name: string, operation: string, value = "") =>
+			this.#native.nuvio_mpv_command(
+				player,
+				text(["change-list", name, operation, value].join("\n")),
+			);
+		list("http-header-fields", "clr");
+		list("sub-files", "clr");
+		for (const field of request.headerFields) {
+			list("http-header-fields", "append", field);
+		}
+		// Addon subtitles aren't preloaded: the page's picker adds the one
+		// asked for (`subtitle-add`), so none delays the start.
 		const result = this.#native.nuvio_mpv_load(
-			this.#player,
+			player,
 			text(request.url),
 			request.start,
 		);
 		this.#log(result < 0 ? "error" : "info", "mpv engine loading", {
 			url: request.url,
 			start: request.start,
+			headers: request.headerFields.length,
+			subtitles: request.subtitles.length,
 			result,
 		});
 		if (result < 0) {
-			this.#fail(this.#player, request.start);
+			this.#fail(player, request.start);
 			return;
 		}
 		this.#watch();
@@ -198,13 +192,70 @@ export class MpvEngine {
 				);
 				break;
 			case "volume":
-				set("volume", String(Math.min(100, Math.max(0, command.value * 100))));
+				set(
+					"volume",
+					String(Math.min(MAX_VOLUME, Math.max(0, command.value * 100))),
+				);
 				break;
 			case "mute":
 				set("mute", command.value ? "yes" : "no");
 				break;
 			case "speed":
 				set("speed", String(Math.min(4, Math.max(0.25, command.value))));
+				break;
+			default:
+				this.#trackCommand(player, command);
+				break;
+		}
+	}
+
+	#trackCommand(player: Pointer, command: EngineCommand) {
+		const set = (name: string, value: string) =>
+			this.#native.nuvio_mpv_set(player, text(name), text(value));
+		switch (command.op) {
+			case "audio":
+				set("aid", String(command.id));
+				break;
+			case "subtitle":
+				set("sid", command.id === null ? "no" : String(command.id));
+				break;
+			case "subtitle-add": {
+				const added = this.#tracks.find(
+					(track) => track.type === "sub" && track.external === command.url,
+				);
+				if (added) {
+					set("sid", String(added.id));
+				} else {
+					this.#native.nuvio_mpv_command(
+						player,
+						text(
+							[
+								"sub-add",
+								command.url,
+								"select",
+								command.lang,
+								command.lang,
+							].join("\n"),
+						),
+					);
+				}
+				break;
+			}
+			case "subtitle-delay":
+				set("sub-delay", String(Math.min(60, Math.max(-60, command.value))));
+				break;
+			case "subtitle-style":
+				set("sub-scale", String(SUBTITLE_SCALE[command.size]));
+				set("sub-color", command.color);
+				set(
+					"sub-border-style",
+					command.background ? "background-box" : "outline-and-shadow",
+				);
+				set("sub-back-color", command.background ? "#99000000" : "#00000000");
+				set(
+					"sub-outline-size",
+					command.outline || !command.background ? "3" : "0",
+				);
 				break;
 			default:
 				break;
@@ -240,7 +291,27 @@ export class MpvEngine {
 			ended: flag("eof-reached"),
 			volume: number("volume") / 100,
 			muted: flag("mute"),
+			tracks: this.#readTracks(player),
 		};
+	}
+
+	/** Parsed only when mpv's list changed: a new track, or another selected. */
+	#readTracks(player: Pointer): EngineTrack[] {
+		const length = this.#native.nuvio_mpv_get_string(
+			player,
+			text("track-list"),
+			this.#trackBuffer,
+			this.#trackBuffer.length,
+		);
+		if (length < 0 || length >= this.#trackBuffer.length) {
+			return this.#tracks;
+		}
+		const json = this.#trackBuffer.toString("utf8", 0, length);
+		if (json !== this.#trackJson) {
+			this.#trackJson = json;
+			this.#tracks = parseTracks(json);
+		}
+		return this.#tracks;
 	}
 
 	/** mpv gave up on the source: back to the page, which says so. */

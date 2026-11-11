@@ -1,3 +1,5 @@
+import { languageKey } from "./audio-language.ts";
+
 /**
  * The desktop app's mpv: a stream the browser engine can't decode plays there,
  * hardware-decoded, and reports its position back. Present only inside the
@@ -8,6 +10,10 @@ export interface MpvRequest {
 	title: string;
 	/** Seconds to start at. */
 	start: number;
+	/** What the stream's host wants sent (the addon's `proxyHeaders`). */
+	headers?: Record<string, string>;
+	/** Addon subtitle URLs for mpv to load beside the video. */
+	subtitles?: string[];
 }
 
 /** What the desktop app reports while mpv plays, as `MPV_EVENT` on `window`. */
@@ -24,6 +30,18 @@ export interface MpvEvent {
 
 export const MPV_EVENT = "nuvio:mpv";
 
+/** One of the file's audio or subtitle tracks, from mpv's `track-list`. */
+export interface EngineTrack {
+	id: number;
+	type: "audio" | "sub";
+	/** The file's language tag, or "". */
+	lang: string;
+	title: string;
+	selected: boolean;
+	/** The URL a subtitle was added from (`sub-add`), else null. */
+	external: string | null;
+}
+
 /** mpv drawing under the page, in the app's window: its state, four times a second. */
 export interface EngineState {
 	position: number;
@@ -31,9 +49,10 @@ export interface EngineState {
 	paused: boolean;
 	buffering: boolean;
 	ended: boolean;
-	/** 0 to 1. */
+	/** 0 to 3: past 1 is the boost. */
 	volume: number;
 	muted: boolean;
+	tracks: EngineTrack[];
 }
 
 export type EngineCommand =
@@ -41,7 +60,21 @@ export type EngineCommand =
 	| { op: "seek"; position: number }
 	| { op: "volume"; value: number }
 	| { op: "mute"; value: boolean }
-	| { op: "speed"; value: number };
+	| { op: "speed"; value: number }
+	| { op: "audio"; id: number }
+	/** A track of the file's, or `null` for none. */
+	| { op: "subtitle"; id: number | null }
+	/** An addon subtitle: mpv fetches it, then shows it. */
+	| { op: "subtitle-add"; url: string; lang: string }
+	/** Seconds: positive shows them later. */
+	| { op: "subtitle-delay"; value: number }
+	| {
+			op: "subtitle-style";
+			size: "small" | "medium" | "large";
+			color: string;
+			background: boolean;
+			outline: boolean;
+	  };
 
 export const ENGINE_EVENT = "nuvio:engine";
 
@@ -103,4 +136,23 @@ export function desktopMpv(): DesktopMpv | null {
  */
 export function mpvCanOpen(url: string | null): url is string {
 	return url !== null && /^(?:https?:\/\/|nuvio-download:)/i.test(url);
+}
+
+/**
+ * The addon subtitles handed to mpv: the preferred language's first, since
+ * the desktop app keeps only the first few (mpv fetches each before it plays).
+ */
+export function mpvSubtitles(
+	options: readonly { lang: string; url: string }[],
+	preferredLanguage: string,
+): string[] {
+	const wanted = languageKey(preferredLanguage);
+	const preferred = (option: { lang: string }) =>
+		wanted !== null && languageKey(option.lang) === wanted;
+	return [
+		...options.filter(preferred),
+		...options.filter((option) => !preferred(option)),
+	]
+		.map((option) => option.url)
+		.filter((url) => /^https?:\/\//i.test(url));
 }

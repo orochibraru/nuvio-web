@@ -43,6 +43,7 @@
 		boost,
 		boostPending,
 		onBoostSelect,
+		pip = true,
 	}: {
 		transport: PlayerTransportState;
 		player: Pick<
@@ -67,6 +68,8 @@
 		boost: number;
 		boostPending: boolean;
 		onBoostSelect: (level: number) => void;
+		/** Offer picture-in-picture : not over mpv, which draws outside the page. */
+		pip?: boolean;
 	} = $props();
 </script>
 
@@ -246,7 +249,7 @@
       </Hint>
     {/if}
 
-    {#if typeof document !== "undefined" && document.pictureInPictureEnabled}
+    {#if pip && typeof document !== "undefined" && document.pictureInPictureEnabled}
       <Hint label={m.player_pip()}>
         {#snippet child({ props })}
           <Button
