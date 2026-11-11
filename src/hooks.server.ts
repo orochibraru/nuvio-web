@@ -138,6 +138,8 @@ export const handleError: HandleServerError = ({ event, error, kind }) => {
  * client's own traffic : remote function calls and the `__data.json` a
  * revalidation fetches, which SvelteKit reports under the page's path.
  */
+const SLOW_REQUEST_MS = 1000;
+
 function isLogNoise(event: RequestEvent): boolean {
 	if (event.isRemoteRequest || event.isDataRequest) {
 		return true;
@@ -316,7 +318,12 @@ export const appHandle: Handle = async ({ event, resolve }) => {
 			response.headers.set("cache-control", "private, max-age=900");
 			response.headers.append("vary", "Cookie");
 		}
-		if (!isLogNoise(event)) {
+		// Data and remote requests are logged only when slow: a page that waits
+		// on one is otherwise invisible in the log.
+		if (
+			!isLogNoise(event) ||
+			performance.now() - startedAt >= SLOW_REQUEST_MS
+		) {
 			logAccess(services, event, response.status, startedAt);
 		}
 		return response;
