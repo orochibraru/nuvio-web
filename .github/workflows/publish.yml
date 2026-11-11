@@ -258,5 +258,7 @@ jobs:
     permissions:
       contents: write
     uses: ./.github/workflows/desktop.yml
+    # The signing and notarization secrets.
+    secrets: inherit
     with:
       release-tag: ${{ needs.stable.outputs.tag }}

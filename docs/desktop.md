@@ -112,5 +112,31 @@ target on its own runner (macOS Apple Silicon and Intel, Linux x64 and ARM64,
 Windows x64) whenever the desktop app, the dependencies or the icon change, and
 keeps the installers as run artifacts for 14 days. A stable release runs the
 same builds and attaches the installers and the updater's files to the release.
-Release builds are unsigned until signing is configured (see Electrobun's
-code-signing guide), so macOS asks before opening one.
+
+Every build is unsigned for now: signing is commented out until there is an
+Apple Developer account. To turn it back on, uncomment the signing steps and the
+job's `MACOS_SIGNING` / `WINDOWS_SIGNING` in the **Desktop** workflow, the
+`codesign` / `notarize` lines in the Electrobun config and the DMG's `signDmg`
+call, then add the secrets below. What follows is how it works once it is on.
+
+Builds are signed only where the signing secrets are set, so a fork or a pull
+request from one builds unsigned and still passes. On macOS, with a Developer ID
+Application certificate, Hutch signs the app and everything nested in it (the
+server, mpv and its libraries, the in-window mpv library) with the hardened
+runtime, and with an Apple ID it notarizes and staples the app, its updater
+archive and the DMG. On Windows, with an Authenticode certificate, the workflow
+signs the setup executable in the installer zip; the installed app's own
+executables and the update archive stay unsigned, since Hutch doesn't sign on
+Windows. Linux builds are never signed.
+
+| Secret                         | Holds                                                                     |
+| ------------------------------ | ------------------------------------------------------------------------- |
+| `MACOS_CERTIFICATE`            | The Developer ID Application certificate and its key, as a base64 `.p12`  |
+| `MACOS_CERTIFICATE_PASSWORD`   | That `.p12`'s password                                                    |
+| `APPLE_ID`                     | The Apple ID notarization submits as                                      |
+| `APPLE_APP_SPECIFIC_PASSWORD`  | An app-specific password for that Apple ID                                |
+| `APPLE_TEAM_ID`                | The team the certificate belongs to                                       |
+| `WINDOWS_CERTIFICATE`          | The Authenticode code-signing certificate and its key, as a base64 `.pfx` |
+| `WINDOWS_CERTIFICATE_PASSWORD` | That `.pfx`'s password                                                    |
+
+Notarization needs signing: an Apple ID without the certificate builds unsigned.

@@ -17,6 +17,72 @@ const {
 
 const devBuild = basename(ELECTROBUN_BUILD_DIR ?? "").startsWith("dev-");
 
+function run(command: string[]): string {
+	const result = Bun.spawnSync(command, { stderr: "inherit" });
+	const output = result.stdout.toString();
+	if (result.exitCode !== 0) {
+		throw new Error(
+			`${command[0]} ${command[1]} exited with ${result.exitCode}: ${output}`,
+		);
+	}
+	return output;
+}
+
+/**
+ * Signs and notarizes the DMG as Hutch does the app inside it, under the same
+ * variables: with none set, it stays unsigned.
+ */
+function _signDmg(dmg: string) {
+	const {
+		ELECTROBUN_DEVELOPER_ID,
+		ELECTROBUN_APPLEID,
+		ELECTROBUN_APPLEIDPASS,
+		ELECTROBUN_TEAMID,
+	} = process.env;
+	if (!ELECTROBUN_DEVELOPER_ID) {
+		return;
+	}
+	run([
+		"codesign",
+		"--force",
+		"--timestamp",
+		"--sign",
+		ELECTROBUN_DEVELOPER_ID,
+		dmg,
+	]);
+	if (!ELECTROBUN_APPLEID) {
+		return;
+	}
+	if (!(ELECTROBUN_APPLEIDPASS && ELECTROBUN_TEAMID)) {
+		throw new Error(
+			"ELECTROBUN_APPLEIDPASS and ELECTROBUN_TEAMID must be set with ELECTROBUN_APPLEID",
+		);
+	}
+	const submission = JSON.parse(
+		run([
+			"xcrun",
+			"notarytool",
+			"submit",
+			dmg,
+			"--apple-id",
+			ELECTROBUN_APPLEID,
+			"--password",
+			ELECTROBUN_APPLEIDPASS,
+			"--team-id",
+			ELECTROBUN_TEAMID,
+			"--wait",
+			"--output-format",
+			"json",
+		]),
+	) as { id?: string; status?: string };
+	if (submission.status !== "Accepted") {
+		throw new Error(
+			`Notarization of the DMG ended ${submission.status} (submission ${submission.id}); see \`xcrun notarytool log ${submission.id}\``,
+		);
+	}
+	run(["xcrun", "stapler", "staple", dmg]);
+}
+
 if (ELECTROBUN_OS === "macos" && !devBuild) {
 	if (
 		!(ELECTROBUN_APP_NAME && ELECTROBUN_BUILD_DIR && ELECTROBUN_ARTIFACT_DIR)
@@ -69,6 +135,8 @@ if (ELECTROBUN_OS === "macos" && !devBuild) {
 		if (result.exitCode !== 0) {
 			throw new Error(`hdiutil create exited with ${result.exitCode}`);
 		}
+		// Off until there's an Apple Developer account, like the app's signing.
+		// signDmg(dmg);
 	} finally {
 		rmSync(staging, { recursive: true, force: true });
 	}

@@ -61,6 +61,10 @@ jobs:
             runner: ubuntu-24.04-arm
           - target: win-x64
             runner: windows-latest
+    # # Signing runs only where the secrets are: a fork's PR builds unsigned.
+    # env:
+    #   MACOS_SIGNING: ${{ secrets.MACOS_CERTIFICATE != '' }}
+    #   WINDOWS_SIGNING: ${{ secrets.WINDOWS_CERTIFICATE != '' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -83,9 +87,79 @@ jobs:
       - name: Type-check the desktop shell
         run: bun check -p desktop
 
-      # Compiles the server first (desktop/scripts/pre-build.ts). Unsigned:
-      # signing and notarization are not set up yet.
+      # # A keychain of the job's own, holding the Developer ID Application
+      # # certificate; Hutch signs with the identity it finds there.
+      # - name: Import the Developer ID certificate
+      #   if: runner.os == 'macOS' && env.MACOS_SIGNING == 'true'
+      #   env:
+      #     CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+      #     CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+      #   run: |
+      #     set -euo pipefail
+      #     keychain="$RUNNER_TEMP/signing.keychain-db"
+      #     keychain_password="$(openssl rand -hex 24)"
+      #     echo "$CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/certificate.p12"
+      #     security create-keychain -p "$keychain_password" "$keychain"
+      #     security set-keychain-settings -lut 21600 "$keychain"
+      #     security unlock-keychain -p "$keychain_password" "$keychain"
+      #     security import "$RUNNER_TEMP/certificate.p12" -k "$keychain" -P "$CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+      #     rm "$RUNNER_TEMP/certificate.p12"
+      #     security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_password" "$keychain" >/dev/null
+      #     security list-keychains -d user -s "$keychain" "$HOME/Library/Keychains/login.keychain-db"
+      #     identity="$(security find-identity -v -p codesigning "$keychain" | grep -o '"Developer ID Application: [^"]*"' | head -n 1 | tr -d '"')"
+      #     if [ -z "$identity" ]; then
+      #       echo "::error::MACOS_CERTIFICATE holds no Developer ID Application identity."
+      #       exit 1
+      #     fi
+      #     echo "ELECTROBUN_DEVELOPER_ID=$identity" >> "$GITHUB_ENV"
+      # Signing is commented out until there's an Apple Developer account
+      # (and a Windows certificate): the steps around this one, the job's
+      # MACOS_SIGNING / WINDOWS_SIGNING, and desktop/electrobun.config.ts.
+      # Compiles the server first (desktop/scripts/pre-build.ts). Once signing
+      # is back, Hutch signs the app and everything nested in it (the server,
+      # mpv and its libraries), then notarizes and staples it;
+      # scripts/post-package.ts does the same for the DMG.
       - run: bun run build:desktop
+        # env:
+        #   ELECTROBUN_APPLEID:
+        #     ${{ runner.os == 'macOS' && secrets.APPLE_ID || '' }}
+        #   ELECTROBUN_APPLEIDPASS:
+        #     ${{ runner.os == 'macOS' && secrets.APPLE_APP_SPECIFIC_PASSWORD ||
+        #     '' }}
+        #   ELECTROBUN_TEAMID:
+        #     ${{ runner.os == 'macOS' && secrets.APPLE_TEAM_ID || '' }}
+
+      # # Hutch doesn't sign on Windows. The installer zip holds the setup
+      # # executable next to a hidden payload, so only the executable is signed
+      # # and the zip rebuilt around it with every entry.
+      # - name: Sign the Windows installer
+      #   if: runner.os == 'Windows' && env.WINDOWS_SIGNING == 'true'
+      #   shell: pwsh
+      #   env:
+      #     CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+      #     CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+      #   run: |
+      #     $ErrorActionPreference = "Stop"
+      #     $PSNativeCommandUseErrorActionPreference = $true
+      #     $pfx = Join-Path $env:RUNNER_TEMP "certificate.pfx"
+      #     [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:CERTIFICATE))
+      #     $signtool = (Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" | Sort-Object FullName -Descending | Select-Object -First 1).FullName
+      #     $tar = "$env:SystemRoot\System32\tar.exe"
+      #     $zips = @(Get-ChildItem desktop/artifacts -Filter "*Setup*.zip")
+      #     if ($zips.Count -eq 0) { throw "No installer zip in desktop/artifacts" }
+      #     foreach ($zip in $zips) {
+      #       $dir = Join-Path $env:RUNNER_TEMP $zip.BaseName
+      #       New-Item -ItemType Directory -Path $dir | Out-Null
+      #       & $tar -xf $zip.FullName -C $dir
+      #       foreach ($exe in Get-ChildItem $dir -Filter "*.exe") {
+      #         & $signtool sign /f $pfx /p $env:CERTIFICATE_PASSWORD /fd sha256 /tr http://timestamp.digicert.com /td sha256 $exe.FullName
+      #         & $signtool verify /pa $exe.FullName
+      #       }
+      #       Remove-Item $zip.FullName
+      #       $entries = (Get-ChildItem $dir -Force).Name
+      #       & $tar -a -cf $zip.FullName -C $dir @entries
+      #     }
+      #     Remove-Item $pfx
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

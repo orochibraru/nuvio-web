@@ -33,6 +33,14 @@ export default {
 			icons: "icon.iconset",
 			// scripts/post-package.ts makes the DMG.
 			createDmg: false,
+			// Signing is off until there's an Apple Developer account. To turn it
+			// back on, restore these and the Desktop workflow's signing steps.
+			// codesign: Boolean(process.env.ELECTROBUN_DEVELOPER_ID),
+			// notarize: Boolean(
+			// 	process.env.ELECTROBUN_DEVELOPER_ID && process.env.ELECTROBUN_APPLEID,
+			// ),
+			codesign: false,
+			notarize: false,
 		},
 		linux: {
 			bundleCEF: false,
