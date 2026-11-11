@@ -269,6 +269,7 @@ export class MpvEngine {
 		}
 		const player = this.#player;
 		if (player) {
+			this.#native.nuvio_mpv_poll_end(player);
 			const state = this.#state(player);
 			this.#native.nuvio_mpv_command(player, text("stop"));
 			this.#native.nuvio_mpv_set_visible(player, 0);
@@ -334,8 +335,10 @@ export class MpvEngine {
 			if (!player) {
 				return;
 			}
+			// Drained first: the getters read what these events reported.
+			const outcome = this.#native.nuvio_mpv_poll_end(player);
 			const state = this.#state(player);
-			if (this.#native.nuvio_mpv_poll_end(player) < 0) {
+			if (outcome < 0) {
 				this.#log("error", "mpv engine could not play the source", state);
 				this.#fail(player, state.position);
 				return;

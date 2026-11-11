@@ -2,6 +2,12 @@
 // through where it is transparent, so the player's own controls sit over the
 // video. Called from the Bun shell through bun:ffi; every AppKit call hops to
 // the main thread, libmpv's client API is thread-safe.
+//
+// Nothing the shell calls waits on mpv's core: a synchronous get or set queues
+// behind the core, which spends each frame waiting for the main thread to draw,
+// so polling that way made every click wait seconds. Properties are observed
+// (their changes land in the event queue, drained without the core) and every
+// set and command is async.
 
 #import <Cocoa/Cocoa.h>
 #import <OpenGL/gl3.h>
@@ -75,7 +81,20 @@ static void on_main(dispatch_block_t block) {
 @interface NuvioMpvPlayer : NSObject
 @property(nonatomic) mpv_handle *mpv;
 @property(nonatomic, strong) NuvioMpvView *view;
+// The observed properties' latest values, as mpv reported them.
+@property(nonatomic, strong) NSMutableDictionary<NSString *, id> *values;
 @end
+
+static const struct {
+  const char *name;
+  mpv_format format;
+} OBSERVED[] = {
+    {"time-pos", MPV_FORMAT_DOUBLE},       {"duration", MPV_FORMAT_DOUBLE},
+    {"volume", MPV_FORMAT_DOUBLE},         {"pause", MPV_FORMAT_FLAG},
+    {"paused-for-cache", MPV_FORMAT_FLAG}, {"seeking", MPV_FORMAT_FLAG},
+    {"eof-reached", MPV_FORMAT_FLAG},      {"mute", MPV_FORMAT_FLAG},
+    {"track-list", MPV_FORMAT_STRING},
+};
 
 @implementation NuvioMpvPlayer
 @end
@@ -145,6 +164,12 @@ void *nuvio_mpv_create(void *window_pointer) {
     player = [[NuvioMpvPlayer alloc] init];
     player.mpv = mpv;
     player.view = view;
+    player.values = [NSMutableDictionary dictionary];
+    for (size_t index = 0; index < sizeof OBSERVED / sizeof OBSERVED[0];
+         index++) {
+      mpv_observe_property(mpv, 0, OBSERVED[index].name,
+                           OBSERVED[index].format);
+    }
     mpv_render_context_set_update_callback(render, on_render_update,
                                            (__bridge void *)player);
   });
@@ -156,14 +181,17 @@ int nuvio_mpv_load(void *pointer, const char *url, double start) {
   NuvioMpvPlayer *player = (__bridge NuvioMpvPlayer *)pointer;
   char position[32];
   snprintf(position, sizeof position, "%.3f", start > 0 ? start : 0);
-  mpv_set_property_string(player.mpv, "start", position);
+  const char *start_value = position;
+  mpv_set_property_async(player.mpv, 0, "start", MPV_FORMAT_STRING,
+                         &start_value);
   const char *command[] = {"loadfile", url, "replace", NULL};
-  return mpv_command(player.mpv, command);
+  return mpv_command_async(player.mpv, 0, command);
 }
 
+// Queued, in order with every other set and command: mpv copies the value.
 int nuvio_mpv_set(void *pointer, const char *name, const char *value) {
   NuvioMpvPlayer *player = (__bridge NuvioMpvPlayer *)pointer;
-  return mpv_set_property_string(player.mpv, name, value);
+  return mpv_set_property_async(player.mpv, 0, name, MPV_FORMAT_STRING, &value);
 }
 
 // One mpv command, its arguments separated by '\n' (a seek: "seek\n42\nabsolute").
@@ -177,50 +205,60 @@ int nuvio_mpv_command(void *pointer, const char *joined) {
   while ((token = strsep(&rest, "\n")) && count < 15) {
     args[count++] = token;
   }
-  int result = mpv_command(player.mpv, args);
+  int result = mpv_command_async(player.mpv, 0, args);
   free(copy);
   return result;
 }
 
-// A numeric property, or NaN while it has no value.
-double nuvio_mpv_get_double(void *pointer, const char *name) {
+static id observed(void *pointer, const char *name) {
   NuvioMpvPlayer *player = (__bridge NuvioMpvPlayer *)pointer;
-  double value = NAN;
-  if (mpv_get_property(player.mpv, name, MPV_FORMAT_DOUBLE, &value) < 0) {
-    return NAN;
-  }
-  return value;
+  return player.values[[NSString stringWithUTF8String:name]];
+}
+
+// An observed numeric property, or NaN while it has no value.
+double nuvio_mpv_get_double(void *pointer, const char *name) {
+  id value = observed(pointer, name);
+  return [value isKindOfClass:[NSNumber class]] ? [value doubleValue] : NAN;
 }
 
 // A property as text (a node property, like track-list, as JSON) copied into
 // `out`: its full length, so a caller whose buffer was too small can retry, or
-// -1 when it has no value.
+// -1 while it has no value.
 int nuvio_mpv_get_string(void *pointer, const char *name, char *out, int size) {
-  NuvioMpvPlayer *player = (__bridge NuvioMpvPlayer *)pointer;
-  char *value = mpv_get_property_string(player.mpv, name);
-  if (!value) {
+  id value = observed(pointer, name);
+  if (![value isKindOfClass:[NSString class]]) {
     return -1;
   }
-  int length = (int)strlen(value);
+  const char *text = [value UTF8String];
+  int length = (int)strlen(text);
   if (size > 0) {
-    snprintf(out, (size_t)size, "%s", value);
+    snprintf(out, (size_t)size, "%s", text);
   }
-  mpv_free(value);
   return length;
 }
 
-// A flag property: 1, 0, or -1 while it has no value.
+// An observed flag property: 1, 0, or -1 while it has no value.
 int nuvio_mpv_get_flag(void *pointer, const char *name) {
-  NuvioMpvPlayer *player = (__bridge NuvioMpvPlayer *)pointer;
-  int value = 0;
-  if (mpv_get_property(player.mpv, name, MPV_FORMAT_FLAG, &value) < 0) {
-    return -1;
-  }
-  return value;
+  id value = observed(pointer, name);
+  return [value isKindOfClass:[NSNumber class]] ? [value intValue] : -1;
 }
 
-// Drains mpv's event queue: -1 when a file failed to load or play, 1 when one
-// ended normally, 0 otherwise. Called on every poll, so the queue never fills.
+static void remember(NuvioMpvPlayer *player, mpv_event_property *property) {
+  NSString *name = [NSString stringWithUTF8String:property->name];
+  if (property->format == MPV_FORMAT_DOUBLE) {
+    player.values[name] = @(*(double *)property->data);
+  } else if (property->format == MPV_FORMAT_FLAG) {
+    player.values[name] = @(*(int *)property->data);
+  } else if (property->format == MPV_FORMAT_STRING) {
+    player.values[name] = [NSString stringWithUTF8String:*(char **)property->data];
+  } else {
+    [player.values removeObjectForKey:name];
+  }
+}
+
+// Drains mpv's event queue, keeping the observed properties' new values: -1
+// when a file failed to load or play, 1 when one ended normally, 0 otherwise.
+// Called on every poll, before the getters, so the queue never fills.
 int nuvio_mpv_poll_end(void *pointer) {
   NuvioMpvPlayer *player = (__bridge NuvioMpvPlayer *)pointer;
   int outcome = 0;
@@ -229,7 +267,9 @@ int nuvio_mpv_poll_end(void *pointer) {
     if (event->event_id == MPV_EVENT_NONE) {
       break;
     }
-    if (event->event_id == MPV_EVENT_END_FILE) {
+    if (event->event_id == MPV_EVENT_PROPERTY_CHANGE) {
+      remember(player, (mpv_event_property *)event->data);
+    } else if (event->event_id == MPV_EVENT_END_FILE) {
       mpv_event_end_file *end = (mpv_event_end_file *)event->data;
       if (end->reason == MPV_END_FILE_REASON_ERROR) {
         outcome = -1;
