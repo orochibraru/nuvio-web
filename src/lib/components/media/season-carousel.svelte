@@ -21,7 +21,6 @@
 		initialSeason = null,
 		playerHref,
 		onToggleWatched,
-		onPrefetch,
 		onMarkUpTo,
 		onMarkSeason,
 	}: {
@@ -38,8 +37,6 @@
 			episode: number | null,
 			watched: boolean,
 		) => void;
-		/** Hover/focus intent on an episode : warm its streams in the background. */
-		onPrefetch?: (videoId: string) => void;
 		/** Mark every episode up to and including this one as watched. */
 		onMarkUpTo?: (videoId: string) => void;
 		/** Mark a whole season (optionally plus every earlier season) watched. */
@@ -232,9 +229,6 @@
         >
             <div
               class="group/ep relative flex w-72 shrink-0 snap-start content-auto flex-col overflow-hidden rounded-xl border border-border bg-card transition-colors hover:border-primary/40 sm:w-80"
-              onmouseenter={() => onPrefetch?.(episode.id)}
-              onfocusin={() => onPrefetch?.(episode.id)}
-              role="presentation"
             >
               <a href={playerHref(episode.id)} class="flex flex-col text-left">
                 <div

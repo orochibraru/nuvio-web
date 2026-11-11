@@ -57,7 +57,6 @@
 	import { EMPTY_PROVIDERS } from "#lib/watch/watch-providers.js";
 	import { watchProviders } from "#lib/watch/watch-providers.remote.js";
 	import WatchProvidersList from "#lib/watch/watch-providers-list.svelte";
-	import { browser } from "$app/env";
 	import { goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
@@ -219,30 +218,15 @@
 		openSources(videoId);
 	}
 
-	// Warm the stream fan-out in the background so opening the source drawer :
-	// or landing on the player : feels instant. Remote queries are client-cached
-	// by args, so the drawer/player reuse this result.
-	// One id at a time on purpose: a full episode-by-episode sweep would hammer
-	// the addons. `prefetch()` skips already-warmed and in-flight ids.
-	const warmed = new Set<string>();
-	function prefetch(videoId: string | null | undefined) {
-		if (!(browser && videoId) || warmed.has(videoId)) {
-			return;
-		}
-		warmed.add(videoId);
-		// `.catch` subscribes the resource, which kicks off the request; the
-		// result lands in the shared client cache for the drawer / player.
-		void resolveStreams({ type, id: videoId }).catch(() => undefined);
-	}
-
 	const ctaVideoId = $derived(
 		contentType === "movie"
 			? id
 			: (resumeEpisode?.id ?? firstEpisode?.id ?? null),
 	);
 
-	// Flips once the CTA target's streams have been warmed : gates the reactive
-	// read below so we don't fan out to the addons before the debounce.
+	// Flips once the page has settled on its CTA target : the query below then
+	// warms the fan-out for the drawer and the player's handoff, once. A call
+	// from the timer itself isn't cached (no reactive context) and doubled it.
 	let ctaWarmed = $state(false);
 	$effect(() => {
 		void ctaVideoId;
@@ -252,9 +236,7 @@
 		if (!(meta && ctaVideoId)) {
 			return;
 		}
-		const target = ctaVideoId;
 		const timer = setTimeout(() => {
-			prefetch(target);
 			ctaWarmed = true;
 		}, 700);
 		return () => clearTimeout(timer);
@@ -689,7 +671,6 @@
                         : null}
                     {playerHref}
                     onToggleWatched={toggleWatched}
-                    onPrefetch={prefetch}
                     onMarkUpTo={markUpTo}
                     onMarkSeason={markSeason}
                 />
