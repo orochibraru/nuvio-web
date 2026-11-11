@@ -10,6 +10,7 @@ import { isAbsolute, join } from "node:path";
 import process from "node:process";
 import Electrobun, {
 	ApplicationMenu,
+	type ApplicationMenuItemConfig,
 	BrowserWindow,
 	PATHS,
 	Utils,
@@ -21,8 +22,9 @@ import { findMpv, MpvPlayer } from "./mpv.ts";
 import { MpvEngine } from "./mpv-engine.ts";
 import { parseMpvRequest } from "./mpv-request.ts";
 import {
-	downloadUpdateInBackground,
+	installUpdate,
 	offerDownloadedUpdate,
+	watchForUpdates,
 } from "./updater.ts";
 
 // Nuvio Web's own server, run on loopback with its data in the user's app-data
@@ -338,10 +340,23 @@ Electrobun.events.on("new-window-open", (event) => {
 	}
 });
 
-ApplicationMenu.setApplicationMenu([
+/** `update` is a downloaded version, offered from the app menu. */
+const appMenu = (update?: string): ApplicationMenuItemConfig[] => [
 	{
 		label: "Nuvio Web",
-		submenu: [{ role: "hide" }, { role: "quit" }],
+		submenu: [
+			...(update
+				? [
+						{
+							label: `Restart to Update to ${update}`,
+							action: "install-update",
+						},
+						{ type: "separator" as const },
+					]
+				: []),
+			{ role: "hide" },
+			{ role: "quit" },
+		],
 	},
 	{
 		label: "Edit",
@@ -359,10 +374,15 @@ ApplicationMenu.setApplicationMenu([
 		label: "View",
 		submenu: [{ label: "Reload", action: "reload", accelerator: "r" }],
 	},
-]);
+];
+ApplicationMenu.setApplicationMenu(appMenu());
+let readyUpdate = "";
 ApplicationMenu.on("application-menu-clicked", (event) => {
-	if ((event as { data?: { action?: string } }).data?.action === "reload") {
+	const action = (event as { data?: { action?: string } }).data?.action;
+	if (action === "reload") {
 		window.webview.executeJavascript("location.reload()");
+	} else if (action === "install-update" && readyUpdate) {
+		void installUpdate(updateLog, readyUpdate);
 	}
 });
 
@@ -490,7 +510,8 @@ async function openWhenUp(): Promise<boolean> {
 }
 
 if (await openWhenUp()) {
-	downloadUpdateInBackground(updateLog).catch((error) =>
-		updateLog("warn", "Update check failed", { error: String(error) }),
-	);
+	watchForUpdates(updateLog, (version) => {
+		readyUpdate = version;
+		ApplicationMenu.setApplicationMenu(appMenu(version));
+	});
 }

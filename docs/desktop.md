@@ -62,10 +62,11 @@ built-in server rather than the window, so any source with a link can be saved
 ## Updates
 
 The app updates itself from the latest stable release on GitHub. Once the server
-is up it looks for a newer build and downloads it in the background; the next
-launch asks to install it, then restarts into it. "Later" asks again on the
-launch after. Dev builds never update. Every update is the full app archive
-(about 130 MB), not a patch.
+is up it looks for a newer build, then every six hours, and downloads it in the
+background. A downloaded update adds **Restart to Update to X.Y.Z** to the app
+menu, which installs it and restarts into it. Left there, the next launch asks
+before the server starts; "Later" asks again on the launch after. Dev builds
+never update. Every update is the full app archive (about 130 MB), not a patch.
 
 ## Logs
 
