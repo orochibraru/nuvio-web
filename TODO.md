@@ -10,36 +10,59 @@
       ignores a OneDrive-redirected Videos), plays in the window with seeking
       and its subtitles, an mpv-only one opens in mpv from the file
       (`nuvio-download:`, both the separate window and the in-window engine),
-      **Open folder** opens it, quitting mid-download resumes on relaunch. Not
-      built: the addon's `proxyHeaders` (the server could send them), a choice
-      of folder, an e2e spec running the image with `NUVIO_DOWNLOADS_DIR`.
-- [ ] **Volume boost in the desktop app.** Reported broken; not diagnosed.
-      Suspects: WebKit's `MediaElementAudioSourceNode` on an MSE (`blob:`)
-      source, and a boost restored on reload building the `AudioContext` outside
-      a user gesture (WebKit then leaves it suspended, so routed audio goes
-      silent).
+      **Open folder** opens it, quitting mid-download resumes on relaunch,
+      **Change folder** opens the system's folder picker and the app comes back
+      on the new folder (and **Use the default folder** back again), a source
+      whose addon sends `proxyHeaders` downloads. `desktop-downloads.spec.ts`
+      covers the server side in the image (a second container on :3017).
+- [ ] **Volume boost in the desktop app: confirm the fix.** Both suspects were
+      real. WebKit hands Web Audio silence from an MSE (`blob:`) source
+      (measured in Playwright's WebKit: rms 0 while playing; a direct file and
+      Chromium are fine), so boost now refuses an MSE source in WebKit
+      (`boostSilences`), with the "unavailable" toast. The `AudioContext` is now
+      made inside the gesture and the video is routed only once it runs; a
+      restored boost that can't run waits for the next tap or key. Check in the
+      app: a direct file boosts, an HLS / in-browser-fix source says unavailable
+      and keeps its sound, and a reload with a saved boost keeps the sound until
+      the first click.
 
 - [ ] **Desktop app: other platforms, signing, releases.** Only macOS arm64 was
       run: the bundled server starts, the window loads it, and sign-in offers
       Nuvio and a custom backend. Untested: signing in from the app, Windows
       (WebView2) and Linux (WebKitGTK) builds, a click on an external link
       reaching the system browser (the blocked navigation was seen in the log
-      only), playback in WKWebView / WebKitGTK. Not built: code signing and
-      notarization, publishing the installers with a release, Electrobun's
-      updater. The `Desktop` workflow builds every platform but hasn't run yet:
-      the first run tells whether Windows and Linux build at all.
-- [ ] **Desktop in-window mpv (macOS spike): judge it, then finish or drop.**
-      libmpv draws under the page; the engine screen has play/pause, seek, ±10
-      s, mute and fullscreen. Missing before it can replace the separate window:
-      audio and subtitle tracks, subtitles from addons, speed, volume slider,
-      skip intro / chapters, the info overlay, up next, and any Windows / Linux
-      equivalent. OpenGL is deprecated on macOS.
+      only), playback in WKWebView / WebKitGTK. Signing (macOS app, nested mpv
+      dylibs, DMG; the Windows Setup exe), notarization, release assets and the
+      updater (a check every 6 h, "Restart to Update" in the app menu) are wired
+      and were dry-run locally with stub `codesign` / `xcrun`, but have never
+      run on a real release. Signing is commented out until there's an Apple
+      Developer account: uncomment it (`docs/desktop.md` says where), add the
+      secrets, then cut a release. A `.pfx` may not be obtainable for Windows
+      (HSM-bound since 2023); Azure Trusted Signing would replace that step. The
+      `Desktop` workflow hasn't run yet: the first run tells whether Windows and
+      Linux build at all.
+- [ ] **Desktop in-window mpv (macOS): try it on real sources.** libmpv draws
+      under the page, under the web player's own control row: volume slider and
+      boost (mpv's volume up to 300%, no limiter, so a loud track can clip),
+      speed, the audio menu and the subtitle panel over mpv's `track-list`
+      (addon subtitles added on demand with `sub-add`, timing as `sub-delay`,
+      appearance as `sub-*`), the viewer's audio and subtitle languages applied
+      once the tracks are known, skip intro, intro / credits on the scrub bar,
+      credits starting up next, next episode and episodes. The commands and the
+      `track-list` / `sub-add` shapes were checked against mpv 0.41 (the bundled
+      libmpv's version) over IPC; `e2e/desktop-mpv.spec.ts` drives the controls
+      against a faked engine. Not run in the app itself. Still missing: the info
+      overlay, the saved per-title audio track and boost, ASS styling overrides,
+      and any Windows / Linux equivalent. OpenGL is deprecated on macOS.
 - [ ] **Desktop mpv fallback: play a real unplayable source.** Bundling (macOS
       arm64) and discovery were run; the hand-off itself wasn't: open a source
       the web view refuses and check mpv opens at the saved position, progress
-      lands, and reopening works. Not built: the addon's `proxyHeaders` (mpv
-      could send them), external subtitles, an Intel build for macOS 14.
-      Untested: Windows named-pipe IPC.
+      lands, and reopening works, a source needing the addon's `proxyHeaders`
+      plays (sent as `--http-header-fields-append`, `change-list` in the
+      engine), and the addon subtitles load (`--sub-files-append`, the preferred
+      language first, ten at most; whether the engine selects one on its own is
+      unknown). Not built: an Intel build for macOS 14. Untested: Windows
+      named-pipe IPC.
 - [ ] **Custom backends: confirm against a real self-hosted backend.** Only
       unit-tested against fakes. Check sign-in, sign-up (with and without email
       confirmation), token refresh and the background sync against a real
@@ -48,28 +71,29 @@
       and whether a backend behind a redirect still works (redirects are
       re-checked and re-sent with the same method and body). Also confirm a LAN
       default (`http://192.168.…`) from inside the container, and run
-      `e2e/custom-backend.spec.ts` (written, not run). Also an empty key against
-      a real `NuvioMedia/self-host` deployment: the key comes from its
+      `e2e/custom-backend.spec.ts` passes. Also an empty key against a real
+      `NuvioMedia/self-host` deployment: the key comes from its
       `/.well-known/nuvio` (unit-tested against fakes only).
-- [ ] **Built-in backend: run the spec, try real clients, check the proxy.**
-      `/api/nuvio` is contract-tested with the app's own `NuvioClient`
-      in-process only; `e2e/built-in-backend.spec.ts` was written, not run.
-      Point the official Nuvio mobile/TV apps at it if they let you set a
-      Supabase URL and key, and a `supabase-js` / `supabase-kt` client (their
-      auth error parsing, `Authorization: Bearer <publishable key>` as
-      anonymous). Confirm another instance reaching it over HTTP behind a
-      reverse proxy (the instance's own default never self-calls: it routes
-      in-process), and that `ORIGIN` gives the card the public URL there. Not
-      built: password reset, email confirmation, account deletion, GoTrue's
-      refresh-reuse grace interval (a lost refresh answer means signing in
-      again).
-- [ ] **Admin tabs, SMTP and dashboard: run the specs and a real send.** The
-      tabbed `/admin` (Dashboard, Backends, Notifications, Settings), the SMTP
-      form and the new stats are unit-tested and type-checked only; the updated
-      `e2e/admin.spec.ts`, `e2e/admin-activity.spec.ts` and the three new
-      `a11y.spec.ts` admin pages were written, not run. Send a real test email
-      (STARTTLS on 587 and implicit TLS on 465) from the compiled image, and
-      check the dashboard on a phone and on an ultrawide screen.
+- [ ] **Built-in backend: try real clients, check the proxy.** `/api/nuvio` is
+      contract-tested with the app's own `NuvioClient` in-process, and
+      `e2e/built-in-backend.spec.ts` passes. Point the official Nuvio mobile/TV
+      apps at it if they let you set a Supabase URL and key, and a `supabase-js`
+      / `supabase-kt` client (their auth error parsing,
+      `Authorization: Bearer <publishable key>` as anonymous). Confirm another
+      instance reaching it over HTTP behind a reverse proxy (the instance's own
+      default never self-calls: it routes in-process), and that `ORIGIN` gives
+      the card the public URL there. Password reset (`/recover`, `/verify`,
+      `PUT /user`), optional email confirmation, account deletion
+      (`DELETE /user`) and the 10 s refresh-reuse grace are unit-tested only:
+      send a real reset and confirmation email through SMTP and follow the
+      links, check that a supabase-js `verifyOtp({ type, token_hash })` and
+      `updateUser({ password })` work against it. `e2e/built-in-backend.spec.ts`
+      covers deletion and the Forgot password page.
+- [ ] **Admin SMTP and dashboard: a real send, a phone, an ultrawide.**
+      `e2e/admin.spec.ts`, `e2e/admin-activity.spec.ts` and the admin pages of
+      `a11y.spec.ts` pass. Send a real test email (STARTTLS on 587 and implicit
+      TLS on 465) from the compiled image, and check the dashboard on a phone
+      and on an ultrawide screen.
 - [ ] **Mobile shell: verify on real phones.** Bottom tab bar, search-pill
       header, grouped settings list, two-column profile picker, safe-area insets
       (`viewport-fit=cover`) and the player's auto fullscreen + landscape lock
@@ -85,17 +109,16 @@
       and are only checked as `href`s. Outplayer's form drops `http` vs `https`.
       An iPad in desktop mode reports as a Mac, so it only gets the Mac apps
       (Infuse, VidHub).
-- [ ] **Install app dialog: run its spec.** `e2e/install-app.spec.ts` was
-      written but not run (:3000 was taken). Also try the download links on a
-      real Mac in Safari (no architecture hint: it gets Apple Silicon).
+- [ ] **Install app dialog: try it in Safari on a real Mac.**
+      `e2e/install-app.spec.ts` passes. Safari sends no architecture hint, so it
+      gets the Apple Silicon build.
 - [ ] **Browser meta cache: confirm on Discover.** `hooks.server.ts` marks a
       title page's and Discover's navigation data, plus the addon-meta remote
       queries, `private, max-age=900`. Seen on a title page's `__data.json`
       only; Discover goes through the same route check but wasn't observed.
-- [ ] **Addon browse page: run its specs and try it on a phone.**
-      `e2e/addons-browse.spec.ts` and the two new `a11y.spec.ts` pages were
-      written but not run; they lean on the live Community directory at
-      `v3-cinemeta.strem.io`. Check the filter sheet, the details page's
+- [ ] **Addon browse page: try it on a phone.** `e2e/addons-browse.spec.ts` and
+      its `a11y.spec.ts` pages pass (against the live Community directory at
+      `v3-cinemeta.strem.io`). Check the filter sheet, the details page's
       background art and Install / Uninstall / Undo on a real phone.
 - [ ] **Subtitle picker: try it on a real phone in fullscreen.** Now a popover
       off the control bar's CC button, like the audio menu, capped to the height
@@ -108,11 +131,7 @@
       SRT and ASS tracks through the fix (cues fill in as playback moves, the
       timing nudge follows). zlib-compressed tracks inflate with
       `DecompressionStream`; a SimpleBlock cue without a duration gets 4s.
-- [ ] **Calendar: TVmaze's rate limit.** The calendar asks TVmaze about every
-      library series whose addon lists no unaired episode, two calls each, four
-      series at a time. TVmaze allows 20 calls per 10 seconds, so a big library
-      still gets 429s and shows fewer dates on that visit. A refused call is no
-      longer cached, so the next visit retries it.
+
 - [ ] **In-browser fix: confirm on real debrid hosts.** Proven on local fixtures
       only (H.264 + E-AC-3, HEVC Main10 + DTS, VP9 + AC-3), in Chrome and
       Playwright's Chromium. Unknown: which hosts send CORS headers, how a 60 GB
@@ -147,9 +166,6 @@
 - [ ] **Report Bun's embedded-file `Range` bug, then drop the shim.** Bun's own,
       not adapter-bun's: in a `bun build --compile` binary,
       `new Response(Bun.file(embedded))` answers `Range` with the whole file and
-      a 200 (a file on disk gets its 206). Still there in Bun 1.4.3.
+      a 200 (a file on disk gets its 206). Still there in Bun 1.4.4; the issue
+      text, with a ten-line repro, is drafted and waiting to be posted.
       `e2e/fixtures.ts` serves the fixtures with `Range` meanwhile.
-- [ ] **Volume boost loses the center of a native 7.1 track.** Web Audio
-      downmixes only 1, 2, 4 and 6 channels; the limiter's 2-channel input takes
-      L and R of anything else. The in-browser fix downmixes itself
-      (`downmixToStereo`), the boost graph doesn't.
