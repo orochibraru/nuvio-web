@@ -105,7 +105,12 @@ server first.
 ```bash
 bun run dev:desktop       # build and open a dev build
 bun run build:desktop     # a stable release (app, DMG / installer) for this machine
+mise run install          # macOS: build a stable release and put it in /Applications
 ```
+
+`mise run install` quits the app if it's running, replaces the copy in
+`/Applications`, and strips the quarantine flag from it, so Gatekeeper opens the
+unsigned build without asking.
 
 A build targets the machine it runs on, so the **Desktop** workflow builds each
 target on its own runner (macOS Apple Silicon and Intel, Linux x64 and ARM64,

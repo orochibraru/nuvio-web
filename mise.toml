@@ -1,0 +1,30 @@
+[tasks.install]
+description = "Build the desktop app from this checkout and install it (macOS)"
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+if [ "$(uname -s)" != "Darwin" ]; then
+  echo "mise run install only installs on macOS for now: build with 'bun run build:desktop' and run the installer in desktop/artifacts." >&2
+  exit 1
+fi
+bun install --frozen-lockfile
+bun run build:desktop
+app="$(find desktop/build -maxdepth 2 -path '*/stable-macos-*/*.app' -print -quit)"
+if [ -z "$app" ]; then
+  echo "No app in desktop/build: the build didn't produce one." >&2
+  exit 1
+fi
+name="$(basename "$app")"
+osascript -e "quit app \"${name%.app}\"" 2>/dev/null || true
+rm -rf "/Applications/$name"
+ditto "$app" "/Applications/$name"
+# ditto carries extended attributes over: a quarantine flag picked up anywhere
+# in the build (a downloaded mpv, a copied file) would make Gatekeeper refuse
+# the unsigned app.
+xattr -r -d com.apple.quarantine "/Applications/$name"
+if xattr -lr "/Applications/$name" | grep -q com.apple.quarantine; then
+  echo "/Applications/$name is still quarantined." >&2
+  exit 1
+fi
+echo "Installed /Applications/$name"
+'''
