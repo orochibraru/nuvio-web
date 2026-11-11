@@ -10,6 +10,15 @@ import { Updater, Utils } from "electrobun/main";
 
 type Log = (level: string, message: string, data?: unknown) => void;
 
+/**
+ * A build from source has a hash of its own, so the updater always finds the
+ * release "different": only a newer version replaces this one.
+ */
+async function newerThanThisBuild(version: string): Promise<boolean> {
+	const current = (await Updater.getLocalInfo()).version;
+	return Bun.semver.order(version, current) > 0;
+}
+
 /** The version downloaded and waiting, written once it is ready. */
 const READY_FILE = join(Utils.paths.userData, "update-ready");
 const CHECK_EVERY_MS = 6 * 60 * 60 * 1000;
@@ -31,6 +40,12 @@ export async function offerDownloadedUpdate(log: Log) {
 	}
 	// Asked once per download: a launch that finds it still ready writes it back.
 	rmSync(READY_FILE, { force: true });
+	if (!(await newerThanThisBuild(version))) {
+		log("info", "Dropped a downloaded update no newer than this build", {
+			version,
+		});
+		return;
+	}
 	const { response } = await Utils.showMessageBox({
 		type: "info",
 		title: "Update ready",
@@ -50,7 +65,7 @@ export async function offerDownloadedUpdate(log: Log) {
 /** Looks for a newer release and downloads it; resolves to its version once it is ready. */
 async function downloadUpdate(log: Log): Promise<string | undefined> {
 	const found = await Updater.checkForUpdate();
-	if (!found.updateAvailable) {
+	if (!(found.updateAvailable && (await newerThanThisBuild(found.version)))) {
 		return;
 	}
 	if (!found.updateReady) {

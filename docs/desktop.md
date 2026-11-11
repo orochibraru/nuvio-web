@@ -67,6 +67,9 @@ background. A downloaded update adds **Restart to Update to X.Y.Z** to the app
 menu, which installs it and restarts into it. Left there, the next launch asks
 before the server starts; "Later" asks again on the launch after. Dev builds
 never update. Every update is the full app archive (about 130 MB), not a patch.
+Only a release with a higher version counts: a build from source
+(`mise run install`) has a build hash of its own, and would otherwise be
+replaced by the release it was built past.
 
 ## Logs
 
