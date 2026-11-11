@@ -35,6 +35,33 @@ function cacheKey(userId: string, profileId: number): string {
 	return `${userId}:${profileId}`;
 }
 
+/** The account's first profile: the one whose addons the others can share. */
+export const MAIN_PROFILE = 1;
+
+/**
+ * Whose addon list `profileId` uses: its own, or the main profile's when it is
+ * set to share them (`uses_primary_addons`, a setting of Nuvio's other apps
+ * too). `sharedFrom` names the main profile then.
+ */
+export async function addonOwner(
+	nuvio: NuvioClient,
+	profileId: number,
+): Promise<{ profileId: number; sharedFrom: string | null }> {
+	if (profileId === MAIN_PROFILE) {
+		return { profileId, sharedFrom: null };
+	}
+	const profiles = await nuvio.profiles.list();
+	const shares = profiles.find(
+		(profile) => profile.profile_index === profileId,
+	)?.uses_primary_addons;
+	const main = profiles.find(
+		(profile) => profile.profile_index === MAIN_PROFILE,
+	);
+	return shares && main
+		? { profileId: MAIN_PROFILE, sharedFrom: main.name }
+		: { profileId, sharedFrom: null };
+}
+
 // Addon egress never goes through a load's `event.fetch`: that one forwards the
 // request's cookies (the `nuvio_session` tokens) to same-site targets, and an
 // addon URL or redirect hop is attacker-chosen. `pinnedFetch` carries none and
@@ -44,7 +71,8 @@ const cache = new Map<
 	string,
 	{ at: number; registry: AddonRegistry; errors: AddonLoadError[] }
 >();
-// Bumped by `invalidateRegistry`, so a build that started before it never caches.
+// Per account, bumped by `invalidateRegistry`, so a build that started before
+// it never caches.
 const generations = new Map<string, number>();
 
 export async function getRegistry(): Promise<{
@@ -56,7 +84,8 @@ export async function getRegistry(): Promise<{
 	// `requireProfile()` guarantees a session; the check keeps the type honest
 	// and means a future refactor can't silently start sharing one cache entry.
 	if (!userId) {
-		const rows = await event.locals.nuvio.addons.list(profileId);
+		const owner = await addonOwner(event.locals.nuvio, profileId);
+		const rows = await event.locals.nuvio.addons.list(owner.profileId);
 		return await buildRegistry(rows, pinnedFetch);
 	}
 	const key = cacheKey(userId, profileId);
@@ -66,10 +95,11 @@ export async function getRegistry(): Promise<{
 	if (hit && Date.now() - hit.at < ttl) {
 		return { registry: hit.registry, errors: hit.errors };
 	}
-	const generation = generations.get(key) ?? 0;
-	const rows = await event.locals.nuvio.addons.list(profileId);
+	const generation = generations.get(userId) ?? 0;
+	const owner = await addonOwner(event.locals.nuvio, profileId);
+	const rows = await event.locals.nuvio.addons.list(owner.profileId);
 	const built = await buildRegistry(rows, pinnedFetch);
-	if ((generations.get(key) ?? 0) === generation) {
+	if ((generations.get(userId) ?? 0) === generation) {
 		pruneExpired();
 		cache.set(key, { at: Date.now(), ...built });
 	}
@@ -91,17 +121,20 @@ function pruneExpired(): void {
 }
 
 /**
- * Invalidates the calling profile's entry only. Clearing the whole map would
+ * Invalidates the calling account's entries only: every profile of it, since
+ * the main profile's addons can be another's too. Clearing the whole map would
  * make one person's addon edit re-fan-out every other visitor's next page.
  */
 export function invalidateRegistry(): void {
-	const event = getRequestEvent();
-	const userId = event.locals.session?.accountKey;
-	const profileId = event.locals.profileId;
-	if (userId && profileId != null) {
-		const key = cacheKey(userId, profileId);
-		generations.set(key, (generations.get(key) ?? 0) + 1);
-		cache.delete(key);
+	const userId = getRequestEvent().locals.session?.accountKey;
+	if (!userId) {
+		return;
+	}
+	generations.set(userId, (generations.get(userId) ?? 0) + 1);
+	for (const key of cache.keys()) {
+		if (key.startsWith(`${userId}:`)) {
+			cache.delete(key);
+		}
 	}
 }
 
@@ -212,12 +245,13 @@ export interface InstalledAddonRow {
 	enabled: boolean;
 }
 
-/** The profile's addon rows in their saved order, disabled ones included. */
+/** The addon rows the profile uses in their saved order, disabled ones included. */
 export async function installedAddonRows(
 	nuvio: NuvioClient,
 	profileId: number,
 ): Promise<InstalledAddonRow[]> {
-	const rows = await nuvio.addons.list(profileId);
+	const owner = await addonOwner(nuvio, profileId);
+	const rows = await nuvio.addons.list(owner.profileId);
 	return rows
 		.sort((a, b) => a.sort_order - b.sort_order)
 		.map((row) => ({

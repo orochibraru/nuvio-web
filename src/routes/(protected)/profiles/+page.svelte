@@ -97,6 +97,13 @@
 	}
 </script>
 
+<!-- Profile 1: the one whose addons the others can share. -->
+{#snippet mainTag(index: number)}
+	{#if index === 1}
+		<span class="-mt-2 text-xs text-muted-foreground/70">{m.profiles_main()}</span>
+	{/if}
+{/snippet}
+
 <!--
 	Like the auth screens, the picker sits before any profile's stored theme is
 	known : pin it (and its portalled dialogs) to the dark palette rather than
@@ -141,6 +148,7 @@
 					<span class="max-w-full truncate text-sm font-medium text-muted-foreground">
 						{profile.name}
 					</span>
+					{@render mainTag(profile.profile_index)}
 				</div>
 			{:else if profile.pin_enabled}
 				<button
@@ -162,6 +170,7 @@
 					<span class="max-w-full truncate text-sm font-medium text-muted-foreground">
 						{profile.name}
 					</span>
+					{@render mainTag(profile.profile_index)}
 				</button>
 			{:else}
 				{@const pick = selectProfile.for(profile.profile_index)}
@@ -187,6 +196,7 @@
 						<span class="max-w-full truncate text-sm font-medium text-muted-foreground transition-colors group-hover:text-foreground">
 							{profile.name}
 						</span>
+						{@render mainTag(profile.profile_index)}
 					</button>
 				</form>
 			{/if}

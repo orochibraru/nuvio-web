@@ -10,6 +10,7 @@
 	import SettingsIcon from "@lucide/svelte/icons/settings";
 	import Trash2Icon from "@lucide/svelte/icons/trash-2";
 	import TriangleAlertIcon from "@lucide/svelte/icons/triangle-alert";
+	import UsersIcon from "@lucide/svelte/icons/users";
 	import { toast } from "svelte-sonner";
 	import {
 		installedAddons,
@@ -43,6 +44,8 @@
 	}
 
 	const addonsQuery = installedAddons();
+	// The main profile's list: read here, changed from there.
+	const sharedFrom = $derived(addonsQuery.current?.sharedFrom ?? null);
 
 	let saving = $state(false);
 	let dialogOpen = $state(false);
@@ -252,7 +255,11 @@
         ]}
     />
 
-    <SettingsGroup title={m.settings_group_installed()} action={addButton} plain>
+    <SettingsGroup
+        title={m.settings_group_installed()}
+        action={sharedFrom ? undefined : addButton}
+        plain
+    >
             <Alert.Root>
                 <InfoIcon />
                 <Alert.Description>
@@ -274,6 +281,15 @@
                     {/each}
                 </div>
             {:else}
+                {#if sharedFrom}
+                    <Alert.Root>
+                        <UsersIcon />
+                        <Alert.Description>
+                            {m.settings_addons_shared({ name: sharedFrom })}
+                        </Alert.Description>
+                    </Alert.Root>
+                {/if}
+
                 {#if addonsQuery.current.errors.length > 0}
                     <Alert.Root variant="destructive">
                         <TriangleAlertIcon />
@@ -290,7 +306,7 @@
                     </Alert.Root>
                 {/if}
 
-                {#if addonsQuery.current.addons.length === 0}
+                {#if addonsQuery.current.addons.length === 0 && !sharedFrom}
                     <Card.Root>
                         <Card.Header>
                             <Card.Title>{m.settings_addons_empty_title()}</Card.Title>
@@ -418,6 +434,7 @@
                                             </div>
                                         </div>
 
+                                        {#if !sharedFrom}
                                         <div
                                             class="ml-auto flex items-center gap-1 max-sm:basis-full max-sm:justify-end"
                                         >
@@ -500,6 +517,7 @@
                                                 <Trash2Icon />
                                             </Button>
                                         </div>
+                                        {/if}
                                     </Card.Content>
                                 </Card.Root>
                             </div>

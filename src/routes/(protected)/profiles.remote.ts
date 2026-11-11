@@ -1,5 +1,6 @@
 import { invalid, redirect } from "@sveltejs/kit";
 import * as v from "valibot";
+import { invalidateRegistry } from "#lib/addons/server.js";
 import { safeRedirectPath } from "#lib/core/url.js";
 import { profileName } from "#lib/forms/schemas.js";
 import { m } from "#lib/i18n/index.js";
@@ -145,6 +146,9 @@ export const updateProfile = form(
 				};
 			}),
 		});
+		if (nextUsesPrimary !== target.uses_primary_addons) {
+			invalidateRegistry();
+		}
 		redirect(303, resolve("profiles"));
 	},
 );

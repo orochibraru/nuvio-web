@@ -8,6 +8,7 @@ import { LOGGER } from "#lib/services/index.js";
 import { command, query } from "$app/server";
 import { fetchManifest } from "./manifest.ts";
 import {
+	addonOwner,
 	catalogPage,
 	getRegistry,
 	invalidateRegistry,
@@ -30,8 +31,9 @@ function resourceNames(manifest: AddonManifest): string[] {
 
 export const installedAddons = query(async () => {
 	const { event, profileId } = requireProfile();
+	const owner = await addonOwner(event.locals.nuvio, profileId);
 	const [rows, { registry, errors }] = await Promise.all([
-		event.locals.nuvio.addons.list(profileId),
+		event.locals.nuvio.addons.list(owner.profileId),
 		getRegistry(),
 	]);
 	const infoByUrl = new Map(
@@ -67,6 +69,8 @@ export const installedAddons = query(async () => {
 				};
 			}),
 		errors,
+		/** The main profile's name, when these are its addons and not this profile's. */
+		sharedFrom: owner.sharedFrom,
 	};
 });
 
@@ -128,6 +132,10 @@ const addonListSchema = v.array(
 
 export const saveAddons = command(addonListSchema, async (addons) => {
 	const { event, profileId } = requireProfile();
+	// Its list is the main profile's: changed from there, not from here.
+	if ((await addonOwner(event.locals.nuvio, profileId)).sharedFrom) {
+		error(403, m.settings_addons_shared_readonly());
+	}
 	const payload: AddonInput[] = addons.map((addon, index) => ({
 		url: addon.url,
 		name: addon.name,

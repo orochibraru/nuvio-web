@@ -16,6 +16,8 @@ test("profiles: manage mode opens the editor", async ({ page }) => {
 	await expect(
 		page.getByRole("heading", { name: "Who's watching?" }),
 	).toBeVisible();
+	// The account's first profile, whose addons the others can share.
+	await expect(page.getByText("Main profile", { exact: true })).toHaveCount(1);
 
 	await page.getByRole("button", { name: "Manage profiles" }).click();
 	await expect(

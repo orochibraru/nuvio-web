@@ -10,6 +10,10 @@ const { state } = vi.hoisted(() => ({
 		},
 		errors: [] as unknown[],
 		invalidateRegistry: vi.fn(),
+		owner: vi.fn((profileId: number) => ({
+			profileId,
+			sharedFrom: null as string | null,
+		})),
 		fetchManifest: vi.fn(),
 		catalogPage: vi.fn(),
 		titleMeta: vi.fn(),
@@ -56,6 +60,8 @@ vi.mock("./server.ts", () => ({
 		},
 		profileId: 1,
 	}),
+	addonOwner: async (_nuvio: unknown, profileId: number) =>
+		state.owner(profileId),
 	getRegistry: async () => ({ registry: state.registry, errors: state.errors }),
 	invalidateRegistry: state.invalidateRegistry,
 	catalogPage: state.catalogPage,
@@ -211,6 +217,15 @@ describe("previewAddon", () => {
 	});
 });
 
+describe("installedAddons, shared", () => {
+	it("lists the main profile's rows and names it", async () => {
+		state.owner.mockReturnValueOnce({ profileId: 1, sharedFrom: "Main" });
+		const out = await installedAddons();
+		expect(state.addonsList).toHaveBeenCalledWith(1);
+		expect(out.sharedFrom).toBe("Main");
+	});
+});
+
 describe("saveAddons", () => {
 	it("writes a sort-ordered payload and invalidates the registry", async () => {
 		const out = await saveAddons([
@@ -224,6 +239,14 @@ describe("saveAddons", () => {
 			{ url: "https://a", name: "A", enabled: false, sort_order: 1 },
 		]);
 		expect(state.invalidateRegistry).toHaveBeenCalled();
+	});
+
+	it("refuses a profile whose addons are the main profile's", async () => {
+		state.owner.mockReturnValueOnce({ profileId: 1, sharedFrom: "Main" });
+		await expect(
+			saveAddons([{ url: "https://a", enabled: true }]),
+		).rejects.toMatchObject({ status: 403 });
+		expect(state.addonsReplace).not.toHaveBeenCalled();
 	});
 });
 

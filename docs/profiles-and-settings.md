@@ -17,6 +17,13 @@ The pick is remembered on this browser for 30 days, or only until the browser
 restarts with **Remember this profile on this browser** turned off under the
 picker (a per-browser choice).
 
+The account's first profile is its **main profile**, marked so in the picker.
+Another profile can use the main profile's addons instead of its own: **Use the
+main profile's addons** when editing it, the same setting as in Nuvio's other
+apps. Its addons are then the main profile's, changes included, and its addon
+settings show them read-only: they change from the main profile. A change made
+in another app shows within a minute.
+
 ## Settings
 
 Settings live on your Nuvio account, so they follow you between devices. They

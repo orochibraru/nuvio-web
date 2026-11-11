@@ -13,6 +13,11 @@ const state = {
 		baseUrl: url,
 	})),
 	throwOnRequire: false as boolean,
+	profiles: [] as Array<{
+		profile_index: number;
+		name: string;
+		uses_primary_addons: boolean;
+	}>,
 };
 
 const event = {
@@ -24,6 +29,7 @@ const event = {
 		services: { get: () => ({ warn: () => {} }) },
 		nuvio: {
 			addons: { list: (id: number) => state.list(id) },
+			profiles: { list: async () => state.profiles },
 			// The home rows read the profile's saved layout.
 			homeCatalog: {
 				pull: async () => [
@@ -123,6 +129,7 @@ beforeEach(() => {
 	state.userId = crypto.randomUUID();
 	state.profileId = 7;
 	state.throwOnRequire = false;
+	state.profiles = [];
 	state.list = vi.fn(async () => [row()]);
 	state.manifest = vi.fn(async (url: string) => ({
 		manifest: manifest(),
@@ -242,7 +249,7 @@ describe("getRegistry", () => {
 				}),
 		);
 		const stale = getRegistry();
-		await Promise.resolve();
+		await vi.waitFor(() => expect(state.list).toHaveBeenCalled());
 		invalidateRegistry();
 		release([row()]);
 		await stale;
@@ -251,6 +258,24 @@ describe("getRegistry", () => {
 		const { registry } = await getRegistry();
 		expect(state.list).toHaveBeenCalledTimes(1);
 		expect(registry.addons).toHaveLength(0);
+	});
+
+	it("uses the main profile's addons when the profile shares them", async () => {
+		state.profiles = [
+			{ profile_index: 1, name: "Main", uses_primary_addons: false },
+			{ profile_index: 7, name: "Kid", uses_primary_addons: true },
+		];
+		await getRegistry();
+		expect(state.list).toHaveBeenCalledWith(1);
+	});
+
+	it("drops every profile of the account when one edits, the main's addons being shared", async () => {
+		await getRegistry();
+		state.profileId = 1;
+		invalidateRegistry();
+		state.profileId = 7;
+		await getRegistry();
+		expect(state.list).toHaveBeenCalledTimes(2);
 	});
 
 	it("is rebuilt after invalidateRegistry()", async () => {
@@ -370,6 +395,7 @@ describe("request-scoped wrappers", () => {
 
 describe("addon browsing", () => {
 	const nuvio = {
+		profiles: { list: async () => [] },
 		addons: {
 			list: async () => [
 				{
