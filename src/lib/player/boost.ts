@@ -26,3 +26,12 @@ export function needsCorsReload(
 		return false;
 	}
 }
+
+/**
+ * Whether Web Audio would hear silence from this source. WebKit (Safari, the
+ * desktop app's web view) plays an MSE (`blob:`) source, so hls.js and the
+ * in-browser fix, but its `MediaElementAudioSourceNode` outputs nothing.
+ */
+export function boostSilences(currentSrc: string, vendor: string): boolean {
+	return vendor.startsWith("Apple") && currentSrc.startsWith("blob:");
+}

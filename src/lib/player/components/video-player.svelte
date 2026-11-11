@@ -263,7 +263,7 @@
 			toast.error(m.player_boost_unavailable());
 		}
 	}
-	// A restored boost waits for playback : by then the browser lets audio run.
+	// A restored boost waits for playback, then for a gesture if it must.
 	let boostRestored = false;
 	function onPlaying() {
 		onReady();
@@ -272,7 +272,7 @@
 		if (!boostRestored) {
 			boostRestored = true;
 			if (initialBoost > 1) {
-				void boost.set(initialBoost);
+				void boost.restore(initialBoost);
 			}
 		}
 	}

@@ -18,12 +18,12 @@ import {
 } from "mediabunny";
 import { m } from "#lib/i18n/index.js";
 import { preferredTrackIndex } from "#lib/player/audio-language.js";
+import { downmixToStereo } from "#lib/player/downmix.js";
 import type { AudioTrackOption } from "#lib/player/media.js";
 import { MkvTextTracks } from "#lib/player/mkv-text-tracks.js";
 import {
 	audioTrackLabel,
 	bufferedAhead,
-	downmixToStereo,
 	type TimeRange,
 	transmuxMime,
 } from "#lib/player/transmux.js";

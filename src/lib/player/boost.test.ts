@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { needsCorsReload } from "./boost.ts";
+import { boostSilences, needsCorsReload } from "./boost.ts";
 
 const ORIGIN = "https://nuvio.example";
 
@@ -28,5 +28,21 @@ describe("needsCorsReload", () => {
 
 	it("nothing loaded yet : nothing to reload", () => {
 		expect(needsCorsReload("", null, ORIGIN)).toBe(false);
+	});
+});
+
+describe("boostSilences", () => {
+	const BLOB = `blob:${ORIGIN}/0b6c-4e1f`;
+
+	it("WebKit hands Web Audio silence from an MSE source", () => {
+		expect(boostSilences(BLOB, "Apple Computer, Inc.")).toBe(true);
+	});
+
+	it("WebKit's direct files, and every source elsewhere, are heard", () => {
+		expect(
+			boostSilences("https://cdn.debrid.example/f.mp4", "Apple Computer, Inc."),
+		).toBe(false);
+		expect(boostSilences(BLOB, "Google Inc.")).toBe(false);
+		expect(boostSilences(BLOB, "")).toBe(false);
 	});
 });
