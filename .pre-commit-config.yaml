@@ -192,7 +192,7 @@ repos:
         language: system
         pass_filenames: false
         stages: [pre-push]
-        files: ^(src/|scripts/|vitest\.config\.ts$)
+        files: ^(src/|scripts/|desktop/src/|vitest\.config\.ts$)
 
   # The CLAUDE.md conventions no linter knows about. Each is at zero occurrences
   # today: guards against regression, not a cleanup backlog.

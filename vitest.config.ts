@@ -11,7 +11,11 @@ export default defineConfig({
 				extends: true,
 				test: {
 					name: "unit",
-					include: ["src/**/*.{test,spec}.ts", "scripts/**/*.{test,spec}.ts"],
+					include: [
+						"src/**/*.{test,spec}.ts",
+						"scripts/**/*.{test,spec}.ts",
+						"desktop/src/**/*.test.ts",
+					],
 					exclude: ["src/**/*.svelte.test.ts"],
 					environment: "node",
 				},
