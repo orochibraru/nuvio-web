@@ -130,6 +130,28 @@ describe("safeFetch", () => {
 		expect(impl).toHaveBeenCalledTimes(2);
 	});
 
+	it("keeps credentials on the same host and drops them on another", async () => {
+		const redirect = (location: string) =>
+			new Response(null, { status: 302, headers: { location } });
+		const impl = vi
+			.fn()
+			.mockResolvedValueOnce(redirect("http://93.184.216.34/upgraded"))
+			.mockResolvedValueOnce(redirect("https://198.51.100.7/cdn"))
+			.mockResolvedValueOnce(new Response("done", { status: 200 }));
+		await safeFetch(
+			"https://93.184.216.34/start",
+			impl as unknown as typeof fetch,
+			{ headers: { authorization: "Bearer secret", "user-agent": "Addon/1" } },
+			{ allowHttp: true },
+		);
+		const sent = impl.mock.calls.map(
+			([, init]) => new Headers((init as RequestInit).headers),
+		);
+		expect(sent[1].get("authorization")).toBe("Bearer secret");
+		expect(sent[2].get("authorization")).toBeNull();
+		expect(sent[2].get("user-agent")).toBe("Addon/1");
+	});
+
 	it("stops a redirect chain that exceeds maxRedirects", async () => {
 		const impl = vi.fn(
 			async () =>

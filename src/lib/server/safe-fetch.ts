@@ -253,6 +253,8 @@ export interface SafeFetchOptions {
 	maxRedirects?: number;
 }
 
+const CREDENTIAL_HEADERS = ["authorization", "cookie", "proxy-authorization"];
+
 /**
  * Fetches an untrusted (addon-supplied) URL with SSRF guards: a scheme allowlist,
  * a block on loopback / link-local / reserved ranges, and manual redirect
@@ -272,15 +274,28 @@ export async function safeFetch(
 	}: SafeFetchOptions = {},
 ): Promise<Response> {
 	let target = rawUrl;
+	let request = init;
 	for (let hop = 0; hop <= maxRedirects; hop += 1) {
 		// biome-ignore lint/performance/noAwaitInLoops: a redirect chain is inherently sequential : each hop's URL comes from the previous response's Location header
-		await assertPublicHost(target, allowHttp, allowPrivate, init.signal);
-		const response = await fetchImpl(target, { ...init, redirect: "manual" });
+		await assertPublicHost(target, allowHttp, allowPrivate, request.signal);
+		const response = await fetchImpl(target, {
+			...request,
+			redirect: "manual",
+		});
 		const location = response.headers.get("location");
 		if (response.status < 300 || response.status >= 400 || !location) {
 			return response;
 		}
-		target = new URL(location, target).toString();
+		const next = new URL(location, target);
+		// Credentials stay with the host they were meant for, as a browser does.
+		if (next.hostname !== new URL(target).hostname) {
+			const headers = new Headers(request.headers);
+			for (const name of CREDENTIAL_HEADERS) {
+				headers.delete(name);
+			}
+			request = { ...request, headers };
+		}
+		target = next.toString();
 	}
 	throw new Error("Too many redirects");
 }
