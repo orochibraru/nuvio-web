@@ -71,7 +71,7 @@ describe("installerUrl", () => {
 		expect(
 			installerUrl({ file: "win-x64-NuvioWeb-Setup.zip", label: "Windows" }),
 		).toBe(
-			"https://github.com/orochibraru/nuvio-web/releases/latest/download/win-x64-NuvioWeb-Setup.zip",
+			"https://github.com/zedensix/nuvio-web/releases/latest/download/win-x64-NuvioWeb-Setup.zip",
 		);
 	});
 });

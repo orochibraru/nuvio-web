@@ -44,7 +44,7 @@ function runSql(statements: [string, (string | number)[]][]): void {
 const ADMIN_EMAIL = process.env.NUVIO_TEST_EMAIL ?? "";
 const ADMIN_PASSWORD = "built-in admin password";
 const ADDON_BASE =
-	"https://raw.githubusercontent.com/orochibraru/nuvio-web/main/e2e/showcase-addon";
+	"https://raw.githubusercontent.com/zedensix/nuvio-web/main/e2e/showcase-addon";
 
 test.afterAll(() => {
 	runSql([

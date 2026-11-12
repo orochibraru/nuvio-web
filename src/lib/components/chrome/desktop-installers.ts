@@ -13,7 +13,7 @@ export const INSTALLERS = [
 ] as const satisfies readonly Installer[];
 
 export function installerUrl(installer: Installer): string {
-	return `https://github.com/orochibraru/nuvio-web/releases/latest/download/${installer.file}`;
+	return `https://github.com/zedensix/nuvio-web/releases/latest/download/${installer.file}`;
 }
 
 export interface Device {

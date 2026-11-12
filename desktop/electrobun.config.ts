@@ -9,7 +9,7 @@ const server =
 export default {
 	app: {
 		name: "Nuvio Web",
-		identifier: "com.orochibraru.nuvio-web",
+		identifier: "com.zedensix.nuvio-web",
 		version: root.version,
 		description: "Nuvio Web as a desktop app, with its own server built in.",
 	},
@@ -64,8 +64,7 @@ export default {
 	// against the previous release's, and while the release builds `latest`
 	// already points at the new, still empty one.
 	release: {
-		baseUrl:
-			"https://github.com/orochibraru/nuvio-web/releases/latest/download",
+		baseUrl: "https://github.com/zedensix/nuvio-web/releases/latest/download",
 		generatePatch: false,
 	},
 } satisfies ElectrobunConfig;

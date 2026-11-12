@@ -18,7 +18,7 @@ const PORT = 3017;
 const ORIGIN = `http://localhost:${PORT}`;
 const FOLDER = "/app/data/downloads";
 const SOURCE =
-	"https://raw.githubusercontent.com/orochibraru/nuvio-web/main/static/e2e/sample.webm";
+	"https://raw.githubusercontent.com/zedensix/nuvio-web/main/static/e2e/sample.webm";
 const SAMPLE_SIZE = statSync(
 	new URL("../static/e2e/sample.webm", import.meta.url),
 ).size;

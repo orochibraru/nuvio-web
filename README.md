@@ -33,10 +33,10 @@ Nuvio.
 
 ## Previews
 
-- The [stable release](https://nuvio.orochibraru.com)
-- The [canary release](https://canary.nuvio.orochibraru.com)
+- The [stable release](https://nuvio.zedensix.com)
+- The [canary release](https://canary.nuvio.zedensix.com)
 
-All deployed using [Homerun](https://github.com/orochibraru/homerun)
+All deployed using [Homerun](https://github.com/zedensix/homerun)
 
 ## Features
 
@@ -100,8 +100,8 @@ All deployed using [Homerun](https://github.com/orochibraru/homerun)
 ## Documentation
 
 Full docs live in [`docs/`](docs/) and are published at
-<https://orochibraru.com/nuvio-web> : install and configuration, every screen,
-the self-hosting admin surface, the architecture, and how to work on it.
+<https://zedensix.com/nuvio-web> : install and configuration, every screen, the
+self-hosting admin surface, the architecture, and how to work on it.
 
 ## Getting started
 

@@ -3,7 +3,7 @@ import { signIn } from "./auth.ts";
 import { collectRuntimeErrors } from "./errors.ts";
 
 const RELEASE =
-	"https://github.com/orochibraru/nuvio-web/releases/latest/download/";
+	"https://github.com/zedensix/nuvio-web/releases/latest/download/";
 
 test.beforeEach(async ({ context }) => {
 	await signIn(context);

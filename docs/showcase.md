@@ -117,7 +117,7 @@ history and a collection built from those films. The seed is idempotent, so
 every run starts from the same state.
 
 The instance loads the addon from
-`https://raw.githubusercontent.com/orochibraru/nuvio-web/main/e2e/showcase-addon/`,
+`https://raw.githubusercontent.com/zedensix/nuvio-web/main/e2e/showcase-addon/`,
 not from your checkout: addon requests go through the SSRF guard, which refuses
 localhost. A change to the fixture shows up in the shots once it is on `main`.
 

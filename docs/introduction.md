@@ -55,8 +55,8 @@ they follow you between devices.
 
 ## License
 
-[AGPL-3.0-or-later](https://github.com/orochibraru/nuvio-web/blob/main/LICENSE).
-If you run a modified version as a network service, you must offer its source to
+[AGPL-3.0-or-later](https://github.com/zedensix/nuvio-web/blob/main/LICENSE). If
+you run a modified version as a network service, you must offer its source to
 your users.
 
 ## Where to go next

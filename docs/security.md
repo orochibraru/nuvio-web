@@ -241,7 +241,6 @@ token.
 
 ## Reporting something
 
-Open an issue on
-[the repository](https://github.com/orochibraru/nuvio-web/issues). If it is
-sensitive, say so in the issue without the details and a private channel will be
-arranged.
+Open an issue on [the repository](https://github.com/zedensix/nuvio-web/issues).
+If it is sensitive, say so in the issue without the details and a private
+channel will be arranged.

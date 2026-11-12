@@ -19,7 +19,7 @@ import { waitForImages } from "./util.ts";
 
 const OUT_DIR = "docs/images";
 const ADDON_BASE =
-	"https://raw.githubusercontent.com/orochibraru/nuvio-web/main/e2e/showcase-addon";
+	"https://raw.githubusercontent.com/zedensix/nuvio-web/main/e2e/showcase-addon";
 const PROFILE_NAME = "Showcase";
 
 interface FixtureMeta {

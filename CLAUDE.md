@@ -86,10 +86,9 @@
   `pr_title.yml` fails the PR otherwise.
 - **A PR Claude opens carries only Claude's commits** : author and committer
   `Claude <noreply@anthropic.com>`, never the owner's identity.
-- **Every PR Claude opens is assigned to `orochibraru`, with `orochibraru`
-  requested as reviewer.** GitHub refuses a review request for the PR's own
-  author, so when the PR is opened under that account, the assignee is what
-  stands.
+- **Every PR Claude opens is assigned to `zedensix`, with `zedensix` requested
+  as reviewer.** GitHub refuses a review request for the PR's own author, so
+  when the PR is opened under that account, the assignee is what stands.
 - **Opening a PR means watching its CI** until it is green: subscribe to the
   PR's activity and fix what fails, don't hand back a red PR.
 
