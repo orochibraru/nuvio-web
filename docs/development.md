@@ -107,11 +107,11 @@ value inlined.
 
 ## Releases
 
-[`orochibraru/releaser`](https://github.com/orochibraru/releaser), driven by
-commit subjects. `fix`, `feat`, `perf`, `revert`, `refactor` and breaking
-changes all bump the patch; other types, `docs` included, don't release (Publish
-ignores docs-only pushes anyway, so a `docs:` commit ships with the next code
-change). `main` is the canary channel:
+[`zedensix/releaser`](https://github.com/zedensix/releaser), driven by commit
+subjects. `fix`, `feat`, `perf`, `revert`, `refactor` and breaking changes all
+bump the patch; other types, `docs` included, don't release (Publish ignores
+docs-only pushes anyway, so a `docs:` commit ships with the next code change).
+`main` is the canary channel:
 
 - Every push to `main` builds the image (pull requests only check that it
   builds, they never push one), pushes it as `:canary`, and publishes an

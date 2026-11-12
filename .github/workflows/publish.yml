@@ -81,7 +81,7 @@ jobs:
 
       - name: Dry-run release to compute the next version
         id: releaser
-        uses: orochibraru/releaser@f4e670849b608549cd6ac88d32eeb41cab364709 # v1.7.1
+        uses: zedensix/releaser@ba23a5840fb7ec8db1aa81bff4d4478f6e499020 # v1.7.3
         with:
           branch: main
           rules: ${{ env.RELEASE_RULES }}
@@ -154,7 +154,7 @@ jobs:
             | xargs -r -n1 gh release delete --cleanup-tag --yes
 
       - name: Open or update the release PR
-        uses: orochibraru/releaser@f4e670849b608549cd6ac88d32eeb41cab364709 # v1.7.1
+        uses: zedensix/releaser@ba23a5840fb7ec8db1aa81bff4d4478f6e499020 # v1.7.3
         with:
           branch: main
           rules: ${{ env.RELEASE_RULES }}
@@ -194,7 +194,7 @@ jobs:
 
       - name: Dry-run release to read the version
         id: releaser
-        uses: orochibraru/releaser@f4e670849b608549cd6ac88d32eeb41cab364709 # v1.7.1
+        uses: zedensix/releaser@ba23a5840fb7ec8db1aa81bff4d4478f6e499020 # v1.7.3
         with:
           branch: main
           rules: ${{ env.RELEASE_RULES }}
@@ -246,7 +246,7 @@ jobs:
           ssh-key: ${{ secrets.RELEASE_DEPLOY_KEY }}
 
       - name: Tag the release commit and publish the release
-        uses: orochibraru/releaser@f4e670849b608549cd6ac88d32eeb41cab364709 # v1.7.1
+        uses: zedensix/releaser@ba23a5840fb7ec8db1aa81bff4d4478f6e499020 # v1.7.3
         with:
           branch: main
           rules: ${{ env.RELEASE_RULES }}
