@@ -1,7 +1,7 @@
 # Install
 
 Nuvio Web is distributed as a multi-arch Docker image
-([`orochibraru/nuvio-web`](https://hub.docker.com/r/orochibraru/nuvio-web)) for
+([`zedensix/nuvio-web`](https://hub.docker.com/r/zedensix/nuvio-web)) for
 `linux/amd64` and `linux/arm64`. There is no database to provision, but mount a
 volume on `/app/data`: the app keeps signed-in sessions and each profile's
 library, watch progress and history there, in SQLite, and syncs them with your
@@ -17,7 +17,7 @@ app's own sign-up screen.
 ```bash
 docker run -p 3000:3000 \
   -v ./data:/app/data \
-  orochibraru/nuvio-web:latest
+  zedensix/nuvio-web:latest
 ```
 
 It works on any URL as is, plain HTTP included. Put HTTPS in front before it
@@ -28,7 +28,7 @@ leaves your network. See [Configuration](configuration).
 ```yaml
 services:
   nuvio:
-    image: orochibraru/nuvio-web:latest
+    image: zedensix/nuvio-web:latest
     restart: unless-stopped
     ports:
       - 3000:3000

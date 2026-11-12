@@ -24,7 +24,7 @@ target "ci-base" {
 }
 
 target "app-base" {
-  tags       = ["orochibraru/nuvio-web:latest", "orochibraru/nuvio-web:${TAG}"]
+  tags       = ["zedensix/nuvio-web:latest", "zedensix/nuvio-web:${TAG}"]
   cache-from = ["type=gha,scope=app"]
   cache-to   = ["type=gha,mode=max,scope=app"]
 }

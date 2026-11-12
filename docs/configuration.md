@@ -22,7 +22,7 @@ carry the public ones:
 docker run -p 3000:3000 \
   -e PROTOCOL_HEADER=x-forwarded-proto \
   -e HOST_HEADER=x-forwarded-host \
-  orochibraru/nuvio-web:latest
+  zedensix/nuvio-web:latest
 ```
 
 | Variable          | Default                | When you need it                        |

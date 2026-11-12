@@ -67,9 +67,9 @@ jobs:
     uses: ./.github/workflows/docker.yml
     with:
       image_tag: pr-${{ github.event.pull_request.number }}
-      image_name: orochibraru/nuvio-web
+      image_name: zedensix/nuvio-web
       registry_name: docker.io
-      registry_username: orochibraru
+      registry_username: zedensix
       bake_target: app-ci
       push: false
 

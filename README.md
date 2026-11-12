@@ -7,8 +7,8 @@ Sign in with the Nuvio account you already use on mobile and you get the same
 profiles, addons, library and watch progress in a browser : plus a player that
 streams in the tab, casts to a TV, or hands the link off to a native app.
 
-[![Docker Hub](https://img.shields.io/docker/v/orochibraru/nuvio-web?label=docker%20hub&sort=semver)](https://hub.docker.com/r/orochibraru/nuvio-web)
-[![Image size](https://img.shields.io/docker/image-size/orochibraru/nuvio-web/latest)](https://hub.docker.com/r/orochibraru/nuvio-web)
+[![Docker Hub](https://img.shields.io/docker/v/zedensix/nuvio-web?label=docker%20hub&sort=semver)](https://hub.docker.com/r/zedensix/nuvio-web)
+[![Image size](https://img.shields.io/docker/image-size/zedensix/nuvio-web/latest)](https://hub.docker.com/r/zedensix/nuvio-web)
 [![License](https://img.shields.io/badge/license-AGPL--3.0--or--later-blue)](LICENSE)
 
 <!-- Regenerate with `bun run screenshots`; do not edit by hand. -->
@@ -110,15 +110,15 @@ sign-up screen) and at least one addon. Addons installed on your account —
 mobile or web : show up everywhere.
 
 The docker image is available
-[at Docker Hub](https://hub.docker.com/r/orochibraru/nuvio-web), for
-`linux/amd64` and `linux/arm64`.
+[at Docker Hub](https://hub.docker.com/r/zedensix/nuvio-web), for `linux/amd64`
+and `linux/arm64`.
 
 ### Docker run
 
 ```bash
 docker run -p 3000:3000 \
   -v ./data:/app/data \
-  orochibraru/nuvio-web:latest
+  zedensix/nuvio-web:latest
 ```
 
 ### Docker Compose
@@ -126,7 +126,7 @@ docker run -p 3000:3000 \
 ```yaml
 services:
   nuvio:
-    image: orochibraru/nuvio-web:latest
+    image: zedensix/nuvio-web:latest
     restart: unless-stopped
     ports:
       - 3000:3000
