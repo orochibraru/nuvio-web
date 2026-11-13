@@ -36,7 +36,7 @@
 		"@inlang/paraglide-js": "2.25.4",
 		"@internationalized/date": "3.12.4",
 		"@j178/prek": "0.5.4",
-		"@lucide/svelte": "1.49.0",
+		"@lucide/svelte": "1.72.0",
 		"@playwright/test": "1.65.0",
 		"@sveltejs/adapter-bun": "1.0.0",
 		"@sveltejs/kit": "3.0.0",
