@@ -1,5 +1,35 @@
 # Changelog
 
+## [1.0.33](https://github.com/zedensix/nuvio-web/compare/v1.0.32...v1.0.33) (2026-11-12)
+
+### Features
+
+* **desktop:** animated splash while the server starts, and install the app uncompressed ([c655ab8](https://github.com/zedensix/nuvio-web/commit/c655ab8bb9fccec7dc05f4521258f36b9c4a4cd7))
+* **profiles:** use the main profile's addons on a profile set to share them, and mark the main profile in the picker ([fa132b4](https://github.com/zedensix/nuvio-web/commit/fa132b42ef1783164fa758a5c5808df0b5ff268b))
+* **watch:** ask the addons past their caches from the fourth refresh of a video's sources ([3d70f88](https://github.com/zedensix/nuvio-web/commit/3d70f880f90e1fe3d08c8ad49d31c25a06d6f73e))
+* **player:** show only the loader until a source is known to play here or in mpv ([c0ff99a](https://github.com/zedensix/nuvio-web/commit/c0ff99a7e4c272b15cf4864c5e8cffdc9bf5a6aa))
+* **server:** log data and remote requests that take over a second ([8465b85](https://github.com/zedensix/nuvio-web/commit/8465b8555cd0154fb0c466bfbaf0992443a15b9b))
+* **desktop:** add mise run install to build the app from source into /Applications, unquarantined ([1f0006e](https://github.com/zedensix/nuvio-web/commit/1f0006e7337f1c7dd8b4ad20b011394cf9fca57a))
+* **desktop:** check for updates every six hours and offer a downloaded one from the app menu ([c43786f](https://github.com/zedensix/nuvio-web/commit/c43786fb5effba5cb289797b7a557c4b8844128c))
+* **desktop:** hand mpv the addon's proxyHeaders and subtitles, and give the in-window mpv the player's volume, boost, audio, subtitle and skip intro controls ([35df79c](https://github.com/zedensix/nuvio-web/commit/35df79c1aaae41a324720f101f38b3a3589ad814))
+* **downloads:** send the addon's proxyHeaders with a download and let the desktop app pick its downloads folder ([f785878](https://github.com/zedensix/nuvio-web/commit/f785878caf6d8f9b06844dc878671eb0e7d87e16))
+* **backend:** password reset, email confirmation and account deletion on the built-in backend, and a grace window for a lost refresh ([3ad6225](https://github.com/zedensix/nuvio-web/commit/3ad62259972401e62fb5330d74a1721b373091c3))
+* **desktop:** download to the videos folder named like a media library, reuse a video's last source and mark it in the drawer ([2d6179f](https://github.com/zedensix/nuvio-web/commit/2d6179f924579774f142963a52f9d063b4ba06eb))
+
+### Bug Fixes
+
+* docs & refs (oro to zn6) ([fe3f0c9](https://github.com/zedensix/nuvio-web/commit/fe3f0c9c027ef5cbffdd9445becd725badf79e5f))
+* **desktop:** only update to a newer release, so a build from source isn't replaced by the one it was built past ([c01836e](https://github.com/zedensix/nuvio-web/commit/c01836ee46c04333bc07a2b09d0e8c33b46560d4))
+* **desktop:** never block the shell on mpv's core, so the in-window controls act at once ([989f274](https://github.com/zedensix/nuvio-web/commit/989f274cd506b5c56fdebb559e7e16156100ba5a))
+* **watch:** stop episode hovers from resolving streams that filled the browser's connections and stalled the click ([2d7f60d](https://github.com/zedensix/nuvio-web/commit/2d7f60d8dae3f3c34965aefe432043d8a1c7ef98))
+* **player:** keep the volume boost working in the desktop app and keep a 7.1 track's center when boosted ([dea5ea9](https://github.com/zedensix/nuvio-web/commit/dea5ea9918d216b2bbd8ec9a7dceb1f12090dcc9))
+* **calendar:** stay under TVmaze's 20 calls per 10 seconds instead of collecting 429s ([894cf09](https://github.com/zedensix/nuvio-web/commit/894cf0932cb10b3f99feeed096550209af24f179))
+* **server:** drop credential headers when an addon request redirects to another host ([ea30b58](https://github.com/zedensix/nuvio-web/commit/ea30b5840cf8f6c01980ca596c98e65035935835))
+
+### Documentation
+
+* **todo:** update the plan with what landed and what's left to try ([dc7dbc2](https://github.com/zedensix/nuvio-web/commit/dc7dbc2b029dd95c51e630cdd92263b2c1a03a84))
+
 ## [1.0.32](https://github.com/zedensix/nuvio-web/compare/v1.0.31...v1.0.32) (2026-11-08)
 
 ### Features
